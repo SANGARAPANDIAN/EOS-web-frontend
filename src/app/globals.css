@@ -1,26 +1,147 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  Design tokens extracted verbatim from the "Student Portal" design reference
+  (Student Module - Web/Student Portal.dc.html). Do not invent new colors —
+  every semantic state in that design reuses this same blue-family palette,
+  so new components should compose from these tokens rather than adding hues.
+*/
+@theme {
+  --font-sans: var(--font-plus-jakarta-sans), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+
+  /* text */
+  --color-ink: #0f172a;
+  --color-ink-soft: #334155;
+  --color-body: #475569;
+  --color-muted: #64748b;
+  --color-subtle: #94a3b8;
+
+  /* surfaces & borders */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-surface-tint: #eef1f7;
+  --color-surface-input: #f4f6fb;
+  --color-border-default: #e6e9f2;
+  --color-border-accent: #c7d4f0;
+  --color-divider: #f1f5f9;
+  --color-neutral-pill-border: #e2e8f0;
+  --color-nav-hover: #f1f5fd;
+  --color-disabled: #cbd5e1;
+  --color-icon-chip: #eef2fb;
+
+  /* accent / primary blue family */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #eaf0ff;
+  --color-accent-200: #dbe6ff;
+  --color-accent-300: #9fb8f5;
+  --color-primary: #1d4ed8;
+  --color-primary-dark: #1e3a8a;
+  --color-primary-cta: #2563eb;
+  --color-modal-header: #0f1e3d;
+
+  /* the one non-blue accent in the whole system: attendance "Absent" chip */
+  --color-danger-bg: #fdecea;
+  --color-danger-fg: #d1483c;
+  --color-danger-border: #f5c7c1;
+
+  /* calendar day-cell blocks only (badges/pills keep using accent-50/primary) */
+  --color-on-duty-bg: #dbeafe;
+  --color-on-duty-border: #bfdbfe;
+  --color-faint: #c3cad8;
+
+  /* radii */
+  --radius-pill: 999px;
+  --radius-card: 14px;
+  --radius-card-sm: 12px;
+  --radius-input: 10px;
+  --radius-btn-sm: 9px;
+  --radius-modal: 18px;
+  --radius-hero: 16px;
+
+  /* shadows */
+  --shadow-toggle: 0 1px 2px rgba(15, 23, 42, 0.09);
+  --shadow-tab: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --shadow-modal: 0 30px 70px rgba(8, 15, 35, 0.35);
+  --shadow-ring: 0 0 0 3px #eaf0ff;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--color-primary-dark);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d5dbe8;
+  border-radius: 8px;
+  border: 3px solid #ffffff;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-pop-in {
+  animation: popIn 0.28s ease both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease both;
+}
+
+/* Material Symbols Rounded — ligature icon font, used exactly as in the
+   design reference (span text content is the icon name, e.g. "grid_view"). */
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
 }

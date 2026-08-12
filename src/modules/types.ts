@@ -1,4 +1,9 @@
-export type NavBadgeKey = "announcementsRecent" | "feesDue" | "feedbackPending";
+export type NavBadgeKey =
+  | "announcementsRecent"
+  | "feesDue"
+  | "feedbackPending"
+  | "principalStudentsTotal"
+  | "principalFacultyTotal";
 
 export interface NavItem {
   key: string;

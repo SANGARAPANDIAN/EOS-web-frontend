@@ -8,7 +8,7 @@ export interface DataTableColumn<T> {
   /** grid-template-columns track, e.g. "1.5fr" or "140px" — defaults to "1fr" */
   width?: string;
   align?: "left" | "right" | "center";
-  render: (row: T) => ReactNode;
+  render: (row: T, index: number) => ReactNode;
 }
 
 interface DataTableProps<T> {
@@ -17,12 +17,16 @@ interface DataTableProps<T> {
   rowKey: (row: T) => string | number;
   emptyMessage?: string;
   className?: string;
+  /** Lifts + outlines + tints the row under the cursor, matching the design reference's list-row hover. Uses `outline` (not `border`) so hovering never shifts layout. */
+  hoverableRows?: boolean;
+  onRowClick?: (row: T) => void;
 }
 
 /**
  * Reproduces the one recurring table pattern in the design reference:
  * caps-label grid header on a muted background, grid body rows separated
- * only by a top border (no zebra striping, no row hover).
+ * only by a top border. Row hover (`hoverableRows`) is opt-in — most tables
+ * in this app are read-only logs where a hover affordance would be noise.
  */
 export function DataTable<T>({
   columns,
@@ -30,6 +34,8 @@ export function DataTable<T>({
   rowKey,
   emptyMessage = "No records found.",
   className,
+  hoverableRows = false,
+  onRowClick,
 }: DataTableProps<T>) {
   const gridTemplateColumns = columns.map((c) => c.width ?? "1fr").join(" ");
   const alignClass = (align?: DataTableColumn<T>["align"]) =>
@@ -52,15 +58,21 @@ export function DataTable<T>({
           <EmptyState message={emptyMessage} />
         </div>
       ) : (
-        data.map((row) => (
+        data.map((row, index) => (
           <div
             key={rowKey(row)}
-            className="grid items-center gap-2 border-t border-divider px-5 py-3.5 text-[13px] text-ink"
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            className={cn(
+              "relative grid items-center gap-2 border-t border-divider px-5 py-3.5 text-[13px] text-ink",
+              hoverableRows &&
+                "outline outline-1 -outline-offset-1 outline-transparent transition-all duration-150 hover:z-10 hover:-translate-y-0.5 hover:bg-accent-50 hover:outline-primary hover:shadow-hover-lift",
+              onRowClick && "cursor-pointer",
+            )}
             style={{ gridTemplateColumns }}
           >
             {columns.map((col) => (
               <div key={col.key} className={alignClass(col.align)}>
-                {col.render(row)}
+                {col.render(row, index)}
               </div>
             ))}
           </div>

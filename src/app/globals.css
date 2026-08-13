@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+/* Advisor module — ported verbatim from the design reference's
+   `[data-lift]:hover` rule in "Advisor (Final) - Web/Faculty Portal.dc.html".
+   Scoped to this one attribute selector so it can't affect any other module. */
+[data-advisor-lift] {
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+[data-advisor-lift]:hover {
+  transform: translateY(-3px);
+  border-color: #1d4ed8;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.13);
+  position: relative;
+  z-index: 2;
+}
+
 /*
   Design tokens extracted verbatim from the "Student Portal" design reference
   (Student Module - Web/Student Portal.dc.html). Do not invent new colors —

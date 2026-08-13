@@ -1,6 +1,7 @@
 import type { ModuleConfig } from "@/modules/types";
 import { studentModuleConfig } from "@/modules/student/nav";
 import { advisorModuleConfig } from "@/modules/advisor/nav";
+import { edcModuleConfig } from "@/modules/edc/nav";
 
 /**
  * Single lookup point from JWT role -> module shell config (nav groups, base
@@ -12,6 +13,7 @@ import { advisorModuleConfig } from "@/modules/advisor/nav";
 export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   student: studentModuleConfig,
   faculty: advisorModuleConfig,
+  edc_coordinator: edcModuleConfig,
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

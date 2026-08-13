@@ -30,7 +30,7 @@ function initialsOf(name: string | undefined) {
 }
 
 export function AdvisorShell({ children }: { children: React.ReactNode }) {
-  useAuth();
+  const { logout } = useAuth();
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -493,6 +493,28 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
             {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
+          </div>
+          <div
+            onClick={logout}
+            title="Log out"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 38,
+              height: 38,
+              flex: "0 0 38px",
+              border: "1px solid #E2E8F0",
+              borderRadius: 9,
+              cursor: "pointer",
+              color: "#DC2626",
+            }}
+          >
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <path d="M16 17l5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
           </div>
         </header>
 

@@ -17,6 +17,68 @@
   z-index: 2;
 }
 
+/* EDC module — ported verbatim from every distinct `style-hover="..."`
+   value found in "EDC Module - Web/EDC Portal.dc.html". Several distinct
+   treatments exist in the source (card lift, row lift, nav-item tint, back
+   -link color, primary-button darken, chevron-circle accent) — kept as
+   separate attributes rather than collapsing them into one, since the
+   design itself doesn't collapse them. !important is needed because some
+   of these elements also set the same CSS property inline (e.g. nav-item
+   background, button background) and inline style otherwise always beats
+   a plain :hover rule. */
+[data-edc-lift],
+[data-edc-row],
+[data-edc-nav-item] {
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    outline-color 0.16s ease;
+}
+/* Card lift — dashboard/stat/KPI cards, section panels, table containers. */
+[data-edc-lift]:hover {
+  transform: translateY(-4px);
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 12px 26px rgba(29, 78, 216, 0.16);
+}
+/* Row lift — table/list rows (Recent Venture Registrations, EDC Students
+   table, generic Tier-B table rows, incubation milestones). */
+[data-edc-row]:hover {
+  transform: translateY(-3px);
+  background: #ffffff !important;
+  outline: 2px solid #1d4ed8;
+  outline-offset: -2px;
+  border-radius: 10px;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.16);
+  position: relative;
+  z-index: 2;
+}
+/* Sidebar nav item tint. Also suppresses the browser's default focus
+   outline on the wrapping <Link> (Next.js renders an <a>) — visible as a
+   stray black rectangle around the nav item after a click in some
+   browsers, not present anywhere in the design. */
+[data-edc-nav-item]:hover {
+  background: #eff6ff !important;
+}
+a:has(> [data-edc-nav-item]) {
+  outline: none;
+}
+/* "← All ..." back links. */
+[data-edc-back]:hover {
+  color: #1d4ed8 !important;
+}
+/* Solid primary buttons (Submit/Register/Schedule/Generate/Add event/Save). */
+[data-edc-btn-primary]:hover {
+  background: #1739a8 !important;
+}
+/* Calendar prev/next chevron circles. */
+[data-edc-chevron]:hover {
+  border-color: #1d4ed8 !important;
+  color: #1d4ed8 !important;
+}
+
 /*
   Design tokens extracted verbatim from the "Student Portal" design reference
   (Student Module - Web/Student Portal.dc.html). Do not invent new colors —
@@ -156,6 +218,25 @@ body {
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Material Symbols Outlined — used by the EDC Portal design reference
+   ("EDC Module - Web/EDC Portal.dc.html", class="ms"). Font is loaded via a
+   <link> in src/app/(portal)/edc/layout.tsx, not next/font, since it's
+   scoped to this one module rather than the whole app. */
+.ms {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;

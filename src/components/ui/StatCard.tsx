@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils/cn";
 interface StatCardProps {
   label: string;
   value: ReactNode;
-  icon: string;
+  /** Omit for modules whose design reference uses no icon font at all (e.g. HoD) — no chip is rendered in its place. */
+  icon?: string;
   sub?: ReactNode;
   delta?: ReactNode;
   barPercent?: number;
@@ -19,9 +20,11 @@ export function StatCard({ label, value, icon, sub, delta, barPercent, threshold
     <div className={cn("min-w-0 rounded-card border border-border-default bg-surface p-[18px_18px_16px]", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="text-[13px] font-bold text-body">{label}</div>
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
-          <Icon name={icon} size={18} className="text-primary" />
-        </div>
+        {icon && (
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
+            <Icon name={icon} size={18} className="text-primary" />
+          </div>
+        )}
       </div>
       <div className="mt-2.5 truncate text-[32px] font-extrabold tracking-[-.03em] text-ink">{value}</div>
       {(delta || sub) && (

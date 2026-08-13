@@ -24,7 +24,7 @@ export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges }
 
   return (
     <aside className="flex w-[264px] shrink-0 flex-col overflow-hidden border-r border-border-default bg-surface">
-      <div className="flex items-center gap-3 border-b border-[#eef1f7] px-5 pt-5 pb-[18px]">
+      <div className="flex h-20 items-center gap-3 border-b border-[#eef1f7] px-5">
         <Image
           src="/college-logo.png"
           alt="College logo"
@@ -59,7 +59,9 @@ export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges }
                       : "font-bold text-body hover:bg-nav-hover hover:text-ink",
                   )}
                 >
-                  <Icon name={item.icon} size={19} className="w-5 text-center" />
+                  {item.icon && (
+                    <Icon name={item.icon} size={19} className="w-5 text-center" />
+                  )}
                   <span className="flex-1 text-left">{item.label}</span>
                   {badge != null && badge !== "" && (
                     <span

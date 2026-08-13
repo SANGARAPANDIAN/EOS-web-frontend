@@ -1,9 +1,16 @@
-export type NavBadgeKey = "announcementsRecent" | "feesDue" | "feedbackPending";
+export type NavBadgeKey =
+  | "announcementsRecent"
+  | "feesDue"
+  | "feedbackPending"
+  | "facultyCount"
+  | "leaveRequestsPending"
+  | "odRequestsPending";
 
 export interface NavItem {
   key: string;
   label: string;
-  icon: string;
+  /** Omit for modules whose design reference uses no icon font at all (e.g. HoD) — Sidebar renders nothing in its place rather than a placeholder glyph. */
+  icon?: string;
   href: string;
   /** Populated at render time from live data (recent-item counts, dues, etc.) — never hardcoded. */
   badgeKey?: NavBadgeKey;

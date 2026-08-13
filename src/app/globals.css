@@ -130,6 +130,40 @@ body {
   animation: fadeIn 0.2s ease both;
 }
 
+/*
+  Lift-on-hover, extracted verbatim from the HoD design reference (HOD
+  Module - Web/HOD Portal.dc.html lines 22-30) — exact transform/box-shadow/
+  border/timing values, not approximated. Two variants matching the
+  reference's own two selector groups: a full-border "card" (stat cards,
+  section cards) and a "row" (a bordered list item / table row), each with
+  its own lift distance and shadow. Opt-in via className so Student's
+  existing Card/StatCard usages are completely unaffected — only HoD pages
+  apply these classes.
+*/
+.hod-hover-card {
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.hod-hover-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(29, 78, 216, 0.14);
+  border-color: #1d4ed8 !important;
+  position: relative;
+  z-index: 2;
+}
+
+.hod-hover-row {
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.hod-hover-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.12);
+  background: #fff;
+  border: 1px solid #1d4ed8 !important;
+  position: relative;
+  z-index: 2;
+  border-radius: 10px;
+}
+
 /* Material Symbols Rounded — ligature icon font, used exactly as in the
    design reference (span text content is the icon name, e.g. "grid_view"). */
 .material-symbols-rounded {

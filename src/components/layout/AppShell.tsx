@@ -6,10 +6,13 @@ import type { ModuleConfig, NavBadgeKey } from "@/modules/types";
 export interface ShellHeaderData {
   studentName?: string;
   registerNumber?: string;
+  searchPlaceholder?: string;
   programLabel?: string;
+  roleDeptLabel?: string;
   academicYearLabel?: string;
   semesterParityLabel?: string;
   unreadNotifications?: number;
+  showNotifications?: boolean;
 }
 
 interface AppShellProps {
@@ -38,12 +41,15 @@ export function AppShell({ moduleConfig, header, navBadges, children }: AppShell
       />
       <main className="flex flex-1 flex-col overflow-y-auto">
         <Topbar
+          searchPlaceholder={header?.searchPlaceholder}
           programLabel={header?.programLabel}
+          roleDeptLabel={header?.roleDeptLabel}
           academicYearLabel={header?.academicYearLabel}
           semesterParityLabel={header?.semesterParityLabel}
           unreadNotifications={header?.unreadNotifications}
+          showNotifications={header?.showNotifications}
         />
-        <div className="flex flex-1 flex-col gap-5 px-7 pt-[26px] pb-14">{children}</div>
+        <div className="flex flex-1 flex-col gap-5 px-7 pt-9 pb-14">{children}</div>
       </main>
     </div>
   );

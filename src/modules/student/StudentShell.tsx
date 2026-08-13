@@ -23,9 +23,14 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   const feedbackForms = useFeedbackForms();
 
   const semester = academicCalendar.data?.semester ?? undefined;
-  const programLabel = academicProfile.data
-    ? [academicProfile.data.course_name, semester ? `Semester ${semester}` : null].filter(Boolean).join(" · ")
-    : undefined;
+  // Always a real string from first paint (never undefined while loading)
+  // so the pill's slot in the topbar is never absent — conditionally
+  // rendering it based on async data made the header's content shift
+  // between page loads depending on fetch timing, which read as
+  // "inconsistent alignment" (same fix as HodShell.tsx).
+  const programLabel = [academicProfile.data?.course_name ?? "—", semester ? `Semester ${semester}` : null]
+    .filter(Boolean)
+    .join(" · ");
 
   // There's no per-user read-state for announcements anywhere in the schema
   // (unlike notifications, which has a real is_read column) and no new
@@ -50,9 +55,9 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
         studentName: identity.data?.name,
         registerNumber: academicProfile.data?.register_no ?? undefined,
         programLabel,
-        academicYearLabel: academicYearLabel(academicCalendar.data?.start_date ?? null, semester),
+        academicYearLabel: academicYearLabel(academicCalendar.data?.start_date ?? null, semester) ?? "—",
         semesterParityLabel:
-          semester !== undefined ? (semester % 2 === 1 ? "Odd Semester" : "Even Semester") : undefined,
+          semester !== undefined ? (semester % 2 === 1 ? "Odd Semester" : "Even Semester") : "—",
         unreadNotifications: unread.data?.count,
       }}
       navBadges={{

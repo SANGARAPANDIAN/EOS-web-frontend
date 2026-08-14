@@ -77,58 +77,54 @@ export default function SportsDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <Link href={`${BASE}/athletes`} className="hover-lift block rounded-card">
-          <StatCard
-            label="Sports students"
-            value={d?.kpis.athletes.value ?? "—"}
-            icon="sports_gymnastics"
-            delta={d ? d.kpis.athletes.strong : undefined}
-            sub={d ? "active now" : undefined}
-            barPercent={
-              d && d.kpis.athletes.value > 0
-                ? Math.round((d.kpis.athletes.strong / d.kpis.athletes.value) * 100)
-                : undefined
-            }
-          />
-        </Link>
-        <Link href={coachesIsSessionsCard ? `${BASE}/sessions` : `${BASE}/coaches`} className="hover-lift block rounded-card">
-          <StatCard
-            label={coachesIsSessionsCard ? "Sessions held" : "Coaches on duty"}
-            value={d ? `${d.kpis.coaches.on_duty} / ${d.kpis.coaches.value}` : "—"}
-            icon={coachesIsSessionsCard ? "event_available" : "sports"}
-            sub={d?.kpis.coaches.foot}
-            barPercent={coachesBarPercent}
-          />
-        </Link>
-        <Link href={`${BASE}/achievements`} className="hover-lift block rounded-card">
-          <StatCard
-            label="Achievements"
-            value={d?.kpis.achievements.value ?? "—"}
-            icon="emoji_events"
-            delta={d ? d.kpis.achievements.strong : undefined}
-            sub={d?.kpis.achievements.foot}
-            barPercent={
-              d && d.kpis.achievements.value > 0
-                ? Math.round((d.kpis.achievements.strong / d.kpis.achievements.value) * 100)
-                : undefined
-            }
-          />
-        </Link>
-        <Link href={`${BASE}/equipment`} className="hover-lift block rounded-card">
-          <StatCard
-            accent
-            label="Equipment"
-            value={d?.kpis.equipment.value ?? "—"}
-            icon="inventory_2"
-            delta={d ? d.kpis.equipment.strong : undefined}
-            sub={d?.kpis.equipment.foot}
-            barPercent={
-              d && d.kpis.equipment.value > 0
-                ? Math.round((d.kpis.equipment.strong / d.kpis.equipment.value) * 100)
-                : undefined
-            }
-          />
-        </Link>
+        <StatCard
+          href={`${BASE}/athletes`}
+          label="Sports students"
+          value={d?.kpis.athletes.value ?? "—"}
+          icon="sports_gymnastics"
+          delta={d ? d.kpis.athletes.strong : undefined}
+          sub={d ? "active now" : undefined}
+          barPercent={
+            d && d.kpis.athletes.value > 0
+              ? Math.round((d.kpis.athletes.strong / d.kpis.athletes.value) * 100)
+              : undefined
+          }
+        />
+        <StatCard
+          href={coachesIsSessionsCard ? `${BASE}/sessions` : `${BASE}/coaches`}
+          label={coachesIsSessionsCard ? "Sessions held" : "Coaches on duty"}
+          value={d ? `${d.kpis.coaches.on_duty} / ${d.kpis.coaches.value}` : "—"}
+          icon={coachesIsSessionsCard ? "event_available" : "sports"}
+          sub={d?.kpis.coaches.foot}
+          barPercent={coachesBarPercent}
+        />
+        <StatCard
+          href={`${BASE}/achievements`}
+          label="Achievements"
+          value={d?.kpis.achievements.value ?? "—"}
+          icon="emoji_events"
+          delta={d ? d.kpis.achievements.strong : undefined}
+          sub={d?.kpis.achievements.foot}
+          barPercent={
+            d && d.kpis.achievements.value > 0
+              ? Math.round((d.kpis.achievements.strong / d.kpis.achievements.value) * 100)
+              : undefined
+          }
+        />
+        <StatCard
+          href={`${BASE}/equipment`}
+          accent
+          label="Equipment"
+          value={d?.kpis.equipment.value ?? "—"}
+          icon="inventory_2"
+          delta={d ? d.kpis.equipment.strong : undefined}
+          sub={d?.kpis.equipment.foot}
+          barPercent={
+            d && d.kpis.equipment.value > 0
+              ? Math.round((d.kpis.equipment.strong / d.kpis.equipment.value) * 100)
+              : undefined
+          }
+        />
       </div>
 
       <div className="grid grid-cols-[1.4fr_1fr] items-start gap-4">

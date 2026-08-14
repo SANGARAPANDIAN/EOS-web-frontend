@@ -155,7 +155,19 @@ body {
 }
 
 /* Material Symbols Rounded — ligature icon font, used exactly as in the
-   design reference (span text content is the icon name, e.g. "grid_view"). */
+   design reference (span text content is the icon name, e.g. "grid_view").
+   Self-hosted from the `material-symbols` npm package (public/fonts/) —
+   not loaded from fonts.googleapis.com. font-display: block, same as the
+   link tag this replaced: this is a ligature icon font, so a fallback-font
+   "swap" period would flash literal icon names like "grid_view" as
+   visible text. */
+@font-face {
+  font-family: "Material Symbols Rounded";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url("/fonts/material-symbols-rounded.woff2") format("woff2");
+}
 .material-symbols-rounded {
   font-family: "Material Symbols Rounded";
   font-weight: normal;

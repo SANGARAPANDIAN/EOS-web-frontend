@@ -82,12 +82,16 @@ export function usePayFeeCart() {
       studentName,
       studentEmail,
     }: {
-      items: { demandId: number; amount: number }[];
+      items: { demandId: number; amount: number; feeStructureItemId?: number }[];
       studentName?: string;
       studentEmail?: string;
     }) => {
       const order = await apiClient.post<FeePaymentOrder>("/me/fees/pay/order", {
-        items: items.map((i) => ({ demand_id: i.demandId, amount: i.amount })),
+        items: items.map((i) => ({
+          demand_id: i.demandId,
+          amount: i.amount,
+          fee_structure_item_id: i.feeStructureItemId,
+        })),
       });
 
       await loadScriptOnce("https://checkout.razorpay.com/v1/checkout.js");

@@ -113,7 +113,6 @@ export default function AcademicCalendarPage() {
                   )}
                 >
                   <span>{cell.day}</span>
-                  {hasEvent && <span className="size-[5px] rounded-full bg-primary" />}
                 </div>
               );
             })}

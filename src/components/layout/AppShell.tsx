@@ -44,6 +44,7 @@ export function AppShell({ moduleConfig, header, navBadges, search, programIcon,
       />
       <main className="flex flex-1 flex-col overflow-y-auto">
         <Topbar
+          moduleConfig={moduleConfig}
           programLabel={header?.programLabel}
           programIcon={programIcon}
           academicYearLabel={header?.academicYearLabel}

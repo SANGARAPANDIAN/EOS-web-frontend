@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn } from "@/lib/utils/cn";
@@ -11,17 +12,21 @@ interface StatCardProps {
   delta?: ReactNode;
   barPercent?: number;
   thresholdPercent?: number;
+  href?: string;
   className?: string;
   /** One card per row gets this in the reference design — a solid primary border/shadow instead of the plain gray one, drawing the eye to whichever KPI needs it most (e.g. equipment not yet returned). */
   accent?: boolean;
 }
 
-export function StatCard({ label, value, icon, sub, delta, barPercent, thresholdPercent, className, accent }: StatCardProps) {
-  return (
+/** Same optional href -> Link-wrap pattern as NavTile: renders as a plain div when href is omitted. */
+export function StatCard({ label, value, icon, sub, delta, barPercent, thresholdPercent, href, className, accent }: StatCardProps) {
+  const content = (
     <div
       className={cn(
-        "min-w-0 rounded-card border bg-surface p-[18px_18px_16px]",
-        accent ? "border-[1.5px] border-primary shadow-[0_8px_20px_color-mix(in_srgb,var(--color-primary)_14%,transparent)]" : "border-border-default",
+        "min-w-0 rounded-card border bg-surface p-[18px_18px_16px] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md",
+        accent
+          ? "border-[1.5px] border-primary shadow-[0_8px_20px_color-mix(in_srgb,var(--color-primary)_14%,transparent)]"
+          : "border-border-default hover:border-border-accent",
         className,
       )}
     >
@@ -43,4 +48,6 @@ export function StatCard({ label, value, icon, sub, delta, barPercent, threshold
       )}
     </div>
   );
+
+  return href ? <Link href={href}>{content}</Link> : content;
 }

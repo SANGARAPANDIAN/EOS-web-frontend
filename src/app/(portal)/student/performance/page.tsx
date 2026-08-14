@@ -4,15 +4,12 @@ import { useMemo, useState } from "react";
 import { Card, Badge, SegmentedTabs, Select, EmptyState, Icon, DataTable } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import { useMyAcademicCalendar } from "@/modules/student/api/profile";
-import { useMyExamResults, type ExamResultGroup, type ExamResultSubject } from "@/modules/student/api/examResults";
+import { useMyExamResults, useMyCgpa, type ExamResultGroup, type ExamResultSubject } from "@/modules/student/api/examResults";
 import { useSubjectsLookup } from "@/modules/shared/api/subjects";
+import { useMyMarksheets } from "@/modules/student/api/marksheets";
 import { percentageToGrade, isPassingPercentage, computeGpa } from "@/lib/config";
 
 type Tab = "internals" | "semester";
-
-function round1(value: number): number {
-  return Math.round(value * 10) / 10;
-}
 
 function PassFailBadge({ pct }: { pct: number }) {
   const pass = isPassingPercentage(pct);
@@ -21,17 +18,8 @@ function PassFailBadge({ pct }: { pct: number }) {
 
 function InternalsSubjectTable({ subjects }: { subjects: ExamResultSubject[] }) {
   const columns: DataTableColumn<ExamResultSubject>[] = [
-    {
-      key: "code",
-      header: "Course",
-      width: "2fr",
-      render: (r) => (
-        <div>
-          <div className="font-semibold text-ink">{r.name}</div>
-          <div className="font-mono text-[11px] text-muted">{r.code}</div>
-        </div>
-      ),
-    },
+    { key: "code", header: "Code", width: "0.9fr", render: (r) => <span className="font-mono text-[12.5px] text-muted">{r.code}</span> },
+    { key: "name", header: "Course", width: "1.6fr", render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
     { key: "max", header: "Max", width: "1fr", align: "right", render: (r) => r.max },
     { key: "scored", header: "Scored", width: "1fr", align: "right", render: (r) => r.scored },
     { key: "result", header: "Pass/Fail", width: "1fr", align: "right", render: (r) => <PassFailBadge pct={(r.scored / r.max) * 100} /> },
@@ -41,20 +29,26 @@ function InternalsSubjectTable({ subjects }: { subjects: ExamResultSubject[] }) 
 
 function SemesterSubjectTable({ subjects }: { subjects: ExamResultSubject[] }) {
   const columns: DataTableColumn<ExamResultSubject>[] = [
-    { key: "name", header: "Course", width: "2fr", render: (r) => r.name },
-    { key: "code", header: "Course code", width: "1.2fr", render: (r) => <span className="font-mono text-[12px] text-muted">{r.code}</span> },
+    { key: "code", header: "Code", width: "0.9fr", render: (r) => <span className="font-mono text-[12.5px] text-muted">{r.code}</span> },
+    { key: "name", header: "Course", width: "1.6fr", render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
     {
       key: "grade",
       header: "Grade",
-      width: "1fr",
+      width: "0.8fr",
       align: "right",
       render: (r) => {
-        const { grade, point } = percentageToGrade((r.scored / r.max) * 100);
-        return (
-          <Badge tone={grade === "RA" ? "accentDark" : "accent"}>
-            {grade} · {point}
-          </Badge>
-        );
+        const { grade } = percentageToGrade((r.scored / r.max) * 100);
+        return <Badge tone={grade === "RA" ? "accentDark" : "accent"}>{grade}</Badge>;
+      },
+    },
+    {
+      key: "point",
+      header: "Credit point",
+      width: "0.9fr",
+      align: "right",
+      render: (r) => {
+        const { point } = percentageToGrade((r.scored / r.max) * 100);
+        return <span className="font-mono text-[13.5px] font-bold text-ink">{point}</span>;
       },
     },
     { key: "result", header: "Pass/Fail", width: "1fr", align: "right", render: (r) => <PassFailBadge pct={(r.scored / r.max) * 100} /> },
@@ -82,7 +76,6 @@ function InternalsAccordion({ groups }: { groups: ExamResultGroup[] }) {
     <div className="flex flex-col gap-3">
       {groups.map((group) => {
         const isOpen = expanded.has(group.exam_id);
-        const pct = group.marks_total > 0 ? round1((group.marks_obtained / group.marks_total) * 100) : 0;
         return (
           <div key={group.exam_id} className="overflow-hidden rounded-card border border-border-default">
             <button
@@ -94,11 +87,10 @@ function InternalsAccordion({ groups }: { groups: ExamResultGroup[] }) {
               </div>
               <div className="flex-1">
                 <div className="text-[14.5px] font-bold text-ink">{group.title}</div>
-                <div className="text-[12px] text-muted">
-                  {group.marks_obtained}/{group.marks_total} marks
-                </div>
               </div>
-              <Badge tone="accent">{pct}%</Badge>
+              <Badge tone="accent">
+                {group.marks_obtained}/{group.marks_total} marks
+              </Badge>
               <Icon name={isOpen ? "expand_less" : "chevron_right"} size={20} className="text-subtle" />
             </button>
             {isOpen && (
@@ -119,6 +111,8 @@ export default function PerformancePage() {
   const effectiveSemester = semester ?? academicCalendar.data?.semester ?? null;
   const examResults = useMyExamResults(effectiveSemester);
   const subjectsLookup = useSubjectsLookup();
+  const cgpa = useMyCgpa(effectiveSemester);
+  const marksheets = useMyMarksheets();
   const [tab, setTab] = useState<Tab>("internals");
 
   const creditsById = useMemo(() => {
@@ -128,10 +122,6 @@ export default function PerformancePage() {
   }, [subjectsLookup.data]);
 
   const semesterExam = examResults.data?.semester_exam;
-  const semesterPct = useMemo(() => {
-    if (!semesterExam || semesterExam.marks_total === 0) return null;
-    return round1((semesterExam.marks_obtained / semesterExam.marks_total) * 100);
-  }, [semesterExam]);
 
   const semesterGpa = useMemo(() => {
     if (!semesterExam) return null;
@@ -142,6 +132,11 @@ export default function PerformancePage() {
       })),
     );
   }, [semesterExam, creditsById]);
+
+  const marksheetForSemester = useMemo(() => {
+    if (!semesterExam) return null;
+    return marksheets.data?.find((m) => m.exam_id === semesterExam.exam_id) ?? null;
+  }, [marksheets.data, semesterExam]);
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -189,11 +184,31 @@ export default function PerformancePage() {
                     {semesterExam.marks_obtained}/{semesterExam.marks_total} marks
                   </div>
                 </div>
-                <div className="text-right">
-                  {semesterPct !== null && (
-                    <div className="text-[26px] font-extrabold tracking-[-.03em] text-primary-dark">{semesterPct}%</div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    {semesterGpa !== null && (
+                      <div className="text-[22px] font-extrabold tracking-[-.03em] text-primary-dark">SGPA {semesterGpa}</div>
+                    )}
+                    <div className="text-[12.5px] font-semibold text-primary-dark">
+                      CGPA {cgpa.isLoading ? "…" : cgpa.cgpa ?? "N/A"}
+                    </div>
+                  </div>
+                  {marksheetForSemester ? (
+                    <a
+                      href={marksheetForSemester.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 rounded-[9px] border border-border-accent bg-surface px-3.5 py-2.5 text-[12.5px] font-bold text-primary hover:bg-nav-hover"
+                    >
+                      <Icon name="download" size={16} />
+                      Marksheet
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-1.5 rounded-[9px] border border-dashed border-border-default px-3.5 py-2.5 text-[12px] font-semibold text-subtle">
+                      <Icon name="description" size={16} />
+                      Marksheet not yet issued
+                    </div>
                   )}
-                  {semesterGpa !== null && <div className="text-[12.5px] text-primary-dark">GPA {semesterGpa}</div>}
                 </div>
               </div>
               <SemesterSubjectTable subjects={semesterExam.subjects} />

@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchBar } from "@/components/ui/SearchBar";
+import { HeaderSearch } from "@/components/layout/HeaderSearch";
 import { cn } from "@/lib/utils/cn";
+import type { ModuleConfig } from "@/modules/types";
 
 export interface TopbarSearchResult {
   section: string;
@@ -31,19 +33,21 @@ export interface TopbarQuickCreateConfig {
 }
 
 interface TopbarProps {
+  moduleConfig: ModuleConfig;
   programLabel?: string;
   /** Material Symbols ligature name for the programLabel pill's icon — defaults to "school" (the academic-program reading every other module uses it for). */
   programIcon?: string;
   academicYearLabel?: string;
   semesterParityLabel?: string;
   unreadNotifications?: number;
-  /** Omit for modules that don't have a live search source yet — falls back to the static placeholder bar. */
+  /** Omit for modules that use the shared `HeaderSearch` default (pages/courses/announcements) — provide this only when a module needs fully custom search behaviour/results (e.g. a role with its own cross-entity search endpoint). */
   search?: TopbarSearchConfig;
   /** Omit to hide the "+" button entirely — opt-in, same as `search`. */
   quickCreate?: TopbarQuickCreateConfig;
 }
 
 export function Topbar({
+  moduleConfig,
   programLabel,
   programIcon = "school",
   academicYearLabel,
@@ -82,9 +86,10 @@ export function Topbar({
   return (
     <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-border-default bg-white/92 px-7 py-3 backdrop-blur-[8px]">
       {search ? (
-        <div ref={containerRef} className="relative max-w-[460px] flex-1">
+        <div ref={containerRef} className="relative flex-[50_1_0%]">
           <SearchBar
             placeholder={search.placeholder ?? "Search…"}
+            className="max-w-[640px] w-full"
             value={search.query}
             onChange={(e) => {
               search.onQueryChange(e.target.value);
@@ -122,7 +127,7 @@ export function Topbar({
           )}
         </div>
       ) : (
-        <SearchBar placeholder="Search courses, results, announcements..." />
+        <HeaderSearch moduleConfig={moduleConfig} />
       )}
       <div className="flex-1" />
 

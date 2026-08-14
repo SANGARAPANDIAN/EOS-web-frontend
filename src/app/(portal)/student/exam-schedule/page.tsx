@@ -129,7 +129,7 @@ export default function ExamSchedulePage() {
             <div className="text-right">HALL</div>
           </div>
           {filtered.length === 0 ? (
-            <EmptyState message="No published exam schedule yet." />
+            <EmptyState message="No published exam schedule yet." className="px-5" />
           ) : (
             filtered.map((r) => (
               <div key={r.id} className="grid items-center gap-2 border-t border-divider px-5 py-3.5" style={{ gridTemplateColumns: gridCols }}>

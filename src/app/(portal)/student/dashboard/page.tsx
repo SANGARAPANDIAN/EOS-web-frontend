@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { Card, StatCard, Button, Badge, EmptyState, Icon, DateTile, NavTile } from "@/components/ui";
+import { cn } from "@/lib/utils/cn";
 import { useMyIdentity, useMyAcademicCalendar } from "@/modules/student/api/profile";
 import { useMyAttendance } from "@/modules/student/api/attendance";
 import { useMyCgpa } from "@/modules/student/api/examResults";
@@ -27,6 +28,14 @@ import {
   todayDateOnly,
   todayBackendDayOfWeek,
 } from "@/lib/utils/date";
+
+// Same lift + mild accent-tint hover as StatCard/NavTile, for cards whose
+// entire body is a single click-to-navigate target (unlike Needs
+// attention/Upcoming below, which already navigate per-row).
+const CARD_LINK_HOVER = "transition-all duration-150 hover:-translate-y-0.5 hover:border-border-accent hover:shadow-md";
+// Row-level version of the same colour language, for cards whose rows each
+// navigate somewhere different (so the card itself isn't one big link).
+const ROW_HOVER = "transition-colors hover:bg-nav-hover";
 
 interface Flag {
   key: string;
@@ -226,6 +235,7 @@ export default function StudentDashboardPage() {
         <StatCard
           label="Attendance"
           icon="fact_check"
+          href="/student/attendance"
           value={attendance.data ? `${attendance.data.overall.percentage}%` : "—"}
           sub={
             attendance.data
@@ -240,6 +250,7 @@ export default function StudentDashboardPage() {
         <StatCard
           label="CGPA"
           icon="workspace_premium"
+          href="/student/performance"
           value={cgpa.cgpa ?? (cgpa.isLoading ? "—" : "N/A")}
           sub={
             cgpa.previous && cgpa.latest
@@ -252,6 +263,7 @@ export default function StudentDashboardPage() {
         <StatCard
           label="Next placement drive"
           icon="work"
+          href="/student/placements"
           value={
             <span className="text-[20px]">{nextDrive?.company_name ?? (upcomingDrives.isLoading ? "—" : "None scheduled")}</span>
           }
@@ -260,18 +272,18 @@ export default function StudentDashboardPage() {
         <StatCard
           label="Fee outstanding"
           icon="payments"
+          href="/student/fees"
           value={totalDue !== undefined ? `₹${totalDue.toLocaleString("en-IN")}` : "—"}
           sub={totalDue !== undefined ? (totalDue > 0 ? `${pendingFeeHeads} head${pendingFeeHeads === 1 ? "" : "s"} pending` : "All paid up") : undefined}
         />
       </div>
 
       <div className="grid grid-cols-[1.35fr_1fr] gap-4">
-        <Card>
+        <Link href="/student/timetable">
+        <Card className={CARD_LINK_HOVER}>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-[16px] font-extrabold text-ink">Up next today</h2>
-            <Link href="/student/timetable">
-              <Button variant="text">Full timetable</Button>
-            </Link>
+            <Button variant="text">Full timetable</Button>
           </div>
           {todayDay === null ? (
             <EmptyState message="No classes scheduled on Sunday." />
@@ -300,13 +312,13 @@ export default function StudentDashboardPage() {
             </div>
           )}
         </Card>
+        </Link>
 
-        <Card>
+        <Link href="/student/announcements">
+        <Card className={CARD_LINK_HOVER}>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-[16px] font-extrabold text-ink">Announcements</h2>
-            <Link href="/student/announcements">
-              <Button variant="text">View all</Button>
-            </Link>
+            <Button variant="text">View all</Button>
           </div>
           {!announcements.data || announcements.data.length === 0 ? (
             <EmptyState message={announcements.isLoading ? "Loading…" : "No announcements yet."} />
@@ -324,6 +336,7 @@ export default function StudentDashboardPage() {
             </div>
           )}
         </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-[1.1fr_1.1fr_1fr] gap-4">
@@ -337,7 +350,7 @@ export default function StudentDashboardPage() {
           ) : (
             <div className="flex flex-col gap-3">
               {flags.map((f) => (
-                <Link key={f.key} href={f.href} className="flex gap-2.5 hover:opacity-80">
+                <Link key={f.key} href={f.href} className={cn("flex gap-2.5 rounded-[9px] p-1.5 -m-1.5", ROW_HOVER)}>
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
                   <div>
                     <div className="text-[13px] font-bold text-ink">{f.title}</div>
@@ -356,7 +369,7 @@ export default function StudentDashboardPage() {
           ) : (
             <div className="flex flex-col gap-3">
               {timeline.map((item, i) => (
-                <Link key={i} href={item.href} className="flex items-center gap-3 hover:opacity-80">
+                <Link key={i} href={item.href} className={cn("flex items-center gap-3 rounded-[9px] p-1.5 -m-1.5", ROW_HOVER)}>
                   <DateTile isoDate={item.date} />
                   <div>
                     <div className="text-[13px] font-bold text-ink">{item.title}</div>
@@ -368,7 +381,8 @@ export default function StudentDashboardPage() {
           )}
         </Card>
 
-        <Card>
+        <Link href="/student/fees">
+        <Card className={CARD_LINK_HOVER}>
           <div className="text-[13px] font-bold text-body">Fee balance</div>
           <div className="mt-1.5 text-[26px] font-extrabold tracking-[-.03em] text-ink">
             {totalDue !== undefined ? `₹${totalDue.toLocaleString("en-IN")}` : "—"}
@@ -386,10 +400,9 @@ export default function StudentDashboardPage() {
               ₹{(totalPaid ?? 0).toLocaleString("en-IN")} paid of ₹{totalFees.toLocaleString("en-IN")}
             </div>
           )}
-          <Link href="/student/fees">
-            <Button className="mt-4">Pay fees</Button>
-          </Link>
+          <Button className="mt-4">Pay fees</Button>
         </Card>
+        </Link>
       </div>
 
       <Card>

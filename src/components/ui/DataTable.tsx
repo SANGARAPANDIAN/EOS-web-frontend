@@ -17,12 +17,26 @@ interface DataTableProps<T> {
   rowKey: (row: T) => string | number;
   emptyMessage?: string;
   className?: string;
+  /**
+   * Opt-in row interaction — when provided, the row lifts, gains a primary
+   * outline and a soft shadow on hover (the reference design's one recurring
+   * hover treatment for anything clickable) and the cursor becomes a
+   * pointer. Omit for tables whose rows aren't a single click target (e.g.
+   * one with its own per-row action buttons instead).
+   */
+  onRowClick?: (row: T) => void;
+  /** Optional title bar rendered inside the same bordered card, above the column headers — e.g. "Announcements register". */
+  title?: ReactNode;
+  /** Optional right-aligned footnote next to the title — e.g. "Showing 4 of 4 loaded records". */
+  titleNote?: ReactNode;
 }
 
 /**
  * Reproduces the one recurring table pattern in the design reference:
  * caps-label grid header on a muted background, grid body rows separated
- * only by a top border (no zebra striping, no row hover).
+ * only by a top border. Rows are static by default (no zebra striping, no
+ * hover) — pass `onRowClick` to opt a table into the reference's row-hover
+ * treatment (see `onRowClick` doc above).
  */
 export function DataTable<T>({
   columns,
@@ -30,6 +44,9 @@ export function DataTable<T>({
   rowKey,
   emptyMessage = "No records found.",
   className,
+  onRowClick,
+  title,
+  titleNote,
 }: DataTableProps<T>) {
   const gridTemplateColumns = columns.map((c) => c.width ?? "1fr").join(" ");
   const alignClass = (align?: DataTableColumn<T>["align"]) =>
@@ -37,6 +54,12 @@ export function DataTable<T>({
 
   return (
     <div className={cn("overflow-hidden rounded-card border border-border-default bg-surface", className)}>
+      {(title || titleNote) && (
+        <div className="flex items-center justify-between gap-4 border-b border-divider px-5 py-3.5">
+          <span className="text-[15px] font-extrabold text-ink">{title}</span>
+          <span className="text-[12.5px] text-muted">{titleNote}</span>
+        </div>
+      )}
       <div
         className="grid gap-2 px-5 py-3 text-[10.5px] font-extrabold tracking-[.09em] text-subtle uppercase bg-surface-muted"
         style={{ gridTemplateColumns }}
@@ -55,7 +78,11 @@ export function DataTable<T>({
         data.map((row) => (
           <div
             key={rowKey(row)}
-            className="grid items-center gap-2 border-t border-divider px-5 py-3.5 text-[13px] text-ink"
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            className={cn(
+              "grid items-center gap-2 border-t border-divider px-5 py-3.5 text-[13px] text-ink",
+              onRowClick && "hover-lift cursor-pointer rounded-[10px]",
+            )}
             style={{ gridTemplateColumns }}
           >
             {columns.map((col) => (

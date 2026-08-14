@@ -15,7 +15,13 @@ interface NavTileProps {
 /** Clickable icon+value+sub tile used in dashboard-style status strips (e.g. "My campus"). Renders as a plain div when href is omitted. */
 export function NavTile({ icon, label, value, sub, href, className }: NavTileProps) {
   const content = (
-    <div className={cn("rounded-card border border-border-default bg-surface p-4", href && "transition-colors hover:bg-nav-hover", className)}>
+    <div
+      className={cn(
+        "rounded-card border border-border-default bg-surface p-4",
+        href && "transition-all duration-150 hover:-translate-y-0.5 hover:bg-nav-hover hover:shadow-md",
+        className,
+      )}
+    >
       <div className="flex items-center gap-1.5 text-[12px] font-bold text-body">
         <Icon name={icon} size={16} className="text-primary" />
         {label}

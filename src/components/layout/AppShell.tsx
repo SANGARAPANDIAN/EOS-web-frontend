@@ -38,6 +38,7 @@ export function AppShell({ moduleConfig, header, navBadges, children }: AppShell
       />
       <main className="flex flex-1 flex-col overflow-y-auto">
         <Topbar
+          moduleConfig={moduleConfig}
           programLabel={header?.programLabel}
           academicYearLabel={header?.academicYearLabel}
           semesterParityLabel={header?.semesterParityLabel}

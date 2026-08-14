@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn } from "@/lib/utils/cn";
@@ -11,12 +12,19 @@ interface StatCardProps {
   delta?: ReactNode;
   barPercent?: number;
   thresholdPercent?: number;
+  href?: string;
   className?: string;
 }
 
-export function StatCard({ label, value, icon, sub, delta, barPercent, thresholdPercent, className }: StatCardProps) {
-  return (
-    <div className={cn("min-w-0 rounded-card border border-border-default bg-surface p-[18px_18px_16px]", className)}>
+/** Same optional href -> Link-wrap pattern as NavTile: renders as a plain div when href is omitted. */
+export function StatCard({ label, value, icon, sub, delta, barPercent, thresholdPercent, href, className }: StatCardProps) {
+  const content = (
+    <div
+      className={cn(
+        "min-w-0 rounded-card border border-border-default bg-surface p-[18px_18px_16px] transition-all duration-150 hover:-translate-y-0.5 hover:border-border-accent hover:shadow-md",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="text-[13px] font-bold text-body">{label}</div>
         <div className="flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -35,4 +43,6 @@ export function StatCard({ label, value, icon, sub, delta, barPercent, threshold
       )}
     </div>
   );
+
+  return href ? <Link href={href}>{content}</Link> : content;
 }

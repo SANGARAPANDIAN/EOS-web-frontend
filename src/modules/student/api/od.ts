@@ -26,6 +26,15 @@ export interface OdTeam {
   id: number;
   unique_code: string;
   is_locked: boolean;
+  team_name: string | null;
+  reason: string | null;
+  venue: string | null;
+  from_date: string | null;
+  to_date: string | null;
+  from_time: string | null;
+  to_time: string | null;
+  faculty_guide_id: number | null;
+  faculty_guide_name: string | null;
   is_creator: boolean;
   member_count: number;
   members: OdTeamMember[];
@@ -47,11 +56,22 @@ function invalidateTeams(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["me", "od-teams"] });
 }
 
-/** POST /me/od-teams — creates a team and auto-joins the caller as its first member. */
+export interface CreateOdTeamInput {
+  team_name: string;
+  reason: string;
+  venue: string;
+  from_date: string;
+  to_date: string;
+  from_time: string;
+  to_time: string;
+  faculty_guide_id: number;
+}
+
+/** POST /me/od-teams — creates a team (with its full event brief) and auto-joins the caller as its first member. */
 export function useCreateOdTeam() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => apiClient.post<OdTeam>("/me/od-teams"),
+    mutationFn: (input: CreateOdTeamInput) => apiClient.post<OdTeam>("/me/od-teams", input),
     onSuccess: () => invalidateTeams(queryClient),
   });
 }

@@ -2,10 +2,12 @@
 
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
-import { SearchBar } from "@/components/ui/SearchBar";
+import { HeaderSearch } from "@/components/layout/HeaderSearch";
 import { cn } from "@/lib/utils/cn";
+import type { ModuleConfig } from "@/modules/types";
 
 interface TopbarProps {
+  moduleConfig: ModuleConfig;
   programLabel?: string;
   academicYearLabel?: string;
   semesterParityLabel?: string;
@@ -13,6 +15,7 @@ interface TopbarProps {
 }
 
 export function Topbar({
+  moduleConfig,
   programLabel,
   academicYearLabel,
   semesterParityLabel,
@@ -20,7 +23,7 @@ export function Topbar({
 }: TopbarProps) {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-border-default bg-white/92 px-7 py-3 backdrop-blur-[8px]">
-      <SearchBar placeholder="Search courses, results, announcements..." />
+      <HeaderSearch moduleConfig={moduleConfig} />
       <div className="flex-1" />
 
       {programLabel && (

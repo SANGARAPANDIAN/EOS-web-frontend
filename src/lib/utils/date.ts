@@ -122,3 +122,26 @@ export function academicYearLabel(startDate: string | null, semester: number | n
 export function monthLabel(year: number, monthIndex: number): string {
   return new Date(year, monthIndex, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 }
+
+/**
+ * "20XX–YY" label for whichever calendar year/month is being *viewed* —
+ * unlike `academicYearLabel` above, this needs no student batch/semester;
+ * it's just the standard Jun-start convention (Jun-Dec belongs to the year
+ * that just started; Jan-May belongs to the year that started the previous
+ * calendar year).
+ */
+export function viewedAcademicYearLabel(year: number, monthIndex: number): string {
+  const startYear = monthIndex >= 5 ? year : year - 1;
+  return `${startYear}–${String(startYear + 1).slice(2)}`;
+}
+
+/**
+ * "Odd Semester" (Jul-Dec) / "Even Semester" (Jan-Jun) for *today* — used
+ * where a real per-student semester parity (see `academicYearLabel` above)
+ * isn't available because the viewer isn't scoped to one student/batch
+ * (e.g. the sports-admin topbar, which is institution-wide). Standard
+ * calendar convention, not tied to any one batch's actual start date.
+ */
+export function currentInstitutionSemesterParity(date: Date = new Date()): "Odd Semester" | "Even Semester" {
+  return date.getMonth() >= 6 ? "Odd Semester" : "Even Semester";
+}

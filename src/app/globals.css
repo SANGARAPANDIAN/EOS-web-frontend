@@ -130,6 +130,30 @@ body {
   animation: fadeIn 0.2s ease both;
 }
 
+/*
+  The reference design's one recurring hover treatment for anything
+  clickable (cards, rows, buttons acting as rows): lift, a primary outline,
+  a soft primary-tinted shadow. Opt-in only — apply to elements that are
+  themselves a single click target, not to static containers.
+*/
+.hover-lift {
+  transition: transform 0.16s ease, box-shadow 0.16s ease, outline-color 0.16s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+/* Persistent (non-hover) sibling of .hover-lift — for a row/cell that is the
+   current selection rather than something the pointer happens to be over. */
+.selected-outline {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
 /* Material Symbols Rounded — ligature icon font, used exactly as in the
    design reference (span text content is the icon name, e.g. "grid_view"). */
 .material-symbols-rounded {

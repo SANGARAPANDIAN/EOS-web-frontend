@@ -1,4 +1,13 @@
-export type NavBadgeKey = "announcementsRecent" | "feesDue" | "feedbackPending";
+export type NavBadgeKey =
+  | "announcementsRecent"
+  | "feesDue"
+  | "feedbackPending"
+  | "sportsAthletes"
+  | "sportsTeams"
+  | "sportsTrialsPending"
+  | "sportsOdPending"
+  | "sportsDisciplines"
+  | "sportsAchievements";
 
 export interface NavItem {
   key: string;

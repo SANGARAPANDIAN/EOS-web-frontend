@@ -6,7 +6,18 @@ export type NavBadgeKey =
   | "fleetRoutes"
   | "crewCount"
   | "maintenanceDue"
-  | "complianceExpiring";
+  | "complianceExpiring"
+  | "heAspirants"
+  | "heApplications"
+  | "heTests"
+  | "heUniversities"
+  | "heScholarships"
+  | "mcOpdWaiting"
+  | "mcBedsOccupied"
+  | "mcLowStock"
+  | "hwPendingPasses"
+  | "hwPendingLeave"
+  | "hwOpenComplaints";
 
 export interface NavItem {
   key: string;

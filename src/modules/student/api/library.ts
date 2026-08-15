@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
 export interface LibraryBook {
@@ -52,16 +52,17 @@ export function useMyBorrowRecords(status?: BorrowRecordStatus) {
   });
 }
 
-/** POST /library/borrow-records — self-checkout; borrower_type/student_id are always resolved server-side for a student caller. */
-export function useBorrowBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ bookId, dueDate }: { bookId: number; dueDate: string }) =>
-      apiClient.post("/library/borrow-records", { book_id: bookId, borrower_type: "student", due_date: dueDate }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["me", "library", "borrow-records"] });
-      queryClient.invalidateQueries({ queryKey: ["library", "books"] });
-    },
+export interface LibraryDuesSummary {
+  total_due: number;
+  overdue_count: number;
+  unpaid_fine_count: number;
+}
+
+/** GET /me/library/dues-summary */
+export function useLibraryDuesSummary() {
+  return useQuery({
+    queryKey: ["me", "library", "dues-summary"],
+    queryFn: () => apiClient.get<LibraryDuesSummary>("/me/library/dues-summary"),
   });
 }
 

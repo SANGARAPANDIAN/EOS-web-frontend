@@ -1,0 +1,396 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Card, Badge, SegmentedTabs, Button, Icon, Input, Select, Textarea, Banner, EmptyState, DataTable, type DataTableColumn } from "@/components/ui";
+import type { BadgeTone } from "@/components/ui/Badge";
+import { PersonPicker, type PickedPerson } from "@/modules/sports-admin/components/PersonPicker";
+import { useAthletes, type AthleteListItem } from "@/modules/sports-admin/api/athletes";
+import { useDisciplines } from "@/modules/sports-admin/api/disciplines";
+import {
+  useOdRequests,
+  useCreateOdRequest,
+  useApproveOdRequest,
+  useRejectOdRequest,
+  type OdRequest,
+} from "@/modules/sports-admin/api/od";
+import type { ApprovalStatus } from "@/modules/sports-admin/api/types";
+import { formatDisplayDate } from "@/lib/utils/date";
+import { ApiError } from "@/types/api";
+
+type Tab = "apply" | "history";
+
+const STATUS_TONE: Record<ApprovalStatus, BadgeTone> = {
+  pending: "neutral",
+  approved: "accent",
+  rejected: "accentDark",
+};
+
+const OD_TYPES = [
+  "Inter-collegiate tournament",
+  "Zonal or university meet",
+  "State or national championship",
+  "Selection trial or camp",
+  "Sports day duty",
+];
+const PERIODS = ["All periods", "Forenoon periods", "Afternoon periods", "First two periods", "Last two periods"];
+const LEVELS = ["Inter-collegiate", "Zonal", "University", "State", "National"];
+const TRANSPORT_OPTIONS = ["College bus", "Own arrangement", "Host institution", "Not required"];
+
+function athleteToPerson(a: AthleteListItem): PickedPerson {
+  return { id: a.student_id, name: a.name, meta: [a.dept_code, a.year_sem, a.discipline?.name].filter(Boolean).join(" · ") };
+}
+
+export default function OdPage() {
+  const [tab, setTab] = useState<Tab>("apply");
+  const odRequests = useOdRequests();
+  const athletes = useAthletes();
+  const disciplines = useDisciplines();
+  const createOdRequest = useCreateOdRequest();
+  const approveOdRequest = useApproveOdRequest();
+  const rejectOdRequest = useRejectOdRequest();
+
+  const [odType, setOdType] = useState(OD_TYPES[0]);
+  const [periodsAffected, setPeriodsAffected] = useState(PERIODS[0]);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [event, setEvent] = useState("");
+  const [venue, setVenue] = useState("");
+  const [level, setLevel] = useState(LEVELS[0]);
+  const [coachFaculty, setCoachFaculty] = useState<PickedPerson | null>(null);
+  const [transport, setTransport] = useState(TRANSPORT_OPTIONS[0]);
+  const [remarks, setRemarks] = useState("");
+  const [squad, setSquad] = useState<PickedPerson[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const roster = useMemo(() => athletes.data ?? [], [athletes.data]);
+  const deptByStudentId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const a of roster) if (a.dept_code) map.set(a.student_id, a.dept_code);
+    return map;
+  }, [roster]);
+
+  const squadDepts = useMemo(() => {
+    const depts = new Set<string>();
+    for (const p of squad) {
+      const d = deptByStudentId.get(p.id);
+      if (d) depts.add(d);
+    }
+    return [...depts];
+  }, [squad, deptByStudentId]);
+
+  function toggleAthlete(a: AthleteListItem) {
+    setSquad((prev) =>
+      prev.some((p) => p.id === a.student_id) ? prev.filter((p) => p.id !== a.student_id) : [...prev, athleteToPerson(a)],
+    );
+  }
+
+  function addDiscipline(disciplineId: number) {
+    const members = roster.filter((a) => a.discipline?.id === disciplineId).map(athleteToPerson);
+    setSquad((prev) => {
+      const existing = new Set(prev.map((p) => p.id));
+      return [...prev, ...members.filter((m) => !existing.has(m.id))];
+    });
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await createOdRequest.mutateAsync({
+        od_type: odType,
+        periods_affected: periodsAffected || undefined,
+        from_date: fromDate,
+        to_date: toDate,
+        event,
+        venue: venue || undefined,
+        level: level || undefined,
+        accompanying_coach_faculty_id: coachFaculty?.id,
+        transport: transport || undefined,
+        remarks: remarks || undefined,
+        student_ids: squad.map((p) => p.id),
+      });
+      setSuccess(true);
+      setOdType(OD_TYPES[0]);
+      setPeriodsAffected(PERIODS[0]);
+      setFromDate("");
+      setToDate("");
+      setEvent("");
+      setVenue("");
+      setLevel(LEVELS[0]);
+      setCoachFaculty(null);
+      setTransport(TRANSPORT_OPTIONS[0]);
+      setRemarks("");
+      setSquad([]);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    }
+  }
+
+  const columns: DataTableColumn<OdRequest>[] = [
+    { key: "event", header: "Event", width: "1.3fr", render: (r) => <span className="font-bold text-ink">{r.event}</span> },
+    {
+      key: "period",
+      header: "From – to",
+      width: "1.3fr",
+      render: (r) => (
+        <span className="text-body">
+          {formatDisplayDate(r.from_date)} – {formatDisplayDate(r.to_date)}
+        </span>
+      ),
+    },
+    { key: "venue", header: "Venue", width: "1fr", render: (r) => <span className="text-body">{r.venue ?? "—"}</span> },
+    {
+      key: "squad_size",
+      header: "Squad",
+      width: "0.7fr",
+      render: (r) => <span className="font-mono text-[12.5px] text-muted">{r.squad_size}</span>,
+    },
+    {
+      key: "status",
+      header: "Status",
+      width: "1.3fr",
+      align: "right",
+      render: (r) =>
+        r.status === "pending" ? (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => approveOdRequest.mutate(r.id)}
+              disabled={approveOdRequest.isPending}
+              className="rounded-[8px] border border-border-accent bg-accent-50 px-3 py-1.5 text-[12px] font-bold text-primary disabled:opacity-50"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => rejectOdRequest.mutate(r.id)}
+              disabled={rejectOdRequest.isPending}
+              className="rounded-[8px] border border-border-default px-3 py-1.5 text-[12px] font-bold text-muted hover:text-danger-fg disabled:opacity-50"
+            >
+              Reject
+            </button>
+          </div>
+        ) : (
+          <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>
+        ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-5 animate-pop-in">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Athlete on-duty</h1>
+          <p className="mt-1 text-[13.5px] text-muted">
+            Raise a single on-duty request to the principal for a squad drawn from several departments
+          </p>
+        </div>
+        <SegmentedTabs
+          options={[
+            { key: "apply", label: "Apply" },
+            { key: "history", label: "History" },
+          ]}
+          value={tab}
+          onChange={(k) => setTab(k as Tab)}
+        />
+      </div>
+
+      {tab === "apply" ? (
+        <div className="grid grid-cols-[1.4fr_1fr] items-start gap-4">
+          <Card className="p-[22px_24px]">
+            <h2 className="text-[17px] font-extrabold tracking-[-.02em] text-ink">Request details</h2>
+            <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold text-muted">OD type</label>
+                  <Select required value={odType} onChange={(e) => setOdType(e.target.value)}>
+                    {OD_TYPES.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold text-muted">Periods affected</label>
+                  <Select value={periodsAffected} onChange={(e) => setPeriodsAffected(e.target.value)}>
+                    {PERIODS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold text-muted">From date</label>
+                  <Input type="date" required value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold text-muted">To date</label>
+                  <Input type="date" required value={toDate} min={fromDate || undefined} onChange={(e) => setToDate(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11.5px] font-bold text-muted">Event / purpose</label>
+                <Input required value={event} onChange={(e) => setEvent(e.target.value)} placeholder="e.g. Anna University zonal kabaddi league" />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11.5px] font-bold text-muted">Venue / host institution</label>
+                <Input value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="e.g. PSG College of Technology, Coimbatore" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold text-muted">Level</label>
+                  <Select value={level} onChange={(e) => setLevel(e.target.value)}>
+                    {LEVELS.map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold text-muted">Accompanying coach</label>
+                  <PersonPicker type="faculty" value={coachFaculty} onChange={setCoachFaculty} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11.5px] font-bold text-muted">Transport</label>
+                <Select value={transport} onChange={(e) => setTransport(e.target.value)}>
+                  {TRANSPORT_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11.5px] font-bold text-muted">Class adjustment and remarks</label>
+                <Textarea
+                  rows={3}
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Mention how classes and attendance will be adjusted for each department"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+                  {error}
+                </div>
+              )}
+              {success && <Banner>Your OD request has been submitted.</Banner>}
+
+              <Button
+                type="submit"
+                disabled={!odType || !fromDate || !toDate || !event || squad.length === 0 || createOdRequest.isPending}
+              >
+                {createOdRequest.isPending ? "Submitting…" : "Submit OD request to principal"}
+              </Button>
+            </form>
+          </Card>
+
+          <Card className="p-[22px_24px]">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 className="text-[17px] font-extrabold tracking-[-.02em] text-ink">Athletes on this OD</h2>
+              <span className="shrink-0 text-[13px] font-bold text-primary">{squad.length} selected</span>
+            </div>
+            <p className="mt-1 text-[12.5px] text-muted">
+              {squad.length > 0
+                ? `${squad.length} athlete${squad.length === 1 ? "" : "s"} across ${squadDepts.length} department${squadDepts.length === 1 ? "" : "s"} · ${squadDepts.join(", ")}`
+                : "No athletes added yet"}
+            </p>
+
+            <div className="mt-4">
+              <span className="text-[11px] font-extrabold tracking-[.08em] text-subtle uppercase">Add squad</span>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {disciplines.data?.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => addDiscipline(d.id)}
+                    className="rounded-pill border border-border-accent bg-accent-50 px-3 py-1.5 text-[12px] font-bold text-primary hover:bg-primary hover:text-white"
+                  >
+                    {d.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex max-h-[480px] flex-col overflow-y-auto border-t border-divider">
+              {athletes.isLoading ? (
+                <EmptyState message="Loading…" />
+              ) : roster.length === 0 ? (
+                <EmptyState message="No athletes registered yet." />
+              ) : (
+                roster.map((a) => {
+                  const checked = squad.some((p) => p.id === a.student_id);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => toggleAthlete(a)}
+                      className="hover-lift flex items-center gap-3 border-b border-divider px-1 py-2.5 text-left last:border-0"
+                    >
+                      <span
+                        className={
+                          checked
+                            ? "flex size-[18px] shrink-0 items-center justify-center rounded-[5px] bg-primary"
+                            : "flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border border-border-default"
+                        }
+                      >
+                        {checked && <Icon name="check" size={13} className="text-white" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13.5px] font-bold text-ink">{a.name}</span>
+                        <span className="block truncate text-[12px] text-muted">
+                          {[a.dept_code, a.year_sem, a.discipline?.name].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
+                      {a.dept_code && (
+                        <span className="shrink-0 whitespace-nowrap rounded-[7px] bg-primary px-2.5 py-1 text-[11px] font-extrabold text-white">
+                          {a.dept_code}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setSquad(roster.map(athleteToPerson))}
+                className="text-[12.5px] font-bold text-primary hover:text-primary-dark"
+              >
+                Select all
+              </button>
+              <button type="button" onClick={() => setSquad([])} className="text-[12.5px] font-bold text-muted hover:text-ink">
+                Clear
+              </button>
+            </div>
+          </Card>
+        </div>
+      ) : odRequests.isLoading ? (
+        <Card>
+          <EmptyState message="Loading…" />
+        </Card>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={odRequests.data ?? []}
+          rowKey={(r) => r.id}
+          emptyMessage="No OD requests yet."
+        />
+      )}
+    </div>
+  );
+}

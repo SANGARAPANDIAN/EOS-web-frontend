@@ -17,7 +17,13 @@ export type NavBadgeKey =
   | "mcLowStock"
   | "hwPendingPasses"
   | "hwPendingLeave"
-  | "hwOpenComplaints";
+  | "hwOpenComplaints"
+  | "sportsAthletes"
+  | "sportsTeams"
+  | "sportsTrialsPending"
+  | "sportsOdPending"
+  | "sportsDisciplines"
+  | "sportsAchievements";
 
 export interface NavItem {
   key: string;

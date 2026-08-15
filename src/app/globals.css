@@ -65,6 +65,66 @@
   --shadow-modal: 0 30px 70px rgba(8, 15, 35, 0.35);
   --shadow-ring: 0 0 0 3px #eaf0ff;
   --shadow-hover-lift: 0 12px 26px rgba(29, 78, 216, 0.14);
+
+  /*
+    Admin console tokens — sampled verbatim from the "Principal Command
+    Center" reference (Principal Module - Web/Principal Command Center.dc.html).
+    This is a deliberately denser, navier palette than the student portal
+    tokens above, scoped to the `admin-*` prefix so it never leaks into or
+    gets confused with the student design system. Admin components live under
+    src/modules/admin/components/ui and should only ever reach for these.
+  */
+  --color-admin-ink: #161c27;
+  --color-admin-body: #4e596a;
+  --color-admin-muted: #6c7889;
+  --color-admin-subtle: #8aa0c6;
+
+  --color-admin-canvas: #ffffff;
+  --color-admin-tint: #f7faff;
+  --color-admin-tint-strong: #f1f6fe;
+  --color-admin-tint-deep: #eaf0fb;
+  --color-admin-divider: #eaf0fb;
+  --color-admin-input-bg: #f9fbff;
+
+  --color-admin-border: #d6e1f5;
+  --color-admin-border-hover: #c1d5f5;
+  --color-admin-border-input: #dce6f7;
+
+  --color-admin-primary: #1d47ae;
+  --color-admin-primary-dark: #16358a;
+  --color-admin-primary-deep: #12296b;
+  --color-admin-accent-mid: #2f63cc;
+
+  --color-admin-success-bg: #e9f7f0;
+  --color-admin-success-fg: #0f6b45;
+  --color-admin-success-border: #bfe6d3;
+
+  --color-admin-warning-bg: #fef3e2;
+  --color-admin-warning-fg: #92400e;
+  --color-admin-warning-border: #f5d9a8;
+
+  --color-admin-danger: #c0392b;
+  --color-admin-danger-bg: #fbeae8;
+  --color-admin-danger-fg: #c0392b;
+  --color-admin-danger-border: #f0c4bd;
+
+  --radius-admin-xs: 8px;
+  --radius-admin-sm: 9px;
+  --radius-admin-md: 10px;
+  --radius-admin-control: 11px;
+  --radius-admin-lg: 12px;
+  --radius-admin-card: 16px;
+  --radius-admin-modal: 18px;
+  --radius-admin-pill: 999px;
+
+  --shadow-admin-resting: 0 1px 2px rgba(13, 30, 79, 0.06);
+  --shadow-admin-hover: 0 10px 24px rgba(13, 30, 79, 0.14);
+  --shadow-admin-row-hover: 0 8px 18px rgba(13, 30, 79, 0.1);
+  --shadow-admin-row-hover-ring: 0 8px 18px rgba(13, 30, 79, 0.1), inset 0 0 0 1px
+      var(--color-admin-primary);
+  --shadow-admin-dropdown: 0 18px 40px rgba(13, 30, 79, 0.16);
+  --shadow-admin-modal: 0 30px 70px rgba(13, 30, 79, 0.3);
+  --shadow-admin-toast: 0 16px 40px rgba(13, 30, 79, 0.34);
 }
 
 html,
@@ -131,8 +191,44 @@ body {
   animation: fadeIn 0.2s ease both;
 }
 
+/*
+  The reference design's one recurring hover treatment for anything
+  clickable (cards, rows, buttons acting as rows): lift, a primary outline,
+  a soft primary-tinted shadow. Opt-in only — apply to elements that are
+  themselves a single click target, not to static containers.
+*/
+.hover-lift {
+  transition: transform 0.16s ease, box-shadow 0.16s ease, outline-color 0.16s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+/* Persistent (non-hover) sibling of .hover-lift — for a row/cell that is the
+   current selection rather than something the pointer happens to be over. */
+.selected-outline {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
 /* Material Symbols Rounded — ligature icon font, used exactly as in the
-   design reference (span text content is the icon name, e.g. "grid_view"). */
+   design reference (span text content is the icon name, e.g. "grid_view").
+   Self-hosted from the `material-symbols` npm package (public/fonts/) —
+   not loaded from fonts.googleapis.com. font-display: block, same as the
+   link tag this replaced: this is a ligature icon font, so a fallback-font
+   "swap" period would flash literal icon names like "grid_view" as
+   visible text. */
+@font-face {
+  font-family: "Material Symbols Rounded";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url("/fonts/material-symbols-rounded.woff2") format("woff2");
+}
 .material-symbols-rounded {
   font-family: "Material Symbols Rounded";
   font-weight: normal;

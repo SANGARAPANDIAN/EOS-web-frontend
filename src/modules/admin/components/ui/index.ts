@@ -25,6 +25,7 @@ export * from "@/modules/admin/components/ui/BulkActionsBar";
 export * from "@/modules/admin/components/ui/NumberedPagination";
 export * from "@/modules/admin/components/ui/ToastProvider";
 export * from "@/modules/admin/components/ui/Input";
+export * from "@/modules/admin/components/ui/Typeahead";
 export * from "@/modules/admin/components/ui/Select";
 export * from "@/modules/admin/components/ui/Textarea";
 export * from "@/modules/admin/components/ui/DatePicker";

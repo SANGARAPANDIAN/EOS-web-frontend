@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { ModuleConfig, NavBadgeKey } from "@/modules/types";
@@ -21,6 +22,7 @@ interface SidebarProps {
 export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges }: SidebarProps) {
   const pathname = usePathname();
   const { logout } = useAuth();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   return (
     <aside className="flex w-[264px] shrink-0 flex-col overflow-hidden border-r border-border-default bg-surface">
@@ -84,8 +86,19 @@ export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges }
           <div className="truncate text-[13px] font-bold text-ink">{studentName ?? " "}</div>
           <div className="font-mono text-[11px] text-muted">{registerNumber ?? " "}</div>
         </div>
-        <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={logout} />
+        <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
       </div>
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Sign out?"
+        description="You'll need to log in again to access your account."
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={logout}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </aside>
   );
 }

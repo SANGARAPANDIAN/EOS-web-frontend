@@ -2,6 +2,8 @@ export type NavBadgeKey =
   | "announcementsRecent"
   | "feesDue"
   | "feedbackPending"
+  | "principalStudentsTotal"
+  | "principalFacultyTotal"
   | "fleetBuses"
   | "fleetRoutes"
   | "crewCount"
@@ -23,7 +25,10 @@ export type NavBadgeKey =
   | "sportsTrialsPending"
   | "sportsOdPending"
   | "sportsDisciplines"
-  | "sportsAchievements";
+  | "sportsAchievements"
+  | "studentCount"
+  | "facultyCount"
+  | "totalBooks";
 
 export interface NavItem {
   key: string;

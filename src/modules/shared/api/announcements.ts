@@ -17,7 +17,10 @@ export interface Announcement {
   class_ids: number[];
   role_ids: number[];
   /** Only populated by GET /announcements and GET /announcements/:id (the student-facing reads). */
-  posted_by?: { name: string; role: string; designation: string | null };
+  posted_by?: { name: string; role: string; designation: string | null; department: string | null };
+  /** Human-readable labels for class_ids/role_ids (e.g. "CSE-A", "hod") — resolved server-side. */
+  class_labels?: string[];
+  role_labels?: string[];
 }
 
 /** GET /announcements — visibility-filtered server-side by the caller's role/class/department. */

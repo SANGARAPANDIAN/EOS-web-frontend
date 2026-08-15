@@ -3,7 +3,32 @@ export type NavBadgeKey =
   | "feesDue"
   | "feedbackPending"
   | "principalStudentsTotal"
-  | "principalFacultyTotal";
+  | "principalFacultyTotal"
+  | "fleetBuses"
+  | "fleetRoutes"
+  | "crewCount"
+  | "maintenanceDue"
+  | "complianceExpiring"
+  | "heAspirants"
+  | "heApplications"
+  | "heTests"
+  | "heUniversities"
+  | "heScholarships"
+  | "mcOpdWaiting"
+  | "mcBedsOccupied"
+  | "mcLowStock"
+  | "hwPendingPasses"
+  | "hwPendingLeave"
+  | "hwOpenComplaints"
+  | "sportsAthletes"
+  | "sportsTeams"
+  | "sportsTrialsPending"
+  | "sportsOdPending"
+  | "sportsDisciplines"
+  | "sportsAchievements"
+  | "studentCount"
+  | "facultyCount"
+  | "totalBooks";
 
 export interface NavItem {
   key: string;

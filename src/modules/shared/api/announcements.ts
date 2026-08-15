@@ -7,6 +7,7 @@ export interface Announcement {
   title: string;
   content: string;
   target_audience: string;
+  category: string | null;
   batch_id: number | null;
   department_id: number | null;
   created_at: string;

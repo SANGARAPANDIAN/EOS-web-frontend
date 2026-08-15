@@ -46,7 +46,7 @@ export const studentModuleConfig: ModuleConfig = {
       label: "Campus",
       items: [
         { key: "hostel", label: "Hostel", icon: "apartment", href: `${BASE}/hostel` },
-        { key: "inout", label: "In / out hostel", icon: "swap_horiz", href: `${BASE}/inout` },
+        { key: "inout", label: "In / out request", icon: "swap_horiz", href: `${BASE}/inout` },
         { key: "library", label: "Library", icon: "local_library", href: `${BASE}/library` },
         {
           key: "feedback",

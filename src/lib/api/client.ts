@@ -69,6 +69,61 @@ async function request<T>(method: string, path: string, options: RequestOptions 
   return envelope.data;
 }
 
+export interface BlobResponse {
+  blob: Blob;
+  filename: string | null;
+}
+
+function parseContentDispositionFilename(header: string | null): string | null {
+  if (!header) return null;
+  const match = /filename="?([^";]+)"?/i.exec(header);
+  return match ? match[1] : null;
+}
+
+/**
+ * Report/export downloads return a binary body on success but the same JSON
+ * error envelope as every other endpoint on failure — res.ok must be checked
+ * before res.blob(), or a failed download silently saves a JSON error body
+ * as a .pdf/.xlsx.
+ */
+async function downloadBlob(path: string, params?: QueryParams): Promise<BlobResponse> {
+  const token = getToken();
+  const headers: HeadersInit = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(buildUrl(path, params), { method: "GET", headers });
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      clearSession();
+      emitUnauthorized();
+    }
+    const json = await res.json().catch(() => null);
+    const errorEnvelope: ApiErrorEnvelope = json ?? {
+      success: false,
+      statusCode: res.status,
+      errorCode: "UNKNOWN_ERROR",
+      message: res.statusText || "Request failed",
+      timestamp: new Date().toISOString(),
+      path,
+    };
+    throw new ApiError(errorEnvelope);
+  }
+
+  const blob = await res.blob();
+  const filename = parseContentDispositionFilename(res.headers.get("Content-Disposition"));
+  return { blob, filename };
+}
+
+/**
+ * Multipart upload — no Content-Type header set here on purpose. The browser
+ * needs to generate it itself for FormData (it embeds a random multipart
+ * boundary the server parses on); setting it manually breaks the boundary.
+ */
+async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
+  return request<T>("POST", path, { body: formData, isFormData: true });
+}
+
 export const apiClient = {
   get: <T>(path: string, params?: QueryParams, signal?: AbortSignal) =>
     request<T>("GET", path, { params, signal }),
@@ -78,4 +133,6 @@ export const apiClient = {
   delete: <T>(path: string) => request<T>("DELETE", path),
   postForm: <T>(path: string, formData: FormData) =>
     request<T>("POST", path, { body: formData, isFormData: true }),
+  downloadBlob,
+  uploadFile,
 };

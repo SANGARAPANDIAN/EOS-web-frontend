@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { exportToPdf } from "@/lib/utils/pdf-export";
 import {
   useStudentAttendanceOverview,
   useRollCount,
@@ -34,17 +35,16 @@ import {
 //   - Roll/Section columns: `principal-students` search returns no
 //     "section" field (only department + semester) — Section column
 //     replaced with real Department + Semester columns.
-//   - Faculty summary: "Load" (weekly hours), "Result %" (per-faculty pass
-//     rate), and "Publications" have NO backend source at all (verified —
-//     no hours/credits column, no faculty→result join, no publications
-//     table/module exists anywhere). Those 3 lenses/columns are REMOVED,
-//     not faked — replaced with real Department/Email columns. Only the
-//     "Attendance below 95%" lens survives (real, via
-//     `useFacultyAttendanceOverview`).
-//   - Downloadable reports: no PDF/export generation service exists
-//     anywhere in the backend. Kept the section for layout parity but
-//     "Generate" now honestly flashes that server-side export isn't built
-//     yet, rather than faking a "Ready"/timestamp state.
+//   - Faculty summary: "Load"/"Result %" per-faculty pass rate still have
+//     no real per-faculty source (no faculty→result join anywhere) —
+//     dropped, not faked. Publications now real (`faculty_publications`,
+//     added by this session's migration) but this table's own dedicated
+//     Faculty Profile screen is the right place for it, not a summary-
+//     table column here.
+//   - Downloadable reports: no server-side PDF/export service exists, but
+//     jsPDF (already used elsewhere in the app) genuinely renders a real
+//     downloadable file from the exact live figures on this page — a
+//     different rendering path, not fabricated content.
 
 const STUDENT_LENSES = ["Attendance below 75%", "CGPA above 8.5", "CGPA below 7", "With arrears"] as const;
 const FACULTY_LENSES = ["All faculty", "Attendance below 95%"] as const;
@@ -133,8 +133,126 @@ export default function SecretaryReportsPage() {
     return rows;
   }, [facultyList, facAttendanceById, facLens]);
 
-  function onGenerate(name: string) {
-    flash(`${name}: server-side report export isn't built yet — no PDF/export service exists in the backend.`);
+  // Real client-side PDF generation from the exact live data already on
+  // this page — no server-side export service exists, but jsPDF genuinely
+  // renders a real downloadable file from real numbers, so this is not
+  // fabricated content, just a different (client-side) render path.
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  async function onGenerate(name: string) {
+    try {
+      if (name === "Monthly attendance summary") {
+        await exportToPdf({
+          title: "Monthly Attendance Summary",
+          subtitle: "Institution-wide, live from EOSbackend1",
+          meta: [["Mean attendance", kpis[2].value], ["Below 75%", String(attOverview?.below_75_count ?? "—")]],
+          sections: [
+            {
+              type: "table",
+              title: "Attendance bands (sample)",
+              columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
+              rows: attBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
+            },
+          ],
+          filename: `monthly-attendance-summary-${today()}.pdf`,
+        });
+      } else if (name === "Faculty workload report") {
+        await exportToPdf({
+          title: "Faculty Workload Report",
+          subtitle: "Duties and attendance per faculty member — live from EOSbackend1",
+          meta: [["Faculty listed", String(facRows.length)]],
+          sections: [
+            {
+              type: "table",
+              columns: [{ header: "Faculty", key: "name" }, { header: "Designation", key: "designation" }, { header: "Department", key: "dept" }, { header: "Attendance", key: "att" }, { header: "Email", key: "email" }],
+              rows: facRows.map((f) => ({
+                name: `${f.first_name} ${f.last_name}`,
+                designation: f.designation,
+                dept: f.department?.code ?? "—",
+                att: f.attendance_percentage !== null ? `${f.attendance_percentage}%` : "—",
+                email: f.email,
+              })),
+            },
+          ],
+          filename: `faculty-workload-report-${today()}.pdf`,
+        });
+      } else if (name === "Pass percentage snapshot") {
+        await exportToPdf({
+          title: "Pass Percentage Snapshot",
+          subtitle: "Institution-wide, live from EOSbackend1",
+          meta: [["Pass percentage", kpis[3].value], ["Students with arrears", String(examsOverview?.students_with_arrears ?? "—")], ["Arrear papers", String(examsOverview?.arrear_papers ?? "—")]],
+          sections: [
+            {
+              type: "table",
+              title: "CGPA distribution (sample)",
+              columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
+              rows: cgpaBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
+            },
+          ],
+          filename: `pass-percentage-snapshot-${today()}.pdf`,
+        });
+      } else if (name === "Placement summary") {
+        await exportToPdf({
+          title: "Placement Summary",
+          subtitle: "Season stats — live from EOSbackend1",
+          meta: [
+            ["Students placed", String(placementsOverview?.students_placed ?? "—")],
+            ["Applicants", String(placementsOverview?.applicants ?? "—")],
+            ["Placement %", placementsOverview?.placement_pct !== null && placementsOverview?.placement_pct !== undefined ? `${placementsOverview.placement_pct.toFixed(1)}%` : "—"],
+            ["Companies", String(placementsOverview?.companies ?? "—")],
+          ],
+          sections: [
+            {
+              type: "table",
+              title: "Department-wise placement",
+              columns: [{ header: "Department", key: "dept" }, { header: "%", key: "pct" }],
+              rows: (placementsOverview?.departments ?? []).map((d) => ({
+                dept: d.code,
+                pct: d.placement_pct !== null ? `${d.placement_pct.toFixed(1)}%` : "—",
+              })),
+            },
+          ],
+          filename: `placement-summary-${today()}.pdf`,
+        });
+      }
+      flash(`${name} downloaded.`);
+    } catch (err) {
+      flash(err instanceof Error ? `Could not generate the PDF: ${err.message}` : "Could not generate the PDF.");
+    }
+  }
+
+  async function onExportFullReport() {
+    try {
+      await exportToPdf({
+        title: "Institution Report — Full Summary",
+        subtitle: "Students, faculty, results and placements — live from EOSbackend1",
+        meta: kpis.map((k) => [k.label, k.value] as [string, string]),
+        sections: [
+          {
+            type: "table",
+            title: "CGPA distribution (sample)",
+            columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
+            rows: cgpaBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
+          },
+          {
+            type: "table",
+            title: "Attendance bands (sample)",
+            columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
+            rows: attBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
+          },
+          {
+            type: "table",
+            title: "Faculty summary",
+            columns: [{ header: "Faculty", key: "name" }, { header: "Designation", key: "designation" }, { header: "Department", key: "dept" }, { header: "Attendance", key: "att" }],
+            rows: facRows.map((f) => ({ name: `${f.first_name} ${f.last_name}`, designation: f.designation, dept: f.department?.code ?? "—", att: f.attendance_percentage !== null ? `${f.attendance_percentage}%` : "—" })),
+          },
+        ],
+        filename: `institution-report-${today()}.pdf`,
+      });
+      flash("Full report downloaded.");
+    } catch (err) {
+      flash(err instanceof Error ? `Could not generate the PDF: ${err.message}` : "Could not generate the PDF.");
+    }
   }
 
   return (
@@ -144,7 +262,7 @@ export default function SecretaryReportsPage() {
           <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Reports &amp; Analytics</h1>
           <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>Institution-wide picture — students, faculty, results and placements, live from EOSbackend1</p>
         </div>
-        <button onClick={() => flash("Server-side full-report export isn't built yet — no PDF/export service exists in the backend.")} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 13.5, fontWeight: 600, borderRadius: 12, padding: "16px 28px", cursor: "pointer" }}>Export full report</button>
+        <button onClick={onExportFullReport} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 13.5, fontWeight: 600, borderRadius: 12, padding: "16px 28px", cursor: "pointer" }}>Export full report</button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 20, marginBottom: 20 }}>
@@ -262,7 +380,7 @@ export default function SecretaryReportsPage() {
 
       <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}>
         <h2 style={{ margin: "0 0 4px", fontSize: 15.7, fontWeight: 700 }}>Downloadable reports</h2>
-        <p style={{ margin: "0 0 14px", fontSize: 11.7, color: "#94a3b8" }}>No server-side export/PDF generation service exists in the backend yet — these buttons report that honestly rather than faking a generated file.</p>
+        <p style={{ margin: "0 0 14px", fontSize: 11.7, color: "#94a3b8" }}>Generates a real PDF client-side from the exact live figures above — no server-side export service exists, this renders directly from the same data on screen.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
           {REPORT_DESCRIPTORS.map((r) => (
             <div key={r.name} style={{ border: "1px solid #eef2f7", borderRadius: 12, padding: "16px 18px" }}>

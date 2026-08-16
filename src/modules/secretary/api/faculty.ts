@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
 // Backend reference: EOSbackend1/src/modules/faculty/{faculty,
@@ -67,5 +67,35 @@ export function useFacultyAttendanceOverview(departmentId: number | undefined) {
   return useQuery({
     queryKey: ["secretary", "faculty-attendance-overview", departmentId],
     queryFn: () => apiClient.get<FacultyAttendanceOverview>(`/me/faculty/attendance/overview${qs}`),
+  });
+}
+
+// --- Faculty Coordination screen: real load/duties/mentees/status/next-duty ---
+export interface FacultyCoordinationRow {
+  id: number;
+  name: string;
+  designation: string;
+  department_code: string | null;
+  load_hrs: number;
+  duties: number;
+  mentees: number;
+  status: "on_leave" | "on_duty" | "overloaded" | "available";
+  next_duty: { date: string; session: string } | null;
+}
+
+export function useFacultyCoordination(departmentId: number | undefined) {
+  const qs = departmentId !== undefined ? `?department_id=${departmentId}` : "";
+  return useQuery({
+    queryKey: ["secretary", "faculty-coordination", departmentId],
+    queryFn: () => apiClient.get<FacultyCoordinationRow[]>(`/principal-faculty/coordination${qs}`),
+  });
+}
+
+export function useAssignFacultyDuty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ facultyId, committee_name, role }: { facultyId: number; committee_name: string; role?: string }) =>
+      apiClient.post(`/principal-faculty/${facultyId}/assign-duty`, { committee_name, role }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "faculty-coordination"] }),
   });
 }

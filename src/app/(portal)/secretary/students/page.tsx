@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
 import { useStudentsSearch, useClassMentors, type StudentRow } from "@/modules/secretary/api/overview";
 
@@ -31,6 +32,7 @@ import { useStudentsSearch, useClassMentors, type StudentRow } from "@/modules/s
 const LENSES = ["All students", "Attendance below 75%", "CGPA above 8.5", "Fees due"] as const;
 
 export default function SecretaryStudentsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("All sections");
   const [lens, setLens] = useState<(typeof LENSES)[number]>("All students");
@@ -133,7 +135,8 @@ export default function SecretaryStudentsPage() {
             <div
               key={r.id}
               data-sec-row=""
-              style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr 0.8fr 0.9fr 0.9fr 1fr", gap: 12, alignItems: "center", padding: "14px 22px", borderBottom: "1px solid #f5f7fa" }}
+              onClick={() => router.push(`/secretary/students/${r.register_no ?? r.student_id_no}`)}
+              style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr 0.8fr 0.9fr 0.9fr 1fr", gap: 12, alignItems: "center", padding: "14px 22px", borderBottom: "1px solid #f5f7fa", cursor: "pointer" }}
             >
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.3, color: "#475569" }}>{r.student_id_no}</span>
               <span style={{ fontSize: 12.6, fontWeight: 500 }}>{r.name}</span>

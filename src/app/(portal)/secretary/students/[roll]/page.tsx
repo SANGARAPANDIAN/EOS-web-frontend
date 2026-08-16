@@ -54,7 +54,7 @@ export default function StudentProfilePage() {
 
   const { data: search, isLoading: searchLoading, error: searchError } = useStudentsSearch({ search: params.roll, limit: 5 });
   const rec = useMemo(
-    () => search?.students.find((s) => s.register_no === params.roll) ?? search?.students[0],
+    () => search?.students.find((s) => s.register_no === params.roll || s.student_id_no === params.roll) ?? search?.students[0],
     [search, params.roll],
   );
   const { data: p, isLoading: profileLoading, error: profileError } = useStudentProfile(rec?.id);

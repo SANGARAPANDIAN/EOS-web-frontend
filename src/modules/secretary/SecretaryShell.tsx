@@ -48,7 +48,7 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#ffffff" }}>
-      <header style={{ height: 80, flex: "0 0 80px", background: "#ffffff", borderBottom: "1px solid #e5e9f2", display: "flex", alignItems: "center", gap: 20, padding: "0 28px", position: "sticky", top: 0, zIndex: 40, overflowX: "auto" }}>
+      <header data-no-print="" style={{ height: 80, flex: "0 0 80px", background: "#ffffff", borderBottom: "1px solid #e5e9f2", display: "flex", alignItems: "center", gap: 20, padding: "0 28px", position: "sticky", top: 0, zIndex: 40, overflowX: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 13, width: 292, flex: "0 1 auto", minWidth: 168, overflow: "hidden" }}>
           <div style={{ width: 40, height: 44, borderRadius: "6px 6px 20px 20px", background: "#1e3a8a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.2, fontWeight: 700, letterSpacing: 0.5 }}>SE</div>
           <div style={{ lineHeight: 1.2 }}>
@@ -120,7 +120,7 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <div style={{ display: "flex", alignItems: "stretch", flex: 1, minHeight: 0 }}>
-        <aside style={{ width: collapsed ? 88 : 292, flex: "0 0 auto", background: "#ffffff", borderRight: "1px solid #e5e9f2", display: "flex", flexDirection: "column", position: "sticky", top: 80, height: "calc(100vh - 80px)", overflow: "hidden" }}>
+        <aside data-no-print="" style={{ width: collapsed ? 88 : 292, flex: "0 0 auto", background: "#ffffff", borderRight: "1px solid #e5e9f2", display: "flex", flexDirection: "column", position: "sticky", top: 80, height: "calc(100vh - 80px)", overflow: "hidden" }}>
           <div style={{ flex: 1, overflowY: "auto", padding: "22px 16px 10px" }}>
             {SECRETARY_NAV.map((g, gi) => (
               <div key={g.label} style={{ marginBottom: 22 }}>

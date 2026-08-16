@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useStudentsSearch, useStudentProfile } from "@/modules/secretary/api/overview";
 import { tone } from "@/modules/secretary/helpers";
+import { PrintProfileStyles, PrintLetterhead } from "@/modules/secretary/PrintProfile";
 
 // Pixel-exact layout port of the `isStudentProfile` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1886-2086.
@@ -78,19 +79,23 @@ export default function StudentProfilePage() {
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+      <PrintProfileStyles />
+      <div data-no-print="" style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
         <button data-sec-lift="" onClick={() => router.push("/secretary/students")} style={{ border: "1px solid #e5e9f2", background: "#ffffff", color: "#0f172a", fontSize: 13.1, fontWeight: 600, borderRadius: 12, padding: "14px 20px", cursor: "pointer" }}>← Back to students</button>
         <div>
           <div style={{ fontSize: 14.8, fontWeight: 700 }}>{p.name}</div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.3, color: "#94a3b8", marginTop: 3 }}>{p.register_no ?? p.roll_no} · {p.student_id_no}</div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 14 }}>
-          <button data-sec-lift="" onClick={() => flash(`Profile of ${p.name} sent to the printer.`)} style={{ border: "1px solid #e5e9f2", background: "#ffffff", color: "#0f172a", fontSize: 13.1, fontWeight: 600, borderRadius: 12, padding: "14px 22px", cursor: "pointer" }}>Print profile</button>
+          <button data-sec-lift="" onClick={() => window.print()} style={{ border: "1px solid #e5e9f2", background: "#ffffff", color: "#0f172a", fontSize: 13.1, fontWeight: 600, borderRadius: 12, padding: "14px 22px", cursor: "pointer" }}>Print profile</button>
         </div>
       </div>
 
+      <div data-print-root="" style={{ display: "grid", gap: 20 }}>
+      <PrintLetterhead title="Student Profile" subtitle={`${p.department?.name ?? "—"} · Semester ${p.semester ?? "—"}${p.section ? ` · Section ${p.section}` : ""}`} />
+
       {/* Hero */}
-      <div data-sec-lift="" style={{ ...cardSx, padding: "28px 30px", display: "flex", gap: 30, flexWrap: "wrap" }}>
+      <div data-sec-lift="" data-print-card="" style={{ ...cardSx, padding: "28px 30px", display: "flex", gap: 30, flexWrap: "wrap" }}>
         <div style={{ flex: "0 0 auto", textAlign: "center" }}>
           {p.photo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -346,9 +351,10 @@ export default function StudentProfilePage() {
           </div>
         )}
       </div>
+      </div>
 
       {toast && (
-        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "#ffffff", fontSize: 12.2, fontWeight: 500, borderRadius: 12, padding: "14px 22px", boxShadow: "0 16px 40px rgba(15,23,42,0.3)", zIndex: 120 }}>{toast}</div>
+        <div data-no-print="" style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "#ffffff", fontSize: 12.2, fontWeight: 500, borderRadius: 12, padding: "14px 22px", boxShadow: "0 16px 40px rgba(15,23,42,0.3)", zIndex: 120 }}>{toast}</div>
       )}
     </div>
   );

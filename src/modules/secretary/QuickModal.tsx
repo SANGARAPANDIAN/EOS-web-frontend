@@ -13,7 +13,9 @@
 export type QuickFieldSpec =
   | { key: string; label: string; type: "text"; placeholder?: string }
   | { key: string; label: string; type: "select"; options: string[] }
-  | { key: string; label: string; type: "area"; placeholder?: string };
+  | { key: string; label: string; type: "area"; placeholder?: string }
+  | { key: string; label: string; type: "date"; min?: string; max?: string; hint?: string }
+  | { key: string; label: string; type: "time"; min?: string; max?: string; hint?: string };
 
 const fieldInputSx = { width: "100%", height: 46, border: "1px solid #e5e9f2", borderRadius: 10, padding: "0 14px", fontSize: 12.6, color: "#0f172a" } as const;
 const fieldAreaSx = { width: "100%", minHeight: 110, border: "1px solid #e5e9f2", borderRadius: 10, padding: "12px 14px", fontSize: 12.6, color: "#0f172a", lineHeight: 1.55, resize: "vertical" as const };
@@ -63,6 +65,18 @@ export function QuickModal({
               )}
               {f.type === "area" && (
                 <textarea data-sec-lift="" value={values[f.key] ?? ""} onChange={(e) => onChange(f.key, e.target.value)} placeholder={f.placeholder} style={fieldAreaSx} />
+              )}
+              {f.type === "date" && (
+                <>
+                  <input data-sec-lift="" type="date" value={values[f.key] ?? ""} onChange={(e) => onChange(f.key, e.target.value)} min={f.min} max={f.max} style={{ ...fieldInputSx, colorScheme: "light" }} />
+                  {f.hint && <span style={{ display: "block", fontSize: 10.8, color: "#94a3b8", marginTop: 5 }}>{f.hint}</span>}
+                </>
+              )}
+              {f.type === "time" && (
+                <>
+                  <input data-sec-lift="" type="time" value={values[f.key] ?? ""} onChange={(e) => onChange(f.key, e.target.value)} min={f.min} max={f.max} style={{ ...fieldInputSx, colorScheme: "light" }} />
+                  {f.hint && <span style={{ display: "block", fontSize: 10.8, color: "#94a3b8", marginTop: 5 }}>{f.hint}</span>}
+                </>
               )}
             </label>
           ))}

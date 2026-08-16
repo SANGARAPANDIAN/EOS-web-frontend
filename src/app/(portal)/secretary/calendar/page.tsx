@@ -26,13 +26,12 @@ import { QuickModal, type QuickFieldSpec } from "@/modules/secretary/QuickModal"
 const EVENT_TYPE_OPTIONS: CalendarEventType[] = ["holiday", "event"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const EVENT_FIELDS: QuickFieldSpec[] = [
-  { key: "title", label: "Event title", type: "text", placeholder: "e.g. Department project review 3" },
-  { key: "event_type", label: "Category", type: "select", options: EVENT_TYPE_OPTIONS },
-  { key: "event_date", label: "Date (YYYY-MM-DD)", type: "text", placeholder: "2026-08-20" },
-  { key: "start_time", label: "Start time (HH:mm)", type: "text", placeholder: "09:00" },
-  { key: "end_time", label: "End time (HH:mm)", type: "text", placeholder: "10:00" },
-];
+// Converts a Date (or ISO datetime string) to the plain "YYYY-MM-DD" that
+// <input type="date"> min/max/value attributes require.
+function toDateInputValue(d: string | Date): string {
+  const dt = typeof d === "string" ? new Date(d) : d;
+  return dt.toISOString().slice(0, 10);
+}
 
 export default function SecretaryCalendarPage() {
   const [toast, setToast] = useState("");
@@ -58,6 +57,29 @@ export default function SecretaryCalendarPage() {
   const createMutation = useCreateCalendarEvent();
   const deleteMutation = useDeleteCalendarEvent();
 
+  // Real native date/time pickers, bounded to the real, currently-selected
+  // academic calendar's own start_date/end_date — the server rejects any
+  // event_date outside that range ("Event date must be within the academic
+  // calendar date range"), so the picker itself only lets you pick a date
+  // that will succeed, rather than letting you type something invalid and
+  // finding out after submitting.
+  const calendarMin = currentCalendar ? toDateInputValue(currentCalendar.start_date) : undefined;
+  const calendarMax = currentCalendar ? toDateInputValue(currentCalendar.end_date) : undefined;
+  const eventFields: QuickFieldSpec[] = [
+    { key: "title", label: "Event title", type: "text", placeholder: "e.g. Department project review 3" },
+    { key: "event_type", label: "Category", type: "select", options: EVENT_TYPE_OPTIONS },
+    {
+      key: "event_date",
+      label: "Date",
+      type: "date",
+      min: calendarMin,
+      max: calendarMax,
+      hint: currentCalendar ? `Must fall within this calendar: ${new Date(currentCalendar.start_date).toLocaleDateString("en-IN")} – ${new Date(currentCalendar.end_date).toLocaleDateString("en-IN")}` : undefined,
+    },
+    { key: "start_time", label: "Start time", type: "time" },
+    { key: "end_time", label: "End time", type: "time" },
+  ];
+
   function openCreate() {
     setForm({ title: "", event_type: "event", event_date: "", start_time: "09:00", end_time: "10:00" });
     setModalOpen(true);
@@ -72,7 +94,11 @@ export default function SecretaryCalendarPage() {
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(form.event_date || "").trim())) {
-      flash("Enter the date as YYYY-MM-DD, e.g. 2026-08-20.");
+      flash("Pick a date for the event.");
+      return;
+    }
+    if (calendarMin && calendarMax && (form.event_date < calendarMin || form.event_date > calendarMax)) {
+      flash(`Pick a date between ${new Date(currentCalendar.start_date).toLocaleDateString("en-IN")} and ${new Date(currentCalendar.end_date).toLocaleDateString("en-IN")}.`);
       return;
     }
     try {
@@ -146,7 +172,7 @@ export default function SecretaryCalendarPage() {
         title="Add calendar event"
         subtitle="Added to the real institution academic calendar"
         cta="Add event"
-        fields={EVENT_FIELDS}
+        fields={eventFields}
         values={form}
         onChange={(key, value) => setForm((f) => ({ ...f, [key]: value }))}
         onClose={() => setModalOpen(false)}

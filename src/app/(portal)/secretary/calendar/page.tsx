@@ -128,7 +128,7 @@ export default function SecretaryCalendarPage() {
                 </div>
                 <div style={{ flex: "1 1 150px", minWidth: 150 }}>
                   <div style={{ fontSize: 14.8, fontWeight: 700, letterSpacing: -0.2 }}>{e.title}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.2, color: "#64748b", marginTop: 3 }}>{e.start_time.slice(0, 5)} – {e.end_time.slice(0, 5)}{e.description ? <><span style={{ color: "#cbd5e1" }}>·</span>{e.description}</> : null}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.2, color: "#64748b", marginTop: 3 }}>{e.start_time && e.end_time ? `${e.start_time.slice(0, 5)} – ${e.end_time.slice(0, 5)}` : "All day"}{e.description ? <><span style={{ color: "#cbd5e1" }}>·</span>{e.description}</> : null}</div>
                 </div>
                 <span style={{ flex: "0 0 auto", fontSize: 12.2, fontWeight: 500, color: "#1d4ed8", background: "#eef4ff", borderRadius: 999, padding: "8px 16px" }}>{e.event_type.toUpperCase()}</span>
                 <button onClick={() => onRemove(e)} title="Remove event" style={{ flex: "0 0 auto", border: 0, background: "transparent", color: "#b91c1c", fontSize: 11.7, fontWeight: 600, cursor: "pointer", padding: 6 }}>Remove</button>

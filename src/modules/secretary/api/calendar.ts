@@ -40,8 +40,9 @@ export interface CalendarEventRow {
   description: string | null;
   event_date: string;
   event_type: CalendarEventType;
-  start_time: string;
-  end_time: string;
+  // Real column is nullable — a holiday row has no specific time range.
+  start_time: string | null;
+  end_time: string | null;
   created_by_user_id: number;
 }
 

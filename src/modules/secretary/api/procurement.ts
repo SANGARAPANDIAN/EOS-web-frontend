@@ -49,7 +49,8 @@ export function usePurchaseRequests(status?: string) {
   const qs = status ? `?status=${status}` : "";
   return useQuery({
     queryKey: ["secretary", "purchase-requests", status],
-    queryFn: () => apiClient.get<PurchaseRequestRow[]>(`/me/purchase-requests${qs}`),
+    // Real backend paginates (paginate() -> {data, meta}), not a bare array.
+    queryFn: () => apiClient.get<{ data: PurchaseRequestRow[] }>(`/me/purchase-requests${qs}`).then((r) => r.data),
   });
 }
 
@@ -98,7 +99,8 @@ export function useServiceRequests(status?: string) {
   const qs = status ? `?status=${status}` : "";
   return useQuery({
     queryKey: ["secretary", "service-requests", status],
-    queryFn: () => apiClient.get<ServiceRequestRow[]>(`/me/service-requests${qs}`),
+    // Real backend paginates (paginate() -> {data, meta}), not a bare array.
+    queryFn: () => apiClient.get<{ data: ServiceRequestRow[] }>(`/me/service-requests${qs}`).then((r) => r.data),
   });
 }
 

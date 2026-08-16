@@ -168,7 +168,7 @@ export function useWithdrawPayslip() {
 export function useMyStaffBorrowRecords() {
   return useQuery({
     queryKey: ["secretary", "my-borrow-records"],
-    queryFn: () => apiClient.get<{ data: StaffBorrowRow[] }>("/me/library/staff-borrow-records").then((r) => r.data),
+    queryFn: () => apiClient.get<{ data: StaffBorrowRow[] }>("/me/library/staff-borrow-records").then((r) => r?.data ?? []),
   });
 }
 // No self-service borrow/renew — reverted per the user's explicit call

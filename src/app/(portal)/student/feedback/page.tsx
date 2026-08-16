@@ -26,7 +26,10 @@ export default function FeedbackPage() {
               <Card className="h-full transition-colors hover:bg-nav-hover">
                 <div className="flex items-center justify-between">
                   <Icon name="reviews" size={20} className="text-primary" />
-                  <Badge tone={f.completed ? "accent" : "accentDark"}>{f.completed ? "Submitted" : "Pending"}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    {f.form_type === "end_semester" && <Badge tone="neutral">End-semester</Badge>}
+                    <Badge tone={f.completed ? "accent" : "accentDark"}>{f.completed ? "Submitted" : "Pending"}</Badge>
+                  </div>
                 </div>
                 <div className="mt-2 text-[15px] font-bold text-ink">{f.title}</div>
                 <div className="mt-0.5 text-[12px] text-muted">{f.question_count} questions</div>

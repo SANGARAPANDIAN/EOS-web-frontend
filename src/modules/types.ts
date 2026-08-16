@@ -1,4 +1,34 @@
-export type NavBadgeKey = "announcementsRecent" | "feesDue" | "feedbackPending";
+export type NavBadgeKey =
+  | "announcementsRecent"
+  | "feesDue"
+  | "feedbackPending"
+  | "principalStudentsTotal"
+  | "principalFacultyTotal"
+  | "fleetBuses"
+  | "fleetRoutes"
+  | "crewCount"
+  | "maintenanceDue"
+  | "complianceExpiring"
+  | "heAspirants"
+  | "heApplications"
+  | "heTests"
+  | "heUniversities"
+  | "heScholarships"
+  | "mcOpdWaiting"
+  | "mcBedsOccupied"
+  | "mcLowStock"
+  | "hwPendingPasses"
+  | "hwPendingLeave"
+  | "hwOpenComplaints"
+  | "sportsAthletes"
+  | "sportsTeams"
+  | "sportsTrialsPending"
+  | "sportsOdPending"
+  | "sportsDisciplines"
+  | "sportsAchievements"
+  | "studentCount"
+  | "facultyCount"
+  | "totalBooks";
 
 export interface NavItem {
   key: string;

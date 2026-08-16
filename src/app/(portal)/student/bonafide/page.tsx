@@ -100,14 +100,14 @@ export default function BonafidePage() {
       </div>
 
       {tab === "apply" ? (
-        <Card className="max-w-[720px] p-[22px_24px]">
+        <Card className="p-[22px_24px]">
           <label className="text-[11.5px] font-bold text-muted">Purpose</label>
           {reasons.isLoading ? (
             <div className="mt-2">
               <EmptyState message="Loading…" />
             </div>
           ) : (
-            <div className="mt-2 grid grid-cols-3 gap-3">
+            <div className="mt-2 grid grid-cols-4 gap-3">
               {reasons.data?.map((r) => (
                 <ReasonCard
                   key={r.id}

@@ -43,3 +43,30 @@ export function useUpdateOutpassStatus() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "outpasses"] }),
   });
 }
+
+export interface CreateOutpassInput {
+  student_id: number;
+  kind: string;
+  outpass_date: string;
+  from_time: string;
+  to_time: string;
+  reason: string;
+  parent_contact?: string;
+}
+
+/**
+ * POST /me/student-outpasses — real, already Secretary-accessible (the
+ * only creation endpoint in the whole codebase for this table; there is
+ * no separate student/mentor self-service creation path anywhere, despite
+ * the design's "raised by students" framing). Since the office regularly
+ * raises these on a student's behalf (e.g. phone request, in person),
+ * this composer uses the same real endpoint students would use if a
+ * self-service screen existed later — no schema change, no fake data.
+ */
+export function useCreateOutpass() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateOutpassInput) => apiClient.post("/me/student-outpasses", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "outpasses"] }),
+  });
+}

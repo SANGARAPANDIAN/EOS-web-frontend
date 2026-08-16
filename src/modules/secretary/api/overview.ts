@@ -231,3 +231,116 @@ export function useStudentsSearch(params: { search?: string; department_id?: num
     queryFn: () => apiClient.get<StudentsSearchResponse>(`/principal-students?${qs.toString()}`),
   });
 }
+
+// --- Full Student/Faculty Profile detail screens ---
+// Every field here is backed by a real table (see the exhaustive schema
+// audit this was built from) — GPA history, current-semester marks,
+// monthly attendance and achievements are computed live from real
+// exam_marks/attendance_records/grade_bands rows, not stored aggregates.
+
+export interface StudentProfile {
+  id: number;
+  name: string;
+  student_id_no: string;
+  roll_no: string | null;
+  register_no: string | null;
+  admission_no: string | null;
+  admission_date: string | null;
+  admission_type: string | null;
+  department: { id: number; name: string; code: string } | null;
+  programme: string | null;
+  batch: string | null;
+  section: string | null;
+  semester: number | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  blood_group: string | null;
+  mother_tongue: string | null;
+  community: string | null;
+  nationality: string | null;
+  religion: string | null;
+  caste: string | null;
+  is_first_graduate: boolean;
+  is_diff_abled: boolean;
+  diff_abled_info: string | null;
+  photo_url: string | null;
+  institute_email: string;
+  personal_email: string | null;
+  alternate_email: string | null;
+  mobile: string | null;
+  aadhar_number: string | null;
+  pan_number: string | null;
+  passport_number: string | null;
+  addresses: { type: string; line: string | null; city: string | null; state: string | null; pincode: string | null; district: string | null }[];
+  class_advisor: string | null;
+  faculty_mentor: string | null;
+  identity_marks: { number: number; description: string | null }[];
+  family: {
+    father: { name: string | null; qualification: string | null; occupation: string | null; annual_income: number | null; email: string | null; mobile: string | null; photo_url: string | null };
+    mother: { name: string | null; qualification: string | null; occupation: string | null; annual_income: number | null; email: string | null; mobile: string | null; photo_url: string | null };
+  } | null;
+  pre_admission: { cutoff_physics: string | null; cutoff_chemistry: string | null; cutoff_maths: string | null } | null;
+  gpa_history: { semester: number; gpa: number | null; credits: number; arrears: number }[];
+  overall_gpa: number | null;
+  overall_percentage: number | null;
+  current_semester_subjects: { name: string; code: string; internal: number | null; external: number | null; total: number; grade: string }[];
+  monthly_attendance: { month: string; pct: number }[];
+  overall_attendance_pct: number | null;
+  documents: { name: string; available: boolean; file_url: string | null; verified_at: string | null }[];
+  scholarships: { scheme: string; amount: number; awarded_at: string }[];
+  hostel: { room_id: number; allocated_date: string } | null;
+  transport: { route_id: number } | null;
+  fees: { total_demand: number; total_paid: number; status: "no_demand" | "paid" | "due" | "scholarship" };
+  achievements: { label: string; date: string | null; source: "sports" | "test_score" }[];
+  discipline: { incident_count: number };
+  placement: { company: string; status: string; offer_response: string | null; offered_package: number | null }[];
+}
+
+export function useStudentProfile(id: number | undefined) {
+  return useQuery({
+    queryKey: ["secretary", "student-profile", id],
+    queryFn: () => apiClient.get<StudentProfile>(`/principal-students/${id}/profile`),
+    enabled: id !== undefined,
+  });
+}
+
+export interface FacultyProfile {
+  id: number;
+  name: string;
+  designation: string;
+  department: { id: number; name: string; code: string } | null;
+  date_of_joining: string | null;
+  experience_years: number | null;
+  status: string;
+  gender: string | null;
+  date_of_birth: string | null;
+  institute_email: string;
+  personal_email: string | null;
+  phone: string | null;
+  qualification: string | null;
+  specialization: string | null;
+  previous_institution: string | null;
+  office_room: string | null;
+  work_location: string | null;
+  employment_status: string | null;
+  employment_type: string | null;
+  attendance_pct_this_term: number | null;
+  periods_per_week: number;
+  class_advisor_of: string | null;
+  subjects_handled: { code: string; name: string; semester: number | null; section: string; academic_year: string }[];
+  leave_balances: { leave_type: string; allocated: number; used: number; academic_year: string }[];
+  leave_history: { from_date: string; to_date: string; reason: string | null; hod_status: string; hr_status: string; created_at: string }[];
+  od_history: { from_date: string; to_date: string; purpose: string | null; place: string | null; hod_status: string; hr_status: string }[];
+  appraisal: { status: string; academic_year: string; hod_reviewed_at: string | null; management_approved_at: string | null; remarks: string | null } | null;
+  publications: { title: string; type: string; year: number }[];
+  awards: { title: string; year: number }[];
+  responsibilities: { title: string }[];
+}
+
+export function useFacultyProfile(id: number | undefined) {
+  return useQuery({
+    queryKey: ["secretary", "faculty-profile", id],
+    queryFn: () => apiClient.get<FacultyProfile>(`/principal-faculty/${id}/profile`),
+    enabled: id !== undefined,
+  });
+}

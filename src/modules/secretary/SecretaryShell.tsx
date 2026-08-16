@@ -6,25 +6,26 @@ import { usePathname, useRouter } from "next/navigation";
 import { SECRETARY_NAV } from "./nav";
 import { SecretaryIcon } from "./icons";
 import { initialsOf } from "./helpers";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
+import { NotificationPanel } from "@/modules/advisor/NotificationPanel";
 
 // Pixel-exact port of the shell (header + aside) from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 27-108. Every
 // color/size/spacing value below is copied directly from that file's
-// inline styles. Skeleton pass — real EOSbackend1 wiring (badge counts,
-// notifications, search) is a later pass, same process as the EDC module.
+// inline styles.
 //
 // Icons are hand-drawn stroke SVGs (see icons.tsx's `SecretaryIcon`, ported
 // from the design's own `ic()` method) — NOT a ligature font, unlike EDC's
 // Material Symbols Outlined.
-
-// Ported verbatim from source's `topFlags` notification list (line 3150-3153)
-// — each row's onClick navigates to its related screen (this.go(...)).
-const NOTIFICATIONS = [
-  { title: "3 SOP requests awaiting a decision", meta: "Oldest raised 8 days ago", href: "/secretary/sop" },
-  { title: "Attendance not saved for III-B · Hour 1", meta: "Register locks at 4.15 pm", href: "/secretary/attendance" },
-  { title: "2 media requests unconfirmed", meta: "Alumni panel post · publish by 20 Aug", href: "/secretary/media" },
-  { title: "3 documents unverified", meta: "Course file window closes 20 Aug", href: "/secretary/docs" },
-];
+//
+// REAL BACKEND WIRING — the bell used to render a hardcoded 4-row fake
+// array (`topFlags` from the design source) with a static blue dot.
+// Replaced with the same real, already-built `NotificationPanel`
+// (GET /me/notifications/panel, backed by the real `notifications` table)
+// used by the Advisor portal — it's generic, not advisor-specific, so it's
+// reused as-is rather than rebuilt. The dot is now conditional on a real
+// unread count (GET /me/notifications/unread-count) instead of always-on.
 
 export function SecretaryShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -34,6 +35,8 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
   const [search, setSearch] = useState("");
   const [year, setYear] = useState("2026-27");
   const [semester, setSemester] = useState<"Odd Semester" | "Even Semester">("Odd Semester");
+  const { logout } = useAuth();
+  const { data: unreadCount } = useUnreadNotificationCount();
 
   const department = "CSE";
   const secretaryName = "Ms. R. Kavitha";
@@ -93,29 +96,19 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div data-sec-lift="" onClick={() => setNotifOpen((v) => !v)} title="Notifications" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <SecretaryIcon name="bell" size={18} />
-            <span style={{ position: "absolute", top: 11, right: 12, width: 8, height: 8, borderRadius: 999, background: "#2563eb" }} />
-            {notifOpen && (
-              <div style={{ position: "absolute", top: 62, right: 0, width: 340, background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, boxShadow: "0 18px 40px rgba(15,23,42,0.13)", zIndex: 60, textAlign: "left" }}>
-                <div style={{ padding: "14px 16px", borderBottom: "1px solid #eef2f7", fontSize: 12.2, fontWeight: 700 }}>Notifications</div>
-                {NOTIFICATIONS.map((n) => (
-                  <button
-                    key={n.title}
-                    data-sec-row=""
-                    onClick={() => { setNotifOpen(false); router.push(n.href); }}
-                    style={{ display: "block", width: "100%", textAlign: "left", border: 0, background: "transparent", borderBottom: "1px solid #f5f7fa", padding: "12px 16px", cursor: "pointer" }}
-                  >
-                    <div style={{ fontSize: 11.7, fontWeight: 600, color: "#0f172a" }}>{n.title}</div>
-                    <div style={{ fontSize: 11.8, color: "#64748b", marginTop: 2 }}>{n.meta}</div>
-                  </button>
-                ))}
-              </div>
+            {!!unreadCount?.count && unreadCount.count > 0 && (
+              <span style={{ position: "absolute", top: 11, right: 12, width: 8, height: 8, borderRadius: 999, background: "#2563eb" }} />
             )}
+            {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
           </div>
           <Link href="/secretary/settings">
             <div data-sec-lift="" title="Settings" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <SecretaryIcon name="gear" size={18} />
             </div>
           </Link>
+          <div data-sec-lift="" onClick={logout} title="Log out" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <SecretaryIcon name="exit" size={18} />
+          </div>
         </div>
       </header>
 

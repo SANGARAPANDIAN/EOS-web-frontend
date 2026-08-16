@@ -5,6 +5,7 @@ import {
   useAcademicCalendars,
   useCalendarEvents,
   useCreateCalendarEvent,
+  useUpdateCalendarEvent,
   useDeleteCalendarEvent,
   type CalendarEventRow,
   type CalendarEventType,
@@ -55,7 +56,9 @@ export default function SecretaryCalendarPage() {
 
   const { data: events, isLoading, error } = useCalendarEvents(currentCalendar?.id);
   const createMutation = useCreateCalendarEvent();
+  const updateMutation = useUpdateCalendarEvent();
   const deleteMutation = useDeleteCalendarEvent();
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   // Real native date/time pickers, bounded to the real, currently-selected
   // academic calendar's own start_date/end_date — the server rejects any
@@ -81,7 +84,19 @@ export default function SecretaryCalendarPage() {
   ];
 
   function openCreate() {
+    setEditingId(null);
     setForm({ title: "", event_type: "event", event_date: "", start_time: "09:00", end_time: "10:00" });
+    setModalOpen(true);
+  }
+  function openEdit(e: CalendarEventRow) {
+    setEditingId(e.id);
+    setForm({
+      title: e.title,
+      event_type: e.event_type,
+      event_date: e.event_date.slice(0, 10),
+      start_time: e.start_time ? e.start_time.slice(0, 5) : "09:00",
+      end_time: e.end_time ? e.end_time.slice(0, 5) : "10:00",
+    });
     setModalOpen(true);
   }
   async function submit() {
@@ -102,18 +117,33 @@ export default function SecretaryCalendarPage() {
       return;
     }
     try {
-      await createMutation.mutateAsync({
-        academic_calendar_id: currentCalendar.id,
-        title: form.title,
-        event_date: form.event_date,
-        event_type: form.event_type as CalendarEventType,
-        start_time: form.start_time,
-        end_time: form.end_time,
-      });
+      if (editingId !== null) {
+        await updateMutation.mutateAsync({
+          id: editingId,
+          input: {
+            title: form.title,
+            event_date: form.event_date,
+            event_type: form.event_type as CalendarEventType,
+            start_time: form.start_time,
+            end_time: form.end_time,
+          },
+        });
+        flash("Event updated.");
+      } else {
+        await createMutation.mutateAsync({
+          academic_calendar_id: currentCalendar.id,
+          title: form.title,
+          event_date: form.event_date,
+          event_type: form.event_type as CalendarEventType,
+          start_time: form.start_time,
+          end_time: form.end_time,
+        });
+        flash("Event added to the academic calendar.");
+      }
       setModalOpen(false);
-      flash("Event added to the academic calendar.");
+      setEditingId(null);
     } catch (err) {
-      flash(err instanceof Error ? err.message : "Could not add the event — check it falls within the current calendar's date range.");
+      flash(err instanceof Error ? err.message : "Could not save the event — check it falls within the current calendar's date range.");
     }
   }
   async function onRemove(e: CalendarEventRow) {
@@ -157,6 +187,7 @@ export default function SecretaryCalendarPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.2, color: "#64748b", marginTop: 3 }}>{e.start_time && e.end_time ? `${e.start_time.slice(0, 5)} – ${e.end_time.slice(0, 5)}` : "All day"}{e.description ? <><span style={{ color: "#cbd5e1" }}>·</span>{e.description}</> : null}</div>
                 </div>
                 <span style={{ flex: "0 0 auto", fontSize: 12.2, fontWeight: 500, color: "#1d4ed8", background: "#eef4ff", borderRadius: 999, padding: "8px 16px" }}>{e.event_type.toUpperCase()}</span>
+                <button onClick={() => openEdit(e)} title="Edit event" style={{ flex: "0 0 auto", border: 0, background: "transparent", color: "#1e3a8a", fontSize: 11.7, fontWeight: 600, cursor: "pointer", padding: 6 }}>Edit</button>
                 <button onClick={() => onRemove(e)} title="Remove event" style={{ flex: "0 0 auto", border: 0, background: "transparent", color: "#b91c1c", fontSize: 11.7, fontWeight: 600, cursor: "pointer", padding: 6 }}>Remove</button>
               </div>
             );
@@ -169,13 +200,13 @@ export default function SecretaryCalendarPage() {
 
       <QuickModal
         open={modalOpen}
-        title="Add calendar event"
-        subtitle="Added to the real institution academic calendar"
-        cta="Add event"
+        title={editingId !== null ? "Edit calendar event" : "Add calendar event"}
+        subtitle="Real institution academic calendar"
+        cta={editingId !== null ? "Save changes" : "Add event"}
         fields={eventFields}
         values={form}
         onChange={(key, value) => setForm((f) => ({ ...f, [key]: value }))}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setEditingId(null); }}
         onSubmit={submit}
       />
 

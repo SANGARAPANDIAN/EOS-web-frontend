@@ -82,3 +82,16 @@ export function useDeleteCalendarEvent() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "calendar-events"] }),
   });
 }
+
+export type UpdateCalendarEventInput = Partial<Omit<CreateCalendarEventInput, "academic_calendar_id">>;
+
+/** PATCH /academic-calendar-events/:id — backend route already existed
+ * and already allows ROLES.SECRETARY; only the frontend hook was missing
+ * (create+delete existed, update did not — full CRUD closes that gap). */
+export function useUpdateCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateCalendarEventInput }) => apiClient.patch(`/academic-calendar-events/${id}`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "calendar-events"] }),
+  });
+}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
-import { useStudentsSearch, type StudentRow } from "@/modules/secretary/api/overview";
+import { useStudentsSearch, useClassMentors, type StudentRow } from "@/modules/secretary/api/overview";
 
 // Pixel-exact layout port of the `isStudents` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 553-636.
@@ -11,13 +11,12 @@ import { useStudentsSearch, type StudentRow } from "@/modules/secretary/api/over
 // EOSbackend1's real `GET /principal-students` (Secretary-granted,
 // institution-wide — same posture as Dashboard/Reports). Honest
 // departures from the design (never faked):
-//   - "Class rep" and "mentor" have NO backing anywhere in the schema
-//     (confirmed: no class_rep column, no institution-wide mentor listing
-//     endpoint — `class_mentors` only exposes a faculty's OWN mentee
-//     classes, not a directory usable here). The "Sections &
-//     representatives" panel is rebuilt from real per-section aggregates
-//     (student count + average attendance, computed from the same real
-//     roster fetch) instead — rep/mentor rows dropped, not fabricated.
+//   - "Class rep" has NO backing anywhere in the schema (confirmed: no
+//     class_rep column/table) — dropped, not fabricated.
+//   - "Mentor" IS real — `class_mentors` already models one mentor per
+//     section per academic year; it was previously only ever queried for
+//     a faculty's OWN mentee classes. Exposed institution-wide via
+//     `GET /principal-departments/class-mentors` and joined in below.
 //   - "With arrears"/"Placed"/"Not placed" lenses have no real per-student
 //     field anywhere (arrears only exists as an institution-wide
 //     aggregate count, not per student; no placement flag on this row
@@ -49,6 +48,8 @@ export default function SecretaryStudentsPage() {
 
   const { data: roster, isLoading, error } = useStudentsSearch({ department_id: cseDept?.id, below_75: lens === "Attendance below 75%" ? true : undefined, limit: 100 });
   const allStudents = roster?.students ?? [];
+  const { data: classMentors } = useClassMentors(cseDept?.id);
+  const mentorBySection = useMemo(() => new Map((classMentors ?? []).map((m) => [m.section, m.mentor])), [classMentors]);
 
   const sectionOptions = useMemo(() => ["All sections", ...Array.from(new Set(allStudents.map((r) => r.section).filter((s): s is string => !!s))).sort()], [allStudents]);
 
@@ -156,7 +157,7 @@ export default function SecretaryStudentsPage() {
                 <div style={{ width: 46, height: 46, borderRadius: 10, background: "#eef4ff", color: "#1e3a8a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.7, fontWeight: 700 }}>{sec.name}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.6, fontWeight: 600 }}>Section {sec.name}</div>
-                  <div style={{ fontSize: 11.8, color: "#64748b" }}>{sec.count} students</div>
+                  <div style={{ fontSize: 11.8, color: "#64748b" }}>{sec.count} students{mentorBySection.get(sec.name) ? ` · mentor ${mentorBySection.get(sec.name)}` : ""}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 13.1, fontWeight: 700, color: pctFg }}>{sec.attendance !== null ? `${sec.attendance}%` : "—"}</div>

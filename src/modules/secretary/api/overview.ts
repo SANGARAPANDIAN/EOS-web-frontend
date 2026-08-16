@@ -344,3 +344,48 @@ export function useFacultyProfile(id: number | undefined) {
     enabled: id !== undefined,
   });
 }
+
+// --- Real per-section mentor directory, NBA readiness, class strength ---
+export interface ClassMentorRow {
+  class_id: number;
+  section: string;
+  semester: number | null;
+  mentor: string | null;
+}
+export function useClassMentors(departmentId: number | undefined) {
+  const qs = departmentId !== undefined ? `?department_id=${departmentId}` : "";
+  return useQuery({
+    queryKey: ["secretary", "class-mentors", departmentId],
+    queryFn: () => apiClient.get<ClassMentorRow[]>(`/principal-departments/class-mentors${qs}`),
+  });
+}
+
+export interface NbaStatus {
+  readiness_pct: number | null;
+  done_count: number;
+  total_count: number;
+  criteria_count: number;
+}
+export function useNbaStatus(departmentId: number | undefined) {
+  const qs = departmentId !== undefined ? `?department_id=${departmentId}` : "";
+  return useQuery({
+    queryKey: ["secretary", "nba-status", departmentId],
+    queryFn: () => apiClient.get<NbaStatus>(`/principal-departments/nba-status${qs}`),
+  });
+}
+
+export interface ClassStrengthRow {
+  class_id: number;
+  section: string;
+  semester: number | null;
+  batch: string | null;
+  strength: number;
+  attendance_pct: number | null;
+}
+export function useClassStrength(departmentId: number | undefined) {
+  const qs = departmentId !== undefined ? `?department_id=${departmentId}` : "";
+  return useQuery({
+    queryKey: ["secretary", "class-strength", departmentId],
+    queryFn: () => apiClient.get<ClassStrengthRow[]>(`/principal-departments/class-strength${qs}`),
+  });
+}

@@ -123,7 +123,7 @@ export default function SecretaryDocsPage() {
           ))}
           <span style={{ marginLeft: "auto", fontSize: 11.3, color: "#64748b" }}>{filtered.length} of {docs?.meta.total ?? 0} documents</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "2.4fr 1.1fr 1fr 0.9fr 1fr 1.3fr", gap: 12, padding: "13px 20px", background: "#ffffff", borderBottom: "1px solid #eef2f7", fontSize: 11.3, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: "#94a3b8" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 0.9fr 0.8fr 0.9fr 1.9fr", gap: 12, padding: "13px 20px", background: "#ffffff", borderBottom: "1px solid #eef2f7", fontSize: 11.3, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: "#94a3b8" }}>
           <span>Document</span><span>Category</span><span>Owner</span><span>Size</span><span>Status</span><span style={{ textAlign: "right" }}>Actions</span>
         </div>
         {isLoading && <div style={{ padding: 40, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>Loading documents…</div>}
@@ -131,7 +131,7 @@ export default function SecretaryDocsPage() {
         {filtered.map((d) => {
           const t = tone(d.status);
           return (
-            <div key={d.id} data-sec-row="" style={{ display: "grid", gridTemplateColumns: "2.4fr 1.1fr 1fr 0.9fr 1fr 1.3fr", gap: 12, alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #f5f7fa" }}>
+            <div key={d.id} data-sec-row="" style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 0.9fr 0.8fr 0.9fr 1.9fr", gap: 12, alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #f5f7fa" }}>
               <div>
                 <div style={{ fontSize: 12.6, fontWeight: 600 }}>{d.name}</div>
                 <div style={{ fontSize: 11.8, color: "#64748b", marginTop: 2 }}>Updated {fmtDate(d.updated_at)} · v{d.version}</div>
@@ -141,6 +141,11 @@ export default function SecretaryDocsPage() {
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.8, color: "#64748b" }}>{fmtSize(d.size_bytes)}</span>
               <span style={{ fontSize: 10.8, fontWeight: 600, borderRadius: 999, padding: "5px 10px", justifySelf: "start", background: t.bg, color: t.fg }}>{d.status.toUpperCase()}</span>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                {d.file_url ? (
+                  <a href={d.file_url} target="_blank" rel="noopener noreferrer" data-sec-soft="" style={{ border: "1px solid #e5e9f2", background: "#ffffff", color: "#475569", fontSize: 11.8, fontWeight: 600, borderRadius: 8, padding: "7px 11px", cursor: "pointer", textDecoration: "none" }}>Download</a>
+                ) : (
+                  <span title="No file uploaded for this document yet" style={{ border: "1px solid #eef2f7", background: "#f8fafc", color: "#cbd5e1", fontSize: 11.8, fontWeight: 600, borderRadius: 8, padding: "7px 11px" }}>Download</span>
+                )}
                 <span data-sec-soft="" onClick={() => onVerify(d)} style={{ border: "1px solid #dbe6ff", background: "#ffffff", color: "#1e3a8a", fontSize: 11.8, fontWeight: 600, borderRadius: 8, padding: "7px 11px", cursor: "pointer" }}>{d.status === "verified" ? "Unverify" : "Verify"}</span>
                 <span data-sec-danger="" onClick={() => onDelete(d)} style={{ border: "1px solid #fee2e2", background: "#ffffff", color: "#b91c1c", fontSize: 11.8, fontWeight: 600, borderRadius: 8, padding: "7px 10px", cursor: "pointer" }}>✕</span>
               </div>

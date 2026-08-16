@@ -9,21 +9,22 @@ import { apiClient } from "@/lib/api/client";
 // added a Secretary branch that leaves `marked_by_faculty_id` null (the
 // column was already nullable), same pattern as media-requests.
 //
-// KNOWN BACKEND GAP (not faked): the real `attendance_status_enum` this
-// endpoint writes to only has `present`/`absent` — there is NO `on_duty`/
-// "OD" value reachable through this particular endpoint (that only exists
-// on `faculty_daily_attendance`, a different table for staff, and on a
-// separate Faculty-only "mark class attendance" endpoint that Secretary
-// hasn't been granted). The design's 3-way Present/Absent/OD toggle is
-// therefore genuinely 2-way (Present/Absent) here — OD is dropped from
-// the Mark tab rather than faked as a real write.
+// CORRECTED: an earlier pass here wrongly claimed attendance_status_enum
+// only has present/absent. It actually has all 3 values
+// (present/absent/on_duty) and the create endpoint already accepted
+// 'on_duty' — the 3-way Present/Absent/OD toggle is real, not dropped.
+//
+// GET /me/attendance-records — renamed from the bare 'me/attendance',
+// which was silently shadowed by a student-only profile route registered
+// earlier in app.module.ts (a real pre-existing bug affecting every
+// role). Fixed by renaming the route, not by touching that module.
 //
 // KNOWN GAP: there is no attendance changelog/audit-trail table anywhere
 // in the schema — attendance_records rows themselves (with
-// marked_by_user_id) are the only history. The History tab's person-search
-// and "who changed what" feature from the design has no real backing and
-// is replaced with a real "attendance already marked for this class+date"
-// read instead.
+// marked_by_user_id) are the only history, so "who changed this mark,
+// from what to what" specifically has no real backing. Everything else
+// in the History tab (person search, per-person marking history) is
+// computed live from real attendance_records.
 
 export interface TimetableSlot {
   id: number;
@@ -54,7 +55,7 @@ export function useTimetableSlots(classId: number | undefined) {
 export interface AttendanceRecordRow {
   id: number;
   date: string;
-  status: "present" | "absent";
+  status: "present" | "absent" | "on_duty";
   is_published: boolean;
   class: { id: number; section: string; department: { id: number; name: string; code: string } };
   subject: { id: number; name: string; subject_code: string } | null;
@@ -66,16 +67,24 @@ export interface AttendanceListResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-/** GET /me/attendance?class_id=&date= */
-export function useAttendanceRecords(params: { class_id?: number; date?: string }) {
+/**
+ * GET /me/attendance-records?class_id=&date= — renamed from the bare
+ * 'me/attendance' path, which was silently shadowed by a student-only
+ * profile route registered earlier in app.module.ts (a real, pre-existing
+ * backend bug affecting every role, not just Secretary — fixed by
+ * renaming the route on the module that already grants Secretary access,
+ * without touching the unrelated student-profile module).
+ */
+export function useAttendanceRecords(params: { class_id?: number; date?: string; student_id?: number }) {
   const qs = new URLSearchParams();
   if (params.class_id !== undefined) qs.set("class_id", String(params.class_id));
   if (params.date) qs.set("date", params.date);
+  if (params.student_id !== undefined) qs.set("student_id", String(params.student_id));
   qs.set("limit", "100");
   return useQuery({
     queryKey: ["secretary", "attendance", params],
-    queryFn: () => apiClient.get<AttendanceListResponse>(`/me/attendance?${qs.toString()}`),
-    enabled: params.class_id !== undefined,
+    queryFn: () => apiClient.get<AttendanceListResponse>(`/me/attendance-records?${qs.toString()}`),
+    enabled: params.class_id !== undefined || params.student_id !== undefined,
   });
 }
 
@@ -83,7 +92,7 @@ export interface CreateAttendanceInput {
   class_id: number;
   subject_id?: number;
   date: string;
-  records: { student_id: number; status: "present" | "absent" }[];
+  records: { student_id: number; status: "present" | "absent" | "on_duty" }[];
 }
 
 /** POST /me/attendance */

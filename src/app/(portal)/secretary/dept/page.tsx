@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useDepartmentsOverview } from "@/modules/secretary/api/overview";
+import { useDepartmentsOverview, useNbaStatus, useClassStrength } from "@/modules/secretary/api/overview";
 
 // Pixel-exact layout port of the `isDept` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1540-1610.
@@ -12,14 +12,18 @@ import { useDepartmentsOverview } from "@/modules/secretary/api/overview";
 // `GET /principal-departments/overview` (Secretary added to its role
 // guard; `established_at`/`courses_offered`/`courses` were added to the
 // service specifically for this screen — real columns/joins, no schema
-// migration). Honest omissions (never faked): "Laboratories" (no lab/
-// infrastructure table anywhere in the schema), "NBA status"/"MoUs
-// signed"/"Research funding"/"Office location & contact" (no such
-// columns exist on `departments` or anywhere else) — these sections are
-// removed rather than invented. "Programmes offered" now lists the
-// department's REAL courses (`courses` table); the old fake
-// per-programme "accreditation status" chips have no backend
-// equivalent and are dropped along with them.
+// migration). "NBA status" and "Class strength by year" are now real too
+// — `GET /principal-departments/nba-status` aggregates the same real
+// nba_criteria/nba_evidence_items the Accreditation screen uses, and
+// `GET /principal-departments/class-strength` computes real per-section
+// strength + attendance from students/attendance_records.
+//
+// Genuine, confirmed schema gaps (no table/column exists anywhere,
+// grepped exhaustively) — NOT faked, and NOT silently dropped: see the
+// SQL drafted in `EOSbackend1/prisma/migrations/department_details_gaps.sql`
+// for "Laboratories & infrastructure", "MoUs signed", "Research funding",
+// "Office location & contact", and per-programme accreditation chips.
+// These remain honest empty states until that migration is run.
 
 function fmtYear(iso: string): string {
   return new Date(iso).getFullYear().toString();
@@ -32,6 +36,9 @@ export default function SecretaryDeptPage() {
     const depts = data?.departments ?? [];
     return depts.find((d) => d.code?.toUpperCase() === "CSE") ?? depts[0];
   }, [data]);
+
+  const { data: nba } = useNbaStatus(cse?.id);
+  const { data: classStrength } = useClassStrength(cse?.id);
 
   if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 12.6, color: "#94a3b8" }}>Loading department overview…</div>;
   if (error) return <div style={{ padding: 60, textAlign: "center", fontSize: 12.6, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load department overview."}</div>;
@@ -88,6 +95,34 @@ export default function SecretaryDeptPage() {
             </div>
           ))}
           {cse.courses.length === 0 && <div style={{ padding: 20, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No courses on record for this department.</div>}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
+        <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 15.7, fontWeight: 700 }}>NBA readiness</h2>
+          <p style={{ margin: "0 0 16px", fontSize: 11.7, color: "#94a3b8" }}>{nba?.criteria_count ?? 0} criteria tracked, {nba?.done_count ?? 0} of {nba?.total_count ?? 0} evidence items ready</p>
+          <div style={{ height: 10, borderRadius: 999, background: "#eef2f7", overflow: "hidden" }}>
+            <div style={{ height: "100%", background: "#1e3a8a", borderRadius: 999, width: `${nba?.readiness_pct ?? 0}%` }} />
+          </div>
+          <div style={{ marginTop: 10, fontSize: 13.1, fontWeight: 700 }}>{nba?.readiness_pct !== null && nba?.readiness_pct !== undefined ? `${nba.readiness_pct}%` : "No NBA criteria added yet"}</div>
+        </div>
+        <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}>
+          <h2 style={{ margin: "0 0 16px", fontSize: 15.7, fontWeight: 700 }}>Class strength by section</h2>
+          {(classStrength ?? []).map((c) => (
+            <div key={c.class_id} data-sec-row="" style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 0", borderBottom: "1px solid #f5f7fa" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: "#eef4ff", color: "#1e3a8a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.3, fontWeight: 700, flex: "0 0 auto" }}>{c.section}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.6, fontWeight: 600 }}>Section {c.section}{c.semester ? ` · Sem ${c.semester}` : ""}</div>
+                <div style={{ fontSize: 11.3, color: "#94a3b8" }}>{c.batch ?? ""}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 13.1, fontWeight: 700 }}>{c.strength}</div>
+                <div style={{ fontSize: 11.3, color: "#94a3b8" }}>{c.attendance_pct !== null ? `${c.attendance_pct}% att.` : "—"}</div>
+              </div>
+            </div>
+          ))}
+          {(classStrength ?? []).length === 0 && <div style={{ padding: 20, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No classes on record for this department.</div>}
         </div>
       </div>
     </div>

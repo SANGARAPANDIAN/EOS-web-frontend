@@ -2,6 +2,7 @@ import type { ModuleConfig } from "@/modules/types";
 import { studentModuleConfig } from "@/modules/student/nav";
 import { advisorModuleConfig } from "@/modules/advisor/nav";
 import { edcModuleConfig } from "@/modules/edc/nav";
+import { secretaryModuleConfig } from "@/modules/secretary/nav";
 import { principalModuleConfig } from "@/modules/principal/nav";
 import { transportModuleConfig } from "@/modules/transport/nav";
 import { higherEducationModuleConfig } from "@/modules/higher-education/nav";
@@ -23,6 +24,7 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   student: studentModuleConfig,
   faculty: advisorModuleConfig,
   edc_coordinator: edcModuleConfig,
+  secretary: secretaryModuleConfig,
   principal: principalModuleConfig,
   transport: transportModuleConfig,
   higheredu: higherEducationModuleConfig,

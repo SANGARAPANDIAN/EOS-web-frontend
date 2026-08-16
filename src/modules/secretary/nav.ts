@@ -61,3 +61,14 @@ export const SECRETARY_NAV: SecretaryNavGroup[] = [
     ],
   },
 ];
+
+// Registers the secretary role with MODULE_REGISTRY (login redirect + route
+// guard) — same compat-shim pattern as edcModuleConfig in modules/edc/nav.ts.
+// navGroups is intentionally empty: SecretaryShell renders from SECRETARY_NAV
+// above, not the generic AppShell/Sidebar.
+export const secretaryModuleConfig = {
+  role: "secretary",
+  basePath: "/secretary",
+  moduleLabel: "Secretary Portal",
+  navGroups: [],
+};

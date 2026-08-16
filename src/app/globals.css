@@ -79,6 +79,72 @@ a:has(> [data-edc-nav-item]) {
   color: #1d4ed8 !important;
 }
 
+/* Secretary module — ported verbatim from every distinct `style-hover="..."`
+   value found in "Secretary Module - Web/Secretary Dashboard.dc.html".
+   Two dominant recipes cover ~215 of the ~220 hoverable elements: a card/
+   control "lift" (translateY -3px + blue glow shadow + blue border,
+   ~141 elements incl. every "background:#ffffff" variant — folded in since
+   every one of those elements already has a white background at rest, so
+   re-asserting #ffffff on hover is a visual no-op there) and a list-row
+   "highlight" (light-blue bg + blue outline, no lift, ~35 elements). Kept
+   as separate attributes from EDC's [data-edc-lift]/[data-edc-row] even
+   though the recipes are near-identical, since this module's own source
+   values (glow opacity 0.13 vs EDC's 0.16, outline vs box-shadow-only row
+   style) are subtly different — never merge two modules' verbatim-ported
+   constants just because they look similar. */
+[data-sec-lift],
+[data-sec-row],
+[data-sec-nav-item] {
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+[data-sec-lift]:hover {
+  transform: translateY(-3px);
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.13);
+}
+/* Row highlight — dashboard "Needs attention" rows, list/table rows. */
+[data-sec-row]:hover {
+  transform: translateY(-3px);
+  background: #f7faff !important;
+  outline: 1px solid #1d4ed8;
+  outline-offset: -1px;
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.12);
+  position: relative;
+  z-index: 1;
+}
+/* Sidebar nav item — the design's own hover here is genuinely inert
+   (`style-hover="background:#ffffff"` on an already-white idle item); kept
+   faithful rather than inventing a nicer effect that isn't in the source. */
+[data-sec-nav-item]:hover {
+  background: #ffffff;
+}
+a:has(> [data-sec-nav-item]) {
+  outline: none;
+}
+/* Sidebar collapse "«" button. */
+[data-sec-collapse]:hover {
+  color: #1e3a8a !important;
+}
+/* Soft-primary pill/action buttons (e.g. dashboard queue "Open"). */
+[data-sec-soft]:hover {
+  background: #eef4ff !important;
+}
+/* Destructive/"reject" buttons. */
+[data-sec-danger]:hover {
+  background: #fef2f2 !important;
+}
+/* Reports "row-open" button — the design's own hover here is a plain
+   opacity dim (`style-hover="opacity:0.72"`), distinct from the lift/row
+   recipes above. */
+[data-sec-fade]:hover {
+  opacity: 0.72;
+}
+
 /*
   Design tokens extracted verbatim from the "Student Portal" design reference
   (Student Module - Web/Student Portal.dc.html). Do not invent new colors —

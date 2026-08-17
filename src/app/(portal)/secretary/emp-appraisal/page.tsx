@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useAppraisalCriteria, useMyAppraisals, useSubmitAppraisal, useWithdrawAppraisal } from "@/modules/secretary/api/selfService";
+import { useRef, useState } from "react";
+import { useAppraisalCriteria, useMyAppraisals, useSubmitAppraisal, useWithdrawAppraisal, useUploadAppraisalAttachment, useRemoveAppraisalAttachment } from "@/modules/secretary/api/selfService";
 
 // Pixel-exact layout port of the `isEmpAppraisal` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1039-1094.
@@ -31,6 +31,7 @@ export default function SecretaryEmpAppraisalPage() {
   const [tab, setTab] = useState<"Apply" | "History">("Apply");
   const [toast, setToast] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [descriptions, setDescriptions] = useState<Record<number, string>>({});
   const today = new Date();
   const academicYear = `${today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1}-${(today.getMonth() >= 5 ? today.getFullYear() + 1 : today.getFullYear())}`;
 
@@ -38,6 +39,9 @@ export default function SecretaryEmpAppraisalPage() {
   const { data: appraisals, isLoading, error } = useMyAppraisals();
   const submitMutation = useSubmitAppraisal();
   const withdrawMutation = useWithdrawAppraisal();
+  const uploadAttachment = useUploadAppraisalAttachment();
+  const removeAttachment = useRemoveAppraisalAttachment();
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   function flash(msg: string) {
     setToast(msg);
@@ -64,9 +68,10 @@ export default function SecretaryEmpAppraisalPage() {
     try {
       await submitMutation.mutateAsync({
         academic_year: criteriaData.academic_year,
-        entries: Array.from(selected).map((criteria_id) => ({ criteria_id })),
+        entries: Array.from(selected).map((criteria_id) => ({ criteria_id, description: descriptions[criteria_id]?.trim() || undefined })),
       });
       setSelected(new Set());
+      setDescriptions({});
       flash("Appraisal submitted — routed straight to HR Payroll for scoring.");
       setTab("History");
     } catch (err) {
@@ -104,12 +109,22 @@ export default function SecretaryEmpAppraisalPage() {
             {(criteriaData?.divisions ?? []).map((d) => (
               <div key={d.id} data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "20px 22px" }}>
                 <div style={{ fontSize: 15.7, fontWeight: 700, marginBottom: 12 }}>{d.name}</div>
-                <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gap: 10 }}>
                   {d.criteria.map((c) => (
-                    <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.6, color: "#334155", cursor: "pointer" }}>
-                      <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} style={{ width: 16, height: 16 }} />
-                      {c.name} <span style={{ color: "#94a3b8" }}>(max {c.max_score})</span>
-                    </label>
+                    <div key={c.id}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.6, color: "#334155", cursor: "pointer" }}>
+                        <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} style={{ width: 16, height: 16 }} />
+                        {c.name} <span style={{ color: "#94a3b8" }}>(max {c.max_score})</span>
+                      </label>
+                      {selected.has(c.id) && (
+                        <textarea
+                          value={descriptions[c.id] ?? ""}
+                          onChange={(e) => setDescriptions((d) => ({ ...d, [c.id]: e.target.value }))}
+                          placeholder="Describe your contribution for this criterion (optional)"
+                          style={{ width: "100%", minHeight: 60, marginTop: 8, border: "1px solid #e5e9f2", borderRadius: 8, padding: "10px 12px", fontSize: 12.2, fontFamily: "inherit", lineHeight: 1.5, resize: "vertical", boxSizing: "border-box" }}
+                        />
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -138,6 +153,43 @@ export default function SecretaryEmpAppraisalPage() {
               </div>
               <div style={{ fontSize: 16.5, fontWeight: 700, margin: "14px 0 6px" }}>Academic Year {r.academic_year}</div>
               <div style={{ fontSize: 12.2, color: "#94a3b8" }}>Submitted {r.created_at.slice(0, 10)}</div>
+
+              {(r.attachments?.length ?? 0) > 0 && (
+                <div style={{ display: "grid", gap: 6, marginTop: 14 }}>
+                  {r.attachments!.map((a) => (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #eef2f7", borderRadius: 8, padding: "8px 12px" }}>
+                      <a href={a.file_url} target="_blank" rel="noreferrer" style={{ fontSize: 11.7, fontWeight: 600, color: "#1d4ed8", textDecoration: "none" }}>📎 {a.file_name}</a>
+                      {(r.status === "submitted" || r.status === "hod_reviewed") && (
+                        <span onClick={() => removeAttachment.mutate({ requestId: r.id, attachmentId: a.id })} style={{ fontSize: 11.3, color: "#b91c1c", cursor: "pointer", fontWeight: 600 }}>Remove</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(r.status === "submitted" || r.status === "hod_reviewed") && (r.entries?.length ?? 0) > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <input
+                    ref={(el) => { fileInputRefs.current[r.id] = el; }}
+                    type="file"
+                    multiple
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      e.target.value = "";
+                      if (!files.length) return;
+                      const divisionId = r.entries![0].criteria.division.id;
+                      uploadAttachment.mutate({ requestId: r.id, divisionId, files }, {
+                        onError: (err) => flash(err instanceof Error ? err.message : "Could not upload the file."),
+                      });
+                    }}
+                  />
+                  <span onClick={() => fileInputRefs.current[r.id]?.click()} style={{ fontSize: 11.7, fontWeight: 600, color: "#1d4ed8", cursor: "pointer" }}>
+                    {uploadAttachment.isPending ? "Uploading…" : "＋ Attach supporting files"}
+                  </span>
+                </div>
+              )}
+
               {r.status === "hod_reviewed" && (
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
                   <button onClick={() => onWithdraw(r.id)} style={{ border: "1px solid #fecaca", background: "#fef2f7", color: "#b91c1c", fontSize: 11.3, fontWeight: 700, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}>Withdraw</button>

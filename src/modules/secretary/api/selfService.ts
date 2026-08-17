@@ -195,6 +195,13 @@ export interface AppraisalCriteriaResponse {
   academic_year: string | null;
   divisions: AppraisalDivision[];
 }
+export interface AppraisalAttachment {
+  id: number;
+  division_id: number;
+  file_url: string;
+  file_name: string;
+  uploaded_at: string;
+}
 export interface AppraisalRow {
   id: number;
   academic_year: string;
@@ -202,6 +209,8 @@ export interface AppraisalRow {
   hod_reviewed_at: string | null;
   management_approved_at: string | null;
   created_at: string;
+  entries?: { id: number; description: string | null; score: number | null; criteria: { id: number; name: string; max_score: number; division: { id: number; name: string } } }[];
+  attachments?: AppraisalAttachment[];
 }
 
 export function useAppraisalCriteria(academicYear?: string) {
@@ -229,6 +238,57 @@ export function useWithdrawAppraisal() {
   return useMutation({
     mutationFn: (id: number) => apiClient.delete(`/me/appraisal_requests/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["secretary", "my-appraisals"] }),
+  });
+}
+
+/**
+ * POST /me/appraisal_requests/:id/attachments — same real upload feature
+ * Faculty already has (backend now also allows ROLES.SECRETARY on this
+ * route — previously Faculty/HoD only). Up to 5 files per call, 10MB
+ * each. Own request only, while still submitted/hod_reviewed.
+ */
+export function useUploadAppraisalAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, divisionId, files }: { requestId: number; divisionId: number; files: File[] }) => {
+      const form = new FormData();
+      form.append("division_id", String(divisionId));
+      files.forEach((f) => form.append("files", f));
+      return apiClient.postForm(`/me/appraisal_requests/${requestId}/attachments`, form);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["secretary", "my-appraisals"] }),
+  });
+}
+export function useRemoveAppraisalAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, attachmentId }: { requestId: number; attachmentId: number }) =>
+      apiClient.delete(`/me/appraisal_requests/${requestId}/attachments/${attachmentId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["secretary", "my-appraisals"] }),
+  });
+}
+
+// --- HR Payroll (real salary_payments rows, payee_type='staff') ---
+export interface HrPayrollRow {
+  id: number;
+  month: string;
+  year: number;
+  month_number: number;
+  gross_amount: number;
+  net_amount: number;
+  paid_at: string | null;
+  status: "processed" | "pending" | "hold";
+  deductions_amount: number | null;
+  lop_days: number | null;
+  lop_amount: number | null;
+}
+/** GET /me/hr-payroll — Secretary's own real salary records (backend now
+ * resolves via the real non_teaching_staff row, same as Faculty resolves
+ * via its own faculty row — was Faculty-only before). */
+export function useMyHrPayroll() {
+  return useQuery({
+    queryKey: ["secretary", "hr-payroll"],
+    queryFn: () => apiClient.get<{ data: HrPayrollRow[] }>("/me/hr-payroll", { limit: 100 }),
   });
 }
 

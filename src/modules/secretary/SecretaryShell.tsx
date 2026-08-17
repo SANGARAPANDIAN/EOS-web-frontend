@@ -51,7 +51,11 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#ffffff" }}>
-      <header data-no-print="" style={{ height: 80, flex: "0 0 80px", background: "#ffffff", borderBottom: "1px solid #e5e9f2", display: "flex", alignItems: "center", gap: 20, padding: "0 28px", position: "sticky", top: 0, zIndex: 40, overflowX: "auto" }}>
+      {/* NOTE: no overflowX here — CSS computes an unset overflow-y as
+          "auto" whenever overflow-x is anything but "visible", which
+          clipped the notification-bell popup to this 80px-tall header
+          (it rendered, just invisible). Real bug, not a styling nit. */}
+      <header data-no-print="" style={{ height: 80, flex: "0 0 80px", background: "#ffffff", borderBottom: "1px solid #e5e9f2", display: "flex", alignItems: "center", gap: 20, padding: "0 28px", position: "sticky", top: 0, zIndex: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 13, width: 292, flex: "0 1 auto", minWidth: 168, overflow: "hidden" }}>
           <div style={{ width: 40, height: 44, borderRadius: "6px 6px 20px 20px", background: "#1e3a8a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.2, fontWeight: 700, letterSpacing: 0.5 }}>SE</div>
           <div style={{ lineHeight: 1.2 }}>
@@ -99,7 +103,14 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
             {!!unreadCount?.count && unreadCount.count > 0 && (
               <span style={{ position: "absolute", top: 11, right: 12, width: 8, height: 8, borderRadius: 999, background: "#2563eb" }} />
             )}
-            {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
+            {notifOpen && (
+              // stopPropagation — without it, any click inside the panel
+              // (marking a row read, pinning) bubbles up to this div's own
+              // onClick toggle and closes the panel mid-interaction.
+              <div onClick={(e) => e.stopPropagation()}>
+                <NotificationPanel onClose={() => setNotifOpen(false)} />
+              </div>
+            )}
           </div>
           <Link href="/secretary/settings">
             <div data-sec-lift="" title="Settings" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>

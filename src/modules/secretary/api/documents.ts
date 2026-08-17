@@ -39,6 +39,22 @@ export function useDocuments(params: { department_id?: number; category?: string
   });
 }
 
+/**
+ * POST /me/department-documents/attachments — real upload (Supabase
+ * Storage, same pattern as announcements/media-requests). Was previously
+ * a hand-typed "file size (MB)" text field with no actual file at all —
+ * call this first, then pass the returned url/size_bytes into create().
+ */
+export function useUploadDocumentAttachment() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return apiClient.postForm<{ file_key: string; file_name: string; url: string; size_bytes: number }>("/me/department-documents/attachments", formData);
+    },
+  });
+}
+
 export interface CreateDocumentInput {
   department_id: number;
   name: string;

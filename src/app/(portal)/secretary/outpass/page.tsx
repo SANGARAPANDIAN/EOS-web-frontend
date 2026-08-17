@@ -4,6 +4,7 @@ import { useState } from "react";
 import { tone, initialsOf } from "@/modules/secretary/helpers";
 import { useOutpasses, useUpdateOutpassStatus, useCreateOutpass, type OutpassRow, type OutpassStatus } from "@/modules/secretary/api/outpass";
 import { useStudentsSearch } from "@/modules/secretary/api/overview";
+import { PrintProfileStyles, PrintLetterhead } from "@/modules/secretary/PrintProfile";
 
 // Pixel-exact layout port of the `isOutpass` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1835-1884.
@@ -49,6 +50,16 @@ export default function SecretaryOutpassPage() {
   const { data, isLoading, error } = useOutpasses(filter === "all" ? undefined : (filter as OutpassStatus));
   const updateMutation = useUpdateOutpassStatus();
   const createMutation = useCreateOutpass();
+  // Real printable gate pass — was previously a flash-only "sent to the
+  // printer" toast with nothing actually printed. window.print() plus a
+  // dedicated pass slip (hidden on screen, shown only in @media print via
+  // PrintProfileStyles' existing rules) — same pattern as the Student/
+  // Faculty Profile print fix.
+  const [printOp, setPrintOp] = useState<OutpassRow | null>(null);
+  function printPass(o: OutpassRow) {
+    setPrintOp(o);
+    setTimeout(() => window.print(), 60);
+  }
 
   const filtered = data?.data ?? [];
   const pendingCount = filtered.filter((o) => o.status === "pending").length;
@@ -79,7 +90,7 @@ export default function SecretaryOutpassPage() {
 
   async function onApprove(o: OutpassRow) {
     if (o.status === "approved") {
-      flash(`Gate pass for ${o.student.name} sent to the printer.`);
+      printPass(o);
       return;
     }
     try {
@@ -100,6 +111,8 @@ export default function SecretaryOutpassPage() {
 
   return (
     <div>
+      <PrintProfileStyles />
+      <div data-no-print="">
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24, marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Student Outpass</h1>
@@ -225,6 +238,31 @@ export default function SecretaryOutpassPage() {
 
       {toast && (
         <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "#ffffff", fontSize: 12.2, fontWeight: 500, borderRadius: 12, padding: "14px 22px", boxShadow: "0 16px 40px rgba(15,23,42,0.3)", zIndex: 120 }}>{toast}</div>
+      )}
+      </div>
+
+      {printOp && (
+        <div data-print-root="">
+          <PrintLetterhead title="Student Gate Pass" subtitle={`OP-${printOp.id} · ${printOp.kind}`} />
+          <div data-print-card="" style={{ border: "1px solid #d7dce4", borderRadius: 10, padding: "22px 26px" }}>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.3 }}>{printOp.student.name}</div>
+            <div style={{ fontSize: 12.6, color: "#64748b", marginTop: 4 }}>{printOp.student.student_id_no} · Section {printOp.student.section ?? "—"}{printOp.mentor_name ? ` · Mentor ${printOp.mentor_name}` : ""}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 20 }}>
+              <div><div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: "#94a3b8", textTransform: "uppercase" }}>Date</div><div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 4 }}>{fmtDate(printOp.outpass_date)}</div></div>
+              <div><div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: "#94a3b8", textTransform: "uppercase" }}>Time window</div><div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 4 }}>{fmtTime(printOp.from_time)} – {fmtTime(printOp.to_time)}</div></div>
+              <div><div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: "#94a3b8", textTransform: "uppercase" }}>Kind</div><div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 4 }}>{printOp.kind}</div></div>
+              <div><div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: "#94a3b8", textTransform: "uppercase" }}>Parent contact</div><div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 4 }}>{printOp.parent_contact ?? "—"}</div></div>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: "#94a3b8", textTransform: "uppercase" }}>Reason</div>
+              <div style={{ fontSize: 13.1, marginTop: 4, lineHeight: 1.6 }}>{printOp.reason}</div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 46, paddingTop: 16, borderTop: "1px dashed #cbd5e1" }}>
+              <div style={{ fontSize: 11.7, color: "#64748b" }}>Approved by the Department Secretary's office</div>
+              <div style={{ fontSize: 11.7, color: "#64748b" }}>Security signature: ______________</div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

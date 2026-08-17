@@ -54,6 +54,23 @@ export interface CreateMediaRequestInput {
   coordinator_name?: string;
   contact_number?: string;
   media_types?: string[];
+  media_file_url?: string;
+}
+
+/**
+ * POST /me/media-requests/attachments — real upload (Supabase Storage,
+ * same pattern as announcements' attachment upload) — was previously a
+ * flash-only fake "2 files attached" toggle with no real upload at all.
+ * Call this first, then pass the returned url as media_file_url on create.
+ */
+export function useUploadMediaRequestAttachment() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return apiClient.postForm<{ file_key: string; file_name: string; url: string }>("/me/media-requests/attachments", formData);
+    },
+  });
 }
 
 /** POST /me/media-requests */

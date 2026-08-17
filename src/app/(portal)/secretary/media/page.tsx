@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { tone } from "@/modules/secretary/helpers";
 import { useVenues } from "@/modules/secretary/api/venues";
-import { useMediaRequests, useCreateMediaRequest, useDeleteMediaRequest, type MediaRequestRow } from "@/modules/secretary/api/mediaRequests";
+import { useMediaRequests, useCreateMediaRequest, useDeleteMediaRequest, useUploadMediaRequestAttachment, type MediaRequestRow } from "@/modules/secretary/api/mediaRequests";
 
 // Pixel-exact layout port of the `isMedia` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1612-1731.
@@ -21,9 +21,13 @@ import { useMediaRequests, useCreateMediaRequest, useDeleteMediaRequest, type Me
 // designation"/"Poster needed by" as distinct fields — folded into the
 // free-text `description` field instead of inventing new columns. Status
 // enum is real (`pending/approved/rejected/delivered`) — no "In progress"/
-// "Published" values exist, so labels reflect the real ones. Attachment
-// stays a flash-only affordance (same precedent as the Announcements
-// composer — the design itself has no real file input either).
+// "Published" values exist, so labels reflect the real ones.
+//
+// Attachment is a REAL upload now (was a flash-only fake toggle) —
+// POST /me/media-requests/attachments (new StorageService-backed route,
+// same Supabase Storage pattern as announcements), returned url sent back
+// as media_file_url on create (CreateMediaRequestDto extended to accept
+// it — was previously Media-Room-write-only via a raw URL PATCH).
 
 const MEDIA_TYPE_OPTIONS = ["Poster", "Photography", "Videography", "Social media post"];
 const STATUS_LABEL: Record<string, string> = { pending: "Pending", approved: "Approved", rejected: "Rejected", delivered: "Delivered" };
@@ -38,7 +42,9 @@ function fmtDate(iso: string | null): string {
 export default function SecretaryMediaPage() {
   const [tab, setTab] = useState<"Raise request" | "History">("Raise request");
   const [toast, setToast] = useState("");
-  const [attached, setAttached] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; url: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAttachment = useUploadMediaRequestAttachment();
 
   const [eventName, setEventName] = useState("");
   const [venueId, setVenueId] = useState<number | null>(null);
@@ -64,6 +70,19 @@ export default function SecretaryMediaPage() {
     setMediaTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   }
 
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const uploaded = await uploadAttachment.mutateAsync(file);
+      setAttachedFile({ name: file.name, url: uploaded.url });
+      flash(`${file.name} attached.`);
+    } catch (err) {
+      flash(err instanceof Error ? err.message : "Could not upload the file.");
+    }
+  }
+
   async function submit() {
     if (!eventName.trim()) { flash("Add the event title before sending the request."); return; }
     if (!venueId) { flash("Pick the venue so the media team knows where the event is."); return; }
@@ -77,8 +96,9 @@ export default function SecretaryMediaPage() {
         coordinator_name: coordinatorName || undefined,
         contact_number: contactNumber || undefined,
         media_types: mediaTypes,
+        media_file_url: attachedFile?.url,
       });
-      setEventName(""); setVenueId(null); setEventDate(""); setCoordinatorName(""); setContactNumber(""); setMediaTypes(["Poster"]); setDescription(""); setAttached(false);
+      setEventName(""); setVenueId(null); setEventDate(""); setCoordinatorName(""); setContactNumber(""); setMediaTypes(["Poster"]); setDescription(""); setAttachedFile(null);
       setTab("History");
       flash("Media request sent to the media team.");
     } catch (err) {
@@ -154,7 +174,13 @@ export default function SecretaryMediaPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 22, marginTop: 20, alignItems: "end" }}>
             <label style={{ display: "block" }}>
               <span style={labelSx}>Logos / guest photo / reference poster</span>
-              <span onClick={() => { setAttached((v) => !v); flash(attached ? "Attachments removed." : "2 files attached to the request."); }} style={{ display: "block", width: "100%", height: 50, border: "1px dashed #c7d7fe", background: "#ffffff", color: "#1d4ed8", fontSize: 12.6, fontWeight: 600, borderRadius: 10, cursor: "pointer", textAlign: "center", lineHeight: "50px" }}>{attached ? "2 files attached ✓" : "Attach logos, guest photo or reference"}</span>
+              <input ref={fileInputRef} type="file" onChange={onPickFile} style={{ display: "none" }} />
+              <span
+                onClick={() => (attachedFile ? setAttachedFile(null) : fileInputRef.current?.click())}
+                style={{ display: "block", width: "100%", height: 50, border: "1px dashed #c7d7fe", background: "#ffffff", color: "#1d4ed8", fontSize: 12.6, fontWeight: 600, borderRadius: 10, cursor: "pointer", textAlign: "center", lineHeight: "50px", opacity: uploadAttachment.isPending ? 0.6 : 1 }}
+              >
+                {uploadAttachment.isPending ? "Uploading…" : attachedFile ? `${attachedFile.name} ✓ (click to remove)` : "Attach logos, guest photo or reference"}
+              </span>
             </label>
             <div style={{ fontSize: 11.7, color: "#94a3b8" }}>The media team reviews and shares a file back through this request once approved.</div>
           </div>

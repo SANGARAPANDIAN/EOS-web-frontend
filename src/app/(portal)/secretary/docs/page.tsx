@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { tone } from "@/modules/secretary/helpers";
-import { QuickModal, type QuickFieldSpec } from "@/modules/secretary/QuickModal";
 import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
-import { useDocuments, useCreateDocument, useToggleVerifyDocument, useDeleteDocument, type DocumentRow } from "@/modules/secretary/api/documents";
+import { useDocuments, useCreateDocument, useToggleVerifyDocument, useDeleteDocument, useUploadDocumentAttachment, type DocumentRow } from "@/modules/secretary/api/documents";
 
 // Pixel-exact layout port of the `isDocs` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1289-1331.
@@ -18,12 +17,7 @@ import { useDocuments, useCreateDocument, useToggleVerifyDocument, useDeleteDocu
 // shows the real uploader's email instead.
 
 const FILTER_LABELS = ["All", "Course file", "Lab record", "Circular", "Accreditation", "Meeting"] as const;
-
-const DOC_FIELDS: QuickFieldSpec[] = [
-  { key: "name", label: "Document name", type: "text", placeholder: "e.g. CAE-II question papers · CSE" },
-  { key: "category", label: "Category", type: "select", options: ["Course file", "Lab record", "Circular", "Accreditation", "Meeting"] },
-  { key: "size_mb", label: "File size (MB)", type: "text", placeholder: "4" },
-];
+const CATEGORY_OPTIONS = ["Course file", "Lab record", "Circular", "Accreditation", "Meeting"];
 
 function fmtSize(bytes: number | null): string {
   if (bytes === null) return "—";
@@ -37,7 +31,11 @@ export default function SecretaryDocsPage() {
   const [filter, setFilter] = useState<(typeof FILTER_LABELS)[number]>("All");
   const [toast, setToast] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [docName, setDocName] = useState("");
+  const [docCategory, setDocCategory] = useState<string>(CATEGORY_OPTIONS[0]);
+  const [pickedFile, setPickedFile] = useState<{ name: string; url: string; size_bytes: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAttachment = useUploadDocumentAttachment();
 
   function flash(msg: string) {
     setToast(msg);
@@ -57,11 +55,23 @@ export default function SecretaryDocsPage() {
   const filtered = docs?.data ?? [];
 
   function openCreate() {
-    setForm({ name: "", category: "Course file", size_mb: "4" });
+    setDocName(""); setDocCategory(CATEGORY_OPTIONS[0]); setPickedFile(null);
     setModalOpen(true);
   }
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const uploaded = await uploadAttachment.mutateAsync(file);
+      setPickedFile({ name: uploaded.file_name, url: uploaded.url, size_bytes: uploaded.size_bytes });
+      if (!docName.trim()) setDocName(file.name.replace(/\.[^.]+$/, ""));
+    } catch (err) {
+      flash(err instanceof Error ? err.message : "Could not upload the file.");
+    }
+  }
   async function submit() {
-    if (!form.name?.trim()) {
+    if (!docName.trim()) {
       flash("Please fill in the title before saving.");
       return;
     }
@@ -69,12 +79,17 @@ export default function SecretaryDocsPage() {
       flash("Department list isn't loaded yet — try again in a moment.");
       return;
     }
+    if (!pickedFile) {
+      flash("Attach the actual file before saving.");
+      return;
+    }
     try {
       await createMutation.mutateAsync({
         department_id: cseDept.id,
-        name: form.name,
-        category: form.category,
-        size_bytes: Math.round((parseFloat(form.size_mb) || 0) * 1024 * 1024),
+        name: docName,
+        category: docCategory,
+        file_url: pickedFile.url,
+        size_bytes: pickedFile.size_bytes,
       });
       setModalOpen(false);
       flash("Document uploaded.");
@@ -155,17 +170,42 @@ export default function SecretaryDocsPage() {
         {!isLoading && !error && filtered.length === 0 && <div style={{ padding: 40, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No documents in this category.</div>}
       </div>
 
-      <QuickModal
-        open={modalOpen}
-        title="Upload document"
-        subtitle="Stored in the real department document register"
-        cta="Upload"
-        fields={DOC_FIELDS}
-        values={form}
-        onChange={(key, value) => setForm((f) => ({ ...f, [key]: value }))}
-        onClose={() => setModalOpen(false)}
-        onSubmit={submit}
-      />
+      {modalOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.42)", display: "flex", alignItems: "center", justifyContent: "center", padding: 40, zIndex: 90 }} onClick={() => setModalOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxHeight: "86vh", overflowY: "auto", background: "#ffffff", borderRadius: 18, boxShadow: "0 30px 70px rgba(15,23,42,0.28)" }}>
+            <div style={{ padding: "24px 26px 18px", borderBottom: "1px solid #eef2f7" }}>
+              <div style={{ fontSize: 19.1, fontWeight: 700, letterSpacing: -0.4 }}>Upload document</div>
+              <div style={{ fontSize: 11.7, color: "#64748b", marginTop: 4 }}>Real file, stored in the department document register</div>
+            </div>
+            <div style={{ padding: "22px 26px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <label style={{ display: "block" }}>
+                <span style={{ display: "block", fontSize: 11.8, fontWeight: 600, color: "#475569", marginBottom: 7 }}>File</span>
+                <input ref={fileInputRef} type="file" onChange={onPickFile} style={{ display: "none" }} />
+                <span
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ display: "block", width: "100%", height: 46, border: "1px dashed #c7d7fe", borderRadius: 10, textAlign: "center", lineHeight: "46px", fontSize: 12.6, fontWeight: 600, color: "#1d4ed8", cursor: "pointer", opacity: uploadAttachment.isPending ? 0.6 : 1 }}
+                >
+                  {uploadAttachment.isPending ? "Uploading…" : pickedFile ? `${pickedFile.name} ✓ (click to replace)` : "Choose a file to upload"}
+                </span>
+              </label>
+              <label style={{ display: "block" }}>
+                <span style={{ display: "block", fontSize: 11.8, fontWeight: 600, color: "#475569", marginBottom: 7 }}>Document name</span>
+                <input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="e.g. CAE-II question papers · CSE" style={{ width: "100%", height: 46, border: "1px solid #e5e9f2", borderRadius: 10, padding: "0 14px", fontSize: 12.6, color: "#0f172a" }} />
+              </label>
+              <label style={{ display: "block" }}>
+                <span style={{ display: "block", fontSize: 11.8, fontWeight: 600, color: "#475569", marginBottom: 7 }}>Category</span>
+                <select value={docCategory} onChange={(e) => setDocCategory(e.target.value)} style={{ width: "100%", height: 46, border: "1px solid #e5e9f2", borderRadius: 10, padding: "0 14px", fontSize: 12.6, color: "#0f172a", background: "#ffffff" }}>
+                  {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+            </div>
+            <div style={{ padding: "18px 26px 24px", borderTop: "1px solid #eef2f7", display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <span onClick={() => setModalOpen(false)} style={{ border: "1px solid #e5e9f2", background: "#ffffff", color: "#475569", fontSize: 12.2, fontWeight: 600, borderRadius: 10, padding: "12px 20px", cursor: "pointer" }}>Cancel</span>
+              <span onClick={submit} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 12.2, fontWeight: 600, borderRadius: 10, padding: "12px 24px", cursor: "pointer" }}>Upload</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "#ffffff", fontSize: 12.2, fontWeight: 500, borderRadius: 12, padding: "14px 22px", boxShadow: "0 16px 40px rgba(15,23,42,0.3)", zIndex: 120 }}>{toast}</div>

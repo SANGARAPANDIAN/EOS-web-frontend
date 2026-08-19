@@ -84,7 +84,10 @@ export function profileCompleteness(faculty: Faculty): number {
   const checks = [
     !!faculty.phone,
     !!faculty.date_of_joining,
-    !!faculty.department_id,
+    // The admin detail endpoint only ever returns the nested `department`
+    // object, never a flat `department_id` — same fallback FacultyEditForm's
+    // toDefaults() already uses for this exact ambiguity.
+    !!(faculty.department_id || faculty.department?.id),
     !!faculty.sensitive_info?.aadhar_number,
     !!faculty.sensitive_info?.pan_number,
     !!faculty.sensitive_info?.bank_account_number,

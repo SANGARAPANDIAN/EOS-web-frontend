@@ -41,6 +41,17 @@ export interface StudentAddress {
  * `addresses` for the Addresses section.
  */
 export interface StudentEditProfile {
+  // Not students columns at all — first_name/last_name live on the linked
+  // soa_applications row, contacts/family/identity_marks on their own
+  // tables — but bundled into this same read so the edit modal only needs
+  // one fetch to hydrate every field it can write, across however many
+  // separate PATCH endpoints saving them actually takes (see
+  // UpdateStudentProfileInput's own comment for which ones use which).
+  first_name: string | null;
+  last_name: string | null;
+  contacts: { student_email1: string | null; student_email2: string | null; student_mobile: string | null } | null;
+  family: StudentFamily | null;
+  identity_marks: Array<{ mark_number: number; description: string | null }>;
   roll_no: string | null;
   register_no: string | null;
   admission_no: string | null;
@@ -77,7 +88,14 @@ export interface StudentEditProfile {
 // (unchanged) or overwritten. photo_url and addresses aren't writable
 // through this endpoint — photo_url only changes via the dedicated
 // photo upload/delete endpoints, addresses via their own PATCH below.
-export type UpdateStudentProfileInput = Partial<Omit<StudentEditProfile, "class_id" | "photo_url" | "addresses">> & {
+// first_name/last_name DO go through this same PATCH /students/:id despite
+// living on soa_applications, not students — see the backend DTO's own
+// comment for why. contacts/family/identity_marks each save through their
+// own PATCH (updateStudentContacts/Family/IdentityMarks below) since they're
+// each a different table with their own upsert-by-student_id shape.
+export type UpdateStudentProfileInput = Partial<
+  Omit<StudentEditProfile, "class_id" | "photo_url" | "addresses" | "contacts" | "family" | "identity_marks">
+> & {
   class_id?: number;
 };
 
@@ -89,6 +107,31 @@ export interface UpdateStudentAddressesInput {
     state?: string;
     pincode?: string;
   }>;
+}
+
+export interface UpdateStudentContactsInput {
+  student_email1?: string;
+  student_email2?: string;
+  student_mobile?: string;
+}
+
+export interface UpdateStudentFamilyInput {
+  father_name?: string;
+  father_qualification?: string;
+  father_occupation?: string;
+  father_annual_income?: number;
+  father_email?: string;
+  father_mobile?: string;
+  mother_name?: string;
+  mother_qualification?: string;
+  mother_occupation?: string;
+  mother_annual_income?: number;
+  mother_email?: string;
+  mother_mobile?: string;
+}
+
+export interface UpdateStudentIdentityMarksInput {
+  identity_marks: Array<{ mark_number: number; description?: string }>;
 }
 
 export interface StudentFamily {
@@ -428,6 +471,45 @@ export function useUpdateStudentAddresses() {
   return useMutation({
     mutationFn: ({ id, input }: { id: number; input: UpdateStudentAddressesInput }) =>
       apiClient.patch<{ addresses: StudentAddress[] }>(`/students/${id}/addresses`, input),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["students", "edit-profile", id] });
+      queryClient.invalidateQueries({ queryKey: ["students", "profile-details", id] });
+    },
+  });
+}
+
+/** PATCH /students/:id/contacts — upserts by student_id; read on the Personal Information tab via profile-details. */
+export function useUpdateStudentContacts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateStudentContactsInput }) =>
+      apiClient.patch(`/students/${id}/contacts`, input),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["students", "edit-profile", id] });
+      queryClient.invalidateQueries({ queryKey: ["students", "profile-details", id] });
+    },
+  });
+}
+
+/** PATCH /students/:id/family — upserts by student_id; read on the Parents tab via useStudentFamily. */
+export function useUpdateStudentFamily() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateStudentFamilyInput }) =>
+      apiClient.patch<StudentFamily>(`/students/${id}/family`, input),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["students", "edit-profile", id] });
+      queryClient.invalidateQueries({ queryKey: ["students", "family", id] });
+    },
+  });
+}
+
+/** PATCH /students/:id/identity-marks — replaces the whole list every save; read on the Identity marks tab via profile-details. */
+export function useUpdateStudentIdentityMarks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateStudentIdentityMarksInput }) =>
+      apiClient.patch<Array<{ mark_number: number; description: string | null }>>(`/students/${id}/identity-marks`, input),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["students", "edit-profile", id] });
       queryClient.invalidateQueries({ queryKey: ["students", "profile-details", id] });

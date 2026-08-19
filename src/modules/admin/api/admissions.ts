@@ -274,6 +274,21 @@ export function useSoaApplication(id: number) {
   });
 }
 
+export interface AdmittedCutoffSummary {
+  /** (Physics + Chemistry) / 2 + Maths, averaged across admitted students — null if none have all three marks recorded. */
+  average_cutoff: number | null;
+  admitted_count: number;
+  counted_count: number;
+}
+
+/** GET /soa-applications/admitted-cutoff-summary — for the admin dashboard's "Average cutoff" card. */
+export function useAdmittedCutoffSummary() {
+  return useQuery({
+    queryKey: ["soa-applications", "admitted-cutoff-summary"],
+    queryFn: () => apiClient.get<AdmittedCutoffSummary>("/soa-applications/admitted-cutoff-summary"),
+  });
+}
+
 export function useCreateSoaApplication() {
   const queryClient = useQueryClient();
   return useMutation({

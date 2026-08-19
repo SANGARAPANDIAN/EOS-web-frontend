@@ -21,17 +21,68 @@ import {
   useDeleteStudentPhoto,
   useStudentEditProfile,
   useUpdateStudentAddresses,
+  useUpdateStudentContacts,
+  useUpdateStudentFamily,
+  useUpdateStudentIdentityMarks,
   useUpdateStudentProfile,
   useUploadStudentPhoto,
   type StudentEditProfile,
   type UpdateStudentAddressesInput,
+  type UpdateStudentContactsInput,
+  type UpdateStudentFamilyInput,
+  type UpdateStudentIdentityMarksInput,
   type UpdateStudentProfileInput,
 } from "@/modules/admin/api/students";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
 const BLOOD_GROUP_OPTIONS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 const COMMUNITY_OPTIONS = ["OC", "BC", "MBC", "SC", "ST"];
 const ADMISSION_TYPE_OPTIONS = ["Counselling", "Management", "Direct", "Lateral Entry"];
+const RELIGION_OPTIONS = ["Hindu", "Muslim", "Christian", "Sikh", "Buddhist", "Jain", "Parsi", "Other"];
+// States and union territories — used for both permanent and temporary
+// address "State" fields. There's no "district" column anywhere on
+// student_addresses (only address_line/city/state/pincode), so district
+// can't be offered as a dropdown here.
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry",
+];
 
 /**
  * These four fields are free-text columns in the DB (no CHECK constraint) —
@@ -47,10 +98,75 @@ function optionsWithCurrent(options: string[], current: string): string[] {
   return [current, ...options];
 }
 
-// Mirrors AdminUpdateStudentDto exactly — every field here is real and
-// writable via PATCH /students/:id today. Nothing shown that the backend
-// can't actually persist.
+/** Bordered card wrapper used for every section of this modal — a small icon
+ * badge + title in place of the old bare uppercase label, so a modal that now
+ * covers name/contacts/family/identity-marks in addition to the original
+ * academic fields reads as an organized set of cards instead of one long
+ * undifferentiated form. */
+function Section({
+  icon,
+  title,
+  hint,
+  action,
+  children,
+}: {
+  icon: string;
+  title: string;
+  hint?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-admin-lg border border-admin-border bg-admin-canvas p-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-admin-tint-strong text-admin-primary">
+            <Icon name={icon} size={15} />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-admin-ink">{title}</p>
+            {hint && <p className="text-xs text-admin-subtle">{hint}</p>}
+          </div>
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Mirrors AdminUpdateStudentDto, plus the three sibling tables (contacts,
+// family, identity_marks) that save through their own PATCH endpoints —
+// every field here is real and writable today. Nothing shown that the
+// backend can't actually persist.
 interface FormState {
+  first_name: string;
+  last_name: string;
+  // Personal contact (student_contacts) — separate from the institutional
+  // email/phone shown on the profile header, which this modal doesn't
+  // touch (those are login credentials, changed via Reset password instead).
+  personal_email1: string;
+  personal_email2: string;
+  personal_mobile: string;
+  // Parent / guardian (student_family_details) — annual income kept as
+  // free text here (not <input type="number">) so a field left blank
+  // reads as "" rather than 0; parsed to a number on submit.
+  father_name: string;
+  father_qualification: string;
+  father_occupation: string;
+  father_annual_income: string;
+  father_email: string;
+  father_mobile: string;
+  mother_name: string;
+  mother_qualification: string;
+  mother_occupation: string;
+  mother_annual_income: string;
+  mother_email: string;
+  mother_mobile: string;
+  // Identity marks (student_identity_marks) — just the description text
+  // per row; mark_number is derived from list position on save (1, 2, 3…),
+  // not user-entered, so there's nothing to accidentally duplicate.
+  identity_marks: string[];
   roll_no: string;
   register_no: string;
   admission_no: string;
@@ -96,6 +212,24 @@ function toFormState(p: StudentEditProfile): FormState {
   const perm = p.addresses.find((a) => a.address_type === "permanent");
   const temp = p.addresses.find((a) => a.address_type === "temporary");
   return {
+    first_name: p.first_name ?? "",
+    last_name: p.last_name ?? "",
+    personal_email1: p.contacts?.student_email1 ?? "",
+    personal_email2: p.contacts?.student_email2 ?? "",
+    personal_mobile: p.contacts?.student_mobile ?? "",
+    father_name: p.family?.father_name ?? "",
+    father_qualification: p.family?.father_qualification ?? "",
+    father_occupation: p.family?.father_occupation ?? "",
+    father_annual_income: p.family?.father_annual_income ?? "",
+    father_email: p.family?.father_email ?? "",
+    father_mobile: p.family?.father_mobile ?? "",
+    mother_name: p.family?.mother_name ?? "",
+    mother_qualification: p.family?.mother_qualification ?? "",
+    mother_occupation: p.family?.mother_occupation ?? "",
+    mother_annual_income: p.family?.mother_annual_income ?? "",
+    mother_email: p.family?.mother_email ?? "",
+    mother_mobile: p.family?.mother_mobile ?? "",
+    identity_marks: p.identity_marks.map((m) => m.description ?? ""),
     roll_no: p.roll_no ?? "",
     register_no: p.register_no ?? "",
     admission_no: p.admission_no ?? "",
@@ -137,6 +271,17 @@ function toFormState(p: StudentEditProfile): FormState {
 /** Same validation shape as the admission wizard — field-keyed error map, only the fields that actually have rules. */
 function validate(form: FormState): Record<string, string> {
   const errors: Record<string, string> = {};
+  if (!form.first_name.trim()) errors.first_name = "Required.";
+  if (form.personal_email1 && !EMAIL_RE.test(form.personal_email1)) errors.personal_email1 = "Enter a valid email.";
+  if (form.personal_email2 && !EMAIL_RE.test(form.personal_email2)) errors.personal_email2 = "Enter a valid email.";
+  if (form.father_email && !EMAIL_RE.test(form.father_email)) errors.father_email = "Enter a valid email.";
+  if (form.mother_email && !EMAIL_RE.test(form.mother_email)) errors.mother_email = "Enter a valid email.";
+  if (form.father_annual_income && !(Number(form.father_annual_income) >= 0)) {
+    errors.father_annual_income = "Enter a valid amount.";
+  }
+  if (form.mother_annual_income && !(Number(form.mother_annual_income) >= 0)) {
+    errors.mother_annual_income = "Enter a valid amount.";
+  }
   if (form.joined_academic_year && !/^\d{4}-\d{4}$/.test(form.joined_academic_year)) {
     errors.joined_academic_year = "Format: YYYY-YYYY, e.g. 2026-2027.";
   }
@@ -162,6 +307,11 @@ function validate(form: FormState): Record<string, string> {
 function toPayload(form: FormState): UpdateStudentProfileInput {
   const str = (v: string) => v.trim() || undefined;
   return {
+    // first_name is required (see validate()) so it's always sent as a real
+    // value, never left as "unchanged" — last_name follows the same
+    // blank-means-unchanged convention as every other optional field below.
+    first_name: form.first_name.trim(),
+    last_name: str(form.last_name),
     roll_no: str(form.roll_no),
     register_no: str(form.register_no),
     admission_no: str(form.admission_no),
@@ -223,6 +373,50 @@ function toAddressesPayload(form: FormState): UpdateStudentAddressesInput {
   };
 }
 
+/** Always sends all three fields, even if entirely blank — same "blank fixes a bad value" reasoning as toAddressesPayload above. */
+function toContactsPayload(form: FormState): UpdateStudentContactsInput {
+  const str = (v: string) => v.trim() || undefined;
+  return {
+    student_email1: str(form.personal_email1),
+    student_email2: str(form.personal_email2),
+    student_mobile: str(form.personal_mobile),
+  };
+}
+
+function toFamilyPayload(form: FormState): UpdateStudentFamilyInput {
+  const str = (v: string) => v.trim() || undefined;
+  const num = (v: string) => (v.trim() ? Number(v) : undefined);
+  return {
+    father_name: str(form.father_name),
+    father_qualification: str(form.father_qualification),
+    father_occupation: str(form.father_occupation),
+    father_annual_income: num(form.father_annual_income),
+    father_email: str(form.father_email),
+    father_mobile: str(form.father_mobile),
+    mother_name: str(form.mother_name),
+    mother_qualification: str(form.mother_qualification),
+    mother_occupation: str(form.mother_occupation),
+    mother_annual_income: num(form.mother_annual_income),
+    mother_email: str(form.mother_email),
+    mother_mobile: str(form.mother_mobile),
+  };
+}
+
+/**
+ * mark_number is derived from list position (1, 2, 3…), not user-entered —
+ * see FormState's own comment. Blank rows are dropped rather than saved as
+ * an empty description, so an admin who adds a row and changes their mind
+ * without typing anything doesn't leave a junk mark behind.
+ */
+function toIdentityMarksPayload(form: FormState): UpdateStudentIdentityMarksInput {
+  return {
+    identity_marks: form.identity_marks
+      .map((d) => d.trim())
+      .filter(Boolean)
+      .map((description, i) => ({ mark_number: i + 1, description })),
+  };
+}
+
 export function EditProfileModal({
   studentId,
   firstName,
@@ -244,6 +438,9 @@ export function EditProfileModal({
   const { data: classes } = useClasses();
   const updateProfile = useUpdateStudentProfile();
   const updateAddresses = useUpdateStudentAddresses();
+  const updateContacts = useUpdateStudentContacts();
+  const updateFamily = useUpdateStudentFamily();
+  const updateIdentityMarks = useUpdateStudentIdentityMarks();
   const uploadPhoto = useUploadStudentPhoto();
   const deletePhoto = useDeleteStudentPhoto();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -280,6 +477,9 @@ export function EditProfileModal({
       await Promise.all([
         updateProfile.mutateAsync({ id: studentId, input: toPayload(form) }),
         updateAddresses.mutateAsync({ id: studentId, input: toAddressesPayload(form) }),
+        updateContacts.mutateAsync({ id: studentId, input: toContactsPayload(form) }),
+        updateFamily.mutateAsync({ id: studentId, input: toFamilyPayload(form) }),
+        updateIdentityMarks.mutateAsync({ id: studentId, input: toIdentityMarksPayload(form) }),
       ]);
       show("Profile updated.", "success");
       onClose();
@@ -287,6 +487,13 @@ export function EditProfileModal({
       show(friendlyError(err), "error");
     }
   }
+
+  const isSaving =
+    updateProfile.isPending ||
+    updateAddresses.isPending ||
+    updateContacts.isPending ||
+    updateFamily.isPending ||
+    updateIdentityMarks.isPending;
 
   async function handlePhotoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -321,13 +528,12 @@ export function EditProfileModal({
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title="Edit profile" widthClassName="max-w-3xl">
+      <Modal open={open} onClose={onClose} title="Edit profile" widthClassName="max-w-5xl">
         {profileLoading || !form ? (
           <p className="py-8 text-center text-sm text-admin-subtle">Loading current values…</p>
         ) : (
-          <div className="flex flex-col gap-6">
-            <div>
-              <p className="mb-3 text-xs font-semibold tracking-wide text-admin-subtle uppercase">Profile photo</p>
+          <div className="flex flex-col gap-5">
+            <Section icon="image" title="Profile photo">
               <div className="flex items-center gap-4">
                 {(() => {
                   const tint = avatarTint(studentId);
@@ -360,10 +566,25 @@ export function EditProfileModal({
                   <p className="text-xs text-admin-subtle">JPG, PNG or WebP, up to 5MB.</p>
                 </div>
               </div>
-            </div>
+            </Section>
 
-            <div>
-              <p className="mb-3 text-xs font-semibold tracking-wide text-admin-subtle uppercase">Identity numbers</p>
+            <Section icon="person" title="Name">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField label="First name" error={errors.first_name}>
+                  <Input
+                    value={form.first_name}
+                    maxLength={100}
+                    className={errors.first_name ? "border-admin-danger" : undefined}
+                    onChange={(e) => patch({ first_name: e.target.value })}
+                  />
+                </FormField>
+                <FormField label="Last name">
+                  <Input value={form.last_name} maxLength={100} onChange={(e) => patch({ last_name: e.target.value })} />
+                </FormField>
+              </div>
+            </Section>
+
+            <Section icon="badge" title="Identity numbers">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <FormField label="Roll number">
                   <Input value={form.roll_no} maxLength={30} onChange={(e) => patch({ roll_no: e.target.value })} />
@@ -375,10 +596,9 @@ export function EditProfileModal({
                   <Input value={form.admission_no} maxLength={30} onChange={(e) => patch({ admission_no: e.target.value })} />
                 </FormField>
               </div>
-            </div>
+            </Section>
 
-            <div>
-              <p className="mb-3 text-xs font-semibold tracking-wide text-admin-subtle uppercase">Academic placement</p>
+            <Section icon="school" title="Academic placement">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <FormField label="Course" error={errors.course_id}>
                   <Select
@@ -453,10 +673,9 @@ export function EditProfileModal({
                   />
                 </FormField>
               </div>
-            </div>
+            </Section>
 
-            <div>
-              <p className="mb-3 text-xs font-semibold tracking-wide text-admin-subtle uppercase">Personal details</p>
+            <Section icon="info" title="Personal details">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <FormField label="Gender">
                   <Select value={form.gender} onChange={(e) => patch({ gender: e.target.value })}>
@@ -495,7 +714,14 @@ export function EditProfileModal({
                   <Input value={form.nationality} maxLength={50} placeholder="Indian" onChange={(e) => patch({ nationality: e.target.value })} />
                 </FormField>
                 <FormField label="Religion">
-                  <Input value={form.religion} maxLength={50} onChange={(e) => patch({ religion: e.target.value })} />
+                  <Select value={form.religion} onChange={(e) => patch({ religion: e.target.value })}>
+                    <option value="">Select religion</option>
+                    {optionsWithCurrent(RELIGION_OPTIONS, form.religion).map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </Select>
                 </FormField>
                 <FormField label="Caste">
                   <Input value={form.caste} maxLength={50} onChange={(e) => patch({ caste: e.target.value })} />
@@ -504,10 +730,37 @@ export function EditProfileModal({
                   <Input value={form.mother_tongue} maxLength={50} placeholder="Tamil" onChange={(e) => patch({ mother_tongue: e.target.value })} />
                 </FormField>
               </div>
-            </div>
+            </Section>
 
-            <div>
-              <p className="mb-3 text-xs font-semibold tracking-wide text-admin-subtle uppercase">Residence</p>
+            <Section
+              icon="mail"
+              title="Personal contact"
+              hint="Separate from the institutional email/phone on the profile header — those are login credentials and don't change here."
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <FormField label="Personal email" error={errors.personal_email1}>
+                  <Input
+                    value={form.personal_email1}
+                    maxLength={255}
+                    className={errors.personal_email1 ? "border-admin-danger" : undefined}
+                    onChange={(e) => patch({ personal_email1: e.target.value })}
+                  />
+                </FormField>
+                <FormField label="Alternate email" error={errors.personal_email2}>
+                  <Input
+                    value={form.personal_email2}
+                    maxLength={255}
+                    className={errors.personal_email2 ? "border-admin-danger" : undefined}
+                    onChange={(e) => patch({ personal_email2: e.target.value })}
+                  />
+                </FormField>
+                <FormField label="Personal mobile">
+                  <Input value={form.personal_mobile} maxLength={20} onChange={(e) => patch({ personal_mobile: e.target.value })} />
+                </FormField>
+              </div>
+            </Section>
+
+            <Section icon="home" title="Residence">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <FormField label="Residence type">
                   <Select
@@ -548,12 +801,9 @@ export function EditProfileModal({
                   </FormField>
                 )}
               </div>
-            </div>
+            </Section>
 
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-semibold tracking-wide text-admin-subtle uppercase">Permanent address</p>
-              </div>
+            <Section icon="location_on" title="Permanent address">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField label="Address">
                   <Textarea value={form.perm_address_line} maxLength={500} rows={2} onChange={(e) => patch({ perm_address_line: e.target.value })} />
@@ -562,7 +812,14 @@ export function EditProfileModal({
                   <Input value={form.perm_city} maxLength={100} onChange={(e) => patch({ perm_city: e.target.value })} />
                 </FormField>
                 <FormField label="State">
-                  <Input value={form.perm_state} maxLength={100} placeholder="Tamil Nadu" onChange={(e) => patch({ perm_state: e.target.value })} />
+                  <Select value={form.perm_state} onChange={(e) => patch({ perm_state: e.target.value })}>
+                    <option value="">Select state</option>
+                    {optionsWithCurrent(INDIAN_STATES, form.perm_state).map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </Select>
                 </FormField>
                 <FormField label="PIN code" error={errors.perm_pincode}>
                   <Input
@@ -574,11 +831,12 @@ export function EditProfileModal({
                   />
                 </FormField>
               </div>
-            </div>
+            </Section>
 
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-semibold tracking-wide text-admin-subtle uppercase">Temporary address</p>
+            <Section
+              icon="location_on"
+              title="Temporary address"
+              action={
                 <button
                   type="button"
                   className="text-xs font-medium text-admin-primary hover:underline"
@@ -593,7 +851,8 @@ export function EditProfileModal({
                 >
                   Same as permanent
                 </button>
-              </div>
+              }
+            >
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField label="Address">
                   <Textarea value={form.temp_address_line} maxLength={500} rows={2} onChange={(e) => patch({ temp_address_line: e.target.value })} />
@@ -602,7 +861,14 @@ export function EditProfileModal({
                   <Input value={form.temp_city} maxLength={100} onChange={(e) => patch({ temp_city: e.target.value })} />
                 </FormField>
                 <FormField label="State">
-                  <Input value={form.temp_state} maxLength={100} onChange={(e) => patch({ temp_state: e.target.value })} />
+                  <Select value={form.temp_state} onChange={(e) => patch({ temp_state: e.target.value })}>
+                    <option value="">Select state</option>
+                    {optionsWithCurrent(INDIAN_STATES, form.temp_state).map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </Select>
                 </FormField>
                 <FormField label="PIN code" error={errors.temp_pincode}>
                   <Input
@@ -614,10 +880,111 @@ export function EditProfileModal({
                   />
                 </FormField>
               </div>
-            </div>
+            </Section>
 
-            <div>
-              <p className="mb-3 text-xs font-semibold tracking-wide text-admin-subtle uppercase">Special categories</p>
+            <Section icon="family_restroom" title="Parent / guardian details">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="flex flex-col gap-4 rounded-admin-md border border-admin-divider p-4">
+                  <p className="text-xs font-bold tracking-wide text-admin-subtle uppercase">Father</p>
+                  <FormField label="Name">
+                    <Input value={form.father_name} maxLength={150} onChange={(e) => patch({ father_name: e.target.value })} />
+                  </FormField>
+                  <FormField label="Qualification">
+                    <Input value={form.father_qualification} maxLength={150} onChange={(e) => patch({ father_qualification: e.target.value })} />
+                  </FormField>
+                  <FormField label="Occupation">
+                    <Input value={form.father_occupation} maxLength={150} onChange={(e) => patch({ father_occupation: e.target.value })} />
+                  </FormField>
+                  <FormField label="Annual income" error={errors.father_annual_income}>
+                    <Input
+                      value={form.father_annual_income}
+                      inputMode="decimal"
+                      className={errors.father_annual_income ? "border-admin-danger" : undefined}
+                      onChange={(e) => patch({ father_annual_income: e.target.value })}
+                    />
+                  </FormField>
+                  <FormField label="Email" error={errors.father_email}>
+                    <Input
+                      value={form.father_email}
+                      maxLength={255}
+                      className={errors.father_email ? "border-admin-danger" : undefined}
+                      onChange={(e) => patch({ father_email: e.target.value })}
+                    />
+                  </FormField>
+                  <FormField label="Mobile">
+                    <Input value={form.father_mobile} maxLength={20} onChange={(e) => patch({ father_mobile: e.target.value })} />
+                  </FormField>
+                </div>
+                <div className="flex flex-col gap-4 rounded-admin-md border border-admin-divider p-4">
+                  <p className="text-xs font-bold tracking-wide text-admin-subtle uppercase">Mother</p>
+                  <FormField label="Name">
+                    <Input value={form.mother_name} maxLength={150} onChange={(e) => patch({ mother_name: e.target.value })} />
+                  </FormField>
+                  <FormField label="Qualification">
+                    <Input value={form.mother_qualification} maxLength={150} onChange={(e) => patch({ mother_qualification: e.target.value })} />
+                  </FormField>
+                  <FormField label="Occupation">
+                    <Input value={form.mother_occupation} maxLength={150} onChange={(e) => patch({ mother_occupation: e.target.value })} />
+                  </FormField>
+                  <FormField label="Annual income" error={errors.mother_annual_income}>
+                    <Input
+                      value={form.mother_annual_income}
+                      inputMode="decimal"
+                      className={errors.mother_annual_income ? "border-admin-danger" : undefined}
+                      onChange={(e) => patch({ mother_annual_income: e.target.value })}
+                    />
+                  </FormField>
+                  <FormField label="Email" error={errors.mother_email}>
+                    <Input
+                      value={form.mother_email}
+                      maxLength={255}
+                      className={errors.mother_email ? "border-admin-danger" : undefined}
+                      onChange={(e) => patch({ mother_email: e.target.value })}
+                    />
+                  </FormField>
+                  <FormField label="Mobile">
+                    <Input value={form.mother_mobile} maxLength={20} onChange={(e) => patch({ mother_mobile: e.target.value })} />
+                  </FormField>
+                </div>
+              </div>
+            </Section>
+
+            <Section icon="fingerprint" title="Identity marks">
+              <div className="flex flex-col gap-2">
+                {form.identity_marks.map((mark, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="w-5 shrink-0 text-xs text-admin-subtle">{i + 1}.</span>
+                    <Input
+                      value={mark}
+                      maxLength={255}
+                      placeholder="e.g. Mole on left cheek"
+                      onChange={(e) =>
+                        patch({ identity_marks: form.identity_marks.map((m, j) => (j === i ? e.target.value : m)) })
+                      }
+                    />
+                    <button
+                      type="button"
+                      aria-label="Remove identity mark"
+                      className="shrink-0 text-admin-subtle hover:text-admin-danger"
+                      onClick={() => patch({ identity_marks: form.identity_marks.filter((_, j) => j !== i) })}
+                    >
+                      <Icon name="delete" size={16} />
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => patch({ identity_marks: [...form.identity_marks, ""] })}
+                >
+                  <Icon name="add" size={15} /> Add identity mark
+                </Button>
+              </div>
+            </Section>
+
+            <Section icon="stars" title="Special categories">
               <div className="flex flex-col gap-3">
                 <label className="flex items-center gap-2 text-sm text-admin-body">
                   <Checkbox checked={form.is_first_graduate} onChange={(e) => patch({ is_first_graduate: e.target.checked })} />
@@ -643,14 +1010,14 @@ export function EditProfileModal({
                   <Input value={form.diff_abled_info} maxLength={255} placeholder="Details" onChange={(e) => patch({ diff_abled_info: e.target.value })} />
                 )}
               </div>
-            </div>
+            </Section>
 
-            <div className="flex justify-end gap-2 border-t border-admin-divider pt-4">
-              <Button variant="secondary" onClick={onClose} disabled={updateProfile.isPending || updateAddresses.isPending}>
+            <div className="sticky bottom-0 -mx-1 -mb-1 flex justify-end gap-2 border-t border-admin-divider bg-admin-canvas px-1 pt-4 pb-1">
+              <Button variant="secondary" onClick={onClose} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button variant="primary" disabled={updateProfile.isPending || updateAddresses.isPending} onClick={handleSave}>
-                {updateProfile.isPending || updateAddresses.isPending ? "Saving…" : "Save changes"}
+              <Button variant="primary" disabled={isSaving} onClick={handleSave}>
+                {isSaving ? "Saving…" : "Save changes"}
               </Button>
             </div>
           </div>

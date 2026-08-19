@@ -9,7 +9,9 @@ export function PersonalSection({ faculty }: { faculty: Faculty }) {
       <div className="mt-5">
         <InfoGrid
           items={[
-            ["Full name", `${faculty.prefix ? `${faculty.prefix} ` : ""}${fullName(faculty)}`],
+            // fullName() already prepends the prefix itself — doing it again
+            // here produced "Dr. Dr. Arun Prakash".
+            ["Full name", fullName(faculty)],
             ["Gender", faculty.gender || "Not provided"],
             ["Date of birth", faculty.date_of_birth ? formatDate(faculty.date_of_birth) : "Not provided"],
             ["Personal email", faculty.personal_email || "Not provided"],

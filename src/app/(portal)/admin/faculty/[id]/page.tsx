@@ -10,6 +10,8 @@ import { useFacultyMappings } from "@/modules/admin/api/facultyMapping";
 import { useDeleteFacultyDocument, useFacultyDocuments, useUploadFacultyDocument } from "@/modules/admin/api/facultyFiles";
 import { FacultyAvatar } from "@/modules/admin/components/faculty/FacultyAvatar";
 import { FacultyIdCardModal } from "@/modules/admin/components/faculty/FacultyIdCardModal";
+import { friendlyError } from "@/lib/utils/errors";
+import { generateFacultyProfileReport } from "@/modules/admin/lib/faculty-profile-report";
 import { experienceYears, formatDate, formatFacultyCode, fullName, profileCompleteness } from "@/modules/admin/lib/faculty-format";
 import { OverviewSection } from "@/modules/admin/components/faculty/detail/OverviewSection";
 import { PersonalSection } from "@/modules/admin/components/faculty/detail/PersonalSection";
@@ -134,6 +136,7 @@ function FacultyDetailPageInner() {
   );
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [idCardModalOpen, setIdCardModalOpen] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const completeness = useMemo(() => (faculty ? profileCompleteness(faculty) : 0), [faculty]);
   const mappings = useMemo(() => mappingsData?.data ?? [], [mappingsData]);
@@ -157,6 +160,27 @@ function FacultyDetailPageInner() {
   }
   if (error || !faculty) {
     return <p className="text-sm text-admin-danger">Couldn&apos;t load this faculty record.</p>;
+  }
+
+  async function handlePrintReport() {
+    if (!faculty) return; // narrowed already at this point in render, but TS can't carry that across the closure
+    setIsGeneratingReport(true);
+    try {
+      await generateFacultyProfileReport({
+        faculty,
+        mappings,
+        documents,
+        activity,
+        attendance,
+        distinctSubjectCount,
+        distinctClassCount,
+        completeness,
+      });
+    } catch (err: unknown) {
+      show(friendlyError(err), "error");
+    } finally {
+      setIsGeneratingReport(false);
+    }
   }
 
   const name = fullName(faculty);
@@ -249,8 +273,8 @@ function FacultyDetailPageInner() {
           <Button variant="secondary" onClick={() => setIdCardModalOpen(true)}>
             <Icon name="badge" size={16} /> ID card
           </Button>
-          <Button variant="secondary" onClick={() => window.print()}>
-            <Icon name="print" size={16} /> Print
+          <Button variant="secondary" onClick={handlePrintReport} disabled={isGeneratingReport}>
+            <Icon name="print" size={16} /> {isGeneratingReport ? "Preparing PDF…" : "Print"}
           </Button>
         </div>
       </div>

@@ -17,7 +17,7 @@ import {
   useStudentsByDepartment,
   useStudentStatusDistribution,
 } from "@/modules/admin/api/dashboard";
-import { useFacultyAttendanceOverview } from "@/modules/admin/api/faculty";
+import { useAdmittedCutoffSummary } from "@/modules/admin/api/admissions";
 import { useHostelDashboardSummary, usePlacementStats } from "@/modules/admin/api/analytics";
 import { currencyShort, monthShortLabel, percent1 } from "@/modules/admin/lib/format";
 
@@ -49,7 +49,7 @@ export default function AdminDashboardPage() {
   const studentsByDept = useStudentsByDepartment();
   const studentsByBatch = useStudentsByBatch();
   const admissions = useAdmissionsPipeline();
-  const facultyAttendance = useFacultyAttendanceOverview({});
+  const admittedCutoff = useAdmittedCutoffSummary();
   const placement = usePlacementStats();
   const hostel = useHostelDashboardSummary();
   const workforce = useFacultyWorkforceComposition();
@@ -66,8 +66,8 @@ export default function AdminDashboardPage() {
   const financeError =
     finance.error instanceof ApiError ? finance.error.message : finance.error ? "Failed to load finance data." : null;
 
-  const today = facultyAttendance.data?.today;
   const pipeline = admissions.data;
+  const cutoffSummary = admittedCutoff.data;
 
   return (
     <div className="flex flex-col gap-5">
@@ -137,11 +137,17 @@ export default function AdminDashboardPage() {
           sub={pipeline ? "confirmed" : undefined}
         />
         <KpiCard
-          label="Faculty attendance today"
-          icon="event_available"
-          value={today ? percent1(today.attendance_percentage) : facultyAttendance.isLoading ? "…" : "—"}
-          delta={today ? String(today.full_days) : undefined}
-          sub={today ? "present full day" : undefined}
+          label="Average cutoff"
+          icon="calculate"
+          value={
+            cutoffSummary?.average_cutoff != null
+              ? cutoffSummary.average_cutoff
+              : admittedCutoff.isLoading
+                ? "…"
+                : "—"
+          }
+          delta={cutoffSummary ? String(cutoffSummary.admitted_count) : undefined}
+          sub={cutoffSummary ? "students admitted" : undefined}
         />
         <KpiCard
           label="Placement rate"

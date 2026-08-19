@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
-import { Badge, Button } from "@/modules/admin/components/ui";
+import { Badge, Button, useToast } from "@/modules/admin/components/ui";
+import { friendlyError } from "@/lib/utils/errors";
+import { generateStudentProfileReport } from "@/modules/admin/lib/student-profile-report";
 import { avatarTint, formatDate, initials, studentName } from "@/modules/admin/lib/students-format";
 import {
   useClassMentor,
@@ -157,6 +159,8 @@ export default function StudentDetailPage() {
   const { data: overviewCertificates } = useStudentCertificates(studentId, onOverview);
   const [editOpen, setEditOpen] = useState(false);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const { show } = useToast();
   const [railCollapsed, setRailCollapsed] = useState(
     () => typeof window !== "undefined" && window.localStorage.getItem(RAIL_KEY) === "1",
   );
@@ -178,6 +182,18 @@ export default function StudentDetailPage() {
   }
   if (error || !student) {
     return <p className="text-sm text-admin-danger">Student not found.</p>;
+  }
+
+  async function handlePrintReport() {
+    if (!student) return; // narrowed already at this point in render, but TS can't carry that across the closure
+    setIsGeneratingReport(true);
+    try {
+      await generateStudentProfileReport({ student, feeWorkspace, mentor });
+    } catch (err: unknown) {
+      show(friendlyError(err), "error");
+    } finally {
+      setIsGeneratingReport(false);
+    }
   }
 
   const tint = avatarTint(student.id);
@@ -258,8 +274,8 @@ export default function StudentDetailPage() {
           <Button variant="secondary" disabled title="ID card — no ID card module yet">
             <Icon name="badge" size={16} /> ID card
           </Button>
-          <Button variant="secondary" onClick={() => window.print()}>
-            <Icon name="print" size={16} /> Print
+          <Button variant="secondary" onClick={handlePrintReport} disabled={isGeneratingReport}>
+            <Icon name="print" size={16} /> {isGeneratingReport ? "Preparing PDF…" : "Print"}
           </Button>
         </div>
       </div>

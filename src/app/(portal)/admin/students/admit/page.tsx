@@ -116,6 +116,33 @@ function toFormState(app: SoaApplicationDetail): ApplicationFormState {
   };
 }
 
+/**
+ * Cutoff = (Physics + Chemistry) / 2 + Maths — the board cut-off formula
+ * used across the admission flow. Returns null until all three marks are
+ * present and numeric, rather than computing against a partial/zeroed
+ * input, which would show a misleading number while the admin is still typing.
+ * Shared by the "New/Edit application" modal (live preview as marks are
+ * entered) and the admissions list's "Cut-off" column (computed from the
+ * three stored marks instead of showing them individually).
+ */
+function computeCutoff(
+  maths: string | null | undefined,
+  physics: string | null | undefined,
+  chemistry: string | null | undefined,
+): number | null {
+  if (!maths?.trim() || !physics?.trim() || !chemistry?.trim()) return null;
+  const m = Number(maths);
+  const p = Number(physics);
+  const c = Number(chemistry);
+  if (!Number.isFinite(m) || !Number.isFinite(p) || !Number.isFinite(c)) return null;
+  return (p + c) / 2 + m;
+}
+
+/** Trims a trailing ".00"/"0" without ever hiding a genuine fraction, e.g. 92 → "92", 88.5 → "88.5". */
+function formatCutoff(value: number): string {
+  return String(Math.round(value * 100) / 100);
+}
+
 function toPayload(form: ApplicationFormState): CreateSoaApplicationInput {
   const num = (v: string) => (v.trim() ? Number(v) : undefined);
   return {
@@ -200,6 +227,18 @@ function ApplicationFormFields({
           <Input {...field("cutoff_physics")} placeholder="Physics" />
           <Input {...field("cutoff_chemistry")} placeholder="Chemistry" />
         </div>
+        {(() => {
+          const cutoff = computeCutoff(form.cutoff_maths, form.cutoff_physics, form.cutoff_chemistry);
+          return (
+            <div className="mt-3 flex items-center gap-2 rounded-admin-md border border-admin-divider bg-admin-tint px-3 py-2">
+              <Icon name="calculate" size={16} className="shrink-0 text-admin-primary" />
+              <p className="text-sm text-admin-body">
+                Cutoff: <span className="font-bold text-admin-ink">{cutoff !== null ? formatCutoff(cutoff) : "—"}</span>
+              </p>
+              <p className="ml-auto text-xs text-admin-subtle">(Physics + Chemistry) ÷ 2 + Maths</p>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
@@ -325,15 +364,14 @@ export default function AdmitStudentDashboardPage() {
     },
     {
       key: "cutoffs",
-      header: "Cut-offs",
-      render: (app) =>
-        app.cutoff_maths || app.cutoff_physics || app.cutoff_chemistry ? (
-          <span className="font-mono text-admin-body">
-            M {app.cutoff_maths ?? "—"} · P {app.cutoff_physics ?? "—"} · C {app.cutoff_chemistry ?? "—"}
-          </span>
-        ) : (
-          "—"
-        ),
+      header: "Cut-off",
+      // Just the combined cutoff — (Physics + Chemistry) / 2 + Maths — not
+      // the three raw subject marks; those are still visible on the
+      // application itself (Edit) for anyone who needs the breakdown.
+      render: (app) => {
+        const cutoff = computeCutoff(app.cutoff_maths, app.cutoff_physics, app.cutoff_chemistry);
+        return cutoff !== null ? <span className="font-mono text-admin-body">{formatCutoff(cutoff)}</span> : "—";
+      },
     },
     {
       key: "status",

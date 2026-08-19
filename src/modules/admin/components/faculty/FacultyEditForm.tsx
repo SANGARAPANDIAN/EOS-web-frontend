@@ -712,10 +712,10 @@ export function FacultyEditForm({ faculty }: { faculty: Faculty }) {
               <div className="flex gap-3 rounded-admin-lg border border-admin-warning-border bg-admin-warning-bg p-4 text-sm text-admin-warning-fg">
                 <Icon name="verified_user" size={20} className="mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-semibold">Write-only</p>
+                  <p className="font-semibold">These fields always start blank here</p>
                   <p className="mt-0.5">
-                    The backend never returns these once saved, so the fields below always start blank — leave a field empty to keep its current value
-                    unchanged, or fill it in to set/replace it.
+                    Leave a field empty to keep its current value unchanged, or fill it in to set/replace it. Saved values appear on the profile&apos;s
+                    Identity tab — visible to Admin/HR Payroll only.
                   </p>
                 </div>
               </div>

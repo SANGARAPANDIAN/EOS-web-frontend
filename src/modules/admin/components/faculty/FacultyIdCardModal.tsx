@@ -5,10 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/ui/Icon";
 import { Button, Modal, useToast } from "@/modules/admin/components/ui";
 import { friendlyError } from "@/lib/utils/errors";
-import { facultyKeys, type Faculty } from "@/modules/admin/api/faculty";
+import { facultyKeys, fetchFacultyById, type Faculty } from "@/modules/admin/api/faculty";
 import { useFacultyIdCardBulkStatus, useIssueFacultyIdCard, type FacultyIdCardStatus } from "@/modules/admin/api/facultyIdCard";
-import { generateFacultyIdCardImages } from "@/modules/admin/lib/id-card-image";
+import { generateFacultyIdCardsPdf } from "@/modules/admin/lib/id-card-image";
 import { FacultyAvatar } from "@/modules/admin/components/faculty/FacultyAvatar";
+import { FlipIdCard } from "@/modules/admin/components/faculty/FlipIdCard";
 import { formatDate, formatFacultyCode, fullName } from "@/modules/admin/lib/faculty-format";
 
 interface FacultyIdCardModalProps {
@@ -32,6 +33,12 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  // Full records (with back-side fields — DOB/address/etc. — that the
+  // summary rows this modal is opened with don't carry) fetched once
+  // issuing finishes, then reused for both the flip-card preview and the
+  // print download rather than re-fetched for each.
+  const [fullRecords, setFullRecords] = useState<Record<number, Faculty>>({});
+  const [previewId, setPreviewId] = useState<number | null>(null);
 
   function reset() {
     setRowStatus({});
@@ -40,6 +47,8 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
     setIsSubmitting(false);
     setSubmitted(false);
     setIsDownloading(false);
+    setFullRecords({});
+    setPreviewId(null);
   }
 
   function handleClose() {
@@ -51,8 +60,11 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
     setIsSubmitting(true);
     setRowStatus(Object.fromEntries(facultyIds.map((id) => [id, "pending"])));
 
+    const fullRecordsPromise = Promise.all(faculty.map((f) => fetchFacultyById(f.id).catch(() => f)));
+
     const CONCURRENCY = 3;
     const queue = [...faculty];
+    const issuedIds: number[] = [];
 
     async function worker() {
       while (queue.length > 0) {
@@ -62,6 +74,7 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
           const result = await issueIdCard.mutateAsync(f.id);
           setIssueResults((prev) => ({ ...prev, [f.id]: result }));
           setRowStatus((prev) => ({ ...prev, [f.id]: "issued" }));
+          issuedIds.push(f.id);
         } catch (err: unknown) {
           setRowStatus((prev) => ({ ...prev, [f.id]: "failed" }));
           setRowError((prev) => ({ ...prev, [f.id]: friendlyError(err) }));
@@ -69,8 +82,10 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
       }
     }
 
-    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    const [, records] = await Promise.all([Promise.all(Array.from({ length: CONCURRENCY }, worker)), fullRecordsPromise]);
 
+    setFullRecords(Object.fromEntries(records.map((r) => [r.id, r])));
+    setPreviewId(issuedIds[0] ?? null);
     setIsSubmitting(false);
     setSubmitted(true);
     queryClient.invalidateQueries({ queryKey: [...facultyKeys.all, "id-card-status"] });
@@ -78,12 +93,14 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
   }
 
   async function handleDownloadCards() {
-    const issuedFaculty = faculty.filter((f) => rowStatus[f.id] === "issued");
+    const issuedIds = faculty.filter((f) => rowStatus[f.id] === "issued").map((f) => f.id);
+    const idsToDownload = issuedIds.length > 0 ? issuedIds : facultyIds;
+    const records = idsToDownload.map((id) => fullRecords[id]).filter((r): r is Faculty => Boolean(r));
     setIsDownloading(true);
     try {
-      await generateFacultyIdCardImages(issuedFaculty.length > 0 ? issuedFaculty : faculty);
+      await generateFacultyIdCardsPdf(records);
     } catch {
-      show("Couldn't generate the card image. Please try again.", "error");
+      show("Couldn't generate the ID card PDF. Please try again.", "error");
     } finally {
       setIsDownloading(false);
     }
@@ -92,6 +109,8 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
   const issuedCount = Object.values(rowStatus).filter((s) => s === "issued").length;
   const failedCount = Object.values(rowStatus).filter((s) => s === "failed").length;
   const isBulk = faculty.length > 1;
+  const issuedFacultyList = faculty.filter((f) => rowStatus[f.id] === "issued");
+  const previewFaculty = previewId !== null ? fullRecords[previewId] : undefined;
 
   return (
     <Modal open={open} onClose={handleClose} title={isBulk ? `Issue ${faculty.length} ID Cards` : "Issue ID Card"} widthClassName="max-w-lg">
@@ -165,6 +184,30 @@ export function FacultyIdCardModal({ open, onClose, faculty }: FacultyIdCardModa
             </p>
             {failedCount > 0 && <p className="text-sm text-admin-muted">{failedCount} failed — see details below.</p>}
           </div>
+
+          {previewFaculty && (
+            <div className="mb-5 flex flex-col items-center gap-3 rounded-admin-lg border border-admin-border bg-admin-tint px-4 py-5">
+              <p className="text-xs font-semibold text-admin-muted">Preview — click the card to flip it</p>
+              <FlipIdCard key={previewFaculty.id} faculty={previewFaculty} />
+              {issuedFacultyList.length > 1 && (
+                <div className="mt-1 flex flex-wrap justify-center gap-1.5">
+                  {issuedFacultyList.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setPreviewId(f.id)}
+                      title={fullName(f)}
+                      className={`rounded-admin-pill transition-colors ${
+                        f.id === previewFaculty.id ? "ring-2 ring-admin-primary ring-offset-2 ring-offset-admin-tint" : "opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <FacultyAvatar faculty={f} className="size-7 rounded-admin-pill text-[10px]" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mb-4 max-h-56 overflow-y-auto rounded-admin-lg border border-admin-border">
             {faculty.map((f) => {

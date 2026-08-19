@@ -1,24 +1,21 @@
-import { fetchFacultyById, type Faculty } from "@/modules/admin/api/faculty";
+import type { Faculty } from "@/modules/admin/api/faculty";
 import { EMPLOYMENT_STATUS_FROM_ENUM } from "@/modules/admin/lib/faculty-wizard-config";
 import { formatDate, formatFacultyCode, fullName, initialsOf } from "@/modules/admin/lib/faculty-format";
 
-// Renders a print-quality PNG of the faculty ID card, front and back shown
-// side by side on one sheet (like a typical Aadhaar-style front/back
-// preview) — matching the physical Sri Eshwar College of Engineering card
-// template: same logo/college identity, same bottom wave band and back-side
-// layout, with the photo and faculty-specific fields.
-//
-// Card is portrait (narrow width, tall height), sized down from the
-// original real-card-accurate 638x1011 render (width -30%, height -50%) —
-// that render left a large dead gap between the content and the bottom wave
-// band on both sides; this layout is rebuilt so content and band sit close
-// together at this smaller size instead of just scaling the old one.
-const CARD_W = 447;
-const CARD_H = 506;
-const GAP = 24;
-const PADDING = 20;
-const LABEL_H = 24;
-const CORNER_RADIUS = 12;
+// ISO/IEC 7810 ID-1 — the physical size every plastic ID card is cut to,
+// 85.60 x 53.98mm, held in portrait here (the 53.98mm edge as the card's
+// width) to match this design's photo-over-name layout. Both the on-screen
+// preview (FlipIdCard) and the printed sheet size off of this exact ratio,
+// so what's previewed is what a cut card will actually look like — no
+// separate "close enough" aspect ratio invented for the screen.
+export const CARD_W_MM = 53.98;
+export const CARD_H_MM = 85.6;
+export const CARD_ASPECT = CARD_W_MM / CARD_H_MM;
+
+// Rendered at 300dpi so the same canvas doubles as print-quality artwork.
+const DPI = 300;
+export const CARD_W = Math.round((CARD_W_MM / 25.4) * DPI); // 638
+export const CARD_H = Math.round((CARD_H_MM / 25.4) * DPI); // 1011
 
 const NAVY = "rgb(23, 55, 128)";
 const GREEN = "rgb(141, 198, 63)";
@@ -26,7 +23,6 @@ const GOLD = "rgb(247, 181, 0)";
 const SLATE_600 = "rgb(71, 85, 105)";
 const SLATE_900 = "rgb(15, 23, 42)";
 const SLATE_200 = "rgb(226, 232, 240)";
-const CANVAS_BG = "rgb(241, 245, 249)";
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -55,85 +51,122 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
+// Matches the college's real card template exactly: a layered gold/green
+// wave crest sitting above a solid navy base, drawn as three overlapping
+// wavy fills (each fully covering down to the bottom edge) so gold peeks
+// above green which peeks above navy — not the plain straight stripes the
+// very first version of this file drew.
 function drawWaveBand(ctx: CanvasRenderingContext2D, topY: number) {
+  const amp = 10;
+
+  function wavePath(baseY: number) {
+    ctx.beginPath();
+    ctx.moveTo(0, baseY);
+    ctx.bezierCurveTo(CARD_W * 0.2, baseY - amp, CARD_W * 0.38, baseY + amp, CARD_W * 0.56, baseY);
+    ctx.bezierCurveTo(CARD_W * 0.74, baseY - amp, CARD_W * 0.88, baseY + amp, CARD_W, baseY);
+    ctx.lineTo(CARD_W, CARD_H);
+    ctx.lineTo(0, CARD_H);
+    ctx.closePath();
+  }
+
+  // Each wavePath() fills from its own wavy top edge all the way down to
+  // the card's bottom edge — so layers must be painted smallest-topY-first,
+  // largest (navy) last, or the last layer painted just covers the ones
+  // before it instead of leaving them showing as thin slivers above it.
   ctx.fillStyle = GOLD;
-  ctx.fillRect(0, topY, CARD_W, 6);
+  wavePath(topY);
+  ctx.fill();
+
   ctx.fillStyle = GREEN;
-  ctx.fillRect(0, topY + 6, CARD_W, 6);
+  wavePath(topY + 10);
+  ctx.fill();
+
   ctx.fillStyle = NAVY;
-  ctx.fillRect(0, topY + 12, CARD_W, CARD_H - (topY + 12));
+  wavePath(topY + 20);
+  ctx.fill();
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null) {
-  const logoSize = 38;
-  const textX = 16 + logoSize + 9;
-  if (logo) ctx.drawImage(logo, 16, 13, logoSize, logoSize);
+  const logoSize = 80;
+  const textX = 26 + logoSize + 16;
+  if (logo) ctx.drawImage(logo, 26, 30, logoSize, logoSize);
 
   ctx.textAlign = "left";
   ctx.fillStyle = NAVY;
-  ctx.font = "bold 16px Helvetica, Arial, sans-serif";
-  ctx.fillText("Sri Eshwar", textX, 27);
-  ctx.font = "bold 11px Helvetica, Arial, sans-serif";
-  ctx.fillText("College of Engineering", textX, 41);
+  ctx.font = "bold 30px Helvetica, Arial, sans-serif";
+  const titleLines = wrapText(ctx, "Sri Eshwar College of Engineering", CARD_W - textX - 20);
+  titleLines.forEach((line, i) => ctx.fillText(line, textX, 50 + i * 34));
 
+  const subtextY = 50 + (titleLines.length - 1) * 34 + 40;
   ctx.fillStyle = SLATE_600;
-  ctx.font = "7px Helvetica, Arial, sans-serif";
-  ctx.fillText("An Autonomous Institution", textX, 52);
-  ctx.fillText("Accredited by NAAC | NBA", textX, 62);
+  ctx.font = "17px Helvetica, Arial, sans-serif";
+  ctx.fillText("An Autonomous Institution", textX, subtextY);
+  ctx.fillText("Accredited by NAAC | NBA", textX, subtextY + 22);
+
+  ctx.strokeStyle = SLATE_200;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(26, subtextY + 42);
+  ctx.lineTo(CARD_W - 26, subtextY + 42);
+  ctx.stroke();
 }
 
+// Front layout intentionally leaves real blank space above the wave band
+// (bandTop is a fixed position, not content-driven) — that's how the
+// college's actual card looks, not a gap to be designed away.
 async function drawFront(ctx: CanvasRenderingContext2D, faculty: Faculty, logo: HTMLImageElement | null) {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, CARD_W, CARD_H);
   drawHeader(ctx, logo);
 
-  const photoW = 170;
-  const photoH = 185;
+  const photoW = 280;
+  const photoH = 270;
   const photoX = (CARD_W - photoW) / 2;
-  const photoY = 76;
+  const photoY = 190;
   const photo = faculty.profile_url ? await loadImage(faculty.profile_url) : null;
 
   if (photo) {
     ctx.drawImage(photo, photoX, photoY, photoW, photoH);
-    ctx.strokeStyle = "rgb(40,40,40)";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(photoX, photoY, photoW, photoH);
   } else {
     ctx.fillStyle = SLATE_200;
     ctx.fillRect(photoX, photoY, photoW, photoH);
-    ctx.strokeStyle = "rgb(40,40,40)";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(photoX, photoY, photoW, photoH);
     ctx.fillStyle = SLATE_600;
-    ctx.font = "bold 32px Helvetica, Arial, sans-serif";
+    ctx.font = "bold 64px Helvetica, Arial, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(initialsOf(faculty), CARD_W / 2, photoY + photoH / 2 + 11);
+    ctx.fillText(initialsOf(faculty), CARD_W / 2, photoY + photoH / 2 + 22);
   }
+  ctx.strokeStyle = "rgb(40,40,40)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(photoX, photoY, photoW, photoH);
 
-  let cursorY = photoY + photoH + 32;
+  let cursorY = photoY + photoH + 65;
   ctx.textAlign = "center";
   ctx.fillStyle = SLATE_900;
-  ctx.font = "bold 16px Helvetica, Arial, sans-serif";
-  ctx.fillText(fullName(faculty).toUpperCase(), CARD_W / 2, cursorY);
+  ctx.font = "bold 36px Helvetica, Arial, sans-serif";
+  ctx.fillText(fullName(faculty), CARD_W / 2, cursorY);
 
-  cursorY += 22;
+  cursorY += 38;
   ctx.fillStyle = SLATE_600;
-  ctx.font = "12px Helvetica, Arial, sans-serif";
+  ctx.font = "20px Helvetica, Arial, sans-serif";
+  ctx.fillText(`Faculty ID: ${formatFacultyCode(faculty.id)}`, CARD_W / 2, cursorY);
+
+  cursorY += 62;
+  ctx.fillStyle = SLATE_900;
+  ctx.font = "bold 34px Helvetica, Arial, sans-serif";
   ctx.fillText(faculty.designation, CARD_W / 2, cursorY);
 
-  cursorY += 18;
-  ctx.font = "11px Helvetica, Arial, sans-serif";
-  const deptLines = wrapText(ctx, faculty.department?.name ?? "", CARD_W - 40);
-  deptLines.forEach((line, i) => ctx.fillText(line, CARD_W / 2, cursorY + i * 14));
-  cursorY += deptLines.length * 14 + 10;
+  cursorY += 46;
+  ctx.font = "bold 32px Helvetica, Arial, sans-serif";
+  const deptLines = wrapText(ctx, faculty.department?.name ?? "", CARD_W - 90);
+  deptLines.forEach((line, i) => ctx.fillText(line, CARD_W / 2, cursorY + i * 38));
 
-  ctx.fillStyle = NAVY;
-  ctx.font = "bold 14px Helvetica, Arial, sans-serif";
-  ctx.fillText(formatFacultyCode(faculty.id), CARD_W / 2, cursorY);
-
-  drawWaveBand(ctx, cursorY + 30);
+  drawWaveBand(ctx, 800);
 }
 
+// Back's label/value rows sit side by side on one line (label at labelX,
+// value at valueX) rather than value wrapping below its label — matching
+// the real card's two-column layout, not the stacked layout the very
+// first version of this file used.
 function drawBack(ctx: CanvasRenderingContext2D, faculty: Faculty) {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, CARD_W, CARD_H);
@@ -151,142 +184,160 @@ function drawBack(ctx: CanvasRenderingContext2D, faculty: Faculty) {
     ["Address", address || "—"],
   ];
 
-  let cursorY = 40;
-  const labelX = 20;
-  const valueMaxWidth = CARD_W - labelX * 2;
-  const ROW_GAP = 60;
+  const labelX = 40;
+  const valueX = 300;
+  const valueMaxWidth = CARD_W - valueX - 30;
+  const ROW_GAP = 72;
+  let cursorY = 140;
 
   for (const [label, value] of rows) {
     ctx.textAlign = "left";
     ctx.fillStyle = SLATE_600;
-    ctx.font = "bold 11px Helvetica, Arial, sans-serif";
+    ctx.font = "20px Helvetica, Arial, sans-serif";
     ctx.fillText(label, labelX, cursorY);
 
     ctx.fillStyle = SLATE_900;
-    ctx.font = "11px Helvetica, Arial, sans-serif";
+    ctx.font = "bold 21px Helvetica, Arial, sans-serif";
     const lines = wrapText(ctx, value, valueMaxWidth);
-    lines.forEach((line, i) => ctx.fillText(line, labelX, cursorY + 16 + i * 14));
-    cursorY += ROW_GAP + Math.max(0, lines.length - 1) * 14;
+    lines.forEach((line, i) => ctx.fillText(line, valueX, cursorY + i * 26));
+    cursorY += ROW_GAP + Math.max(0, lines.length - 1) * 26;
   }
 
-  cursorY += 26;
+  cursorY += 60;
   ctx.strokeStyle = SLATE_600;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(labelX, cursorY);
-  ctx.lineTo(labelX + 110, cursorY);
-  ctx.moveTo(CARD_W - labelX - 110, cursorY);
+  ctx.lineTo(labelX + 170, cursorY);
+  ctx.moveTo(CARD_W - labelX - 170, cursorY);
   ctx.lineTo(CARD_W - labelX, cursorY);
   ctx.stroke();
 
   ctx.fillStyle = SLATE_600;
-  ctx.font = "9px Helvetica, Arial, sans-serif";
-  ctx.fillText("Holder Sign", labelX, cursorY + 14);
-  ctx.fillText("Principal", CARD_W - labelX - 110, cursorY + 14);
+  ctx.font = "17px Helvetica, Arial, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Holder Sign", labelX, cursorY + 26);
+  ctx.textAlign = "right";
+  ctx.fillText("Principal", CARD_W - labelX, cursorY + 26);
 
-  drawWaveBand(ctx, cursorY + 40);
+  const bandTop = 800;
+  drawWaveBand(ctx, bandTop);
+
+  // The college's real footer block, verbatim — not a placeholder line.
   ctx.textAlign = "center";
+  ctx.fillStyle = GOLD;
+  ctx.font = "bold 24px Helvetica, Arial, sans-serif";
+  let footerY = bandTop + 48;
+  ctx.fillText("SRI ESHWAR COLLEGE OF ENGINEERING", CARD_W / 2, footerY);
+
   ctx.fillStyle = "white";
-  ctx.font = "8px Helvetica, Arial, sans-serif";
-  const footerLines = wrapText(ctx, "Sri Eshwar College of Engineering · Coimbatore · www.sece.ac.in", CARD_W - 30);
-  const footerStartY = CARD_H - 10 - (footerLines.length - 1) * 11;
-  footerLines.forEach((line, i) => ctx.fillText(line, CARD_W / 2, footerStartY + i * 11));
-}
-
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  if (typeof ctx.roundRect === "function") {
-    ctx.roundRect(x, y, w, h, r);
-    return;
+  ctx.font = "16px Helvetica, Arial, sans-serif";
+  footerY += 32;
+  const footerLines = [
+    "Accredited by NAAC with 'A' Grade",
+    "Approved by AICTE, New Delhi · Affiliated to Anna University, Chennai",
+    "Kondampatti Post, Vadasithur via, Kinathukadavu, Coimbatore - 641202",
+    "Phone: 04259 200300 · Email: sece@sece.ac.in",
+  ];
+  for (const line of footerLines) {
+    const wrapped = wrapText(ctx, line, CARD_W - 60);
+    wrapped.forEach((w) => {
+      ctx.fillText(w, CARD_W / 2, footerY);
+      footerY += 22;
+    });
   }
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
 }
 
-function drawCardOnto(ctx: CanvasRenderingContext2D, card: HTMLCanvasElement, x: number, y: number) {
-  ctx.save();
-  roundRectPath(ctx, x, y, CARD_W, CARD_H, CORNER_RADIUS);
-  ctx.clip();
-  ctx.drawImage(card, x, y);
-  ctx.restore();
+async function renderCardCanvases(faculty: Faculty, logo: HTMLImageElement | null) {
+  const frontCanvas = document.createElement("canvas");
+  frontCanvas.width = CARD_W;
+  frontCanvas.height = CARD_H;
+  const frontCtx = frontCanvas.getContext("2d");
+  if (frontCtx) await drawFront(frontCtx, faculty, logo);
 
-  ctx.strokeStyle = "rgba(15, 23, 42, 0.25)";
-  ctx.lineWidth = 1.5;
-  roundRectPath(ctx, x, y, CARD_W, CARD_H, CORNER_RADIUS);
-  ctx.stroke();
-}
+  const backCanvas = document.createElement("canvas");
+  backCanvas.width = CARD_W;
+  backCanvas.height = CARD_H;
+  const backCtx = backCanvas.getContext("2d");
+  if (backCtx) drawBack(backCtx, faculty);
 
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
-  return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  return { frontCanvas, backCanvas };
 }
 
 /**
- * Renders one PNG per faculty showing the front and back of their ID card
- * side by side on one sheet, portrait orientation, sized and laid out to
- * match the physical reference card. Always re-fetches each faculty's full
- * record first: the list/bulk-select screens that feed this only carry
- * summary fields, but the back side needs DOB/address/etc., which only the
- * single-faculty endpoint returns.
+ * Renders one faculty member's front/back as PNG data URLs — used by the
+ * on-screen FlipIdCard preview. The exact same drawFront/drawBack calls
+ * back the printed PDF below, so the preview is pixel-for-pixel what
+ * downloading actually produces, never a second hand-built approximation
+ * that could drift out of sync with it. `faculty` must carry the back-side
+ * fields (DOB/address/etc.) — summary rows from a list screen don't have
+ * them; fetch the full record first (see fetchFacultyById).
  */
-export async function generateFacultyIdCardImages(facultyList: Faculty[]): Promise<void> {
-  const [logo, fullRecords] = await Promise.all([
-    loadImage("/college-logo.png"),
-    Promise.all(facultyList.map((f) => fetchFacultyById(f.id).catch(() => f))),
-  ]);
+export async function renderFacultyCardImages(faculty: Faculty): Promise<{ front: string; back: string }> {
+  const logo = await loadImage("/college-logo.png");
+  const { frontCanvas, backCanvas } = await renderCardCanvases(faculty, logo);
+  return { front: frontCanvas.toDataURL("image/png"), back: backCanvas.toDataURL("image/png") };
+}
 
-  for (const faculty of fullRecords) {
-    const frontCanvas = document.createElement("canvas");
-    frontCanvas.width = CARD_W;
-    frontCanvas.height = CARD_H;
-    const frontCtx = frontCanvas.getContext("2d");
-    if (!frontCtx) continue;
-    await drawFront(frontCtx, faculty, logo);
+/**
+ * Builds one print-ready A4 PDF — one page per faculty member, front and
+ * back placed side by side at the card's true physical size (ISO/IEC 7810
+ * ID-1, 53.98 x 85.6mm) near the top of the page, with a light dashed cut
+ * guide around each. Never stretched to fill the sheet: the printing team
+ * needs the actual card scale to cut against, not an arbitrary layout.
+ * `facultyList` must already carry the back-side fields — callers that
+ * only have summary rows should re-fetch via fetchFacultyById first (see
+ * FacultyIdCardModal, which fetches once and reuses it for both the
+ * preview and this download).
+ */
+export async function generateFacultyIdCardsPdf(facultyList: Faculty[]): Promise<void> {
+  if (facultyList.length === 0) return;
+  const { jsPDF } = await import("jspdf");
+  const logo = await loadImage("/college-logo.png");
 
-    const backCanvas = document.createElement("canvas");
-    backCanvas.width = CARD_W;
-    backCanvas.height = CARD_H;
-    const backCtx = backCanvas.getContext("2d");
-    if (!backCtx) continue;
-    drawBack(backCtx, faculty);
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Front and back side by side on one sheet, like a typical
-    // Aadhaar-style front/back preview — not stacked.
-    const combined = document.createElement("canvas");
-    combined.width = CARD_W * 2 + GAP + PADDING * 2;
-    combined.height = CARD_H + LABEL_H + PADDING * 2;
-    const ctx = combined.getContext("2d");
-    if (!ctx) continue;
+  const gapMm = 8;
+  const totalWidth = CARD_W_MM * 2 + gapMm;
+  const marginX = (pageWidth - totalWidth) / 2;
+  const topY = 18;
+  const frontX = marginX;
+  const backX = marginX + CARD_W_MM + gapMm;
 
-    ctx.fillStyle = CANVAS_BG;
-    ctx.fillRect(0, 0, combined.width, combined.height);
+  for (let i = 0; i < facultyList.length; i++) {
+    const faculty = facultyList[i];
+    if (i > 0) doc.addPage();
 
-    const frontX = PADDING;
-    const backX = PADDING + CARD_W + GAP;
-    const cardY = PADDING + LABEL_H;
+    const { frontCanvas, backCanvas } = await renderCardCanvases(faculty, logo);
 
-    ctx.textAlign = "left";
-    ctx.fillStyle = SLATE_600;
-    ctx.font = "bold 14px Helvetica, Arial, sans-serif";
-    ctx.fillText("FRONT", frontX, PADDING + 18);
-    ctx.fillText("BACK", backX, PADDING + 18);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("FRONT", frontX, topY - 4);
+    doc.text("BACK", backX, topY - 4);
 
-    drawCardOnto(ctx, frontCanvas, frontX, cardY);
-    drawCardOnto(ctx, backCanvas, backX, cardY);
+    doc.addImage(frontCanvas.toDataURL("image/png"), "PNG", frontX, topY, CARD_W_MM, CARD_H_MM);
+    doc.addImage(backCanvas.toDataURL("image/png"), "PNG", backX, topY, CARD_W_MM, CARD_H_MM);
 
-    const blob = await canvasToBlob(combined);
-    if (blob) downloadBlob(blob, `id-card-${formatFacultyCode(faculty.id)}.png`);
+    doc.setDrawColor(180, 190, 205);
+    doc.setLineWidth(0.2);
+    doc.setLineDashPattern([1.2, 1], 0);
+    doc.rect(frontX, topY, CARD_W_MM, CARD_H_MM);
+    doc.rect(backX, topY, CARD_W_MM, CARD_H_MM);
+    doc.setLineDashPattern([], 0);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`${fullName(faculty)} · ${formatFacultyCode(faculty.id)}`, pageWidth / 2, topY + CARD_H_MM + 10, {
+      align: "center",
+    });
   }
+
+  const filename =
+    facultyList.length === 1
+      ? `id-card-${formatFacultyCode(facultyList[0].id)}.pdf`
+      : `id-cards-${facultyList.length}.pdf`;
+  doc.save(filename);
 }

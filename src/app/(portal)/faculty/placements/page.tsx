@@ -97,18 +97,18 @@ function DriveCard({
             color: d.status === "scheduled" ? "#1D4ED8" : "#475569",
           }}
         >
-          {d.status.toUpperCase()}
+          {d.status ? d.status.toUpperCase() : "—"}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, paddingTop: 15, borderTop: "1px solid #F1F4F9" }}>
         <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>YOUR MENTEES IN THIS DRIVE</div>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: "#475569" }}>
-          {isOpen ? `${clearedCount} of ${rows.length} progressing` : `${d.registered_count} registered institution-wide`}
+          {isOpen ? `${clearedCount} of ${rows.length} progressing` : `${d.registered_count ?? "—"} registered institution-wide`}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 14, paddingTop: 14, borderTop: "1px solid #F1F4F9", fontSize: 12.5, fontWeight: 600, color: "#7C8899", flexWrap: "wrap" }}>
-        <div>Eligibility {d.eligibility_cgpa !== null ? `CGPA ${d.eligibility_cgpa}+` : "—"}</div>
-        <div>{d.registered_count} registered</div>
+        <div>Eligibility {d.eligibility_cgpa != null ? `CGPA ${d.eligibility_cgpa}+` : "—"}</div>
+        <div>{d.registered_count ?? "—"} registered</div>
         <div onClick={onToggle} style={{ color: "#1D4ED8", fontWeight: 700, cursor: "pointer" }}>
           {isOpen ? "Hide student list ↑" : "View student list →"}
         </div>

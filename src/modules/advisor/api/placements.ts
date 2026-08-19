@@ -11,11 +11,16 @@ export interface UpcomingDrive {
   scheduled_date: string;
   is_disclosed: boolean;
   disclosed_reveal_date: string | null;
-  job_role: string | null;
-  venue: string | null;
-  status: string;
-  eligibility_cgpa: number | null;
-  registered_count: number;
+  // Absent on the real GET /me/upcoming-drives response — DrivesService.
+  // getUpcomingDrivesForFaculty() never sets these (a faculty isn't an
+  // applicant, so there's no per-application status/rounds/eligibility to
+  // attach). Optional here rather than `| null` because the backend omits
+  // the keys entirely rather than sending them as null.
+  job_role?: string | null;
+  venue?: string | null;
+  status?: string;
+  eligibility_cgpa?: number | null;
+  registered_count?: number;
 }
 
 /** GET /me/upcoming-drives (Faculty/HoD) — institution-wide, not scoped to

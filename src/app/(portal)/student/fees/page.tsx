@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, Badge, SegmentedTabs, Button, Input, Select, EmptyState } from "@/components/ui";
-import { useMyFees, type FeeDemand, type FeePayment } from "@/modules/student/api/fees";
+import { Card, Badge, SegmentedTabs, Button, Input, Select, EmptyState, DataTable } from "@/components/ui";
+import type { DataTableColumn } from "@/components/ui/DataTable";
+import { useMyFees, type FeeDemand, type FeeDemandItem, type FeePayment } from "@/modules/student/api/fees";
 import { usePayFeeCart, downloadFeeReceipt } from "@/modules/student/api/feePayment";
 import { useMyIdentity } from "@/modules/student/api/profile";
 import { formatDisplayDate } from "@/lib/utils/date";
@@ -16,37 +17,125 @@ const STATUS_LABEL: Record<FeeDemand["status"], string> = {
   pending: "Pending",
 };
 
-function DemandRow({
-  demand,
+// Fee structures that haven't been broken into fee_structure_items yet (older
+// records) fall back to one pseudo-item standing in for the whole demand, so
+// every demand is payable through the same per-line-item UI/cart regardless
+// of whether it happens to be itemized in the DB. -1 is never a real item id.
+const WHOLE_DEMAND_ITEM_ID = -1;
+
+function payableItems(demand: FeeDemand): FeeDemandItem[] {
+  if (demand.items.length > 0) return demand.items;
+  return [
+    {
+      id: WHOLE_DEMAND_ITEM_ID,
+      label: demand.fee_structure_name,
+      total: demand.total,
+      paid: demand.paid,
+      due: demand.due,
+      status: demand.status,
+    },
+  ];
+}
+
+function cartKey(demandId: number, itemId: number): string {
+  return `${demandId}:${itemId}`;
+}
+
+function ItemRow({
+  item,
   selected,
   amount,
   onToggle,
   onAmountChange,
 }: {
-  demand: FeeDemand;
+  item: FeeDemandItem;
   selected: boolean;
   amount: number;
   onToggle: () => void;
   onAmountChange: (value: number) => void;
 }) {
-  const disabled = demand.due <= 0;
+  const disabled = item.due <= 0;
 
   return (
     <div
       onClick={disabled ? undefined : onToggle}
-      className={`rounded-card border p-[18px] transition-colors ${
-        disabled ? "cursor-default border-border-default bg-surface-muted" : "cursor-pointer border-border-default bg-surface hover:border-border-accent"
-      } ${selected ? "border-border-accent bg-accent-50" : ""}`}
+      className={`rounded-[10px] border p-3 transition-colors ${
+        disabled ? "cursor-default border-transparent bg-surface-muted" : "cursor-pointer border-transparent hover:bg-nav-hover"
+      } ${selected ? "!border-border-accent bg-accent-50" : ""}`}
     >
-      <div className="flex flex-wrap items-center gap-3.5">
+      <div className="flex flex-wrap items-center gap-3">
         <input
           type="checkbox"
           checked={selected}
           disabled={disabled}
           onChange={onToggle}
           onClick={(e) => e.stopPropagation()}
-          className="size-[18px] shrink-0 accent-primary"
+          className="size-4 shrink-0 accent-primary"
         />
+        <div className="min-w-[140px] flex-1 text-[13.5px] font-bold text-ink">{item.label}</div>
+        <div className="flex gap-2 font-mono text-[12px] text-muted">
+          <span>₹{item.total.toLocaleString("en-IN")} total</span>
+          {item.paid > 0 && <span className="text-primary">· ₹{item.paid.toLocaleString("en-IN")} paid</span>}
+        </div>
+        <Badge tone={item.status === "pending" ? "accentDark" : "accent"} className="ml-auto">
+          {item.status === "paid" ? "Paid" : `₹${item.due.toLocaleString("en-IN")} due`}
+        </Badge>
+      </div>
+
+      {selected && !disabled && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-3 border-t border-dashed border-border-accent pt-2.5" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2 rounded-[10px] border border-border-accent bg-surface px-3.5 py-2">
+            <span className="text-[13px] font-bold text-muted">₹</span>
+            <Input
+              type="number"
+              min={1}
+              max={item.due}
+              value={amount}
+              onChange={(e) => onAmountChange(Math.min(item.due, Math.max(0, Number(e.target.value))))}
+              className="w-24 border-0 p-0 text-[14px] font-bold focus:outline-none"
+            />
+          </div>
+          <button onClick={() => onAmountChange(item.due)} className="text-[12.5px] font-bold text-primary">
+            Pay full due
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DemandCard({
+  demand,
+  selectedKeys,
+  amounts,
+  onToggleItem,
+  onAmountChange,
+  onToggleAll,
+}: {
+  demand: FeeDemand;
+  selectedKeys: Set<string>;
+  amounts: Record<string, number>;
+  onToggleItem: (item: FeeDemandItem) => void;
+  onAmountChange: (item: FeeDemandItem, value: number) => void;
+  onToggleAll: (items: FeeDemandItem[], select: boolean) => void;
+}) {
+  const items = payableItems(demand);
+  const payableCount = items.filter((i) => i.due > 0).length;
+  const selectedCount = items.filter((i) => selectedKeys.has(cartKey(demand.id, i.id))).length;
+  const allSelected = payableCount > 0 && selectedCount === payableCount;
+
+  return (
+    <Card className="p-0">
+      <div className="flex flex-wrap items-center gap-3.5 p-[18px] pb-3.5">
+        {payableCount > 0 && (
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={() => onToggleAll(items, !allSelected)}
+            title="Select all line items"
+            className="size-[18px] shrink-0 accent-primary"
+          />
+        )}
         <div className="min-w-[160px] flex-1">
           <div className="text-[15px] font-bold text-ink">{demand.fee_structure_name}</div>
           <div className="mt-0.5 text-[12px] text-subtle">
@@ -70,25 +159,19 @@ function DemandRow({
         <Badge tone={demand.status === "pending" ? "accentDark" : "accent"}>{STATUS_LABEL[demand.status]}</Badge>
       </div>
 
-      {selected && !disabled && (
-        <div className="mt-3.5 flex flex-wrap items-center gap-3 border-t border-dashed border-border-accent pt-3.5" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-2 rounded-[10px] border border-border-accent bg-surface px-3.5 py-2.5">
-            <span className="text-[14px] font-bold text-muted">₹</span>
-            <Input
-              type="number"
-              min={1}
-              max={demand.due}
-              value={amount}
-              onChange={(e) => onAmountChange(Math.min(demand.due, Math.max(0, Number(e.target.value))))}
-              className="w-28 border-0 p-0 text-[15px] font-bold focus:outline-none"
-            />
-          </div>
-          <button onClick={() => onAmountChange(demand.due)} className="text-[13px] font-bold text-primary">
-            Pay full due
-          </button>
-        </div>
-      )}
-    </div>
+      <div className="flex flex-col gap-1 border-t border-divider p-3">
+        {items.map((item) => (
+          <ItemRow
+            key={item.id}
+            item={item}
+            selected={selectedKeys.has(cartKey(demand.id, item.id))}
+            amount={amounts[cartKey(demand.id, item.id)] ?? item.due}
+            onToggle={() => onToggleItem(item)}
+            onAmountChange={(value) => onAmountChange(item, value)}
+          />
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -98,8 +181,8 @@ export default function FeesPage() {
   const identity = useMyIdentity();
   const payCart = usePayFeeCart();
 
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [amounts, setAmounts] = useState<Record<number, number>>({});
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [amounts, setAmounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -131,14 +214,15 @@ export default function FeesPage() {
     [fees.data, semester, demandsById],
   );
 
-  function toggleDemand(demand: FeeDemand) {
-    setSelected((prev) => {
+  function toggleItem(demand: FeeDemand, item: FeeDemandItem) {
+    const key = cartKey(demand.id, item.id);
+    setSelectedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(demand.id)) {
-        next.delete(demand.id);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(demand.id);
-        setAmounts((a) => ({ ...a, [demand.id]: a[demand.id] ?? demand.due }));
+        next.add(key);
+        setAmounts((a) => ({ ...a, [key]: a[key] ?? item.due }));
       }
       return next;
     });
@@ -146,22 +230,55 @@ export default function FeesPage() {
     setError(null);
   }
 
-  const cartItems = useMemo(
-    () =>
-      Array.from(selected)
-        .map((id) => ({ demand: demandsById.get(id), amount: amounts[id] ?? 0 }))
-        .filter((item): item is { demand: FeeDemand; amount: number } => Boolean(item.demand)),
-    [selected, demandsById, amounts],
-  );
-  const cartTotal = cartItems.reduce((sum, item) => sum + item.amount, 0);
-  const canPay = cartItems.length > 0 && cartItems.every((item) => item.amount > 0 && item.amount <= item.demand.due);
+  function toggleAll(demand: FeeDemand, items: FeeDemandItem[], select: boolean) {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      for (const item of items) {
+        if (item.due <= 0) continue;
+        const key = cartKey(demand.id, item.id);
+        if (select) next.add(key);
+        else next.delete(key);
+      }
+      return next;
+    });
+    if (select) {
+      setAmounts((a) => {
+        const next = { ...a };
+        for (const item of items) {
+          if (item.due <= 0) continue;
+          const key = cartKey(demand.id, item.id);
+          next[key] = next[key] ?? item.due;
+        }
+        return next;
+      });
+    }
+    setSuccess(null);
+    setError(null);
+  }
+
+  const cartItems = useMemo(() => {
+    const rows: { demand: FeeDemand; item: FeeDemandItem; amount: number }[] = [];
+    for (const demand of demandsInSemester) {
+      for (const item of payableItems(demand)) {
+        const key = cartKey(demand.id, item.id);
+        if (selectedKeys.has(key)) rows.push({ demand, item, amount: amounts[key] ?? 0 });
+      }
+    }
+    return rows;
+  }, [demandsInSemester, selectedKeys, amounts]);
+  const cartTotal = cartItems.reduce((sum, row) => sum + row.amount, 0);
+  const canPay = cartItems.length > 0 && cartItems.every((row) => row.amount > 0 && row.amount <= row.item.due);
 
   async function handlePay() {
     setError(null);
     setSuccess(null);
     try {
       const result = await payCart.mutateAsync({
-        items: cartItems.map((item) => ({ demandId: item.demand.id, amount: item.amount })),
+        items: cartItems.map((row) => ({
+          demandId: row.demand.id,
+          amount: row.amount,
+          feeStructureItemId: row.item.id === WHOLE_DEMAND_ITEM_ID ? undefined : row.item.id,
+        })),
         studentName: identity.data?.name,
         studentEmail: identity.data?.work_email,
       });
@@ -170,7 +287,7 @@ export default function FeesPage() {
           ? `Payment received — receipt ${result.payments[0].receipt_no}`
           : `Payment received — ${result.payments.length} receipts issued`,
       );
-      setSelected(new Set());
+      setSelectedKeys(new Set());
       setAmounts({});
     } catch (err) {
       setError(err instanceof ApiError ? err.message : err instanceof Error && err.message === "Payment cancelled" ? "Payment cancelled." : "Payment could not be completed.");
@@ -186,6 +303,29 @@ export default function FeesPage() {
     }
   }
 
+  const historyColumns: DataTableColumn<FeePayment>[] = [
+    { key: "date", header: "Date", width: "1fr", render: (p) => <span className="font-mono text-[13px]">{formatDisplayDate(p.payment_date)}</span> },
+    { key: "amount", header: "Amount paid", width: "1fr", render: (p) => <span className="font-extrabold text-ink">₹{p.amount_paid.toLocaleString("en-IN")}</span> },
+    {
+      key: "mode",
+      header: "Transaction type",
+      width: "1fr",
+      render: (p) => (p.payment_mode ? p.payment_mode.charAt(0).toUpperCase() + p.payment_mode.slice(1) : "—"),
+    },
+    { key: "purpose", header: "Purpose", width: "1.8fr", render: (p) => <span className="font-bold text-ink">{p.item_label ?? p.fee_structure_name}</span> },
+    {
+      key: "receipt",
+      header: "Receipt",
+      width: "1fr",
+      align: "right",
+      render: (p) => (
+        <button onClick={() => handleDownloadReceipt(p)} className="font-mono text-[12.5px] font-bold text-primary hover:text-primary-dark">
+          {p.receipt_no}
+        </button>
+      ),
+    },
+  ];
+
   const totals = useMemo(
     () => ({
       total: demandsInSemester.reduce((s, d) => s + d.total, 0),
@@ -199,7 +339,7 @@ export default function FeesPage() {
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Fees</h1>
-        <p className="mt-1 text-[13.5px] text-muted">Pay in full or part · receipts issued instantly</p>
+        <p className="mt-1 text-[13.5px] text-muted">Pay in full or part, by fee head · receipts issued instantly</p>
       </div>
 
       <Card className="flex flex-wrap items-center gap-[34px]">
@@ -254,13 +394,14 @@ export default function FeesPage() {
           <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4">
             <div className="flex flex-col gap-3">
               {demandsInSemester.map((d) => (
-                <DemandRow
+                <DemandCard
                   key={d.id}
                   demand={d}
-                  selected={selected.has(d.id)}
-                  amount={amounts[d.id] ?? d.due}
-                  onToggle={() => toggleDemand(d)}
-                  onAmountChange={(value) => setAmounts((a) => ({ ...a, [d.id]: value }))}
+                  selectedKeys={selectedKeys}
+                  amounts={amounts}
+                  onToggleItem={(item) => toggleItem(d, item)}
+                  onAmountChange={(item, value) => setAmounts((a) => ({ ...a, [cartKey(d.id, item.id)]: value }))}
+                  onToggleAll={(items, select) => toggleAll(d, items, select)}
                 />
               ))}
               {error && (
@@ -277,10 +418,10 @@ export default function FeesPage() {
                 {cartItems.length === 0 ? (
                   <p className="py-4 text-[13px] leading-[1.55] text-subtle">Select one or more fee heads to pay. You can enter any amount up to the due.</p>
                 ) : (
-                  cartItems.map((item) => (
-                    <div key={item.demand.id} className="flex items-center justify-between gap-3 border-b border-divider py-[9px] text-[13px]">
-                      <span className="font-semibold text-body">{item.demand.fee_structure_name}</span>
-                      <span className="font-bold text-ink">₹{item.amount.toLocaleString("en-IN")}</span>
+                  cartItems.map((row) => (
+                    <div key={cartKey(row.demand.id, row.item.id)} className="flex items-center justify-between gap-3 border-b border-divider py-[9px] text-[13px]">
+                      <span className="font-semibold text-body">{row.item.label}</span>
+                      <span className="font-bold text-ink">₹{row.amount.toLocaleString("en-IN")}</span>
                     </div>
                   ))
                 )}
@@ -297,37 +438,12 @@ export default function FeesPage() {
           </div>
         )
       ) : (
-        <Card className="overflow-hidden p-0">
-          <div className="grid grid-cols-[1.2fr_2fr_1fr_1fr_1fr] gap-2 bg-surface-muted px-5 py-3 text-[10.5px] font-extrabold tracking-[.09em] text-subtle">
-            <div>DATE</div>
-            <div>PARTICULARS</div>
-            <div>MODE</div>
-            <div className="text-right">AMOUNT</div>
-            <div className="text-right">RECEIPT</div>
-          </div>
-          {paymentsInSemester.length === 0 ? (
-            <EmptyState message="No payments recorded for this semester." />
-          ) : (
-            paymentsInSemester.map((p) => (
-              <div key={p.id} className="grid grid-cols-[1.2fr_2fr_1fr_1fr_1fr] items-center gap-2 border-t border-divider px-5 py-3.5">
-                <div className="font-mono text-[13px] text-body">{formatDisplayDate(p.payment_date)}</div>
-                <div className="text-[13.5px] font-bold text-ink">{p.fee_structure_name}</div>
-                <div className="text-[13px] text-muted">{p.payment_mode ?? "—"}</div>
-                <div className="text-right text-[14px] font-extrabold text-ink">₹{p.amount_paid.toLocaleString("en-IN")}</div>
-                <div className="text-right">
-                  <button onClick={() => handleDownloadReceipt(p)} className="font-mono text-[12.5px] font-bold text-primary hover:text-primary-dark">
-                    {p.receipt_no}
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+        <div className="flex flex-col gap-2.5">
+          <DataTable columns={historyColumns} data={paymentsInSemester} rowKey={(p) => p.id} emptyMessage="No payments recorded for this semester." />
           {downloadError && (
-            <div className="border-t border-divider px-5 py-3">
-              <span className="text-[12.5px] font-semibold text-danger-fg">{downloadError}</span>
-            </div>
+            <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">{downloadError}</div>
           )}
-        </Card>
+        </div>
       )}
     </div>
   );

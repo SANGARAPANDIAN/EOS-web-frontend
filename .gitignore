@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 hod-ui
+
+# local UI reference material (screenshots, mockups) — not project source
+/todo

@@ -1,5 +1,10 @@
 import { cn } from "@/lib/utils/cn";
 
+interface SkeletonProps {
+  className?: string;
+  style?: React.CSSProperties;
+}
+
 /**
  * Base pulsing placeholder block — the single primitive every skeleton
  * layout below is built from. Used for whole-page initial loads (shaped
@@ -10,8 +15,8 @@ import { cn } from "@/lib/utils/cn";
  * nothing on screen yet," spinners are for "something is already here and
  * is being refreshed."
  */
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-[8px] bg-surface-tint", className)} />;
+export function Skeleton({ className, style }: SkeletonProps) {
+  return <div className={cn("animate-pulse rounded-[8px] bg-surface-tint", className)} style={style} />;
 }
 
 /** A row of N stat-tile-shaped placeholders, matching StatCard/the local uppercase-caption tile pattern used across HoD pages. */

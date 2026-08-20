@@ -1,6 +1,18 @@
 import type { ModuleConfig } from "@/modules/types";
 import { studentModuleConfig } from "@/modules/student/nav";
 import { hodModuleConfig } from "@/modules/hod/nav";
+import { advisorModuleConfig } from "@/modules/advisor/nav";
+import { edcModuleConfig } from "@/modules/edc/nav";
+import { secretaryModuleConfig } from "@/modules/secretary/nav";
+import { principalModuleConfig } from "@/modules/principal/nav";
+import { transportModuleConfig } from "@/modules/transport/nav";
+import { higherEducationModuleConfig } from "@/modules/higher-education/nav";
+import { medicalCentreModuleConfig } from "@/modules/medical-centre/nav";
+import { hostelWardenModuleConfig } from "@/modules/hostel-warden/nav";
+import { adminModuleConfig } from "@/modules/admin/nav";
+import { sportsAdminModuleConfig } from "@/modules/sports-admin/nav";
+import { libraryModuleConfig } from "@/modules/library/nav";
+import { placementModuleConfig } from "@/modules/placement/nav";
 
 /**
  * Single lookup point from JWT role -> module shell config (nav groups, base
@@ -12,6 +24,18 @@ import { hodModuleConfig } from "@/modules/hod/nav";
 export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   student: studentModuleConfig,
   hod: hodModuleConfig,
+  faculty: advisorModuleConfig,
+  edc_coordinator: edcModuleConfig,
+  secretary: secretaryModuleConfig,
+  principal: principalModuleConfig,
+  transport: transportModuleConfig,
+  higheredu: higherEducationModuleConfig,
+  medical_centre: medicalCentreModuleConfig,
+  warden: hostelWardenModuleConfig,
+  admin: adminModuleConfig,
+  sports_admin: sportsAdminModuleConfig,
+  library: libraryModuleConfig,
+  placement: placementModuleConfig,
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

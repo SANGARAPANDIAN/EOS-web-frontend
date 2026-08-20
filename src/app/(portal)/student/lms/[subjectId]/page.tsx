@@ -214,9 +214,9 @@ export default function LmsSubjectPage() {
         <Card className="overflow-hidden p-0">
           <div className="px-5 pt-4 pb-1 text-[16px] font-extrabold tracking-[-.02em] text-ink">Course material</div>
           {materials.isLoading ? (
-            <EmptyState message="Loading…" />
+            <EmptyState message="Loading…" className="px-5" />
           ) : materials.items.length === 0 ? (
-            <EmptyState message="No material shared yet." />
+            <EmptyState message="No material shared yet." className="px-5" />
           ) : (
             materials.items.map((item) => <MaterialRow key={item.id} item={item} showFolder={materials.folderCount > 1} />)
           )}
@@ -262,9 +262,9 @@ export default function LmsSubjectPage() {
             )}
           </div>
           {lessonPlan.isLoading ? (
-            <EmptyState message="Loading…" />
+            <EmptyState message="Loading…" className="px-5" />
           ) : lessonUnits.length === 0 ? (
-            <EmptyState message="No lesson plan published yet." />
+            <EmptyState message="No lesson plan published yet." className="px-5" />
           ) : (
             <>
               <div className="grid grid-cols-[.7fr_2.2fr_1fr_1fr] bg-surface-muted px-5 py-2.5 text-[10.5px] font-extrabold tracking-[.09em] text-subtle">

@@ -53,10 +53,8 @@ export default function LmsPage() {
                   </div>
                   <div>
                     <div className="text-[15px] font-extrabold leading-[1.25] tracking-[-.02em] text-ink">{subject.subject_name}</div>
-                    <div className="mt-[3px] font-mono text-[11.5px] text-subtle">
-                      {subject.subject_code}
-                      {subject.faculty_name ? ` · ${subject.faculty_name}` : ""}
-                    </div>
+                    <div className="mt-[3px] font-mono text-[11.5px] text-subtle">{subject.subject_code}</div>
+                    {subject.faculty_name && <div className="mt-1 text-[12px] text-muted">{subject.faculty_name}</div>}
                   </div>
                 </Card>
               </Link>

@@ -27,7 +27,14 @@ export class ApiError extends Error {
   readonly errorCode: string;
 
   constructor(envelope: ApiErrorEnvelope) {
-    super(envelope.message);
+    // envelope.message can genuinely be a string[] at runtime — the backend's
+    // globalValidationPipe sends every failing class-validator constraint as
+    // a raw array (see exceptionFactory in validation.pipe.ts), even though
+    // this type says string. Error's constructor would otherwise stringify
+    // an array via a bare comma-join (e.g. "a,b"), so join with "; " here
+    // for a readable message instead.
+    const message = Array.isArray(envelope.message) ? envelope.message.join("; ") : envelope.message;
+    super(message);
     this.name = "ApiError";
     this.statusCode = envelope.statusCode;
     this.errorCode = envelope.errorCode;

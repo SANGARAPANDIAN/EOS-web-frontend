@@ -3,18 +3,29 @@
 import { useState } from "react";
 import { Card, Badge, SegmentedTabs, Button, Input, Textarea, DataTable, EmptyState } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
-import { useMyHostelOutings, useCreateHostelOuting, type HostelOuting } from "@/modules/student/api/hostel";
+import { useMyCampusOutings, useCreateCampusOuting, type CampusOuting } from "@/modules/student/api/campusOutings";
 import { formatDisplayDate } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
 type Tab = "apply" | "history";
 
-const STATUS_LABEL: Record<string, string> = { pending: "Pending", approved: "Approved", rejected: "Rejected" };
+// Same status set as the academic Leave tab - a campus outing goes through
+// the same Advisor (Faculty mentor) -> HoD chain, just on its own table
+// (campus_outing_requests, not student_leaves - see prisma/README.md).
+// warden_approved is never actually produced here; included only so
+// CampusOutingStatus's full union always has a label.
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  faculty_approved: "Faculty approved",
+  hod_approved: "HOD approved",
+  rejected: "Rejected",
+  warden_approved: "Approved",
+};
 
-export default function InOutHostelPage() {
+export default function InOutPage() {
   const [tab, setTab] = useState<Tab>("apply");
-  const outings = useMyHostelOutings();
-  const createOuting = useCreateHostelOuting();
+  const outings = useMyCampusOutings();
+  const createOuting = useCreateCampusOuting();
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -46,13 +57,13 @@ export default function InOutHostelPage() {
     }
   }
 
-  const columns: DataTableColumn<HostelOuting>[] = [
+  const columns: DataTableColumn<CampusOuting>[] = [
     { key: "from", header: "From", width: "1fr", render: (r) => formatDisplayDate(r.from_date) },
     { key: "out", header: "Out", width: "0.8fr", render: (r) => r.start_time },
     { key: "to", header: "To", width: "1fr", render: (r) => formatDisplayDate(r.to_date) },
     { key: "in", header: "In", width: "0.8fr", render: (r) => r.return_time ?? "—" },
-    { key: "purpose", header: "Purpose", width: "1.5fr", render: (r) => r.reason ?? "—" },
-    { key: "approver", header: "Approved by", width: "1.3fr", render: (r) => r.approved_by_warden ?? "—" },
+    { key: "reason", header: "Reason", width: "1.5fr", render: (r) => r.reason ?? "—" },
+    { key: "approver", header: "Approved by", width: "1.3fr", render: (r) => r.approved_by_hod ?? r.approved_by_faculty ?? "—" },
     {
       key: "status",
       header: "Status",
@@ -64,7 +75,10 @@ export default function InOutHostelPage() {
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">In / out hostel</h1>
+        <div>
+          <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">In / out</h1>
+          <p className="mt-1 text-[13.5px] text-muted">Requests are routed to your class advisor, then the HoD</p>
+        </div>
         <SegmentedTabs
           options={[
             { key: "apply", label: "Apply" },
@@ -76,9 +90,9 @@ export default function InOutHostelPage() {
       </div>
 
       {tab === "apply" ? (
-        <Card className="max-w-[560px]">
+        <Card>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11.5px] font-bold text-muted">Out date</label>
                 <Input type="date" required value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -106,7 +120,7 @@ export default function InOutHostelPage() {
                 {error}
               </div>
             )}
-            {success && <div className="rounded-[10px] border border-border-accent bg-accent-50 px-3.5 py-2.5 text-[13px] font-semibold text-primary-dark">Outing request submitted.</div>}
+            {success && <div className="rounded-[10px] border border-border-accent bg-accent-50 px-3.5 py-2.5 text-[13px] font-semibold text-primary-dark">Outing request submitted to your class advisor.</div>}
 
             <Button type="submit" disabled={!fromDate || !toDate || !startTime || createOuting.isPending}>
               {createOuting.isPending ? "Submitting…" : "Submit outing request"}

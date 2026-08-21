@@ -33,7 +33,9 @@ export type NavBadgeKey =
   | "odRequestsPending"
   | "mrPendingRequests"
   | "mrUpcomingEvents"
-  | "mrPendingIndents";
+  | "mrPendingIndents"
+  | "hrPendingRequests"
+  | "hrPendingAppraisals";
 
 export interface NavItem {
   key: string;

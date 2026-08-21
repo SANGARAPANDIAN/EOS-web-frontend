@@ -458,3 +458,149 @@ body {
   -webkit-font-feature-settings: "liga";
   -webkit-font-smoothing: antialiased;
 }
+
+/* Billing module hover recipes — verbatim ported values from every
+   distinct `style-hover="..."` attribute in
+   "Billing Module - Web/Billing Admin.dc.html". Inline React style
+   objects can't express :hover, so (same convention as Secretary's
+   [data-sec-lift] etc. above) these are applied via plain HTML
+   attributes read by this global stylesheet. Never invented — every
+   value here is copied from the design's own style-hover strings. */
+[data-bill-lift],
+[data-bill-row],
+[data-bill-rowtable] {
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    outline 0.16s ease;
+}
+/* Card lift — every card/tile in the design carries
+   `style-hover="transform:translateY(-4px);border-color:#1d4ed8;box-shadow:0 12px 26px rgba(29,78,216,.15)"`. */
+[data-bill-lift]:hover {
+  transform: translateY(-4px);
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 12px 26px rgba(29, 78, 216, 0.15);
+}
+/* Row highlight for div-based list rows (Needs attention, Recent Payments,
+   Top Outstanding, Announcements, Audit rows) —
+   `style-hover="transform:translateY(-3px);outline:2px solid #1d4ed8;outline-offset:2px;border-radius:8px;box-shadow:0 10px 22px rgba(29,78,216,.14);background:#fff"`. */
+[data-bill-row]:hover {
+  transform: translateY(-3px);
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+  border-radius: 8px;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.14);
+  background: #fff !important;
+  position: relative;
+  z-index: 1;
+}
+/* Same recipe but for <tr> table rows, where the design uses
+   outline-offset:-2px instead (so the outline sits inside the row, not
+   overlapping the row above/below) —
+   `style-hover="transform:translateY(-3px);outline:2px solid #1d4ed8;outline-offset:-2px;box-shadow:0 10px 22px rgba(29,78,216,.14);background:#fff"`. */
+[data-bill-rowtable]:hover {
+  transform: translateY(-3px);
+  outline: 2px solid #1d4ed8;
+  outline-offset: -2px;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.14);
+  background: #fff !important;
+  position: relative;
+  z-index: 1;
+}
+/* Header/sidebar icon buttons — `style-hover="background:#f1f5f9"`. */
+[data-bill-icon] {
+  transition: background 0.16s ease;
+}
+[data-bill-icon]:hover {
+  background: #f1f5f9 !important;
+}
+/* Soft grey pill/secondary buttons (Duplicate, unmatched-credits pill,
+   review-concessions, etc.) — `style-hover="background:#e8eef7"`. */
+[data-bill-soft] {
+  transition: background 0.16s ease;
+}
+[data-bill-soft]:hover {
+  background: #e8eef7 !important;
+}
+/* Filter/tab pill buttons (payTabs, studyTabs, sectionTabs, hostelTabs,
+   concTabs, refundTabs) — `style-hover="border-color:#1d4ed8;color:#1d4ed8"`. */
+[data-bill-tab] {
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+[data-bill-tab]:hover {
+  border-color: #1d4ed8 !important;
+  color: #1d4ed8 !important;
+}
+/* Quick-action dropdown menu items — `style-hover="background:#eef2ff"`. */
+[data-bill-menu-item] {
+  transition: background 0.16s ease;
+}
+[data-bill-menu-item]:hover {
+  background: #eef2ff !important;
+}
+/* Primary solid-blue buttons — `style-hover="background:#1740b8"`. */
+[data-bill-primary] {
+  transition: background 0.16s ease;
+}
+[data-bill-primary]:hover {
+  background: #1740b8 !important;
+}
+/* Light-blue pill links (dashboard "N approvals need you") —
+   `style-hover="background:#e0e9ff"`. */
+[data-bill-pill] {
+  transition: background 0.16s ease;
+}
+[data-bill-pill]:hover {
+  background: #e0e9ff !important;
+}
+/* Plain text/link buttons whose only hover treatment in the design is a
+   color change to the brand blue (Detail/View all/Clear/This month/All
+   dates/student-name links etc — `style-hover="color:#1d4ed8"`). */
+[data-bill-text] {
+  transition: color 0.16s ease;
+}
+[data-bill-text]:hover {
+  color: #1d4ed8 !important;
+}
+/* Quota-card "Assign" button — unique combo hover, not covered by
+   [data-bill-soft] alone — `style-hover="background:#e8eef7;border-color:#1d4ed8;color:#1d4ed8"`. */
+[data-bill-quota-assign] {
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+[data-bill-quota-assign]:hover {
+  background: #e8eef7 !important;
+  border-color: #1d4ed8 !important;
+  color: #1d4ed8 !important;
+}
+/* Quota-card remove "×" button — `style-hover="color:#0f2d6b"`. */
+[data-bill-quota-del] {
+  transition: color 0.16s ease;
+}
+[data-bill-quota-del]:hover {
+  color: #0f2d6b !important;
+}
+/* Student-picker rows inside the Assign/Add-Quota modals —
+   `style-hover="background:#f8fafc"`. */
+[data-bill-pick-row] {
+  transition: background 0.16s ease;
+}
+[data-bill-pick-row]:hover {
+  background: #f8fafc !important;
+}
+
+/* Billing "Print Receipt" isolation — ported verbatim from
+   EOSfrontendweb/src/app/globals.css (lines ~291-303). The receipt is
+   portaled to a direct child of <body> (#receipt-print-root), so this
+   single rule hides every other top-level child (sidebar, topbar, page
+   content) regardless of how deeply nested they are, leaving only the
+   receipt visible in the print preview/output. */
+@media print {
+  body > *:not(#receipt-print-root) {
+    display: none !important;
+  }
+  #receipt-print-root {
+    display: block !important;
+  }
+}

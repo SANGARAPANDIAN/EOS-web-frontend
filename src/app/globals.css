@@ -145,6 +145,24 @@ a:has(> [data-sec-nav-item]) {
   opacity: 0.72;
 }
 
+/* Media Room module — ported verbatim from the design reference's own
+   `[data-lift]`/`[data-lift]:hover` rule in "Media Module - Web/Media
+   Room.dc.html" (defined once near the top of that file, then applied via
+   `data-lift="1"` to ~59 cards/boxes throughout every page). Scoped to this
+   one attribute selector so it can't affect any other module. */
+[data-mr-lift] {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, outline-color 0.15s ease;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+}
+[data-mr-lift]:hover {
+  transform: translateY(-4px);
+  outline-color: #1d4ed8;
+  box-shadow: 0 12px 26px rgba(13, 42, 110, 0.12);
+  position: relative;
+  z-index: 2;
+}
+
 /*
   Design tokens extracted verbatim from the "Student Portal" design reference
   (Student Module - Web/Student Portal.dc.html). Do not invent new colors —

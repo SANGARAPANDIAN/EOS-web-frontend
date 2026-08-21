@@ -13,6 +13,8 @@ import { adminModuleConfig } from "@/modules/admin/nav";
 import { sportsAdminModuleConfig } from "@/modules/sports-admin/nav";
 import { libraryModuleConfig } from "@/modules/library/nav";
 import { placementModuleConfig } from "@/modules/placement/nav";
+import { hrModuleConfig } from "@/modules/hr/nav";
+import { gateWardenModuleConfig } from "@/modules/gate-warden/nav";
 import { billingModuleConfig } from "@/modules/billing/nav";
 
 /**
@@ -37,7 +39,6 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   sports_admin: sportsAdminModuleConfig,
   library: libraryModuleConfig,
   placement: placementModuleConfig,
-  billing: billingModuleConfig,
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

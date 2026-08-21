@@ -30,7 +30,9 @@ export type NavBadgeKey =
   | "facultyCount"
   | "totalBooks"
   | "leaveRequestsPending"
-  | "odRequestsPending";
+  | "odRequestsPending"
+  | "hrPendingRequests"
+  | "hrPendingAppraisals";
 
 export interface NavItem {
   key: string;

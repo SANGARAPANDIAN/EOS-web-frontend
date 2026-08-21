@@ -13,6 +13,8 @@ import { adminModuleConfig } from "@/modules/admin/nav";
 import { sportsAdminModuleConfig } from "@/modules/sports-admin/nav";
 import { libraryModuleConfig } from "@/modules/library/nav";
 import { placementModuleConfig } from "@/modules/placement/nav";
+import { hrModuleConfig } from "@/modules/hr/nav";
+import { gateWardenModuleConfig } from "@/modules/gate-warden/nav";
 
 /**
  * Single lookup point from JWT role -> module shell config (nav groups, base
@@ -36,6 +38,8 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   sports_admin: sportsAdminModuleConfig,
   library: libraryModuleConfig,
   placement: placementModuleConfig,
+  hr_payroll: hrModuleConfig,
+  gate_warden: gateWardenModuleConfig,
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

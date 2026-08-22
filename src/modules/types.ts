@@ -31,6 +31,9 @@ export type NavBadgeKey =
   | "totalBooks"
   | "leaveRequestsPending"
   | "odRequestsPending"
+  | "mrPendingRequests"
+  | "mrUpcomingEvents"
+  | "mrPendingIndents"
   | "hrPendingRequests"
   | "hrPendingAppraisals";
 

@@ -7,6 +7,9 @@ import { BILLING_NAV } from "./nav";
 import { BillingIcon } from "./icons";
 import { useFeePaymentsDashboard, groupDashboardByStudent, useFinanceOverview } from "./api/fees";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useMyRoles } from "@/lib/auth/roles";
+import { getModuleConfig } from "@/modules/registry";
+import { ROLE_LABEL } from "@/lib/config";
 import {
   useUnreadNotificationCount,
   useNotificationsPanel,
@@ -37,10 +40,26 @@ function emailInitials(email: string): string {
 export function BillingShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, logout } = useAuth();
+  const { session, logout, switchRole } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<"quick" | "bell" | "help" | "profile" | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  const roles = useMyRoles();
+  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
+
+  async function handleSwitchRole(roleId: number) {
+    setSwitching(true);
+    try {
+      const newSession = await switchRole(roleId);
+      setMenu(null);
+      const target = getModuleConfig(newSession.user.role);
+      router.push(target ? `${target.basePath}/dashboard` : "/login");
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   const activeId = BILLING_NAV.flatMap((g) => g.items).find((item) => pathname?.startsWith(item.href))?.id;
 
@@ -232,6 +251,24 @@ export function BillingShell({ children }: { children: React.ReactNode }) {
                 onClick={(e) => e.stopPropagation()}
                 style={{ position: "absolute", bottom: "calc(100% + 4px)", left: 8, right: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 18px 40px rgba(15,23,42,.18)", padding: 8, zIndex: 60 }}
               >
+                {otherRoles.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.08, color: "#64748b", padding: "8px 10px 6px" }}>
+                      SWITCH ROLE
+                    </div>
+                    {otherRoles.map((r) => (
+                      <button
+                        key={r.id}
+                        disabled={switching}
+                        onClick={() => handleSwitchRole(r.id)}
+                        style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: switching ? "not-allowed" : "pointer", opacity: switching ? 0.5 : 1, color: "#0f172a" }}
+                      >
+                        {ROLE_LABEL[r.name] ?? r.description ?? r.name}
+                      </button>
+                    ))}
+                    <div style={{ height: 1, background: "#eef1f6", margin: "6px 2px" }} />
+                  </>
+                )}
                 <button
                   onClick={() => { setMenu(null); logout(); }}
                   style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: "pointer", color: "#dc2626" }}

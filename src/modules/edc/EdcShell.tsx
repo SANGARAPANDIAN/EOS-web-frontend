@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useMyRoles } from "@/lib/auth/roles";
+import { getModuleConfig } from "@/modules/registry";
+import { ROLE_LABEL } from "@/lib/config";
 import { EDC_NAV } from "./nav";
 import { useEdcAnnouncements } from "./api/announcements";
 import { useEdcEntrepreneurship, isBeyondIdeaStage } from "./api/entrepreneurship";
@@ -41,12 +44,30 @@ interface EdcAlert {
 }
 
 export function EdcShell({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
+  const router = useRouter();
+  const { session, logout, switchRole } = useAuth();
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(true);
   const [bellOpen, setBellOpen] = useState(false);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const [semester, setSemester] = useState<"Odd" | "Even">("Odd");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const roles = useMyRoles();
+  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
+
+  async function handleSwitchRole(roleId: number) {
+    setSwitching(true);
+    try {
+      const newSession = await switchRole(roleId);
+      setRolesOpen(false);
+      const target = getModuleConfig(newSession.user.role);
+      router.push(target ? `${target.basePath}/dashboard` : "/login");
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   const activeId = EDC_NAV.flatMap((g) => g.items).find((item) => pathname?.startsWith(item.href))?.id;
 
@@ -284,6 +305,35 @@ export function EdcShell({ children }: { children: React.ReactNode }) {
             <div style={{ width: 44, height: 44, border: "1px solid #DBE4F0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#334155" }}>
               <span className="ms" style={{ fontSize: 21 }}>settings</span>
             </div>
+            {otherRoles.length > 0 && (
+              <div style={{ position: "relative" }}>
+                <div
+                  onClick={() => setRolesOpen((v) => !v)}
+                  title="Switch role"
+                  style={{ width: 44, height: 44, border: "1px solid #DBE4F0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#334155", cursor: "pointer" }}
+                >
+                  <span className="ms" style={{ fontSize: 21 }}>swap_horiz</span>
+                </div>
+                {rolesOpen && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ position: "absolute", top: 52, right: 0, width: 240, background: "#fff", border: "1px solid #E6EBF2", borderRadius: 13, boxShadow: "0 18px 40px rgba(15,23,42,0.14)", padding: 8, zIndex: 40, textAlign: "left" }}
+                  >
+                    <div style={{ padding: "6px 9px 9px", fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", color: "#94A3B8" }}>SWITCH ROLE</div>
+                    {otherRoles.map((r) => (
+                      <button
+                        key={r.id}
+                        disabled={switching}
+                        onClick={() => handleSwitchRole(r.id)}
+                        style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: switching ? "not-allowed" : "pointer", opacity: switching ? 0.5 : 1, color: "#0F172A" }}
+                      >
+                        {ROLE_LABEL[r.name] ?? r.description ?? r.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div
               onClick={logout}
               title="Log out"

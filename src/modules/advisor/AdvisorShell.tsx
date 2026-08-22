@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useMyRoles } from "@/lib/auth/roles";
+import { getModuleConfig } from "@/modules/registry";
+import { ROLE_LABEL } from "@/lib/config";
 import { ADVISOR_NAV } from "./nav";
 import { AdvisorIcon } from "./icons";
 import { useMyFacultyProfile, useIsClassAdvisor } from "./api/profile";
@@ -30,9 +33,37 @@ function initialsOf(name: string | undefined) {
 }
 
 export function AdvisorShell({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
+  const router = useRouter();
+  const { session, logout, switchRole } = useAuth();
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const rolesRef = useRef<HTMLDivElement>(null);
+
+  const roles = useMyRoles();
+  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
+
+  useEffect(() => {
+    if (!rolesOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [rolesOpen]);
+
+  async function handleSwitchRole(roleId: number) {
+    setSwitching(true);
+    try {
+      const newSession = await switchRole(roleId);
+      setRolesOpen(false);
+      const target = getModuleConfig(newSession.user.role);
+      router.push(target ? `${target.basePath}/dashboard` : "/login");
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   const myProfile = useMyFacultyProfile();
   const { isAdvisor, isLoading: advisorLoading, classes: menteeClasses } = useIsClassAdvisor();
@@ -494,6 +525,77 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
             </div>
             {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
           </div>
+          {otherRoles.length > 0 && (
+            <div ref={rolesRef} style={{ position: "relative" }}>
+              <div
+                onClick={() => setRolesOpen((v) => !v)}
+                title="Switch role"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 38,
+                  height: 38,
+                  flex: "0 0 38px",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 9,
+                  cursor: "pointer",
+                  color: "#334155",
+                }}
+              >
+                <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3l4 4-4 4" />
+                  <path d="M3 11V9a4 4 0 014-4h14" />
+                  <path d="M7 21l-4-4 4-4" />
+                  <path d="M21 13v2a4 4 0 01-4 4H3" />
+                </svg>
+              </div>
+              {rolesOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: "absolute",
+                    top: 46,
+                    right: 0,
+                    minWidth: 200,
+                    background: "#fff",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 12,
+                    boxShadow: "0 18px 40px rgba(15,23,42,.18)",
+                    padding: 8,
+                    zIndex: 60,
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", color: "#94A3B8", padding: "8px 10px 6px" }}>
+                    SWITCH ROLE
+                  </div>
+                  {otherRoles.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      disabled={switching}
+                      onClick={() => handleSwitchRole(r.id)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "9px 10px",
+                        border: 0,
+                        background: "transparent",
+                        borderRadius: 8,
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        cursor: switching ? "not-allowed" : "pointer",
+                        opacity: switching ? 0.5 : 1,
+                        color: "#0F172A",
+                      }}
+                    >
+                      {ROLE_LABEL[r.name] ?? r.description ?? r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div
             onClick={logout}
             title="Log out"

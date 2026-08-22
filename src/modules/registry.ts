@@ -39,6 +39,9 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   sports_admin: sportsAdminModuleConfig,
   library: libraryModuleConfig,
   placement: placementModuleConfig,
+  hr_payroll: hrModuleConfig,
+  gate_warden: gateWardenModuleConfig,
+  billing: billingModuleConfig,
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

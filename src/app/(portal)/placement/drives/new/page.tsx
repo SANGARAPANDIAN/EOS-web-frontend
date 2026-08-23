@@ -9,7 +9,7 @@ export default function ScheduleDrivePage() {
   return (
     <div className="flex flex-col gap-5">
       <nav className="flex items-center gap-1.5 text-sm text-admin-muted">
-        <Link href="/placement" className="hover:text-admin-body">
+        <Link href="/placement/dashboard" className="hover:text-admin-body">
           Dashboard
         </Link>
         <Icon name="chevron_right" size={15} />

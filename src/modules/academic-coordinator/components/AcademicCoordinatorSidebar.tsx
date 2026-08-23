@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
+import { Avatar } from "@/components/ui/Avatar";
+import { IconButton } from "@/components/ui/IconButton";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useMyRoles } from "@/lib/auth/roles";
@@ -16,11 +19,12 @@ interface AcademicCoordinatorSidebarProps {
   onToggleCollapsed: () => void;
 }
 
+/** Bottom-of-sidebar identity + role-switch + sign-out — matches the Principal module's reference pattern exactly, kept uniform across every role's sidebar. */
 function UserFooter({ collapsed }: { collapsed: boolean }) {
   const router = useRouter();
   const { session, logout, switchRole } = useAuth();
   const userEmail = session?.user.email;
-  const initials = (userEmail || "?").trim().charAt(0).toUpperCase();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const rolesRef = useRef<HTMLDivElement>(null);
@@ -49,30 +53,26 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
     }
   }
 
-  return (
-    <div className={cn("flex items-center gap-2.5 border-t border-border-default p-3", collapsed && "justify-center")}>
-      <div className="grid size-9 shrink-0 place-items-center rounded-pill bg-primary font-sans text-sm font-bold text-white">
-        {initials}
+  if (collapsed) {
+    return (
+      <div className="flex items-center justify-center border-t border-border-default p-3">
+        <Avatar name={userEmail || "Academic Coordinator"} />
       </div>
-      {!collapsed && (
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-bold text-ink">{userEmail ?? " "}</div>
-          <div className="text-[12px] text-muted">Academic Coordinator</div>
-        </div>
-      )}
-      {!collapsed && otherRoles.length > 0 && (
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 border-t border-border-default px-3 py-3">
+      <Avatar name={userEmail || "Academic Coordinator"} />
+      <div className="min-w-0 flex-1 leading-[1.25]">
+        <div className="truncate text-sm font-semibold text-ink">{userEmail ?? "Academic Coordinator"}</div>
+        <div className="text-xs text-muted">Academic Coordinator</div>
+      </div>
+      {otherRoles.length > 0 && (
         <div ref={rolesRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setRolesOpen((v) => !v)}
-            title="Switch role"
-            aria-label="Switch role"
-            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-input text-subtle hover:bg-surface-tint hover:text-body"
-          >
-            <Icon name="swap_horiz" size={17} />
-          </button>
+          <IconButton icon="swap_horiz" size={34} iconSize={17} title="Switch role" onClick={() => setRolesOpen((v) => !v)} />
           {rolesOpen && (
-            <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 min-w-[200px] overflow-hidden rounded-card border border-border-default bg-surface py-1.5 shadow-modal">
+            <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 min-w-[210px] overflow-hidden rounded-card border border-border-default bg-surface py-1.5 shadow-modal">
               <div className="px-4 pt-1.5 pb-1 text-[10.5px] font-extrabold tracking-[.09em] text-subtle">SWITCH ROLE</div>
               {otherRoles.map((r) => (
                 <button
@@ -80,7 +80,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
                   type="button"
                   disabled={switching}
                   onClick={() => handleSwitchRole(r.id)}
-                  className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-surface-tint disabled:cursor-not-allowed disabled:opacity-50"
+                  className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-nav-hover disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {ROLE_LABEL[r.name] ?? r.description ?? r.name}
                 </button>
@@ -89,17 +89,17 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
           )}
         </div>
       )}
-      {!collapsed && (
-        <button
-          type="button"
-          onClick={logout}
-          title="Log out"
-          aria-label="Log out"
-          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-input text-subtle hover:bg-surface-tint hover:text-body"
-        >
-          <Icon name="logout" size={17} />
-        </button>
-      )}
+      <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Sign out?"
+        description="You'll need to log in again to access the Academic Coordinator portal."
+        confirmLabel="Sign out"
+        destructive
+        onConfirm={logout}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </div>
   );
 }

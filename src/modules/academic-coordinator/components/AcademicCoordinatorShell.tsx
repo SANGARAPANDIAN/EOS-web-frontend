@@ -11,7 +11,7 @@ const ALLOWED_ROLES = new Set(["academic_coordinator", "admin"]);
 const COLLAPSE_STORAGE_KEY = "eos.academic-coordinator.sidebar.collapsed";
 
 export function AcademicCoordinatorShell({ children }: { children: React.ReactNode }) {
-  const { session, status, logout } = useAuth();
+  const { session, status } = useAuth();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== "undefined" && window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1",
@@ -53,7 +53,7 @@ export function AcademicCoordinatorShell({ children }: { children: React.ReactNo
   return (
     <AcademicYearProvider>
       <div className="flex h-screen w-full flex-col overflow-hidden bg-surface">
-        <AcademicCoordinatorTopbar userEmail={session.user.email} onLogout={logout} />
+        <AcademicCoordinatorTopbar />
         <div className="flex min-h-0 flex-1">
           <AcademicCoordinatorSidebar collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
           <main className="min-w-0 flex-1 overflow-y-auto px-[26px] pt-6 pb-12">{children}</main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BILLING_NAV } from "./nav";
@@ -10,6 +10,9 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useMyRoles } from "@/lib/auth/roles";
 import { getModuleConfig } from "@/modules/registry";
 import { ROLE_LABEL } from "@/lib/config";
+import { Avatar } from "@/components/ui/Avatar";
+import { IconButton } from "@/components/ui/IconButton";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   useUnreadNotificationCount,
   useNotificationsPanel,
@@ -18,14 +21,6 @@ import {
   usePinNotification,
   useUnpinNotification,
 } from "@/modules/shared/api/notifications";
-
-/** Real logged-in user has no first/last name on the session (only
- * id/email/role) — initials are derived from the email's local part
- * rather than fabricating a display name. */
-function emailInitials(email: string): string {
-  const local = email.split("@")[0] ?? "";
-  return local.slice(0, 2).toUpperCase();
-}
 
 // Pixel-exact port of the shell (header + aside) from
 // "Billing Module - Web/Billing Admin.dc.html" (lines 27-187). Fake-data
@@ -43,17 +38,29 @@ export function BillingShell({ children }: { children: React.ReactNode }) {
   const { session, logout, switchRole } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
-  const [menu, setMenu] = useState<"quick" | "bell" | "help" | "profile" | null>(null);
+  const [menu, setMenu] = useState<"quick" | "bell" | "help" | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const rolesRef = useRef<HTMLDivElement>(null);
 
   const roles = useMyRoles();
   const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
+
+  useEffect(() => {
+    if (!rolesOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [rolesOpen]);
 
   async function handleSwitchRole(roleId: number) {
     setSwitching(true);
     try {
       const newSession = await switchRole(roleId);
-      setMenu(null);
+      setRolesOpen(false);
       const target = getModuleConfig(newSession.user.role);
       router.push(target ? `${target.basePath}/dashboard` : "/login");
     } finally {
@@ -230,54 +237,55 @@ export function BillingShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
 
-          <div style={{ position: "relative", marginTop: 22, paddingTop: 14, borderTop: "1px solid #eef1f6" }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenu((m) => (m === "profile" ? null : "profile")); }}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "14px 12px 8px", border: 0, background: "transparent", cursor: "pointer", textAlign: "left" }}
-            >
-              <div style={{ width: 38, height: 38, borderRadius: 999, background: "#152f6d", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flex: "0 0 38px" }}>
-                {session?.user.email ? emailInitials(session.user.email) : "?"}
-              </div>
-              {!collapsed && (
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{session?.user.email ?? "—"}</div>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 22, paddingTop: 14, borderTop: "1px solid #eef1f6" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Avatar name={session?.user.email || "Billing"} className="bg-[#152f6d]" />
+            {!collapsed && (
+              <>
+                <div style={{ minWidth: 0, flex: 1, lineHeight: 1.25 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {session?.user.email ?? "—"}
+                  </div>
                   <div style={{ fontSize: 12, color: "#64748b" }}>Billing</div>
                 </div>
-              )}
-              {!collapsed && <span style={{ color: "#94a3b8", fontSize: 12 }}>▾</span>}
-            </button>
-            {menu === "profile" && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{ position: "absolute", bottom: "calc(100% + 4px)", left: 8, right: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 18px 40px rgba(15,23,42,.18)", padding: 8, zIndex: 60 }}
-              >
                 {otherRoles.length > 0 && (
-                  <>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.08, color: "#64748b", padding: "8px 10px 6px" }}>
-                      SWITCH ROLE
-                    </div>
-                    {otherRoles.map((r) => (
-                      <button
-                        key={r.id}
-                        disabled={switching}
-                        onClick={() => handleSwitchRole(r.id)}
-                        style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: switching ? "not-allowed" : "pointer", opacity: switching ? 0.5 : 1, color: "#0f172a" }}
-                      >
-                        {ROLE_LABEL[r.name] ?? r.description ?? r.name}
-                      </button>
-                    ))}
-                    <div style={{ height: 1, background: "#eef1f6", margin: "6px 2px" }} />
-                  </>
+                  <div ref={rolesRef} className="relative">
+                    <IconButton icon="swap_horiz" size={34} iconSize={17} title="Switch role" onClick={() => setRolesOpen((v) => !v)} />
+                    {rolesOpen && (
+                      <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 min-w-[210px] overflow-hidden rounded-card border border-border-default bg-surface py-1.5 shadow-modal">
+                        <div className="px-4 pb-1 pt-1.5 text-[10.5px] font-extrabold tracking-[.09em] text-subtle">SWITCH ROLE</div>
+                        {otherRoles.map((r) => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            disabled={switching}
+                            onClick={() => handleSwitchRole(r.id)}
+                            className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-nav-hover disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {ROLE_LABEL[r.name] ?? r.description ?? r.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
-                <button
-                  onClick={() => { setMenu(null); logout(); }}
-                  style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: "pointer", color: "#dc2626" }}
-                >
-                  Sign out
-                </button>
-              </div>
+                <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
+              </>
             )}
           </div>
+
+          <ConfirmDialog
+            open={confirmingLogout}
+            title="Sign out?"
+            description="You'll need to log in again to access the Billing portal."
+            confirmLabel="Sign out"
+            cancelLabel="Cancel"
+            destructive
+            onConfirm={logout}
+            onCancel={() => setConfirmingLogout(false)}
+          />
         </aside>
 
         <main style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "26px 32px 60px" }} onClick={(e) => e.stopPropagation()}>

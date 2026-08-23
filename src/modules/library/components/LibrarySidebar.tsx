@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useMyRoles } from "@/lib/auth/roles";
@@ -98,6 +99,7 @@ function UserFooter({ collapsed, userEmail }: { collapsed: boolean; userEmail?: 
   const router = useRouter();
   const { session, logout, switchRole } = useAuth();
   const initials = (userEmail || "?").trim().charAt(0).toUpperCase();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const rolesRef = useRef<HTMLDivElement>(null);
@@ -168,13 +170,24 @@ function UserFooter({ collapsed, userEmail }: { collapsed: boolean; userEmail?: 
       )}
       <button
         type="button"
-        onClick={logout}
+        onClick={() => setConfirmingLogout(true)}
         title="Log out"
         aria-label="Log out"
         className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-admin-sm text-admin-subtle hover:bg-admin-tint-strong hover:text-admin-body"
       >
         <Icon name="logout" size={17} />
       </button>
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Sign out?"
+        description="You'll need to log in again to access the Library module."
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={logout}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </div>
   );
 }

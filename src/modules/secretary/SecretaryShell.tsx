@@ -12,6 +12,7 @@ import { getModuleConfig } from "@/modules/registry";
 import { ROLE_LABEL } from "@/lib/config";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
 import { NotificationPanel } from "@/modules/advisor/NotificationPanel";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 // Pixel-exact port of the shell (header + aside) from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 27-108. Every
@@ -37,6 +38,7 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [search, setSearch] = useState("");
   const [year, setYear] = useState("2026-27");
   const [semester, setSemester] = useState<"Odd Semester" | "Even Semester">("Odd Semester");
@@ -137,44 +139,6 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
               <SecretaryIcon name="gear" size={18} />
             </div>
           </Link>
-          {otherRoles.length > 0 && (
-            <div style={{ position: "relative" }}>
-              <div
-                data-sec-lift=""
-                onClick={() => setRolesOpen((v) => !v)}
-                title="Switch role"
-                style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-              >
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 3l4 4-4 4" />
-                  <path d="M3 11V9a4 4 0 014-4h14" />
-                  <path d="M7 21l-4-4 4-4" />
-                  <path d="M21 13v2a4 4 0 01-4 4H3" />
-                </svg>
-              </div>
-              {rolesOpen && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ position: "absolute", top: 56, right: 0, width: 240, background: "#fff", border: "1px solid #e5e9f2", borderRadius: 13, boxShadow: "0 18px 40px rgba(15,23,42,.14)", padding: 8, zIndex: 40, textAlign: "left" }}
-                >
-                  <div style={{ padding: "6px 9px 9px", fontSize: 11, fontWeight: 700, letterSpacing: 0.08, color: "#94a3b8" }}>SWITCH ROLE</div>
-                  {otherRoles.map((r) => (
-                    <button
-                      key={r.id}
-                      disabled={switching}
-                      onClick={() => handleSwitchRole(r.id)}
-                      style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.1, fontWeight: 600, cursor: switching ? "not-allowed" : "pointer", opacity: switching ? 0.5 : 1, color: "#0f172a" }}
-                    >
-                      {ROLE_LABEL[r.name] ?? r.description ?? r.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          <div data-sec-lift="" onClick={logout} title="Log out" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <SecretaryIcon name="exit" size={18} />
-          </div>
         </div>
       </header>
 
@@ -216,18 +180,60 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
               </div>
             ))}
           </div>
-          <Link href="/secretary/settings" style={{ textDecoration: "none", color: "inherit" }}>
-            <div data-sec-nav-item="" style={{ borderTop: "1px solid #eef2f7", background: "#ffffff", width: "100%", textAlign: "left", padding: 16, display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 999, background: "#1e3a8a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.7, fontWeight: 700, flex: "none" }}>{initials}</div>
-              {!collapsed && (
+          <div style={{ borderTop: "1px solid #eef2f7", background: "#ffffff", width: "100%", padding: collapsed ? "16px 0" : 16, display: "flex", alignItems: "center", gap: 12, justifyContent: collapsed ? "center" : "flex-start" }}>
+            <div style={{ width: 40, height: 40, borderRadius: 999, background: "#1e3a8a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.7, fontWeight: 700, flex: "none" }}>{initials}</div>
+            {!collapsed && (
+              <>
                 <div style={{ flex: 1, minWidth: 0, lineHeight: 1.3 }}>
                   <div style={{ fontSize: 13.1, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{secretaryName}</div>
                   <div style={{ fontSize: 11.8, color: "#64748b" }}>Department Secretary · {department}</div>
                 </div>
-              )}
-              {!collapsed && <span style={{ color: "#94a3b8", fontSize: 12.2 }}>›</span>}
-            </div>
-          </Link>
+                {otherRoles.length > 0 && (
+                  <div style={{ position: "relative" }}>
+                    <div
+                      data-sec-lift=""
+                      onClick={() => setRolesOpen((v) => !v)}
+                      title="Switch role"
+                      style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}
+                    >
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3l4 4-4 4" />
+                        <path d="M3 11V9a4 4 0 014-4h14" />
+                        <path d="M7 21l-4-4 4-4" />
+                        <path d="M21 13v2a4 4 0 01-4 4H3" />
+                      </svg>
+                    </div>
+                    {rolesOpen && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 210, background: "#fff", border: "1px solid #e5e9f2", borderRadius: 13, boxShadow: "0 18px 40px rgba(15,23,42,.14)", padding: 8, zIndex: 40, textAlign: "left" }}
+                      >
+                        <div style={{ padding: "6px 9px 9px", fontSize: 11, fontWeight: 700, letterSpacing: 0.08, color: "#94a3b8" }}>SWITCH ROLE</div>
+                        {otherRoles.map((r) => (
+                          <button
+                            key={r.id}
+                            disabled={switching}
+                            onClick={() => handleSwitchRole(r.id)}
+                            style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.1, fontWeight: 600, cursor: switching ? "not-allowed" : "pointer", opacity: switching ? 0.5 : 1, color: "#0f172a" }}
+                          >
+                            {ROLE_LABEL[r.name] ?? r.description ?? r.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div
+                  data-sec-lift=""
+                  onClick={() => setConfirmingLogout(true)}
+                  title="Log out"
+                  style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #e5e9f2", background: "#ffffff", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}
+                >
+                  <SecretaryIcon name="exit" size={16} />
+                </div>
+              </>
+            )}
+          </div>
         </aside>
 
         <main style={{ flex: 1, minWidth: 0, padding: "34px 40px 60px" }}>{children}</main>

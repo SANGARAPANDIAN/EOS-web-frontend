@@ -103,7 +103,7 @@ export default function HigherEducationDashboardPage() {
           </div>
         </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <div className="min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px]">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Admits confirmed</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">

@@ -60,8 +60,7 @@ function NavContent({
             )}
           </div>
           {group.items.map((item) => {
-            const active =
-              item.href === "/placement" ? pathname === "/placement" : pathname.startsWith(item.href + "/") || pathname === item.href;
+            const active = pathname.startsWith(item.href + "/") || pathname === item.href;
             const badge = item.badgeKey ? badges?.[item.badgeKey] : undefined;
             return (
               <Link

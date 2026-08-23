@@ -75,7 +75,7 @@ export default function HostelWardenDashboardPage() {
           </div>
         </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/hostel-warden/leave" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Out on leave</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -91,7 +91,7 @@ export default function HostelWardenDashboardPage() {
           </div>
           <ProgressBar percent={isLoading ? 0 : onLeavePct} height={6} className="mt-3" />
           <div className="mt-3 text-[12.5px] text-subtle">On an approved outing covering today</div>
-        </div>
+        </Link>
 
         <Link href="/hostel-warden/passes" className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">

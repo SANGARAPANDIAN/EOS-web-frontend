@@ -24,10 +24,13 @@ export function StatCard({ label, value, icon, sub, delta, barPercent, threshold
   const content = (
     <div
       className={cn(
-        "min-w-0 rounded-card border bg-surface p-[18px_18px_16px] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md",
+        "min-w-0 rounded-card border bg-surface p-[18px_18px_16px]",
+        href && "transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md",
         accent
           ? "border-[1.5px] border-primary shadow-[0_8px_20px_color-mix(in_srgb,var(--color-primary)_14%,transparent)]"
-          : "border-border-default hover:border-border-accent",
+          : href
+            ? "border-border-default hover:border-border-accent"
+            : "border-border-default",
         className,
       )}
     >

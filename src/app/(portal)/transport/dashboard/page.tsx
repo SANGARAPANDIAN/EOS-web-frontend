@@ -139,7 +139,7 @@ export default function TransportDashboardPage() {
       <div className="grid grid-cols-4 gap-4">
         {STAT_TILES.map((tile) => {
           const tileContent = (
-            <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+            <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${tile.href ? HOVERABLE : ""}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-[14.5px] font-bold text-body">{tile.label}</div>
                 <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">

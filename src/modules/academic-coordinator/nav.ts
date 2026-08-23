@@ -38,7 +38,7 @@ export interface CoordinatorNavGroup {
 export const COORDINATOR_NAV: CoordinatorNavGroup[] = [
   {
     label: "OVERVIEW",
-    items: [{ href: "/academic-coordinator", label: "Dashboard", icon: "dashboard" }],
+    items: [{ href: "/academic-coordinator/dashboard", label: "Dashboard", icon: "dashboard" }],
   },
   {
     label: "CURRICULUM",

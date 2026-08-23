@@ -41,8 +41,7 @@ export function AcademicCoordinatorSidebar({ collapsed, onToggleCollapsed }: Aca
               </div>
             )}
             {group.items.map((item) => {
-              const active =
-                item.href === "/academic-coordinator" ? pathname === "/academic-coordinator" : pathname.startsWith(item.href);
+              const active = pathname.startsWith(item.href);
 
               if (item.soon) {
                 return (

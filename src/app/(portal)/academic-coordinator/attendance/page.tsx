@@ -6,7 +6,6 @@ import { useClassAttendance } from "@/modules/academic-coordinator/hooks/useAtte
 import { useAcademicYear } from "@/modules/academic-coordinator/context/AcademicYearContext";
 import { StatCard } from "@/components/ui/StatCard";
 import { Select } from "@/components/ui/Select";
-import { Badge } from "@/components/ui/Badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import type { AttendanceRow } from "@/modules/academic-coordinator/types";
 
@@ -56,7 +55,7 @@ export default function CoordinatorAttendancePage() {
       header: "OVERALL",
       width: "0.8fr",
       render: (r) => (
-        <span className={r.overallPercentage != null && r.overallPercentage < 75 ? "font-bold text-danger-fg" : "font-bold text-primary-dark"}>
+        <span className="font-bold" style={{ color: r.overallPercentage != null && r.overallPercentage < 75 ? "#991b1b" : "#166534" }}>
           {r.overallPercentage != null ? `${r.overallPercentage}%` : "—"}
         </span>
       ),
@@ -65,7 +64,17 @@ export default function CoordinatorAttendancePage() {
       key: "status",
       header: "STATUS",
       width: "0.9fr",
-      render: (r) => <Badge tone={r.status === "Shortage" ? "danger" : "accent"}>{r.status}</Badge>,
+      render: (r) => (
+        <span
+          className="inline-block w-fit rounded-[5px] px-2.5 py-[3px] text-[11px] font-semibold"
+          style={{
+            background: r.status === "Shortage" ? "#fecaca" : "#dcfce7",
+            color: r.status === "Shortage" ? "#991b1b" : "#166534",
+          }}
+        >
+          {r.status}
+        </span>
+      ),
     },
   ];
 

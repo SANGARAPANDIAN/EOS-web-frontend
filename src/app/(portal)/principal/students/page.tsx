@@ -111,6 +111,7 @@ export default function PrincipalStudentsPage() {
           loading={summary.isLoading}
           value={summary.data?.placement.placed ?? "—"}
           sub={summary.data ? `of ${summary.data.placement.registered} registered candidates` : undefined}
+          href="/principal/placements"
         />
         <PrincipalStatCard
           label="Fees pending"
@@ -118,6 +119,7 @@ export default function PrincipalStudentsPage() {
           loading={summary.isLoading}
           value={summary.data?.fees.students_pending ?? "—"}
           sub={summary.data ? `${formatRupees(summary.data.fees.total_outstanding)} outstanding` : undefined}
+          href="/principal/finance"
         />
       </div>
 

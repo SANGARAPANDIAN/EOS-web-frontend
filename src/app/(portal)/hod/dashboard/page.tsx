@@ -70,6 +70,7 @@ export default function HodDashboardPage() {
         />
         <StatCard
           className="hod-hover-card"
+          href="/hod/faculty-staff"
           label={range === "term" ? "Faculty attendance this term" : "Faculty attendance today"}
           value={d ? `${d.faculty_attendance.percentage}%` : "—"}
           sub={
@@ -94,6 +95,7 @@ export default function HodDashboardPage() {
         />
         <StatCard
           className="hod-hover-card"
+          href="/hod/placements"
           label="Placements"
           value={d?.placements.placed_count ?? (dashboard.isLoading ? "—" : "—")}
           sub={d ? `of ${d.placements.eligible_count} eligible final-year students` : undefined}

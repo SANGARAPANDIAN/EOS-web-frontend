@@ -88,7 +88,7 @@ export default function BillingDashboardPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/overview" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Total collected</div>
             <div style={kpiIconWrapSx}>
@@ -99,9 +99,9 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#1d4ed8", fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{totalPaymentsRecorded}</span> <span style={{ color: "#64748b" }}>payments recorded</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: `${Math.min(100, kpi.collectionPercentage)}%`, background: "#1d4ed8", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>{kpi.collectionPercentage.toFixed(1)}% of total demand</div>
-        </div>
+        </Link>
 
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/demand" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Outstanding dues</div>
             <div style={{ ...kpiIconWrapSx, background: "#f1f5f9" }}>
@@ -112,9 +112,9 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#0f2d6b", fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{overview.financialAnalytics.paymentStatusDistribution.find((p) => p.status === "pending")?.count ?? 0}</span> <span style={{ color: "#64748b" }}>demands fully unpaid</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: `${100 - Math.min(100, kpi.collectionPercentage)}%`, background: "#0f2d6b", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>of {fmtCrore(kpi.totalFeeDemand)} total demand</div>
-        </div>
+        </Link>
 
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/overview" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Collection efficiency</div>
             <div style={kpiIconWrapSx}>
@@ -125,9 +125,9 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#64748b" }}>share of total demand collected so far</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: `${Math.min(100, kpi.collectionPercentage)}%`, background: "#1d4ed8", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>{kpi.activeFeeStructures} active fee structures</div>
-        </div>
+        </Link>
 
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/concessions" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Pending approvals</div>
             <div style={kpiIconWrapSx}>
@@ -138,7 +138,7 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#1d4ed8", fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{kpi.pendingEducationLoanDD}</span> <span style={{ color: "#64748b" }}>education loan DDs pending too</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: "46%", background: "#1d4ed8", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>concessions awaiting settlement</div>
-        </div>
+        </Link>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 16 }}>

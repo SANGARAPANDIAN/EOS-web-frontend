@@ -202,6 +202,9 @@ export default function MedicalCentreDashboardPage() {
           <div className="mt-3 text-[12.5px] text-subtle">
             {kpis?.longestStayMinutes != null ? `Longest stay ${kpis.longestStayMinutes} min · observation` : "No one currently admitted"}
           </div>
+          <Link href="/medical-centre/sickroom" className="mt-3 block text-[13px] font-bold text-primary hover:underline">
+            View sick room
+          </Link>
         </div>
 
         <div className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>

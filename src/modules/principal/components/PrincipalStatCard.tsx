@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { principalColors } from "@/modules/principal/theme";
@@ -12,11 +13,13 @@ interface PrincipalStatCardProps {
   footer?: string;
   /** True while the query backing this tile is still in flight — renders skeleton bars instead of the (still-fallback) value/sub/footer, so nothing flashes text before real data arrives. */
   loading?: boolean;
+  /** Navigates to the relevant page when set — only pass this when that page actually exists in the sidebar. Renders as a plain (non-clickable) card when omitted. */
+  href?: string;
 }
 
 /** One KPI tile matching the reference design's card style exactly (border, radius, hover lift). */
-export function PrincipalStatCard({ label, icon, value, delta, sub, progressPercent, footer, loading }: PrincipalStatCardProps) {
-  return (
+export function PrincipalStatCard({ label, icon, value, delta, sub, progressPercent, footer, loading, href }: PrincipalStatCardProps) {
+  const content = (
     <div
       className="rounded-2xl border p-5 shadow-[0_1px_2px_rgba(13,30,79,0.06)] transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
       style={{ background: principalColors.bg, borderColor: principalColors.border }}
@@ -74,4 +77,6 @@ export function PrincipalStatCard({ label, icon, value, delta, sub, progressPerc
       )}
     </div>
   );
+
+  return href ? <Link href={href}>{content}</Link> : content;
 }

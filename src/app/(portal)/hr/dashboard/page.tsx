@@ -75,6 +75,7 @@ export default function HrDashboardPage() {
           value={isLoading ? "—" : data?.todays_leave_count ?? 0}
           delta={!isLoading ? `${data?.todays_od_count ?? 0} OD` : undefined}
           sub="faculty on leave today"
+          href="/hr/vacation-management"
         />
         <StatCard
           label="Pending appraisals"

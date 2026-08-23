@@ -93,6 +93,7 @@ export default function PrincipalReportsPage() {
           loading={summary.isLoading}
           value={summary.data?.placement_rate.value ?? "—"}
           footer={summary.data?.placement_rate.detail}
+          href="/principal/placements"
         />
         <PrincipalStatCard
           label="Fee recovery"
@@ -100,6 +101,7 @@ export default function PrincipalReportsPage() {
           loading={summary.isLoading}
           value={summary.data?.fee_recovery.value ?? "—"}
           footer={summary.data?.fee_recovery.detail}
+          href="/principal/finance"
         />
       </div>
 

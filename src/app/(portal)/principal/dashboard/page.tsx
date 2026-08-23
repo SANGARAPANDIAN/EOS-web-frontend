@@ -99,6 +99,7 @@ export default function PrincipalDashboardPage() {
                   : undefined
               }
               footer={`${todayView.students.absent_today.toLocaleString("en-IN")} marked absent today`}
+              href="/principal/students"
             />
             <PrincipalStatCard
               label="Faculty & staff"
@@ -117,6 +118,7 @@ export default function PrincipalDashboardPage() {
                   ? `${todayView.faculty.on_leave_today.toLocaleString("en-IN")} faculty on approved leave`
                   : "Today's faculty attendance hasn't been marked yet"
               }
+              href="/principal/faculty"
             />
             <PrincipalStatCard
               label="Mean attendance"
@@ -140,6 +142,7 @@ export default function PrincipalDashboardPage() {
               value={periodView.students.total_active.toLocaleString("en-IN")}
               delta={`+${periodView.students.new_admissions.toLocaleString("en-IN")}`}
               sub="new admissions this period"
+              href="/principal/students"
             />
             <PrincipalStatCard
               label="Faculty & staff"
@@ -148,6 +151,7 @@ export default function PrincipalDashboardPage() {
               value={(periodView.faculty.total_active + periodView.non_teaching_staff.total_active).toLocaleString("en-IN")}
               delta={`+${periodView.faculty.new_hires.toLocaleString("en-IN")}`}
               sub="hires this period"
+              href="/principal/faculty"
             />
             <PrincipalStatCard
               label="Mean attendance"
@@ -164,8 +168,8 @@ export default function PrincipalDashboardPage() {
 
         {!s && (
           <>
-            <PrincipalStatCard label="Total students" icon="groups" loading={summary.isLoading} value="—" />
-            <PrincipalStatCard label="Faculty & staff" icon="badge" loading={summary.isLoading} value="—" />
+            <PrincipalStatCard label="Total students" icon="groups" loading={summary.isLoading} value="—" href="/principal/students" />
+            <PrincipalStatCard label="Faculty & staff" icon="badge" loading={summary.isLoading} value="—" href="/principal/faculty" />
             <PrincipalStatCard label="Mean attendance" icon="fact_check" loading={summary.isLoading} value="—" />
           </>
         )}
@@ -176,6 +180,7 @@ export default function PrincipalDashboardPage() {
           loading={summary.isLoading}
           value={s ? s.departments.total.toLocaleString("en-IN") : "—"}
           footer="across the institution"
+          href="/principal/departments"
         />
       </div>
 

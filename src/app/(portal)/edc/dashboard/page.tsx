@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEdcEntrepreneurship, isBeyondIdeaStage, type EdcEntrepreneurshipRow } from "@/modules/edc/api/entrepreneurship";
 import { useIncubations } from "@/modules/edc/api/incubations";
@@ -61,10 +62,10 @@ export default function EdcDashboardPage() {
   const ideasPending = (ideas.data ?? []).filter((i) => i.review_status === "Under Review").length;
 
   const kpis = [
-    { label: "EDC Students", icon: "groups", value: rows.length, note: "Registered ventures, institution-wide" },
-    { label: "Startups", icon: "rocket_launch", value: startupsCount, note: "Beyond idea stage" },
-    { label: "In Incubation", icon: "psychiatry", value: incubatedCount, note: "Admitted into the centre" },
-    { label: "Startup Ideas", icon: "lightbulb", value: ideas.data?.length ?? 0, note: `${ideasPending} awaiting review` },
+    { label: "EDC Students", icon: "groups", value: rows.length, note: "Registered ventures, institution-wide", href: "/edc/entrepreneurs" },
+    { label: "Startups", icon: "rocket_launch", value: startupsCount, note: "Beyond idea stage", href: "/edc/startups" },
+    { label: "In Incubation", icon: "psychiatry", value: incubatedCount, note: "Admitted into the centre", href: "/edc/incubation" },
+    { label: "Startup Ideas", icon: "lightbulb", value: ideas.data?.length ?? 0, note: `${ideasPending} awaiting review`, href: "/edc/ideas" },
   ];
 
   const lifecycleCounts = rows.reduce<Record<string, number>>((acc, v) => {
@@ -124,7 +125,12 @@ export default function EdcDashboardPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 16 }}>
         {kpis.map((k) => (
-          <div key={k.label} data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "18px 20px 16px", display: "flex", flexDirection: "column", gap: 11 }}>
+          <Link
+            key={k.label}
+            href={k.href}
+            data-edc-lift=""
+            style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "18px 20px 16px", display: "flex", flexDirection: "column", gap: 11, textDecoration: "none", color: "inherit" }}
+          >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
               <span style={{ fontSize: 14.5, fontWeight: 600, color: "#475569" }}>{k.label}</span>
               <span className="ms" style={{ width: 32, height: 32, borderRadius: 9, background: "#EFF6FF", color: "#1D4ED8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flex: "none" }}>
@@ -133,7 +139,7 @@ export default function EdcDashboardPage() {
             </div>
             <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: "-0.035em", lineHeight: 1 }}>{k.value}</div>
             <div style={{ fontSize: 12.5, color: "#94A3B8" }}>{k.note}</div>
-          </div>
+          </Link>
         ))}
       </div>
 

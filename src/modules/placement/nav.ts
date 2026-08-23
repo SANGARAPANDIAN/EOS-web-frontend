@@ -16,6 +16,7 @@ export const placementModuleConfig: ModuleConfig = {
 export interface PlacementNavItem {
   href: string;
   label: string;
+  /** Material Symbols Rounded ligature name, rendered via <Icon name=.../>. */
   icon: string;
   /** Populated at render time from live data — never hardcoded. */
   badgeKey?: "students" | "companies" | "drives";
@@ -26,10 +27,6 @@ export interface PlacementNavGroup {
   items: PlacementNavItem[];
 }
 
-// notifications/rounds intentionally absent — neither was reachable from
-// this nav in the source app either (mock-backed data / superseded by the
-// drive detail page's own student list), so this migration doesn't carry
-// them forward.
 export const PLACEMENT_NAV: PlacementNavGroup[] = [
   {
     label: "Overview",

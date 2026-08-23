@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ANNOUNCEMENT_CATEGORIES } from "@/modules/placement/api/announcements";
+import { ANNOUNCEMENT_CATEGORIES } from "../types";
 
 export const announcementFormSchema = z.object({
   title: z.string().trim().min(1, "Headline is required").max(150),

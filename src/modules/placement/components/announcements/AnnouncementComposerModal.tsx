@@ -3,18 +3,19 @@
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Modal, Button, FormField, Input, Select, Textarea, Checkbox, useToast } from "@/modules/admin/components/ui";
-import { friendlyError } from "@/lib/utils/errors";
-import { useDepartments, useClasses } from "@/modules/admin/api/refData";
-import { useBatches } from "@/modules/placement/api/refData";
-import {
-  ANNOUNCEMENT_CATEGORIES,
-  useCreateAnnouncement,
-  useUpdateAnnouncement,
-  type AnnouncementListItem,
-  type CreateAnnouncementInput,
-} from "@/modules/placement/api/announcements";
-import { announcementFormSchema, type AnnouncementFormValues } from "@/modules/placement/schemas/announcement-form.schema";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { useToast } from "@/modules/admin/components/ui/ToastProvider";
+import { ApiError } from "@/types/api";
+import { useDepartments } from "../../hooks/useDepartments";
+import { useClasses } from "../../hooks/useClasses";
+import { useBatches } from "../../hooks/useBatches";
+import { useCreateAnnouncement, useUpdateAnnouncement } from "../../hooks/useAnnouncementMutations";
+import { announcementFormSchema, type AnnouncementFormValues } from "../../schemas/announcement-form.schema";
+import { ANNOUNCEMENT_CATEGORIES, type AnnouncementListItem, type CreateAnnouncementInput } from "../../types";
 
 interface AnnouncementComposerModalProps {
   open: boolean;
@@ -38,7 +39,11 @@ function toDefaults(a: AnnouncementListItem | null): AnnouncementFormValues {
   };
 }
 
-/** Remounted via a `key` on the caller for each target — fresh local state (classIds) is safe without an effect since React never reuses this instance across announcements. */
+/**
+ * Remounted (via a `key` on the caller side) every time the modal opens for
+ * a different announcement — that's what makes fresh initial state here
+ * safe without an effect: React never reuses this instance across targets.
+ */
 function AnnouncementComposerForm({ announcement, onClose }: { announcement: AnnouncementListItem | null; onClose: () => void }) {
   const { show } = useToast();
   const isEditing = announcement !== null;
@@ -74,12 +79,12 @@ function AnnouncementComposerForm({ announcement, onClose }: { announcement: Ann
     const deptById = new Map((departments.data ?? []).map((d) => [d.id, d]));
     const byDept = new Map<number, { deptName: string; classes: { id: number; label: string }[] }>();
     for (const c of classes.data ?? []) {
-      const dept = deptById.get(c.department_id);
-      const deptName = dept ? `${dept.name} (${dept.code})` : `Department #${c.department_id}`;
-      const batchName = batchNameById.get(c.batch_id) ?? `Batch #${c.batch_id}`;
-      const label = `${batchName} · Section ${c.section}${c.current_semester ? ` · Sem ${c.current_semester}` : ""}`;
-      if (!byDept.has(c.department_id)) byDept.set(c.department_id, { deptName, classes: [] });
-      byDept.get(c.department_id)!.classes.push({ id: c.id, label });
+      const dept = deptById.get(c.departmentId);
+      const deptName = dept ? `${dept.name} (${dept.code})` : `Department #${c.departmentId}`;
+      const batchName = batchNameById.get(c.batchId) ?? `Batch #${c.batchId}`;
+      const label = `${batchName} · Section ${c.section}${c.currentSemester ? ` · Sem ${c.currentSemester}` : ""}`;
+      if (!byDept.has(c.departmentId)) byDept.set(c.departmentId, { deptName, classes: [] });
+      byDept.get(c.departmentId)!.classes.push({ id: c.id, label });
     }
     return Array.from(byDept.values()).sort((a, b) => a.deptName.localeCompare(b.deptName));
   }, [departments.data, classes.data, batchNameById]);
@@ -134,30 +139,39 @@ function AnnouncementComposerForm({ announcement, onClose }: { announcement: Ann
         show(isEditing ? "Announcement updated." : "Announcement published.", "success");
         onClose();
       })
-      .catch((err: unknown) => show(friendlyError(err), "error"));
+      .catch((err: unknown) => show(err instanceof ApiError ? err.message : "Something went wrong.", "error"));
   }
 
   const isPending = createAnnouncement.isPending || updateAnnouncement.isPending;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-      <FormField label="Headline" error={errors.title?.message}>
-        <Input placeholder="e.g. Pre-placement talk · 12 Aug · Main auditorium" {...register("title")} />
-      </FormField>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-0">
+      <div className="mb-3.5">
+        <label className="mb-1 block text-[12.5px] font-semibold text-body">
+          Headline <span className="text-danger-fg">*</span>
+        </label>
+        <Input
+          placeholder="e.g. Pre-placement talk · 12 Aug · Main auditorium"
+          className={errors.title ? "border-danger-border" : undefined}
+          {...register("title")}
+        />
+        {errors.title && <p className="mt-1 text-[11.5px] text-danger-fg">{errors.title.message}</p>}
+      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <FormField label="Audience" error={errors.targetAudience?.message}>
-          <Select {...register("targetAudience")}>
+      <div className="mb-3.5 grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-1 block text-[12.5px] font-semibold text-body">Audience</label>
+          <Select className={errors.targetAudience ? "border-danger-border" : undefined} {...register("targetAudience")}>
             {Object.entries(AUDIENCE_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
           </Select>
-        </FormField>
-
-        <FormField label="Category" error={errors.category?.message}>
-          <Select {...register("category")}>
+        </div>
+        <div>
+          <label className="mb-1 block text-[12.5px] font-semibold text-body">Category</label>
+          <Select className={errors.category ? "border-danger-border" : undefined} {...register("category")}>
             <option value="">No category</option>
             {ANNOUNCEMENT_CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -165,50 +179,50 @@ function AnnouncementComposerForm({ announcement, onClose }: { announcement: Ann
               </option>
             ))}
           </Select>
-        </FormField>
+        </div>
       </div>
 
-      <FormField label="Message" error={errors.content?.message}>
-        <Textarea rows={4} placeholder="Write the announcement in full" {...register("content")} />
-      </FormField>
+      <div className="mb-3.5">
+        <label className="mb-1 block text-[12.5px] font-semibold text-body">
+          Message <span className="text-danger-fg">*</span>
+        </label>
+        <Textarea rows={4} placeholder="Write the announcement in full" className={errors.content ? "border-danger-border" : undefined} {...register("content")} />
+        {errors.content && <p className="mt-1 text-[11.5px] text-danger-fg">{errors.content.message}</p>}
+      </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="mb-3.5 flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-bold text-admin-primary">
-            Classes <span className="ml-0.5 text-admin-danger">*</span>
+          <label className="text-[12.5px] font-semibold text-body">
+            Classes <span className="text-danger-fg">*</span>
           </label>
           <div className="flex items-center gap-3 text-xs font-semibold">
-            <span className="text-admin-muted">
+            <span className="text-subtle">
               {classIds.size} of {allClassIds.length} selected
             </span>
-            <button type="button" onClick={selectAll} className="text-admin-primary hover:underline">
+            <button type="button" onClick={selectAll} className="text-primary hover:underline">
               Select all
             </button>
-            <button type="button" onClick={clearClasses} className="text-admin-primary hover:underline">
+            <button type="button" onClick={clearClasses} className="text-primary hover:underline">
               Clear
             </button>
           </div>
         </div>
-        <div className="max-h-56 overflow-y-auto rounded-admin-lg border border-admin-border p-2">
+        <div className="max-h-56 overflow-y-auto rounded-input border border-border-default p-2">
           {classes.isLoading || departments.isLoading ? (
-            <div className="p-2 text-sm text-admin-muted">Loading classes…</div>
+            <div className="p-2 text-sm text-muted">Loading classes…</div>
           ) : (
             groups.map((g) => (
               <div key={g.deptName} className="mb-2 last:mb-0">
                 <div className="flex items-center justify-between px-1 py-1">
-                  <span className="text-xs font-bold tracking-wide text-admin-muted uppercase">{g.deptName}</span>
-                  <button
-                    type="button"
-                    onClick={() => selectDept(g.classes.map((c) => c.id))}
-                    className="text-xs font-semibold text-admin-primary hover:underline"
-                  >
+                  <span className="text-xs font-bold tracking-wide text-subtle uppercase">{g.deptName}</span>
+                  <button type="button" onClick={() => selectDept(g.classes.map((c) => c.id))} className="text-xs font-semibold text-primary hover:underline">
                     Select all
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   {g.classes.map((c) => (
-                    <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-admin-sm px-2 py-1.5 text-sm hover:bg-admin-tint">
-                      <Checkbox checked={classIds.has(c.id)} onChange={() => toggleClass(c.id)} />
+                    <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-input px-2 py-1.5 text-sm hover:bg-surface-tint">
+                      <input type="checkbox" checked={classIds.has(c.id)} onChange={() => toggleClass(c.id)} className="size-3.5" />
                       {c.label}
                     </label>
                   ))}
@@ -217,21 +231,22 @@ function AnnouncementComposerForm({ announcement, onClose }: { announcement: Ann
             ))
           )}
         </div>
-        {classError && <p className="text-[13px] text-admin-danger">{classError}</p>}
+        {classError && <p className="text-xs text-danger-fg">{classError}</p>}
       </div>
 
-      <FormField label="Status" error={errors.status?.message}>
+      <div className="mb-3.5">
+        <label className="mb-1 block text-[12.5px] font-semibold text-body">Status</label>
         <Select {...register("status")}>
           <option value="published">Publish now</option>
           <option value="draft">Save as draft</option>
         </Select>
-      </FormField>
+      </div>
 
-      <div className="mt-2 flex justify-end gap-2 border-t border-admin-divider pt-4">
+      <div className="mt-1 flex justify-end gap-2.5 border-t border-border-default pt-3.5">
         <Button type="button" variant="secondary" onClick={onClose} disabled={isPending}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={isPending}>
+        <Button type="submit" variant="primarySmall" disabled={isPending}>
           {isPending ? "Saving…" : isEditing ? "Save changes" : "Publish announcement"}
         </Button>
       </div>
@@ -246,7 +261,7 @@ export function AnnouncementComposerModal({ open, announcement, onClose }: Annou
       onClose={onClose}
       title={announcement ? "Edit announcement" : "New announcement"}
       subtitle="Circulars and posts reach the classes you select below."
-      widthClassName="max-w-2xl"
+      className="max-w-2xl"
     >
       {open && <AnnouncementComposerForm key={announcement?.id ?? "new"} announcement={announcement} onClose={onClose} />}
     </Modal>

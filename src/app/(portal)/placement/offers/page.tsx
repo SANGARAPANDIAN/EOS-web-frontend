@@ -1,48 +1,110 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useToast } from "@/modules/admin/components/ui/ToastProvider";
+import { useOffers } from "@/modules/placement/hooks/useOffers";
+import { StatCard } from "@/components/ui/StatCard";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
-import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { downloadCsv } from "@/lib/utils/csv";
-import { friendlyError } from "@/lib/utils/errors";
-import { ApiError } from "@/types/api";
-import {
-  PageHeader,
-  Button,
-  IconButton,
-  Badge,
-  type BadgeTone,
-  KpiCard,
-  DataTable,
-  NumberedPagination,
-  Dropdown,
-  useToast,
-  type DataTableColumn,
-} from "@/modules/admin/components/ui";
-import { useOffers, type Offer } from "@/modules/placement/api/offers";
-import { useUpdateOfferResponse } from "@/modules/placement/api/applications";
-import { offerResponseLabel, lpa, dateLabel } from "@/modules/placement/lib/format";
-import { OfferFilters, type OfferFiltersValue, DEFAULT_OFFER_FILTERS } from "@/modules/placement/components/offers/OfferFilters";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { NumberedPagination } from "@/modules/admin/components/ui/NumberedPagination";
 import { UpdateOfferModal } from "@/modules/placement/components/offers/UpdateOfferModal";
+import type { Offer, OfferResponseStatus } from "@/modules/placement/types";
 
 const PAGE_SIZE = 10;
 
-function statusTone(label: string): BadgeTone {
-  if (label === "Accepted") return "success";
-  if (label === "Declined") return "danger";
-  return "warning";
+function statusLabel(response: OfferResponseStatus | null): string {
+  if (response === "accepted") return "Accepted";
+  if (response === "declined") return "Declined";
+  return "Pending";
+}
+
+function statusTone(response: OfferResponseStatus | null): "accent" | "accentDark" | "neutral" {
+  if (response === "accepted") return "accentDark";
+  if (response === "declined") return "neutral";
+  return "accent";
+}
+
+function lpa(value: number | undefined): string {
+  return value == null ? "—" : `₹${value.toFixed(1)} LPA`;
+}
+
+function dateLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+type SortKey = "student" | "reg" | "company" | "role" | "ctc" | "released" | "status";
+
+function sortValue(r: Offer, key: SortKey): string | number {
+  switch (key) {
+    case "student":
+      return r.studentName ?? r.studentIdNo;
+    case "reg":
+      return r.registerNo ?? r.rollNo ?? r.studentIdNo;
+    case "company":
+      return r.companyName;
+    case "role":
+      return r.jobRole ?? "";
+    case "ctc":
+      return r.offeredPackageLpa ?? r.packageLpa ?? -1;
+    case "released":
+      return r.releasedAt;
+    case "status":
+      return statusLabel(r.offerResponse);
+  }
 }
 
 export default function OffersPage() {
-  const [filters, setFilters] = useState<OfferFiltersValue>(DEFAULT_OFFER_FILTERS);
-  const debouncedQuery = useDebouncedValue(filters.query);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("All statuses");
+  const [department, setDepartment] = useState("All departments");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [updateTarget, setUpdateTarget] = useState<Offer | null>(null);
 
   const { data, isLoading, error } = useOffers();
   const { show } = useToast();
-  const updateOfferResponse = useUpdateOfferResponse();
+
+  function resetPage<T>(setter: (v: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  function sortableHeader(label: string, key: SortKey) {
+    return (
+      <button type="button" onClick={() => toggleSort(key)} className="flex items-center gap-1 uppercase">
+        {label}
+        {sortKey === key && <Icon name={sortDir === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />}
+      </button>
+    );
+  }
 
   const rows = useMemo(() => data ?? [], [data]);
 
@@ -52,16 +114,25 @@ export default function OffersPage() {
   }, [rows]);
 
   const filtered = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    return rows.filter((r) => {
+    const q = query.trim().toLowerCase();
+    const list = rows.filter((r) => {
       const matchesQuery = !q || (r.studentName ?? r.studentIdNo).toLowerCase().includes(q) || r.companyName.toLowerCase().includes(q);
-      const matchesStatus = filters.status === "All statuses" || offerResponseLabel(r.offerResponse) === filters.status;
-      const matchesDept = filters.department === "All departments" || r.departmentCode === filters.department;
+      const matchesStatus = status === "All statuses" || statusLabel(r.offerResponse) === status;
+      const matchesDept = department === "All departments" || r.departmentCode === department;
       return matchesQuery && matchesStatus && matchesDept;
     });
-  }, [rows, debouncedQuery, filters.status, filters.department]);
+    if (sortKey) {
+      list.sort((a, b) => {
+        const av = sortValue(a, sortKey);
+        const bv = sortValue(b, sortKey);
+        const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return list;
+  }, [rows, query, status, department, sortKey, sortDir]);
 
-  const pageRows = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
+  const paged = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
   const total = rows.length;
   const accepted = rows.filter((r) => r.offerResponse === "accepted").length;
@@ -69,134 +140,109 @@ export default function OffersPage() {
   const pending = total - accepted - declined;
   const acceptedPct = total > 0 ? Math.round((accepted / total) * 100) : 0;
   const pendingPct = total > 0 ? Math.round((pending / total) * 100) : 0;
+  const declinedPct = total > 0 ? Math.round((declined / total) * 100) : 0;
 
   function handleExport() {
-    downloadCsv(
-      "offers.csv",
-      [
-        { header: "Student", value: (r: Offer) => r.studentName ?? r.studentIdNo },
-        { header: "Register number", value: (r: Offer) => r.registerNo ?? r.rollNo ?? r.studentIdNo },
-        { header: "Company", value: (r: Offer) => r.companyName },
-        { header: "Role", value: (r: Offer) => r.jobRole ?? "" },
-        { header: "CTC", value: (r: Offer) => lpa(r.offeredPackageLpa ?? r.packageLpa) },
-        { header: "Released", value: (r: Offer) => dateLabel(r.releasedAt) },
-        { header: "Status", value: (r: Offer) => offerResponseLabel(r.offerResponse) },
-      ],
-      filtered,
-    );
-  }
-
-  function quickSetResponse(offer: Offer, response: "accepted" | "declined") {
-    updateOfferResponse.mutate(
-      { driveId: offer.driveId, studentId: offer.studentId, offerResponse: response },
-      {
-        onSuccess: () => show(response === "accepted" ? "Offer marked accepted." : "Offer marked declined.", "success"),
-        onError: (err: unknown) => show(friendlyError(err), "error"),
-      },
-    );
+    const header = ["Student", "Register number", "Company", "Role", "CTC", "Released", "Status"];
+    const body = filtered.map((r) => [
+      r.studentName ?? r.studentIdNo,
+      r.registerNo ?? r.rollNo ?? r.studentIdNo,
+      r.companyName,
+      r.jobRole ?? "—",
+      lpa(r.offeredPackageLpa ?? r.packageLpa),
+      dateLabel(r.releasedAt),
+      statusLabel(r.offerResponse),
+    ]);
+    downloadCsv("offers.csv", [header, ...body]);
   }
 
   const columns: DataTableColumn<Offer>[] = [
-    {
-      key: "student",
-      header: "Student",
-      render: (r) => (
-        <div>
-          <p className="font-semibold text-admin-ink">{r.studentName ?? r.studentIdNo}</p>
-          <p className="text-xs text-admin-muted">{r.registerNo ?? r.rollNo ?? r.studentIdNo}</p>
-        </div>
-      ),
-    },
-    {
-      key: "company",
-      header: "Company",
-      render: (r) => (
-        <div>
-          <p className="text-admin-body">{r.companyName}</p>
-          {r.jobRole && <p className="text-xs text-admin-muted">{r.jobRole}</p>}
-        </div>
-      ),
-    },
-    { key: "ctc", header: "CTC", mono: true, render: (r) => lpa(r.offeredPackageLpa ?? r.packageLpa) },
-    { key: "released", header: "Released", render: (r) => dateLabel(r.releasedAt) },
-    {
-      key: "status",
-      header: "Status",
-      render: (r) => {
-        const label = offerResponseLabel(r.offerResponse);
-        return <Badge tone={statusTone(label)}>{label}</Badge>;
-      },
-    },
+    { key: "student", header: sortableHeader("Student", "student"), width: "1.1fr", render: (r) => <span className="font-bold text-ink">{r.studentName ?? r.studentIdNo}</span> },
+    { key: "reg", header: sortableHeader("Register no.", "reg"), width: "1fr", render: (r) => <span className="font-mono text-[12px]">{r.registerNo ?? r.rollNo ?? r.studentIdNo}</span> },
+    { key: "company", header: sortableHeader("Company", "company"), width: "1fr", render: (r) => <>{r.companyName}</> },
+    { key: "role", header: sortableHeader("Role", "role"), width: "1.2fr", render: (r) => <>{r.jobRole ?? "—"}</> },
+    { key: "ctc", header: sortableHeader("CTC", "ctc"), width: "0.8fr", render: (r) => <span className="font-mono text-[12px]">{lpa(r.offeredPackageLpa ?? r.packageLpa)}</span> },
+    { key: "released", header: sortableHeader("Released", "released"), width: "1fr", render: (r) => <>{dateLabel(r.releasedAt)}</> },
+    { key: "status", header: sortableHeader("Status", "status"), width: "0.9fr", render: (r) => <Badge tone={statusTone(r.offerResponse)}>{statusLabel(r.offerResponse)}</Badge> },
     {
       key: "actions",
       header: "",
+      width: "1.2fr",
       align: "right",
       render: (r) => (
         <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="primary" onClick={() => setUpdateTarget(r)}>
+          <Button variant="primarySmall" onClick={() => setUpdateTarget(r)}>
             Update
           </Button>
-          <Dropdown
-            trigger={<IconButton icon="more_vert" size={34} iconSize={17} />}
-            items={[
-              { key: "accept", label: "Mark accepted", onSelect: () => quickSetResponse(r, "accepted"), disabled: r.offerResponse === "accepted" },
-              { key: "decline", label: "Mark declined", onSelect: () => quickSetResponse(r, "declined"), disabled: r.offerResponse === "declined" },
-              { key: "letter", label: "Offer letter", onSelect: () => show("No offer letter uploaded yet.", "error") },
-            ]}
-          />
+          <Button variant="secondary" onClick={() => show("No offer letter uploaded yet.", "error")}>
+            Letter
+          </Button>
         </div>
       ),
     },
   ];
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader
-        title="Offers"
-        description="Offer letters released, accepted and declined this cycle."
-        actions={
-          <Button variant="secondary" onClick={handleExport}>
-            <Icon name="download" size={16} /> Export
-          </Button>
-        }
-      />
-
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Offers released" icon="workspace_premium" value={total} sub="Including multiple offers per student" />
-        <KpiCard label="Accepted" icon="check_circle" value={accepted} delta={`${acceptedPct}%`} sub="acceptance" progress={acceptedPct} />
-        <KpiCard label="Pending response" icon="hourglass_empty" value={pending} delta={`${pendingPct}%`} sub="of offers" progress={pendingPct} />
-        <KpiCard label="Declined" icon="cancel" value={declined} sub={`${total > 0 ? Math.round((declined / total) * 100) : 0}% of offers`} />
+    <div className="flex flex-col gap-4.5">
+      <div className="flex flex-wrap items-end gap-5">
+        <div className="min-w-70 flex-1">
+          <h1 className="m-0 text-[26px] font-bold tracking-[-.02em] text-ink">Offers</h1>
+          <p className="mt-1.5 text-[13px] text-muted">Offer letters released, accepted and declined this cycle.</p>
+        </div>
+        <Button variant="secondary" onClick={handleExport}>
+          Export
+        </Button>
       </div>
 
-      <OfferFilters
-        value={filters}
-        onChange={(next) => {
-          setFilters(next);
-          setPage(1);
-        }}
-        departmentOptions={departmentOptions}
-      />
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(206px,1fr))] gap-3">
+        <StatCard label="Offers released" value={total} sub="Including multiple offers per student" />
+        <StatCard label="Accepted" value={accepted} sub={`${acceptedPct}% acceptance`} barPercent={acceptedPct} />
+        <StatCard label="Pending response" value={pending} sub={`${pendingPct}% of offers`} barPercent={pendingPct} />
+        <StatCard label="Declined" value={declined} sub={`${declinedPct}% of offers`} />
+      </div>
 
       <DataTable
-        columns={columns}
-        rows={pageRows}
-        rowKey={(r) => r.id}
-        isLoading={isLoading}
-        error={error instanceof ApiError ? error.message : error ? "Failed to load offers." : null}
-        emptyTitle="No offers match these filters"
-        footer={
-          <NumberedPagination
-            page={page}
-            pageSize={pageSize}
-            total={filtered.length}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
+        title="Offers"
+        titleNote={
+          <div className="flex gap-2.5">
+            <Input value={query} onChange={(e) => resetPage(setQuery)(e.target.value)} placeholder="Search offers" className="h-[34px] min-w-55" />
+            <Select value={status} onChange={(e) => resetPage(setStatus)(e.target.value)} className="h-[34px]">
+              {["All statuses", "Accepted", "Pending", "Declined"].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Select>
+            <Select value={department} onChange={(e) => resetPage(setDepartment)(e.target.value)} className="h-[34px]">
+              {departmentOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
+            <Button
+              variant="secondary"
+              className="h-[34px]"
+              onClick={() => {
+                setQuery("");
+                setStatus("All statuses");
+                setDepartment("All departments");
+                setSortKey(null);
+                setPage(1);
+              }}
+            >
+              Reset
+            </Button>
+          </div>
         }
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        loading={isLoading}
+        hoverableRows
+        emptyMessage={error ? "Failed to load offers." : "No offers match these filters."}
       />
+      <NumberedPagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
 
       <UpdateOfferModal open={updateTarget !== null} offer={updateTarget} onClose={() => setUpdateTarget(null)} />
     </div>

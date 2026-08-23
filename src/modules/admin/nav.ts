@@ -40,6 +40,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/students", label: "Students", icon: "groups", badgeKey: "studentCount" },
       { href: "/admin/students/admit", label: "Admissions", icon: "person_add" },
+      { href: "/admin/academics", label: "Academic structure", icon: "layers" },
     ],
   },
   {

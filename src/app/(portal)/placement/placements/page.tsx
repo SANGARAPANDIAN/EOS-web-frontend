@@ -2,49 +2,104 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useOffers } from "@/modules/placement/hooks/useOffers";
+import { useStudentReport } from "@/modules/placement/hooks/useStudentReport";
+import { useDashboardSummary } from "@/modules/placement/hooks/useDashboardSummary";
+import { StatCard } from "@/components/ui/StatCard";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
-import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { downloadCsv } from "@/lib/utils/csv";
-import { ApiError } from "@/types/api";
-import {
-  PageHeader,
-  Button,
-  Badge,
-  FilterBar,
-  Input,
-  Select,
-  KpiCard,
-  SectionCard,
-  DataTable,
-  NumberedPagination,
-  type DataTableColumn,
-} from "@/modules/admin/components/ui";
-import { VerticalBarChart } from "@/modules/admin/components/ui/charts";
-import { useOffers, type Offer } from "@/modules/placement/api/offers";
-import { useStudentReport } from "@/modules/placement/api/studentReport";
-import { useDashboardSummary } from "@/modules/placement/api/dashboard";
-import { lpa } from "@/modules/placement/lib/format";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { NumberedPagination } from "@/modules/admin/components/ui/NumberedPagination";
 import { DepartmentPlacementBreakdown } from "@/modules/placement/components/placements/DepartmentPlacementBreakdown";
+import { VerticalBarChart } from "@/modules/placement/components/placements/VerticalBarChart";
+import type { Offer } from "@/modules/placement/types";
 
 const PAGE_SIZE = 8;
+
+function lpa(value: number | undefined): string {
+  return value == null ? "—" : `₹${value.toFixed(1)} LPA`;
+}
 
 function joiningLabel(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
 
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+type SortKey = "student" | "reg" | "dept" | "company" | "role" | "ctc" | "joining" | "location";
+
+function sortValue(r: Offer, key: SortKey): string | number {
+  switch (key) {
+    case "student":
+      return r.studentName ?? r.studentIdNo;
+    case "reg":
+      return r.registerNo ?? r.rollNo ?? r.studentIdNo;
+    case "dept":
+      return r.departmentCode ?? "";
+    case "company":
+      return r.companyName;
+    case "role":
+      return r.jobRole ?? "";
+    case "ctc":
+      return r.offeredPackageLpa ?? r.packageLpa ?? -1;
+    case "joining":
+      return r.joiningDate ?? "";
+    case "location":
+      return r.workLocation ?? "";
+  }
+}
+
 export default function PlacementsPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query);
   const [department, setDepartment] = useState("All departments");
   const [joining, setJoining] = useState("All joining");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const { data: offersData, isLoading, error } = useOffers();
   const { data: studentReport } = useStudentReport();
-  const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
+  const { data: summary } = useDashboardSummary();
+
+  function resetPage<T>(setter: (v: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  function sortableHeader(label: string, key: SortKey) {
+    return (
+      <button type="button" onClick={() => toggleSort(key)} className="flex items-center gap-1 uppercase">
+        {label}
+        {sortKey === key && <Icon name={sortDir === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />}
+      </button>
+    );
+  }
 
   const rows = useMemo(() => (offersData ?? []).filter((o) => o.offerResponse === "accepted"), [offersData]);
   const totalStudents = studentReport?.length ?? 0;
@@ -60,16 +115,25 @@ export default function PlacementsPage() {
   }, [rows]);
 
   const filtered = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    return rows.filter((r) => {
+    const q = query.trim().toLowerCase();
+    const list = rows.filter((r) => {
       const matchesQuery = !q || (r.studentName ?? r.studentIdNo).toLowerCase().includes(q) || r.companyName.toLowerCase().includes(q);
       const matchesDept = department === "All departments" || r.departmentCode === department;
       const matchesJoining = joining === "All joining" || joiningLabel(r.joiningDate) === joining;
       return matchesQuery && matchesDept && matchesJoining;
     });
-  }, [rows, debouncedQuery, department, joining]);
+    if (sortKey) {
+      list.sort((a, b) => {
+        const av = sortValue(a, sortKey);
+        const bv = sortValue(b, sortKey);
+        const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return list;
+  }, [rows, query, department, joining, sortKey, sortDir]);
 
-  const pageRows = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
+  const paged = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
   const placed = rows.length;
   const placementPct = totalStudents > 0 ? Math.round((placed / totalStudents) * 1000) / 10 : 0;
@@ -85,134 +149,108 @@ export default function PlacementsPage() {
   }, null);
 
   function handleExport() {
-    downloadCsv(
-      "placements.csv",
-      [
-        { header: "Student", value: (r: Offer) => r.studentName ?? r.studentIdNo },
-        { header: "Register number", value: (r: Offer) => r.registerNo ?? r.rollNo ?? r.studentIdNo },
-        { header: "Dept", value: (r: Offer) => r.departmentCode ?? "" },
-        { header: "Company", value: (r: Offer) => r.companyName },
-        { header: "Role", value: (r: Offer) => r.jobRole ?? "" },
-        { header: "CTC", value: (r: Offer) => lpa(r.offeredPackageLpa ?? r.packageLpa) },
-        { header: "Joining", value: (r: Offer) => joiningLabel(r.joiningDate) },
-        { header: "Location", value: (r: Offer) => r.workLocation ?? "" },
-        { header: "Status", value: () => "Accepted" },
-      ],
-      filtered,
-    );
+    const header = ["Student", "Register number", "Dept", "Company", "Role", "CTC", "Joining", "Location", "Status"];
+    const body = filtered.map((r) => [
+      r.studentName ?? r.studentIdNo,
+      r.registerNo ?? r.rollNo ?? r.studentIdNo,
+      r.departmentCode ?? "—",
+      r.companyName,
+      r.jobRole ?? "—",
+      lpa(r.offeredPackageLpa ?? r.packageLpa),
+      joiningLabel(r.joiningDate),
+      r.workLocation ?? "—",
+      "Accepted",
+    ]);
+    downloadCsv("placements.csv", [header, ...body]);
   }
 
   const columns: DataTableColumn<Offer>[] = [
-    {
-      key: "student",
-      header: "Student",
-      render: (r) => (
-        <div>
-          <p className="font-semibold text-admin-ink">{r.studentName ?? r.studentIdNo}</p>
-          <p className="text-xs text-admin-muted">{r.registerNo ?? r.rollNo ?? r.studentIdNo}</p>
-        </div>
-      ),
-    },
-    { key: "dept", header: "Dept", render: (r) => r.departmentCode ?? "—" },
-    {
-      key: "company",
-      header: "Company",
-      render: (r) => (
-        <div>
-          <p className="font-semibold text-admin-body">{r.companyName}</p>
-          {r.jobRole && <p className="text-xs text-admin-muted">{r.jobRole}</p>}
-        </div>
-      ),
-    },
-    { key: "ctc", header: "CTC", mono: true, render: (r) => lpa(r.offeredPackageLpa ?? r.packageLpa) },
-    { key: "joining", header: "Joining", render: (r) => joiningLabel(r.joiningDate) },
-    { key: "location", header: "Location", render: (r) => r.workLocation ?? "—" },
-    { key: "status", header: "Status", render: () => <Badge tone="success">Accepted</Badge> },
+    { key: "student", header: sortableHeader("Student", "student"), width: "1.1fr", render: (r) => <span className="font-bold text-ink">{r.studentName ?? r.studentIdNo}</span> },
+    { key: "reg", header: sortableHeader("Register no.", "reg"), width: "1fr", render: (r) => <span className="font-mono text-[12px]">{r.registerNo ?? r.rollNo ?? r.studentIdNo}</span> },
+    { key: "dept", header: sortableHeader("Dept", "dept"), width: "0.7fr", render: (r) => <>{r.departmentCode ?? "—"}</> },
+    { key: "company", header: sortableHeader("Company", "company"), width: "1fr", render: (r) => <span className="font-bold">{r.companyName}</span> },
+    { key: "role", header: sortableHeader("Role", "role"), width: "1.2fr", render: (r) => <>{r.jobRole ?? "—"}</> },
+    { key: "ctc", header: sortableHeader("CTC", "ctc"), width: "0.8fr", render: (r) => <span className="font-mono text-[12px]">{lpa(r.offeredPackageLpa ?? r.packageLpa)}</span> },
+    { key: "joining", header: sortableHeader("Joining", "joining"), width: "0.8fr", render: (r) => <>{joiningLabel(r.joiningDate)}</> },
+    { key: "location", header: sortableHeader("Location", "location"), width: "0.9fr", render: (r) => <>{r.workLocation ?? "—"}</> },
+    { key: "status", header: "STATUS", width: "0.8fr", render: () => <Badge tone="accentDark">Accepted</Badge> },
   ];
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader
-        title="Placements"
-        description="Confirmed placements, joining details and outcome analysis."
-        actions={
-          <Button variant="secondary" onClick={handleExport}>
-            <Icon name="download" size={16} /> Export
-          </Button>
-        }
-      />
+    <div className="flex flex-col gap-4.5">
+      <div className="flex flex-wrap items-end gap-5">
+        <div className="min-w-70 flex-1">
+          <h1 className="m-0 text-[26px] font-bold tracking-[-.02em] text-ink">Placements</h1>
+          <p className="mt-1.5 text-[13px] text-muted">Confirmed placements, joining details and outcome analysis.</p>
+        </div>
+        <Button variant="secondary" onClick={handleExport}>
+          Export
+        </Button>
+      </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Students placed" icon="workspace_premium" value={placed} sub={`of ${totalStudents.toLocaleString()} registered`} progress={placementPct} />
-        <KpiCard
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(206px,1fr))] gap-3">
+        <StatCard label="Students placed" value={placed} sub={`of ${totalStudents} registered`} barPercent={placementPct} />
+        <StatCard
           label="Placement percentage"
-          icon="percent"
           value={`${placementPct}%`}
           delta={trendDelta != null ? `${trendDelta >= 0 ? "+" : ""}${trendDelta} pts` : undefined}
           sub={`${placed} of ${totalStudents} registered`}
         />
-        <KpiCard label="Average package" icon="payments" value={lpa(averagePackage ?? undefined)} sub="Across accepted offers" />
-        <KpiCard
+        <StatCard label="Average package" value={lpa(averagePackage ?? undefined)} sub="Across accepted offers" />
+        <StatCard
           label="Highest package"
-          icon="military_tech"
           value={lpa(highestRow?.offeredPackageLpa ?? highestRow?.packageLpa)}
           sub={highestRow ? `${highestRow.companyName} · ${highestRow.departmentCode ?? "—"}` : "—"}
         />
       </div>
 
-      <FilterBar>
-        <Input leadingIcon="search" placeholder="Search placements" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} className="max-w-xs" />
-        <Select value={department} onChange={(e) => { setDepartment(e.target.value); setPage(1); }} className="w-44">
-          {departmentOptions.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </Select>
-        <Select value={joining} onChange={(e) => { setJoining(e.target.value); setPage(1); }} className="w-40">
-          {joiningOptions.map((j) => (
-            <option key={j} value={j}>
-              {j}
-            </option>
-          ))}
-        </Select>
-      </FilterBar>
-
       <DataTable
-        columns={columns}
-        rows={pageRows}
-        rowKey={(r) => r.id}
-        onRowClick={(r) => router.push(`/placement/placements/${r.id}`)}
-        isLoading={isLoading}
-        error={error instanceof ApiError ? error.message : error ? "Failed to load placements." : null}
-        emptyTitle="No placements match these filters"
-        footer={
-          <NumberedPagination
-            page={page}
-            pageSize={pageSize}
-            total={filtered.length}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
+        title="Placements"
+        titleNote={
+          <div className="flex gap-2.5">
+            <Input value={query} onChange={(e) => resetPage(setQuery)(e.target.value)} placeholder="Search placements" className="h-[34px] min-w-55" />
+            <Select value={department} onChange={(e) => resetPage(setDepartment)(e.target.value)} className="h-[34px]">
+              {departmentOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
+            <Select value={joining} onChange={(e) => resetPage(setJoining)(e.target.value)} className="h-[34px]">
+              {joiningOptions.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
+              ))}
+            </Select>
+            <Button
+              variant="secondary"
+              className="h-[34px]"
+              onClick={() => {
+                setQuery("");
+                setDepartment("All departments");
+                setJoining("All joining");
+                setSortKey(null);
+                setPage(1);
+              }}
+            >
+              Reset
+            </Button>
+          </div>
         }
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        loading={isLoading}
+        hoverableRows
+        onRowClick={(r) => router.push(`/placement/placements/${r.id}`)}
+        emptyMessage={error ? "Failed to load placements." : "No placements match these filters."}
       />
+      <NumberedPagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <SectionCard title="Department-wise placement" subtitle="Placed vs registered">
-          <DepartmentPlacementBreakdown data={summary?.placementRateByDepartment ?? []} isLoading={summaryLoading} />
-        </SectionCard>
-        <SectionCard title="Package bands" subtitle="Accepted offers by CTC range">
-          {summary && summary.packageBands.some((b) => b.count > 0) ? (
-            <VerticalBarChart data={summary.packageBands.map((b) => ({ label: `₹${b.label}`, value: b.count }))} height={200} />
-          ) : (
-            <p className="flex h-[200px] items-center justify-center text-sm text-admin-subtle">
-              {summaryLoading ? "Loading…" : "No accepted offers yet."}
-            </p>
-          )}
-        </SectionCard>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3.5">
+        <DepartmentPlacementBreakdown data={summary?.placementRateByDepartment ?? []} />
+        <VerticalBarChart data={summary?.packageBands ?? []} />
       </div>
     </div>
   );

@@ -1,52 +1,47 @@
 import Link from "next/link";
-import { Icon } from "@/components/ui/Icon";
-import { SectionCard, PendingNotice } from "@/modules/admin/components/ui";
-import type { AttentionFlag } from "@/modules/placement/api/dashboard";
+import { Card } from "@/components/ui/Card";
+import type { AttentionFlag } from "../../types";
 
 interface NeedsAttentionCardProps {
   data: AttentionFlag[];
-  isLoading: boolean;
 }
 
-/** Threshold-triggered dot tone by the flag's real target page — flags are conditionally included by the backend, so index position isn't stable. */
-function dotClass(flag: AttentionFlag): string {
-  if (flag.href.includes("/placement/offers")) return "bg-admin-warning-fg";
-  if (flag.href.includes("drive=") || flag.href.includes("/placement/drives")) return "bg-admin-primary";
-  if (flag.href.includes("/placement/students")) return "bg-admin-muted";
-  return "bg-admin-primary";
+/** Mirrors the reference's 4 semantic dot tones (amber/red/amber/slate) by matching the real flag's target page, since flags are conditionally included so index position isn't stable. */
+function dotColor(flag: AttentionFlag): string {
+  if (flag.href.startsWith("/placement/offers")) return "bg-[#5b7fdf]";
+  if (flag.href.includes("drive=")) return "bg-[#5b7fdf]";
+  if (flag.href.startsWith("/placement/rounds")) return "bg-primary-dark";
+  if (flag.href.startsWith("/placement/students")) return "bg-muted";
+  return "bg-[#5b7fdf]";
 }
 
-/** Every flag here is threshold-triggered from real data (GET /drives/placement-stats) — nothing is a static illustrative value. */
-export function NeedsAttentionCard({ data, isLoading }: NeedsAttentionCardProps) {
+/** Every flag here is threshold-triggered from real data (DrivesService.getPlacementStats on the backend) — nothing is a static illustrative value. */
+export function NeedsAttentionCard({ data }: NeedsAttentionCardProps) {
   return (
-    <SectionCard title="Needs attention">
-      {data.length === 0 ? (
-        <PendingNotice
-          reason={
-            isLoading
-              ? "Loading…"
-              : "Nothing is currently over threshold — screening, shortlists and offer responses all look healthy."
-          }
-          height={100}
-        />
-      ) : (
-        <div className="flex flex-col">
-          {data.map((flag, i) => (
-            <Link
-              key={i}
-              href={flag.href}
-              className="flex items-center gap-3 border-t border-admin-divider py-2.5 first:border-t-0 hover:bg-admin-tint"
-            >
-              <span className={`size-2 shrink-0 rounded-full ${dotClass(flag)}`} />
-              <div className="min-w-0 flex-1">
-                <div className="text-[12.5px] font-semibold text-admin-ink">{flag.title}</div>
-                <div className="mt-0.5 text-[11px] text-admin-muted">{flag.description}</div>
-              </div>
-              <Icon name="chevron_right" size={16} className="text-admin-border-hover" />
-            </Link>
-          ))}
-        </div>
-      )}
-    </SectionCard>
+    <Card>
+      <div className="text-sm font-bold text-ink">Needs attention</div>
+
+      <div className="mt-2 flex flex-col">
+        {data.length === 0 && (
+          <p className="py-2 text-[13px] text-subtle">
+            Nothing is currently over threshold — screening, shortlists and offer responses all look healthy.
+          </p>
+        )}
+        {data.map((flag, i) => (
+          <Link
+            key={i}
+            href={flag.href}
+            className="flex items-center gap-[11px] border-t border-divider px-[3px] py-[11px] hover:bg-surface-tint"
+          >
+            <span className={`size-2 shrink-0 rounded-full ${dotColor(flag)}`} />
+            <div className="flex-1">
+              <div className="text-[12.5px] font-semibold">{flag.title}</div>
+              <div className="mt-0.5 text-[11px] text-muted">{flag.description}</div>
+            </div>
+            <span className="text-sm text-subtle">›</span>
+          </Link>
+        ))}
+      </div>
+    </Card>
   );
 }

@@ -1,33 +1,66 @@
 "use client";
 
-import { Suspense } from "react";
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/modules/admin/components/ui/ToastProvider";
-import { Badge, type BadgeTone, Button, Card } from "@/modules/admin/components/ui";
-import { useStudentProfile } from "@/modules/placement/api/students";
-import type { StudentApplicationRow, StudentOfferRow, StudentProfile } from "@/modules/placement/api/students";
-import { applicationStageLabel, dateLabel, lpa, offerResponseLabel, rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
+import { useStudentProfile } from "@/modules/placement/hooks/useStudentProfile";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import type { ApplicationStatus, StudentApplicationRow, StudentOfferRow, StudentProfile } from "@/modules/placement/types";
 
-function statusTone(label: string): BadgeTone {
-  if (label === "Placed") return "success";
-  if (label === "Not placed") return "danger";
-  if (label === "In process") return "warning";
+function statusLabel(status: ApplicationStatus | null): string {
+  if (status === "placed") return "Placed";
+  if (status === "rejected") return "Not placed";
+  if (status === null) return "Not applied";
+  return "In process";
+}
+
+function statusTone(status: ApplicationStatus | null): "accent" | "accentDark" | "neutral" | "danger" {
+  if (status === "placed") return "accentDark";
+  if (status === "rejected") return "danger";
+  if (status === null) return "neutral";
+  return "accent";
+}
+
+function applicationStageLabel(status: ApplicationStatus): string {
+  if (status === "placed") return "Selected";
+  if (status === "rejected") return "Rejected";
+  if (status === "r1_cleared") return "Shortlisted";
+  if (status === "r2_cleared" || status === "r3_cleared") return "In process";
+  return "Applied";
+}
+
+function applicationStageTone(status: ApplicationStatus): "accent" | "accentDark" | "neutral" | "danger" {
+  if (status === "placed") return "accentDark";
+  if (status === "rejected") return "danger";
+  return "accent";
+}
+
+function offerResponseLabel(response: StudentOfferRow["offerResponse"]): string {
+  if (response === "accepted") return "Accepted";
+  if (response === "declined") return "Declined";
+  return "Pending";
+}
+
+function offerResponseTone(response: StudentOfferRow["offerResponse"]): "accent" | "accentDark" | "neutral" | "danger" {
+  if (response === "accepted") return "accentDark";
+  if (response === "declined") return "danger";
   return "neutral";
 }
 
-function stageTone(label: string): BadgeTone {
-  if (label === "Selected") return "success";
-  if (label === "Rejected") return "danger";
-  if (label === "In process" || label === "Shortlisted") return "warning";
-  return "neutral";
+function lpa(value: number | null): string {
+  return value == null ? "—" : `₹${value.toFixed(1)} LPA`;
 }
 
-function offerTone(label: string): BadgeTone {
-  if (label === "Accepted") return "success";
-  if (label === "Declined") return "danger";
-  return "warning";
+function dateLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function yearLabel(year: number | null): string {
+  if (year == null) return "—";
+  const roman = ["I", "II", "III", "IV"][year - 1] ?? String(year);
+  return `${roman} Year`;
 }
 
 function initials(name: string): string {
@@ -37,7 +70,7 @@ function initials(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-/** Real, from student_profiles — genuinely available and directly useful to a placement officer reviewing a candidate. */
+/** Real, from student_profiles — directly useful to a placement officer reviewing a candidate. */
 function profileLinks(profile: StudentProfile): { label: string; url: string }[] {
   return [
     profile.linkedinUrl && { label: "LinkedIn", url: profile.linkedinUrl },
@@ -48,12 +81,25 @@ function profileLinks(profile: StudentProfile): { label: string; url: string }[]
   ].filter((l): l is { label: string; url: string } => !!l);
 }
 
-function DetailRow({ label, value, badge, badgeTone }: { label: string; value?: string; badge?: string; badgeTone?: BadgeTone }) {
+function DetailRow({ label, value, badge, tone }: { label: string; value: string; badge?: string; tone?: "accent" | "accentDark" | "neutral" | "danger" }) {
   return (
-    <div className="flex items-center gap-3.5 border-t border-admin-divider py-2.5 first:border-t-0">
-      <span className="min-w-[140px] text-[12.5px] text-admin-muted">{label}</span>
-      {value !== undefined && <span className="flex-1 text-sm font-medium text-admin-ink">{value}</span>}
-      {badge && <Badge tone={badgeTone ?? "neutral"}>{badge}</Badge>}
+    <div className="flex items-center gap-3.5 border-t border-divider py-2.5 first:border-t-0">
+      <span className="min-w-33 text-[12.5px] text-subtle">{label}</span>
+      <span className="flex-1 text-[13px] font-semibold text-ink">{value}</span>
+      {badge && <Badge tone={tone ?? "neutral"}>{badge}</Badge>}
+    </div>
+  );
+}
+
+function ListRow({ title, meta, right, badge, tone }: { title: string; meta: string; right?: string; badge: string; tone: "accent" | "accentDark" | "neutral" | "danger" }) {
+  return (
+    <div className="flex items-center gap-3.5 border-t border-divider py-3 first:border-t-0">
+      <div className="min-w-0 flex-1">
+        <div className="text-[13.5px] font-bold text-ink">{title}</div>
+        <div className="mt-0.5 text-xs text-subtle">{meta}</div>
+      </div>
+      {right && <span className="font-mono text-[13px] font-medium">{right}</span>}
+      <Badge tone={tone}>{badge}</Badge>
     </div>
   );
 }
@@ -77,11 +123,7 @@ function buildJourney(profile: StudentProfile): JourneyStep[] {
     { label: "Applied", meta: `${profile.drivesApplied} drive${profile.drivesApplied === 1 ? "" : "s"}`, done: profile.drivesApplied > 0 },
     { label: "Shortlisted", meta: shortlisted ? "Cleared screening" : "Not yet shortlisted", done: shortlisted },
     { label: "Interviewed", meta: interviewed ? "Rounds cleared" : "Not yet scheduled", done: interviewed },
-    {
-      label: "Offer received",
-      meta: offerReceived ? `${profile.offersCount} offer${profile.offersCount === 1 ? "" : "s"}` : "No offer yet",
-      done: offerReceived,
-    },
+    { label: "Offer received", meta: offerReceived ? `${profile.offersCount} offer${profile.offersCount === 1 ? "" : "s"}` : "No offer yet", done: offerReceived },
     {
       label: "Placed",
       meta: placed ? "Offer accepted" : bestOffer?.offerResponse === "declined" ? "Offer declined" : "Awaiting response",
@@ -90,125 +132,115 @@ function buildJourney(profile: StudentProfile): JourneyStep[] {
   ];
 }
 
-function StudentDetailContent({ id }: { id: number }) {
+export default function StudentDetailPage() {
+  const params = useParams<{ id: string }>();
+  const id = Number(params.id);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { show } = useToast();
   const driveId = searchParams.get("driveId");
   const { data: profile, isLoading, error } = useStudentProfile(id);
 
-  if (isLoading) return <p className="text-sm text-admin-muted">Loading…</p>;
-  if (error || !profile) return <p className="text-sm text-admin-danger">Failed to load this student.</p>;
+  if (isLoading || error || !profile) {
+    return <EmptyState loading={isLoading} message={error ? "Failed to load this student." : "Student not found."} />;
+  }
 
-  const backLabel = driveId ? "Back to Placement Drives" : "Back to Students";
+  const backLabel = driveId ? "← Back to Placement Drives" : "← Back to Students";
   const backHref = driveId ? `/placement/drives/${driveId}` : "/placement/students";
   const journey = buildJourney(profile);
-  const statusLabel = rosterStatusLabel(profile.status);
-  const bestOfferPackage = Math.max(0, ...profile.offers.map((o) => o.offeredPackageLpa ?? 0)) || null;
+  const links = profileLinks(profile);
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex items-center gap-1.5 text-sm text-admin-muted">
-          <Link href="/placement/students" className="hover:text-admin-body">
-            Students
-          </Link>
-          <Icon name="chevron_right" size={15} />
-          <span className="font-semibold text-admin-body">{profile.name}</span>
-        </nav>
-        <button
-          type="button"
-          onClick={() => router.push(backHref)}
-          className="flex items-center gap-1.5 text-sm font-semibold text-admin-body hover:text-admin-ink"
-        >
-          <Icon name="arrow_back" size={15} /> {backLabel}
-        </button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <Button variant="secondary" className="h-8.5 self-start px-3.5" onClick={() => router.push(backHref)}>
+        {backLabel}
+      </Button>
 
-      <Card hoverable={false} className="p-6">
-        <div className="flex flex-wrap items-start gap-5">
-          <div className="h-[62px] w-[62px] shrink-0 overflow-hidden rounded-full">
-            {profile.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- external storage URL, not a local asset
-              <img src={profile.photoUrl} alt={profile.name} className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full w-full place-items-center bg-admin-tint-strong text-xl font-bold text-admin-primary-deep">
-                {initials(profile.name)}
-              </div>
-            )}
-          </div>
-          <div className="min-w-[220px] flex-1">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="font-sans text-2xl font-extrabold tracking-tight text-admin-ink">{profile.name}</h1>
-              <Badge tone={statusTone(statusLabel)}>{statusLabel}</Badge>
+      <Card className="p-[24px_26px]">
+        <div className="flex flex-wrap items-center gap-4.5">
+          {profile.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external Supabase storage URL, not a local asset
+            <img src={profile.photoUrl} alt={profile.name} className="size-[62px] shrink-0 rounded-full object-cover" />
+          ) : (
+            <div className="flex size-[62px] shrink-0 items-center justify-center rounded-full bg-accent-100 text-[21px] font-bold text-primary">
+              {initials(profile.name)}
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-admin-muted">
+          )}
+          <div className="min-w-55 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[26px] font-bold tracking-[-.02em] text-ink">{profile.name}</span>
+              <Badge tone={statusTone(profile.status)}>{statusLabel(profile.status)}</Badge>
+              <Badge tone="neutral">Not tracked</Badge>
+            </div>
+            <div className="mt-1.5 flex items-center gap-2.5 text-[13px] text-muted">
               <span className="font-mono">{profile.registerNo ?? profile.studentIdNo}</span>
-              <span>·</span>
+              <span className="text-border-default">·</span>
               <span>{profile.departmentCode ?? "—"}</span>
-              <span>·</span>
+              <span className="text-border-default">·</span>
               <span>{yearLabel(profile.year)}</span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <a href={`mailto:${profile.email}`}>
-              <Button variant="secondary">
-                <Icon name="mail" size={16} /> Email student
-              </Button>
+          <div className="flex gap-2">
+            <a
+              href={`mailto:${profile.email}`}
+              className="rounded-[11px] border-[1.5px] border-border-accent bg-surface px-[22px] py-[13px] text-sm font-bold text-primary transition-colors hover:bg-nav-hover"
+            >
+              Email student
             </a>
             {/* Some seeded resume_url rows are placeholder relative paths that don't resolve to a real file — only treat it as a real download once it's an actual URL. */}
             {profile.resumeUrl?.startsWith("http") ? (
-              <a href={profile.resumeUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="primary">
-                  <Icon name="description" size={16} /> Download resume
-                </Button>
-              </a>
+              <Button variant="primarySmall" onClick={() => window.open(profile.resumeUrl!, "_blank", "noopener,noreferrer")}>
+                Download resume
+              </Button>
             ) : (
-              <Button variant="primary" onClick={() => show("No resume uploaded yet.", "error")}>
-                <Icon name="description" size={16} /> Download resume
+              <Button variant="primarySmall" onClick={() => show("No resume uploaded yet.", "error")}>
+                Download resume
               </Button>
             )}
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "CGPA", value: "—", sub: "Not tracked in this system yet" },
-            { label: "Standing arrears", value: "—", sub: "Not tracked in this system yet" },
-            { label: "Applications", value: String(profile.drivesApplied), sub: "This placement cycle" },
-            { label: "Offers", value: String(profile.offersCount), sub: lpa(bestOfferPackage) },
-          ].map((tile) => (
-            <div key={tile.label} className="rounded-admin-md bg-admin-tint p-3.5">
-              <p className="text-[11.5px] text-admin-muted">{tile.label}</p>
-              <p className="mt-1 font-sans text-xl font-bold tracking-tight text-admin-ink">{tile.value}</p>
-              <p className="mt-0.5 text-[11px] text-admin-subtle">{tile.sub}</p>
+        <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
+          {(
+            [
+              ["CGPA", "—", "Not tracked in this system yet"],
+              ["Standing arrears", "—", "Not tracked in this system yet"],
+              ["Applications", String(profile.drivesApplied), "This placement cycle"],
+              ["Offers", String(profile.offersCount), lpa(Math.max(0, ...profile.offers.map((o) => o.offeredPackageLpa ?? 0)) || null)],
+            ] as const
+          ).map(([label, value, sub]) => (
+            <div key={label} className="rounded-input bg-surface-tint p-[13px_15px]">
+              <div className="text-[11.5px] text-subtle">{label}</div>
+              <div className="mt-1 text-xl font-bold tracking-[-.02em] text-ink">{value}</div>
+              <div className="mt-0.5 text-[11px] text-subtle">{sub}</div>
             </div>
           ))}
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <Card hoverable={false} className="p-5">
-            <h2 className="font-sans text-[15px] font-bold text-admin-ink">Profile</h2>
-            <div className="mt-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-3.5">
+        <div className="flex flex-col gap-3.5">
+          <Card>
+            <div className="text-sm font-bold text-ink">Profile</div>
+            <div className="mt-2 flex flex-col">
               <DetailRow label="Register number" value={profile.registerNo ?? profile.studentIdNo} />
               <DetailRow label="Department" value={profile.departmentCode ?? "—"} />
               <DetailRow label="Year" value={yearLabel(profile.year)} />
               <DetailRow label="CGPA" value="—" />
               <DetailRow label="Standing arrears" value="—" />
-              <DetailRow label="Placement status" badge={statusLabel} badgeTone={statusTone(statusLabel)} />
-              {profileLinks(profile).length > 0 && (
-                <div className="flex items-center gap-3.5 border-t border-admin-divider py-2.5">
-                  <span className="min-w-[140px] text-[12.5px] text-admin-muted">Profiles</span>
+              <DetailRow label="Eligibility" value="" badge="Not tracked" tone="neutral" />
+              <DetailRow label="Placement status" value="" badge={statusLabel(profile.status)} tone={statusTone(profile.status)} />
+              {links.length > 0 && (
+                <div className="flex items-center gap-3.5 border-t border-divider py-2.5">
+                  <span className="min-w-33 text-[12.5px] text-subtle">Profiles</span>
                   <div className="flex flex-1 flex-wrap gap-2">
-                    {profileLinks(profile).map((link) => (
+                    {links.map((link) => (
                       <a
                         key={link.label}
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-admin-sm bg-admin-tint-strong px-2.5 py-1 text-xs font-semibold text-admin-primary hover:bg-admin-tint-deep"
+                        className="rounded-[5px] bg-accent-100 px-2.5 py-[3.5px] text-xs font-semibold text-primary no-underline"
                       >
                         {link.label}
                       </a>
@@ -219,20 +251,20 @@ function StudentDetailContent({ id }: { id: number }) {
             </div>
           </Card>
 
-          <Card hoverable={false} className="p-5">
-            <h2 className="font-sans text-[15px] font-bold text-admin-ink">Placement journey</h2>
+          <Card>
+            <div className="text-sm font-bold text-ink">Placement journey</div>
             <div className="mt-3.5 flex flex-col">
               {journey.map((j, i) => (
                 <div key={j.label} className="flex gap-3">
-                  <div className="flex w-3 flex-col items-center">
-                    <span className={`h-[11px] w-[11px] shrink-0 rounded-full border-2 ${j.done ? "border-admin-primary bg-admin-primary" : "border-admin-border bg-admin-canvas"}`} />
+                  <div className="flex w-2.5 flex-col items-center">
+                    <span className={`size-2.5 shrink-0 rounded-full border-2 ${j.done ? "border-primary bg-primary" : "border-border-default bg-surface"}`} />
                     {i < journey.length - 1 && (
-                      <span className={`my-0.5 min-h-4 w-0.5 flex-1 ${journey[i + 1].done ? "bg-admin-primary" : "bg-admin-divider"}`} />
+                      <span className={`my-1 w-0.5 flex-1 ${journey[i + 1].done ? "bg-primary" : "bg-border-default"}`} style={{ minHeight: 16 }} />
                     )}
                   </div>
                   <div className="pb-3.5">
-                    <p className={`text-sm ${j.done ? "font-semibold text-admin-ink" : "text-admin-muted"}`}>{j.label}</p>
-                    <p className="mt-0.5 text-[11.5px] text-admin-subtle">{j.meta}</p>
+                    <div className={`text-[13px] ${j.done ? "font-bold text-ink" : "font-medium text-subtle"}`}>{j.label}</div>
+                    <div className="mt-0.5 text-[11.5px] text-subtle">{j.meta}</div>
                   </div>
                 </div>
               ))}
@@ -240,67 +272,41 @@ function StudentDetailContent({ id }: { id: number }) {
           </Card>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <Card hoverable={false} className="p-5">
-            <h2 className="font-sans text-[15px] font-bold text-admin-ink">Applications</h2>
-            {profile.applications.length === 0 ? (
-              <p className="mt-3 text-[12.5px] text-admin-subtle">No applications recorded this cycle.</p>
-            ) : (
-              <div className="mt-2">
-                {profile.applications.map((a: StudentApplicationRow) => {
-                  const stage = applicationStageLabel(a.status);
-                  return (
-                    <div key={a.driveId} className="flex items-center gap-3.5 border-t border-admin-divider py-3 first:border-t-0">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13.5px] font-semibold text-admin-ink">{a.companyName}</p>
-                        <p className="mt-0.5 text-xs text-admin-muted">{[a.jobRole, `Applied ${dateLabel(a.updatedAt)}`].filter(Boolean).join(" · ")}</p>
-                      </div>
-                      <Badge tone={stageTone(stage)}>{stage}</Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+        <div className="flex flex-col gap-3.5">
+          <Card>
+            <div className="text-sm font-bold text-ink">Applications</div>
+            {profile.applications.length === 0 && <div className="py-4.5 pb-1.5 text-[12.5px] text-subtle">No applications recorded this cycle.</div>}
+            <div className="mt-2 flex flex-col">
+              {profile.applications.map((a: StudentApplicationRow) => (
+                <ListRow
+                  key={a.driveId}
+                  title={a.companyName}
+                  meta={[a.jobRole, `Applied ${dateLabel(a.updatedAt)}`].filter(Boolean).join(" · ")}
+                  badge={applicationStageLabel(a.status)}
+                  tone={applicationStageTone(a.status)}
+                />
+              ))}
+            </div>
           </Card>
 
-          <Card hoverable={false} className="p-5">
-            <h2 className="font-sans text-[15px] font-bold text-admin-ink">Offers</h2>
-            {profile.offers.length === 0 ? (
-              <p className="mt-3 text-[12.5px] text-admin-subtle">No offers released yet.</p>
-            ) : (
-              <div className="mt-2">
-                {profile.offers.map((o: StudentOfferRow) => {
-                  const response = offerResponseLabel(o.offerResponse);
-                  return (
-                    <div key={o.driveId} className="flex items-center gap-3.5 border-t border-admin-divider py-3 first:border-t-0">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13.5px] font-semibold text-admin-ink">{o.companyName}</p>
-                        <p className="mt-0.5 text-xs text-admin-muted">{[o.jobRole, `Released ${dateLabel(o.updatedAt)}`].filter(Boolean).join(" · ")}</p>
-                      </div>
-                      <span className="font-mono text-sm font-medium text-admin-ink">{lpa(o.offeredPackageLpa)}</span>
-                      <Badge tone={offerTone(response)}>{response}</Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <Card>
+            <div className="text-sm font-bold text-ink">Offers</div>
+            {profile.offers.length === 0 && <div className="py-4.5 pb-1.5 text-[12.5px] text-subtle">No offers released yet.</div>}
+            <div className="mt-2 flex flex-col">
+              {profile.offers.map((o: StudentOfferRow) => (
+                <ListRow
+                  key={o.driveId}
+                  title={o.companyName}
+                  meta={[o.jobRole, `Released ${dateLabel(o.updatedAt)}`].filter(Boolean).join(" · ")}
+                  right={lpa(o.offeredPackageLpa)}
+                  badge={offerResponseLabel(o.offerResponse)}
+                  tone={offerResponseTone(o.offerResponse)}
+                />
+              ))}
+            </div>
           </Card>
         </div>
       </div>
     </div>
-  );
-}
-
-function StudentDetailInner() {
-  const params = useParams<{ id: string }>();
-  const id = Number(params.id);
-  return <StudentDetailContent id={id} />;
-}
-
-export default function StudentDetailPage() {
-  return (
-    <Suspense fallback={<p className="text-sm text-admin-muted">Loading…</p>}>
-      <StudentDetailInner />
-    </Suspense>
   );
 }

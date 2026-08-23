@@ -1,23 +1,27 @@
 "use client";
 
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { Icon } from "@/components/ui/Icon";
-import { Badge, Card } from "@/modules/admin/components/ui";
-import { useOffers } from "@/modules/placement/api/offers";
-import { lpa } from "@/modules/placement/lib/format";
+import { useParams, useRouter } from "next/navigation";
+import { useOffers } from "@/modules/placement/hooks/useOffers";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+
+function lpa(value: number | undefined): string {
+  return value == null ? "—" : `₹${value.toFixed(1)} LPA`;
+}
 
 function joiningLabel(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
 
-function DetailRow({ label, value, badge }: { label: string; value?: string; badge?: React.ReactNode }) {
+function DetailRow({ label, value, badge }: { label: string; value: string; badge?: string }) {
   return (
-    <div className="flex items-center gap-3.5 border-t border-admin-divider py-2.5 first:border-t-0">
-      <span className="min-w-[150px] text-[12.5px] text-admin-muted">{label}</span>
-      {value !== undefined && <span className="flex-1 text-sm font-medium text-admin-ink">{value}</span>}
-      {badge}
+    <div className="flex items-center gap-3.5 border-t border-divider py-2.5">
+      <span className="min-w-33 text-[12.5px] text-muted">{label}</span>
+      <span className="flex-1 text-[13px] font-semibold">{value}</span>
+      {badge && <Badge tone="accentDark">{badge}</Badge>}
     </div>
   );
 }
@@ -25,44 +29,37 @@ function DetailRow({ label, value, badge }: { label: string; value?: string; bad
 export default function PlacementDetailPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
+  const router = useRouter();
   const { data, isLoading, error } = useOffers();
   const placement = data?.find((o) => o.id === id && o.offerResponse === "accepted");
 
-  if (isLoading) return <p className="text-sm text-admin-muted">Loading…</p>;
-  if (error || !placement) return <p className="text-sm text-admin-danger">Failed to load this placement.</p>;
+  if (isLoading || error || !placement) {
+    return <EmptyState loading={isLoading} message={error ? "Failed to load this placement." : "Placement not found."} />;
+  }
 
   return (
-    <div className="flex flex-col gap-5">
-      <nav className="flex items-center gap-1.5 text-sm text-admin-muted">
-        <Link href="/placement/placements" className="hover:text-admin-body">
-          Placements
-        </Link>
-        <Icon name="chevron_right" size={15} />
-        <span className="font-semibold text-admin-body">{placement.studentName ?? placement.studentIdNo}</span>
-      </nav>
+    <div className="flex flex-col gap-4">
+      <Button variant="secondary" className="w-auto self-start" onClick={() => router.push("/placement/placements")}>
+        ← Back to Placements
+      </Button>
 
-      <Card hoverable={false} className="p-6">
-        <p className="font-mono text-[11px] tracking-[.08em] text-admin-subtle uppercase">Placement</p>
-        <h1 className="mt-1.5 font-sans text-[27px] font-extrabold tracking-tight text-admin-ink">
-          {placement.studentName ?? placement.studentIdNo}
-        </h1>
-        <p className="mt-1 text-sm text-admin-muted">
+      <Card>
+        <div className="font-mono text-[11px] tracking-[.8px] text-subtle">PLACEMENT</div>
+        <div className="mt-1.5 text-[27px] font-bold tracking-[-.02em] text-ink">{placement.studentName ?? placement.studentIdNo}</div>
+        <div className="mt-1 text-[13.5px] text-muted">
           {placement.companyName} · {placement.jobRole ?? "—"}
-        </p>
-        <div className="mt-3">
-          <Badge tone="success">Accepted</Badge>
         </div>
       </Card>
 
-      <Card hoverable={false} className="p-5">
-        <h2 className="font-sans text-[15px] font-bold text-admin-ink">Details</h2>
-        <div className="mt-2">
+      <Card>
+        <div className="text-sm font-bold text-ink">Details</div>
+        <div className="mt-2 flex flex-col">
           <DetailRow label="Register number" value={placement.registerNo ?? placement.rollNo ?? placement.studentIdNo} />
           <DetailRow label="Department" value={placement.departmentCode ?? "—"} />
           <DetailRow label="CTC" value={lpa(placement.offeredPackageLpa ?? placement.packageLpa)} />
           <DetailRow label="Joining" value={joiningLabel(placement.joiningDate)} />
           <DetailRow label="Location" value={placement.workLocation ?? "—"} />
-          <DetailRow label="Status" badge={<Badge tone="success">Accepted</Badge>} />
+          <DetailRow label="Status" value="" badge="Accepted" />
         </div>
       </Card>
     </div>

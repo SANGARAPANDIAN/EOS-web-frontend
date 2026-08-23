@@ -1,35 +1,38 @@
 "use client";
 
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { Icon } from "@/components/ui/Icon";
-import { Badge, type BadgeTone, Card } from "@/modules/admin/components/ui";
-import { useInterviews } from "@/modules/placement/api/interviews";
-import { interviewStatusLabel, interviewResultLabel } from "@/modules/placement/lib/format";
+import { useParams, useRouter } from "next/navigation";
+import { useInterviews } from "@/modules/placement/hooks/useInterviews";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import type { ApplicationStatus, InterviewRow, InterviewStatus } from "@/modules/placement/types";
 
-function statusTone(status: string): BadgeTone {
-  if (status === "Completed") return "success";
-  if (status === "In progress") return "warning";
-  return "primary";
+function statusLabel(status: InterviewStatus): string {
+  if (status === "scheduled") return "Scheduled";
+  if (status === "in_progress") return "In progress";
+  return "Completed";
 }
 
-function resultTone(result: string): BadgeTone {
-  if (result === "Selected") return "success";
-  if (result === "Rejected") return "danger";
-  if (result === "In process") return "warning";
+function statusTone(status: InterviewStatus): "accent" | "accentDark" | "neutral" {
+  if (status === "completed") return "accentDark";
+  if (status === "in_progress") return "accent";
   return "neutral";
 }
 
-function DetailRow({ label, value, badge, badgeTone }: { label: string; value?: string; badge?: string; badgeTone?: BadgeTone }) {
+function resultLabel(status: ApplicationStatus | null): string {
+  if (status === "placed") return "Selected";
+  if (status === "rejected") return "Rejected";
+  if (status === "r1_cleared" || status === "r2_cleared" || status === "r3_cleared") return "In process";
+  return "Pending";
+}
+
+function DetailRow({ label, value, badge, tone }: { label: string; value: string; badge?: string; tone?: "accent" | "accentDark" | "neutral" }) {
   return (
-    <div className="flex items-center gap-3.5 border-t border-admin-divider py-2.5 first:border-t-0">
-      <span className="min-w-[150px] text-[12.5px] text-admin-muted">{label}</span>
-      {value !== undefined && <span className="flex-1 text-sm font-medium text-admin-ink">{value}</span>}
-      {badge && (
-        <Badge tone={badgeTone ?? "neutral"} className={value === undefined ? "flex-1 justify-self-start" : undefined}>
-          {badge}
-        </Badge>
-      )}
+    <div className="flex items-center gap-3.5 border-t border-divider py-2.5">
+      <span className="min-w-33 text-[12.5px] text-muted">{label}</span>
+      <span className="flex-1 text-[13px] font-semibold">{value}</span>
+      {badge && <Badge tone={tone}>{badge}</Badge>}
     </div>
   );
 }
@@ -37,47 +40,38 @@ function DetailRow({ label, value, badge, badgeTone }: { label: string; value?: 
 export default function InterviewDetailPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
+  const router = useRouter();
   const { data, isLoading, error } = useInterviews();
-  const interview = data?.find((i) => i.id === id);
+  const interview: InterviewRow | undefined = data?.find((i) => i.id === id);
 
-  if (isLoading) return <p className="text-sm text-admin-muted">Loading…</p>;
-  if (error || !interview) return <p className="text-sm text-admin-danger">Failed to load this interview.</p>;
-
-  const statusLabel = interviewStatusLabel(interview.status);
-  const resultLabel = interviewResultLabel(interview.applicationStatus);
+  if (isLoading || error || !interview) {
+    return <EmptyState loading={isLoading} message={error ? "Failed to load this interview." : "Interview not found."} />;
+  }
 
   return (
-    <div className="flex flex-col gap-5">
-      <nav className="flex items-center gap-1.5 text-sm text-admin-muted">
-        <Link href="/placement/interviews" className="hover:text-admin-body">
-          Interviews
-        </Link>
-        <Icon name="chevron_right" size={15} />
-        <span className="font-semibold text-admin-body">{interview.studentName}</span>
-      </nav>
+    <div className="flex flex-col gap-4">
+      <Button variant="secondary" className="w-auto self-start" onClick={() => router.push("/placement/interviews")}>
+        ← Back to Interviews
+      </Button>
 
-      <Card hoverable={false} className="p-6">
-        <p className="font-mono text-[11px] tracking-[.08em] text-admin-subtle uppercase">Interview</p>
-        <h1 className="mt-1.5 font-sans text-[27px] font-extrabold tracking-tight text-admin-ink">{interview.studentName}</h1>
-        <p className="mt-1 text-sm text-admin-muted">
+      <Card>
+        <div className="font-mono text-[11px] tracking-[.8px] text-subtle">INTERVIEW</div>
+        <div className="mt-1.5 text-[27px] font-bold tracking-[-.02em] text-ink">{interview.studentName}</div>
+        <div className="mt-1 text-[13.5px] text-muted">
           {interview.companyName} · {interview.roundLabel}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Badge tone={statusTone(statusLabel)}>{statusLabel}</Badge>
-          <Badge tone={resultTone(resultLabel)}>{resultLabel}</Badge>
         </div>
       </Card>
 
-      <Card hoverable={false} className="p-5">
-        <h2 className="font-sans text-[15px] font-bold text-admin-ink">Details</h2>
-        <div className="mt-2">
+      <Card>
+        <div className="text-sm font-bold text-ink">Details</div>
+        <div className="mt-2 flex flex-col">
           <DetailRow label="Register number" value={interview.registerNo ?? interview.studentIdNo} />
           <DetailRow label="Department" value={interview.departmentCode ?? "—"} />
           <DetailRow label="Role" value={interview.jobRole ?? "—"} />
           <DetailRow label="Slot" value={interview.slotLabel} />
           <DetailRow label="Panel" value={interview.panelMember} />
-          <DetailRow label="Status" badge={statusLabel} badgeTone={statusTone(statusLabel)} />
-          <DetailRow label="Result" badge={resultLabel} badgeTone={resultTone(resultLabel)} />
+          <DetailRow label="Status" value="" badge={statusLabel(interview.status)} tone={statusTone(interview.status)} />
+          <DetailRow label="Result" value={resultLabel(interview.applicationStatus)} />
           {interview.panelFeedback && <DetailRow label="Panel feedback" value={interview.panelFeedback} />}
         </div>
       </Card>

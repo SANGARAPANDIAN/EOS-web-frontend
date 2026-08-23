@@ -1,23 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Icon } from "@/components/ui/Icon";
-import { PageHeader, Select, Card, SectionCard, PendingNotice, Badge } from "@/modules/admin/components/ui";
-import { useBatches } from "@/modules/placement/api/refData";
-import { useAcademicCalendarPeriods, useCalendarEvents } from "@/modules/placement/api/academicCalendar";
-import type { AcademicCalendarPeriod, CalendarEventItem, CalendarEventType } from "@/modules/placement/api/academicCalendar";
+import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
+import { useBatches } from "@/modules/placement/hooks/useBatches";
+import { useAcademicCalendarPeriods, useCalendarEvents } from "@/modules/placement/hooks/useAcademicCalendar";
+import type { AcademicCalendarPeriod, CalendarEventItem, CalendarEventType } from "@/modules/placement/types";
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 const DOW_FULL = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-const EVENT_TONE: Record<CalendarEventType, "neutral" | "success" | "warning" | "primary" | "danger"> = {
-  holiday: "neutral",
-  event: "success",
-  instruction: "neutral",
-  assessment: "warning",
-  placement: "primary",
-  institution: "danger",
+const EVENT_TONE: Record<CalendarEventType, { bg: string; fg: string }> = {
+  holiday: { bg: "#eef1f6", fg: "#16224a" },
+  event: { bg: "#e6f6ec", fg: "#1a7a44" },
+  instruction: { bg: "#eff2f7", fg: "#46536a" },
+  assessment: { bg: "#fdf1e0", fg: "#93650e" },
+  placement: { bg: "#e8f0fe", fg: "#1d4ed8" },
+  institution: { bg: "#f1e9fb", fg: "#5b2e9c" },
 };
 
 // event_date arrives as an ISO date string at UTC midnight — parsing its
@@ -59,7 +62,11 @@ function buildMonthCells(year: number, month: number, events: CalendarEventItem[
   return cells;
 }
 
-/** Keyed by `period.id` on the caller side — that re-initializes `cursor` to the newly-selected period's start month instead of leaving the view stuck on whatever month the previous period showed. */
+/**
+ * Keyed by `period.id` on the caller side — that's what re-initializes
+ * `cursor` to the newly-selected period's start month instead of leaving
+ * the view stuck on whatever month the previous period was showing.
+ */
 function CalendarPeriodView({ period, batchName }: { period: AcademicCalendarPeriod; batchName: string }) {
   const events = useCalendarEvents(period.id);
   const allEvents = useMemo(() => events.data ?? [], [events.data]);
@@ -87,38 +94,36 @@ function CalendarPeriodView({ period, batchName }: { period: AcademicCalendarPer
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-      <Card hoverable={false} className="p-5">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-start gap-3.5">
+      <Card className="p-5">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={goPrev}
-            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-admin-sm border border-admin-border bg-admin-tint text-admin-body hover:bg-admin-tint-strong"
-            aria-label="Previous month"
+            className="size-[38px] rounded-[9px] border border-border-default bg-surface-tint text-[15px] text-body"
           >
-            <Icon name="chevron_left" size={18} />
+            ‹
           </button>
           <div className="flex-1 text-center">
-            <div className="font-sans text-lg font-extrabold tracking-[-.01em] text-admin-ink">
+            <div className="text-[19px] font-bold tracking-[-.4px] text-ink">
               {MONTHS[cursor.month]} {cursor.year}
             </div>
-            <div className="mt-0.5 text-[12.5px] text-admin-muted">
+            <div className="mt-0.5 text-[12.5px] text-muted">
               {batchName} · Semester {period.semester} · {monthEvents.length} event{monthEvents.length === 1 ? "" : "s"}
             </div>
           </div>
           <button
             type="button"
             onClick={goNext}
-            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-admin-sm border border-admin-border bg-admin-tint text-admin-body hover:bg-admin-tint-strong"
-            aria-label="Next month"
+            className="size-[38px] rounded-[9px] border border-border-default bg-surface-tint text-[15px] text-body"
           >
-            <Icon name="chevron_right" size={18} />
+            ›
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-7 gap-2">
+        <div className="mt-4.5 grid grid-cols-7 gap-2">
           {DOW.map((d, i) => (
-            <div key={i} className="text-center text-xs font-bold text-admin-subtle">
+            <div key={i} className="text-center text-xs font-bold text-subtle">
               {d}
             </div>
           ))}
@@ -128,39 +133,52 @@ function CalendarPeriodView({ period, batchName }: { period: AcademicCalendarPer
             <div
               key={i}
               title={c.events.map((e) => e.title).join(", ")}
-              className={`flex min-h-[46px] flex-col items-center justify-center gap-1 rounded-admin-sm border px-1 py-1.5 text-[12.5px] ${
-                c.inMonth ? "text-admin-ink" : "text-admin-border-hover"
-              } ${c.isToday ? "border-admin-primary bg-admin-tint-strong" : c.events.length > 0 ? "border-transparent bg-admin-tint" : "border-transparent"}`}
+              className={`flex min-h-[46px] flex-col items-center gap-[3px] rounded-[8px] px-1 py-1.5 text-[12.5px] ${
+                c.inMonth ? "text-body" : "text-subtle"
+              } ${c.isToday ? "border border-primary bg-accent-100" : c.events.length > 0 ? "border border-transparent bg-surface-tint" : "border border-transparent"}`}
             >
               <span className={c.isToday ? "font-bold" : "font-medium"}>{c.day ?? ""}</span>
-              {c.events.length > 0 && <span className="size-[5px] rounded-full bg-admin-primary" />}
+              {c.events.length > 0 && (
+                <span
+                  className="size-[5px] rounded-full"
+                  style={{ background: EVENT_TONE[c.events[0].eventType]?.fg ?? "#1d4ed8" }}
+                />
+              )}
             </div>
           ))}
         </div>
       </Card>
 
-      <Card hoverable={false} className="p-5">
-        <div className="font-sans text-base font-extrabold tracking-[-.01em] text-admin-ink">Events in {MONTHS[cursor.month]}</div>
+      <Card className="p-5">
+        <div className="text-[17px] font-bold tracking-[-.3px] text-ink">Events in {MONTHS[cursor.month]}</div>
         <div className="mt-2 flex flex-col">
-          {events.isLoading && <div className="py-3 text-sm text-admin-muted">Loading…</div>}
-          {!events.isLoading && monthEvents.length === 0 && <div className="py-3 text-sm text-admin-muted">No events published this month.</div>}
+          {events.isLoading && <div className="px-0.5 py-[13px] text-[13px] text-muted">Loading…</div>}
+          {!events.isLoading && monthEvents.length === 0 && (
+            <div className="px-0.5 py-[13px] text-[13px] text-muted">No events published this month.</div>
+          )}
           {monthEvents.map((e) => {
             const p = dateParts(e.eventDate);
             const dow = DOW_FULL[new Date(Date.UTC(p.year, p.month, p.day)).getUTCDay()];
+            const tone = EVENT_TONE[e.eventType] ?? EVENT_TONE.event;
             return (
-              <div key={e.id} className="flex items-center gap-3.5 border-t border-admin-divider py-3 first:border-t-0">
-                <div className="flex size-12 shrink-0 flex-col items-center justify-center rounded-admin-sm bg-admin-tint leading-tight">
-                  <span className="text-[15px] font-bold text-admin-ink">{p.day}</span>
-                  <span className="text-[9.5px] tracking-wide text-admin-muted">{dow}</span>
+              <div key={e.id} className="flex items-center gap-3.5 border-t border-divider px-0.5 py-[13px]">
+                <div className="flex size-12 shrink-0 flex-col items-center justify-center rounded-[10px] bg-surface-tint leading-[1.1]">
+                  <span className="text-[15px] font-bold">{p.day}</span>
+                  <span className="text-[9.5px] tracking-[.6px] text-subtle">{dow}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold tracking-[-.01em] text-admin-ink">{e.title}</div>
-                  <div className="mt-0.5 text-xs text-admin-muted">
+                  <div className="text-sm font-bold tracking-[-.2px] text-ink">{e.title}</div>
+                  <div className="mt-[3px] text-[12.5px] text-muted">
                     {e.startTime ? `${e.startTime}–${e.endTime ?? ""}` : "All day"}
                     {e.description ? ` · ${e.description}` : ""}
                   </div>
                 </div>
-                <Badge tone={EVENT_TONE[e.eventType] ?? "neutral"}>{e.eventType}</Badge>
+                <span
+                  className="shrink-0 rounded-[6px] px-2 py-[3px] font-mono text-[10px] font-semibold tracking-[.7px] uppercase"
+                  style={{ background: tone.bg, color: tone.fg }}
+                >
+                  {e.eventType}
+                </span>
               </div>
             );
           })}
@@ -184,7 +202,10 @@ export default function PlacementAcademicCalendarPage() {
   }, [batches.data]);
 
   const filteredPeriods = useMemo(
-    () => (periods.data ?? []).filter((p) => (batchId === "all" || p.batchId === batchId) && (semester === "all" || p.semester === semester)),
+    () =>
+      (periods.data ?? []).filter(
+        (p) => (batchId === "all" || p.batchId === batchId) && (semester === "all" || p.semester === semester),
+      ),
     [periods.data, batchId, semester],
   );
 
@@ -197,51 +218,58 @@ export default function PlacementAcademicCalendarPage() {
   // current/latest real term — rather than whichever row the backend
   // happens to return first.
   const selectedPeriod = useMemo(
-    () => (filteredPeriods.length === 0 ? null : filteredPeriods.reduce((latest, p) => (p.endDate > latest.endDate ? p : latest), filteredPeriods[0])),
+    () =>
+      filteredPeriods.length === 0
+        ? null
+        : filteredPeriods.reduce((latest, p) => (p.endDate > latest.endDate ? p : latest), filteredPeriods[0]),
     [filteredPeriods],
   );
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader
-        title="Academic Calendar"
-        description="Published institution events — read-only here; Academic Coordinator and Principal add or edit events."
-        actions={
-          <>
-            <Select
-              value={batchId === "all" ? "all" : String(batchId)}
-              onChange={(e) => {
-                setBatchId(e.target.value === "all" ? "all" : Number(e.target.value));
-                setSemester("all");
-              }}
-            >
-              <option value="all">All batches</option>
-              {(batches.data ?? []).map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </Select>
-            <Select value={semester === "all" ? "all" : String(semester)} onChange={(e) => setSemester(e.target.value === "all" ? "all" : Number(e.target.value))}>
-              <option value="all">All semesters</option>
-              {semesterOptions.map((s) => (
-                <option key={s} value={s}>
-                  Semester {s}
-                </option>
-              ))}
-            </Select>
-          </>
-        }
-      />
+    <div className="flex flex-col gap-4.5">
+      <div className="flex flex-wrap items-end gap-5">
+        <div className="min-w-70 flex-1">
+          <h1 className="m-0 text-[26px] font-bold tracking-[-.02em] text-ink">Academic Calendar</h1>
+          <p className="mt-1.5 text-[13px] text-muted">
+            Published institution events — read-only here; Academic Coordinator and Principal add or edit events.
+          </p>
+        </div>
+        <div className="flex gap-2.5">
+          <Select
+            value={batchId === "all" ? "all" : String(batchId)}
+            onChange={(e) => {
+              setBatchId(e.target.value === "all" ? "all" : Number(e.target.value));
+              setSemester("all");
+            }}
+          >
+            <option value="all">All batches</option>
+            {(batches.data ?? []).map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </Select>
+          <Select value={semester === "all" ? "all" : String(semester)} onChange={(e) => setSemester(e.target.value === "all" ? "all" : Number(e.target.value))}>
+            <option value="all">All semesters</option>
+            {semesterOptions.map((s) => (
+              <option key={s} value={s}>
+                Semester {s}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
 
       {periods.isLoading ? (
-        <PendingNotice reason="Loading calendar…" height={140} />
+        <div className="text-[13px] text-muted">Loading calendar…</div>
       ) : !selectedPeriod ? (
-        <SectionCard title="No calendar published">
-          <p className="text-sm text-admin-muted">No academic calendar published for this batch/semester yet.</p>
-        </SectionCard>
+        <div className="text-[13px] text-muted">No academic calendar published for this batch/semester yet.</div>
       ) : (
-        <CalendarPeriodView key={selectedPeriod.id} period={selectedPeriod} batchName={batchNameById.get(selectedPeriod.batchId) ?? `Batch #${selectedPeriod.batchId}`} />
+        <CalendarPeriodView
+          key={selectedPeriod.id}
+          period={selectedPeriod}
+          batchName={batchNameById.get(selectedPeriod.batchId) ?? `Batch #${selectedPeriod.batchId}`}
+        />
       )}
     </div>
   );

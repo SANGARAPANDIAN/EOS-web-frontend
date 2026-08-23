@@ -2,43 +2,46 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/ui/Icon";
-import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { downloadCsv } from "@/lib/utils/csv";
-import { friendlyError } from "@/lib/utils/errors";
 import { ApiError } from "@/types/api";
-import {
-  PageHeader,
-  Button,
-  IconButton,
-  Badge,
-  type BadgeTone,
-  KpiCard,
-  DataTable,
-  NumberedPagination,
-  Dropdown,
-  useToast,
-  type DataTableColumn,
-} from "@/modules/admin/components/ui";
-import { useStudentReport, useStudentReportDownload, useUpdatePlacementStatus, type StudentReportRow } from "@/modules/placement/api/studentReport";
-import { useBatches } from "@/modules/placement/api/refData";
-import { rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
-import {
-  StudentFilters,
-  DEFAULT_STUDENT_FILTERS,
-  type StudentFiltersValue,
-} from "@/modules/placement/components/students/StudentFilters";
+import { useToast } from "@/modules/admin/components/ui/ToastProvider";
+import { useStudentReport } from "@/modules/placement/hooks/useStudentReport";
+import { useBatches } from "@/modules/placement/hooks/useBatches";
+import { useStudentReportDownload } from "@/modules/placement/hooks/useStudentReportDownload";
+import { useUpdatePlacementStatus } from "@/modules/placement/hooks/useUpdatePlacementStatus";
+import { StatCard } from "@/components/ui/StatCard";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
+import { Icon } from "@/components/ui/Icon";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { NumberedPagination } from "@/modules/admin/components/ui/NumberedPagination";
+import type { StudentReportRow } from "@/modules/placement/types";
 
 const PAGE_SIZE = 10;
 
-function statusTone(label: string): BadgeTone {
-  if (label === "Placed") return "success";
-  if (label === "Not placed") return "danger";
-  if (label === "In process") return "warning";
-  return "neutral";
+function yearLabel(year: number | null): string {
+  if (year == null) return "—";
+  const suffix = year === 1 ? "st" : year === 2 ? "nd" : year === 3 ? "rd" : "th";
+  return `${year}${suffix} Year`;
 }
 
-/** Opt-out overrides eligibility in display — a student who opted out isn't meaningfully "eligible" or "not eligible" for this cycle anymore. */
+function statusLabel(status: StudentReportRow["status"]): string {
+  if (status === "placed") return "Placed";
+  if (status === "rejected") return "Not placed";
+  if (status === null) return "Not applied";
+  return "In process";
+}
+
+function statusTone(status: StudentReportRow["status"]): "accent" | "accentDark" | "neutral" | "danger" {
+  if (status === "placed") return "accentDark";
+  if (status === "rejected") return "danger";
+  if (status === null) return "neutral";
+  return "accent";
+}
+
+// Opt-out overrides eligibility in display — a student who opted out isn't
+// meaningfully "eligible" or "not eligible" for this cycle anymore.
 function eligibilityLabel(r: StudentReportRow): string {
   if (r.placementOptedOut) return "Opted out";
   if (r.placementEligible === true) return "Eligible";
@@ -46,26 +49,108 @@ function eligibilityLabel(r: StudentReportRow): string {
   return "Not assessed";
 }
 
-function eligibilityTone(label: string): BadgeTone {
-  if (label === "Eligible") return "success";
-  if (label === "Not eligible") return "danger";
-  if (label === "Opted out") return "neutral";
+function eligibilityTone(r: StudentReportRow): "accent" | "accentDark" | "neutral" | "danger" {
+  if (r.placementOptedOut) return "neutral";
+  if (r.placementEligible === true) return "accent";
+  if (r.placementEligible === false) return "danger";
   return "neutral";
+}
+
+type SortKey = "reg" | "name" | "dept" | "year" | "eligibility" | "apps" | "offers" | "status";
+
+function sortValue(r: StudentReportRow, key: SortKey): string | number {
+  switch (key) {
+    case "reg":
+      return r.registerNo ?? r.rollNo ?? r.studentIdNo;
+    case "name":
+      return r.name ?? r.studentIdNo;
+    case "dept":
+      return r.departmentCode ?? r.departmentName ?? "";
+    case "year":
+      return r.year ?? 0;
+    case "eligibility":
+      return eligibilityLabel(r);
+    case "apps":
+      return r.drivesApplied;
+    case "offers":
+      return r.offersCount;
+    case "status":
+      return statusLabel(r.status);
+  }
 }
 
 export default function StudentsPage() {
   const router = useRouter();
-  const [filters, setFilters] = useState<StudentFiltersValue>(DEFAULT_STUDENT_FILTERS);
-  const debouncedQuery = useDebouncedValue(filters.query);
+  const { show } = useToast();
+
+  const [query, setQuery] = useState("");
+  const [batchId, setBatchId] = useState<number | "all">("all");
+  const [department, setDepartment] = useState("All departments");
+  const [year, setYear] = useState("All years");
+  const [status, setStatus] = useState("All statuses");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const { data: batches } = useBatches();
-  const { data, isLoading, error } = useStudentReport(filters.batchId === "all" ? undefined : filters.batchId);
-  const { show } = useToast();
+  const { data, isLoading, error } = useStudentReport(batchId === "all" ? undefined : batchId);
   const pdfDownload = useStudentReportDownload();
   const excelDownload = useStudentReportDownload();
   const updatePlacementStatus = useUpdatePlacementStatus();
+
+  function setEligible(r: StudentReportRow, value: boolean) {
+    updatePlacementStatus.mutate(
+      { studentId: r.id, input: { placementEligible: value } },
+      {
+        onSuccess: () => show(value ? "Marked eligible." : "Marked not eligible.", "success"),
+        onError: (err: unknown) => show(err instanceof ApiError ? err.message : "Something went wrong.", "error"),
+      },
+    );
+  }
+
+  function setOptedOut(r: StudentReportRow, value: boolean) {
+    updatePlacementStatus.mutate(
+      { studentId: r.id, input: { placementOptedOut: value } },
+      {
+        onSuccess: () => show(value ? "Marked opted out." : "Cleared opt-out.", "success"),
+        onError: (err: unknown) => show(err instanceof ApiError ? err.message : "Something went wrong.", "error"),
+      },
+    );
+  }
+
+  function handleDownload(format: "pdf" | "excel") {
+    const mutation = format === "pdf" ? pdfDownload : excelDownload;
+    mutation.mutate(
+      { format, batchId: batchId === "all" ? undefined : batchId },
+      { onError: (err: unknown) => show(err instanceof ApiError ? err.message : "Something went wrong.", "error") },
+    );
+  }
+
+  function resetPage<T>(setter: (v: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
+
+  function sortableHeader(label: string, key: SortKey) {
+    return (
+      <button type="button" onClick={() => toggleSort(key)} className="flex items-center gap-1 uppercase">
+        {label}
+        {sortKey === key && <Icon name={sortDir === "asc" ? "arrow_upward" : "arrow_downward"} size={12} />}
+      </button>
+    );
+  }
 
   const rows = useMemo(() => data ?? [], [data]);
 
@@ -79,29 +164,34 @@ export default function StudentsPage() {
     return ["All years", ...Array.from(years).sort().map(yearLabel)];
   }, [rows]);
 
-  const classOptions = useMemo(() => {
-    const labels = new Set(rows.map((r) => r.classLabel).filter((c): c is string => !!c));
-    return ["All classes", ...Array.from(labels).sort()];
-  }, [rows]);
-
   const filtered = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    return rows.filter((r) => {
+    const q = query.trim().toLowerCase();
+    const list = rows.filter((r) => {
       const matchesQuery =
         !q ||
         (r.name ?? "").toLowerCase().includes(q) ||
         r.studentIdNo.toLowerCase().includes(q) ||
         (r.rollNo ?? "").toLowerCase().includes(q) ||
-        (r.registerNo ?? "").toLowerCase().includes(q);
-      const matchesDept = filters.department === "All departments" || r.departmentCode === filters.department || r.departmentName === filters.department;
-      const matchesYear = filters.year === "All years" || yearLabel(r.year) === filters.year;
-      const matchesStatus = filters.status === "All statuses" || rosterStatusLabel(r.status) === filters.status;
-      const matchesClass = filters.classLabel === "All classes" || r.classLabel === filters.classLabel;
-      return matchesQuery && matchesDept && matchesYear && matchesStatus && matchesClass;
+        (r.registerNo ?? "").toLowerCase().includes(q) ||
+        (r.departmentName ?? "").toLowerCase().includes(q) ||
+        (r.departmentCode ?? "").toLowerCase().includes(q);
+      const matchesDept = department === "All departments" || r.departmentCode === department || r.departmentName === department;
+      const matchesYear = year === "All years" || yearLabel(r.year) === year;
+      const matchesStatus = status === "All statuses" || statusLabel(r.status) === status;
+      return matchesQuery && matchesDept && matchesYear && matchesStatus;
     });
-  }, [rows, debouncedQuery, filters.department, filters.year, filters.status, filters.classLabel]);
+    if (sortKey) {
+      list.sort((a, b) => {
+        const av = sortValue(a, sortKey);
+        const bv = sortValue(b, sortKey);
+        const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return list;
+  }, [rows, query, department, year, status, sortKey, sortDir]);
 
-  const pageRows = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
+  const paged = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
   const total = rows.length;
   const placedCount = rows.filter((r) => r.status === "placed").length;
@@ -111,175 +201,172 @@ export default function StudentsPage() {
   const assessedCount = rows.filter((r) => r.placementEligible !== null).length;
   const optedOutCount = rows.filter((r) => r.placementOptedOut).length;
 
-  function setEligible(r: StudentReportRow, eligible: boolean) {
-    updatePlacementStatus.mutate(
-      { studentId: r.id, input: { placementEligible: eligible } },
-      {
-        onSuccess: () => show(eligible ? "Marked eligible." : "Marked not eligible.", "success"),
-        onError: (err: unknown) => show(friendlyError(err), "error"),
-      },
-    );
-  }
-
-  function setOptedOut(r: StudentReportRow, optedOut: boolean) {
-    updatePlacementStatus.mutate(
-      { studentId: r.id, input: { placementOptedOut: optedOut } },
-      {
-        onSuccess: () => show(optedOut ? "Marked opted out." : "Cleared opt-out.", "success"),
-        onError: (err: unknown) => show(friendlyError(err), "error"),
-      },
-    );
-  }
-
-  function handleDownload(format: "pdf" | "excel") {
-    const mutation = format === "pdf" ? pdfDownload : excelDownload;
-    mutation.mutate(
-      { format, batchId: filters.batchId === "all" ? undefined : filters.batchId, classLabel: filters.classLabel === "All classes" ? undefined : filters.classLabel },
-      { onError: (err: unknown) => show(friendlyError(err), "error") },
-    );
-  }
-
-  function handleExportCsv() {
-    downloadCsv(
-      "students.csv",
-      [
-        { header: "Register number", value: (r: StudentReportRow) => r.registerNo ?? r.rollNo ?? r.studentIdNo },
-        { header: "Student", value: (r: StudentReportRow) => r.name ?? r.studentIdNo },
-        { header: "Department", value: (r: StudentReportRow) => r.departmentCode ?? r.departmentName ?? "" },
-        { header: "Year", value: (r: StudentReportRow) => yearLabel(r.year) },
-        { header: "Eligibility", value: (r: StudentReportRow) => eligibilityLabel(r) },
-        { header: "Applied", value: (r: StudentReportRow) => r.drivesApplied },
-        { header: "Offers", value: (r: StudentReportRow) => r.offersCount },
-        { header: "Status", value: (r: StudentReportRow) => rosterStatusLabel(r.status) },
-      ],
-      filtered,
-    );
-  }
-
   const columns: DataTableColumn<StudentReportRow>[] = [
-    { key: "reg", header: "Register number", mono: true, render: (r) => r.registerNo ?? r.rollNo ?? r.studentIdNo },
+    {
+      key: "reg",
+      header: sortableHeader("Register number", "reg"),
+      width: "1fr",
+      render: (r) => <span className="font-mono">{r.registerNo ?? r.rollNo ?? r.studentIdNo}</span>,
+    },
     {
       key: "name",
-      header: "Student",
-      render: (r) => (
-        <div>
-          <p className="font-semibold text-admin-ink">{r.name ?? r.studentIdNo}</p>
-          {r.classLabel && <p className="text-xs text-admin-muted">{r.classLabel}</p>}
-        </div>
-      ),
+      header: sortableHeader("Student", "name"),
+      width: "1.3fr",
+      render: (r) => <span className="font-semibold text-ink">{r.name ?? r.studentIdNo}</span>,
     },
-    { key: "dept", header: "Department", render: (r) => r.departmentCode ?? r.departmentName ?? "—" },
-    { key: "year", header: "Year", render: (r) => yearLabel(r.year) },
+    {
+      key: "dept",
+      header: sortableHeader("Department", "dept"),
+      width: "0.8fr",
+      render: (r) => <>{r.departmentCode ?? r.departmentName ?? "—"}</>,
+    },
+    { key: "year", header: sortableHeader("Year", "year"), width: "0.8fr", render: (r) => <>{yearLabel(r.year)}</> },
+    { key: "cgpa", header: "CGPA", width: "0.6fr", render: () => <span className="font-mono">—</span> },
+    { key: "backlogs", header: "Backlogs", width: "0.7fr", render: () => <span className="font-mono">—</span> },
     {
       key: "eligibility",
-      header: "Eligibility",
-      render: (r) => {
-        const label = eligibilityLabel(r);
-        return <Badge tone={eligibilityTone(label)}>{label}</Badge>;
-      },
+      header: sortableHeader("Eligibility", "eligibility"),
+      width: "0.9fr",
+      render: (r) => <Badge tone={eligibilityTone(r)}>{eligibilityLabel(r)}</Badge>,
     },
-    { key: "apps", header: "Applied", mono: true, render: (r) => r.drivesApplied },
-    { key: "offers", header: "Offers", mono: true, render: (r) => r.offersCount },
+    {
+      key: "apps",
+      header: sortableHeader("Applied", "apps"),
+      width: "0.7fr",
+      render: (r) => <span className="font-mono">{r.drivesApplied}</span>,
+    },
+    {
+      key: "offers",
+      header: sortableHeader("Offers", "offers"),
+      width: "0.6fr",
+      render: (r) => <span className="font-mono">{r.offersCount}</span>,
+    },
     {
       key: "status",
-      header: "Status",
-      render: (r) => {
-        const label = rosterStatusLabel(r.status);
-        return <Badge tone={statusTone(label)}>{label}</Badge>;
-      },
+      header: sortableHeader("Status", "status"),
+      width: "0.9fr",
+      render: (r) => <Badge tone={statusTone(r.status)}>{statusLabel(r.status)}</Badge>,
     },
     {
       key: "actions",
       header: "",
+      width: "1.3fr",
       align: "right",
       render: (r) => (
-        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-          <Dropdown
-            trigger={<IconButton icon="more_vert" size={34} iconSize={17} />}
-            items={[
-              r.placementEligible === true
-                ? { key: "not-eligible", label: "Mark not eligible", onSelect: () => setEligible(r, false) }
-                : { key: "eligible", label: "Mark eligible", onSelect: () => setEligible(r, true) },
-              r.placementOptedOut
-                ? { key: "clear-opt-out", label: "Clear opt-out", onSelect: () => setOptedOut(r, false) }
-                : { key: "opt-out", label: "Mark opted out", onSelect: () => setOptedOut(r, true) },
-            ]}
-          />
+        <div className="flex flex-wrap justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="secondary"
+            className="h-7 px-2 text-xs"
+            onClick={() => setEligible(r, r.placementEligible !== true)}
+          >
+            {r.placementEligible === true ? "Mark not eligible" : "Mark eligible"}
+          </Button>
+          <Button
+            variant="secondary"
+            className={r.placementOptedOut ? "h-7 px-2 text-xs" : "h-7 px-2 text-xs text-danger-fg border-danger-border"}
+            onClick={() => setOptedOut(r, !r.placementOptedOut)}
+          >
+            {r.placementOptedOut ? "Clear opt-out" : "Mark opted out"}
+          </Button>
         </div>
       ),
     },
   ];
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader
-        title="Students"
-        description={`Application history and placement status across ${total.toLocaleString()} registered students.`}
-        actions={
-          <>
-            <Button variant="secondary" onClick={handleExportCsv}>
-              <Icon name="csv" size={16} /> CSV
-            </Button>
-            <Button variant="secondary" onClick={() => handleDownload("pdf")} disabled={pdfDownload.isPending}>
-              <Icon name="picture_as_pdf" size={16} /> {pdfDownload.isPending ? "Exporting…" : "Export PDF"}
-            </Button>
-            <Button variant="secondary" onClick={() => handleDownload("excel")} disabled={excelDownload.isPending}>
-              <Icon name="table" size={16} /> {excelDownload.isPending ? "Exporting…" : "Export Excel"}
-            </Button>
-          </>
-        }
-      />
+    <div className="flex flex-col gap-4.5">
+      <div className="flex flex-wrap items-end gap-5">
+        <div className="min-w-70 flex-1">
+          <h1 className="m-0 text-[26px] font-bold tracking-[-.02em] text-ink">Students</h1>
+          <p className="mt-1.5 text-[13px] text-muted">
+            Application history and placement status across {total.toLocaleString()} registered students.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" disabled={pdfDownload.isPending} onClick={() => handleDownload("pdf")}>
+            {pdfDownload.isPending ? "Exporting…" : "Export PDF"}
+          </Button>
+          <Button variant="secondary" disabled={excelDownload.isPending} onClick={() => handleDownload("excel")}>
+            {excelDownload.isPending ? "Exporting…" : "Export Excel"}
+          </Button>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Registered students" icon="groups" value={total} sub={`Across ${departmentCount} departments`} />
-        <KpiCard
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(206px,1fr))] gap-3">
+        <StatCard label="Registered students" value={total.toLocaleString()} sub={`Across ${departmentCount} departments`} />
+        <StatCard
           label="Eligible this cycle"
-          icon="verified"
-          value={eligibleCount}
+          value={eligibleCount.toLocaleString()}
           sub={assessedCount > 0 ? `${assessedCount} of ${total.toLocaleString()} assessed so far` : "Mark students eligible from the table below"}
         />
-        <KpiCard label="Placed" icon="workspace_premium" value={placedCount} delta={`${placedPct}%`} sub={`of ${total.toLocaleString()} registered`} progress={placedPct} />
-        <KpiCard
+        <StatCard label="Placed" value={placedCount.toLocaleString()} sub={`${placedPct}% of ${total.toLocaleString()} registered`} barPercent={placedPct} />
+        <StatCard
           label="Opted out"
-          icon="remove_circle"
-          value={optedOutCount}
+          value={optedOutCount.toLocaleString()}
           sub={optedOutCount > 0 ? `${optedOutCount} of ${total.toLocaleString()} registered` : "None recorded yet"}
         />
       </div>
 
-      <StudentFilters
-        value={filters}
-        onChange={(next) => {
-          setFilters(next);
-          setPage(1);
-        }}
-        batches={batches}
-        departmentOptions={departmentOptions}
-        yearOptions={yearOptions}
-        classOptions={classOptions}
-      />
-
       <DataTable
-        columns={columns}
-        rows={pageRows}
-        rowKey={(r) => r.id}
-        onRowClick={(r) => router.push(`/placement/students/${r.id}`)}
-        isLoading={isLoading}
-        error={error instanceof ApiError ? error.message : error ? "Failed to load student report." : null}
-        emptyTitle="No students match these filters"
-        footer={
-          <NumberedPagination
-            page={page}
-            pageSize={pageSize}
-            total={filtered.length}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
+        title="Student report"
+        titleNote={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Input value={query} onChange={(e) => resetPage(setQuery)(e.target.value)} placeholder="Search students" className="h-[34px] min-w-50" />
+            <Select value={batchId === "all" ? "all" : String(batchId)} onChange={(e) => resetPage(setBatchId)(e.target.value === "all" ? "all" : Number(e.target.value))} className="h-[34px]">
+              <option value="all">All batches</option>
+              {batches?.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+            <Select value={department} onChange={(e) => resetPage(setDepartment)(e.target.value)} className="h-[34px]">
+              {departmentOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
+            <Select value={year} onChange={(e) => resetPage(setYear)(e.target.value)} className="h-[34px]">
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </Select>
+            <Select value={status} onChange={(e) => resetPage(setStatus)(e.target.value)} className="h-[34px]">
+              {["All statuses", "Placed", "In process", "Not placed", "Not applied"].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Select>
+            <Button
+              variant="secondary"
+              className="h-[34px]"
+              onClick={() => {
+                setQuery("");
+                setBatchId("all");
+                setDepartment("All departments");
+                setYear("All years");
+                setStatus("All statuses");
+                setSortKey(null);
+                setPage(1);
+              }}
+            >
+              Reset
+            </Button>
+          </div>
         }
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        loading={isLoading}
+        hoverableRows
+        onRowClick={(r) => router.push(`/placement/students/${r.id}`)}
+        emptyMessage={error ? "Failed to load student report." : "No students match these filters."}
       />
+      <NumberedPagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
     </div>
   );
 }

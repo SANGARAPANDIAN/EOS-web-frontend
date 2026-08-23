@@ -1,4 +1,5 @@
 import type { ModuleConfig } from "@/modules/types";
+import { academicCoordinatorModuleConfig } from "@/modules/academic-coordinator/nav";
 import { studentModuleConfig } from "@/modules/student/nav";
 import { hodModuleConfig } from "@/modules/hod/nav";
 import { advisorModuleConfig } from "@/modules/advisor/nav";
@@ -26,6 +27,7 @@ import { billingModuleConfig } from "@/modules/billing/nav";
  * hardcode a role.
  */
 export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
+  academic_coordinator: academicCoordinatorModuleConfig,
   student: studentModuleConfig,
   hod: hodModuleConfig,
   faculty: advisorModuleConfig,

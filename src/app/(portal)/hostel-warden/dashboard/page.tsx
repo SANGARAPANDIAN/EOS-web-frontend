@@ -9,6 +9,7 @@ import { useComplaints } from "@/modules/hostel-warden/api/complaints";
 import { StudentDetailModal } from "@/modules/hostel-warden/components/StudentDetailModal";
 import { formatLongDate, formatTime12h, greetingForHour } from "@/lib/utils/date";
 import { useState } from "react";
+import { useNow } from "@/lib/hooks/useNow";
 
 /** Matches the Medical Centre/Transport dashboard hover-lift convention. */
 const HOVERABLE = "transition-all duration-150 hover:-translate-y-1 hover:border-primary hover:shadow-hover-lift";
@@ -30,8 +31,9 @@ export default function HostelWardenDashboardPage() {
   const onLeavePct = data && totalResidents > 0 ? Math.round((data.on_leave / totalResidents) * 100) : 0;
   const approvalsPct = data ? Math.min(100, Math.round((data.pending_approvals / Math.max(1, totalResidents * 0.05)) * 100)) : 0;
 
+  const now = useNow();
   const overdueComplaints = (openComplaints.data?.data ?? []).filter(
-    (c) => Date.now() - new Date(c.created_at).getTime() > 48 * 60 * 60 * 1000,
+    (c) => now - new Date(c.created_at).getTime() > 48 * 60 * 60 * 1000,
   );
 
   return (

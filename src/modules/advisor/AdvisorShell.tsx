@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useMyRoles } from "@/lib/auth/roles";
@@ -10,6 +9,7 @@ import { getModuleConfig } from "@/modules/registry";
 import { ROLE_LABEL } from "@/lib/config";
 import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BrandMark } from "@/components/layout/SidebarBrandHeader";
 import { ADVISOR_NAV } from "./nav";
 import { AdvisorIcon } from "./icons";
 import { useMyFacultyProfile, useIsClassAdvisor } from "./api/profile";
@@ -136,26 +136,11 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 12,
             padding: "18px 20px",
             borderBottom: "1px solid #EEF1F6",
           }}
         >
-          <Image
-            src="/college-logo.png"
-            alt="Sri Eshwar College of Engineering"
-            width={40}
-            height={40}
-            style={{ width: 40, height: 40, objectFit: "contain", flex: "0 0 40px" }}
-          />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", color: "#1E3A8A" }}>
-              Sri Eshwar
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#7C8899", letterSpacing: "0.01em" }}>
-              Faculty Portal
-            </div>
-          </div>
+          <BrandMark subtitle="Faculty Portal" />
         </div>
 
         <nav style={{ flex: 1, overflowY: "auto", padding: "14px 12px 24px" }}>

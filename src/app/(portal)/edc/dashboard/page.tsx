@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useNow } from "@/lib/hooks/useNow";
 import { useEdcEntrepreneurship, isBeyondIdeaStage, type EdcEntrepreneurshipRow } from "@/modules/edc/api/entrepreneurship";
 import { useIncubations } from "@/modules/edc/api/incubations";
 import { useStartupIdeas } from "@/modules/edc/api/startupIdeas";
-import { useEdcAnnouncements } from "@/modules/edc/api/announcements";
+import { useEdcAnnouncements, type EdcAnnouncementRow } from "@/modules/edc/api/announcements";
 import { barSx, pillSx } from "@/modules/edc/genericPage";
 
 // Rebuilt from real EOSbackend1 data — the design's DASHBOARD fake-data
@@ -94,13 +95,14 @@ export default function EdcDashboardPage() {
 
   const recent = [...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6);
 
+  const now = useNow();
   const needsAttention = [
     ...rows
       .filter((v) => !v.mentor_faculty_id && !v.external_mentor_name)
       .slice(0, 3)
       .map((v) => ({ title: v.business_name, note: "No mentor assigned yet" })),
     ...(incubations.data ?? [])
-      .filter((i) => i.next_review_date && new Date(i.next_review_date).getTime() < Date.now())
+      .filter((i) => i.next_review_date && new Date(i.next_review_date).getTime() < now)
       .slice(0, 3)
       .map((i) => ({ title: i.business_name ?? "Incubated venture", note: "Review is overdue" })),
   ].slice(0, 5);
@@ -147,7 +149,7 @@ export default function EdcDashboardPage() {
         <div data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "22px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
             <h3 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: "-0.01em" }}>Venture Overview</h3>
-            <a href="/edc/entrepreneurs" style={{ fontSize: 13, fontWeight: 600 }}>View ventures</a>
+            <Link href="/edc/entrepreneurs" style={{ fontSize: 13, fontWeight: 600 }}>View ventures</Link>
           </div>
           <p style={{ margin: "0 0 18px", fontSize: 13, color: "#7B8AA0" }}>Distribution of the {rows.length} registered ventures across stages.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -192,7 +194,7 @@ export default function EdcDashboardPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 24px 16px" }}>
             <h3 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: "-0.01em" }}>Recent Venture Registrations</h3>
             <div style={{ flex: 1 }} />
-            <a href="/edc/entrepreneurs" style={{ fontSize: 13, fontWeight: 600 }}>View all →</a>
+            <Link href="/edc/entrepreneurs" style={{ fontSize: 13, fontWeight: 600 }}>View all →</Link>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 0.9fr 0.9fr 1fr 1fr", padding: "10px 24px", background: "#fff", borderTop: "1px solid #EEF2F7", borderBottom: "1px solid #EEF2F7", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.09em", color: "#94A3B8" }}>
             <span>VENTURE</span>
@@ -248,11 +250,11 @@ export default function EdcDashboardPage() {
           <div data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Announcements</h3>
-              <a href="/edc/announcements" style={{ fontSize: 12.5, fontWeight: 600 }}>View all</a>
+              <Link href="/edc/announcements" style={{ fontSize: 12.5, fontWeight: 600 }}>View all</Link>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {recentAnnouncements.length === 0 && <div style={{ fontSize: 13, color: "#94A3B8" }}>No announcements yet.</div>}
-              {recentAnnouncements.map((a: any) => (
+              {recentAnnouncements.map((a: EdcAnnouncementRow) => (
                 <div key={a.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ fontSize: 12, color: "#94A3B8" }}>{timeAgo(a.created_at)}</div>
                   <div style={{ fontSize: 13.5, fontWeight: 700 }}>{a.title}</div>

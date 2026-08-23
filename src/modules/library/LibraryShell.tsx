@@ -42,7 +42,6 @@ export function LibraryShell({ children }: { children: React.ReactNode }) {
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
         badges={{ totalBooks: dashboard.data?.total_books }}
-        userEmail={session.user.email}
       />
       <main className="flex flex-1 flex-col overflow-y-auto">
         <LibraryTopbar onOpenMobileNav={() => setMobileOpen(true)} />

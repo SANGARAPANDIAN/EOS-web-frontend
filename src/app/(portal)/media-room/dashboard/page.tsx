@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Card, Badge, Icon, EmptyState } from "@/components/ui";
+import { useNow } from "@/lib/hooks/useNow";
 import { useMyIdentity } from "@/modules/media-room/api/identity";
 import { useMediaRequests, useReviewMediaRequest } from "@/modules/media-room/api/mediaRequests";
 import { useAchievements } from "@/modules/media-room/api/achievements";
@@ -88,7 +89,7 @@ export default function MediaRoomDashboardPage() {
     .filter((s) => s.scheduled_at?.slice(0, 10) === todayIso)
     .sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""));
 
-  const now = Date.now();
+  const now = useNow();
   const staleRequests = (pending.data?.data ?? []).filter((r) => now - new Date(r.created_at).getTime() > 2 * DAY_MS);
   const unscheduledShoots = shootRows.filter((s) => (s.status === "planned" || s.status === "confirmed") && !s.scheduled_at);
   const indentRows = indents.data?.ready ? indents.data.data : [];

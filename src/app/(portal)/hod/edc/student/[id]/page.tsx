@@ -44,6 +44,13 @@ export default function HodEdcProfilePage() {
       </div>
     );
   }
+  if (profile.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load this EDC record — please try again.
+      </div>
+    );
+  }
   if (!profile.data) {
     return (
       <Card>

@@ -51,12 +51,18 @@ export default function HodAssignmentStatusPage() {
         <p className="mt-1 text-[13px] text-muted">Submission tracking across the classes you teach</p>
       </div>
 
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load assignment status — please try again.
+        </div>
+      )}
+
       {overview.isLoading ? (
         <div className="flex flex-col gap-5">
           <SkeletonFilterBar />
           <SkeletonRows count={5} />
         </div>
-      ) : handled.length === 0 ? (
+      ) : overview.isError ? null : handled.length === 0 ? (
         <Card>
           <div className="text-[13px] text-subtle">You are not mapped to teach any class/subject yet.</div>
         </Card>
@@ -147,7 +153,12 @@ export default function HodAssignmentStatusPage() {
                       >
                         {s.is_submitted ? "Submitted" : "Not submitted"}
                       </span>
-                      <Button variant="secondary" onClick={() => markStudent(s, !s.is_submitted)} disabled={mark.isPending}>
+                      <Button
+                        variant="secondary"
+                        onClick={() => markStudent(s, !s.is_submitted)}
+                        disabled={mark.isPending}
+                        loading={mark.isPending && mark.variables?.student_id === s.student_id}
+                      >
                         {s.is_submitted ? "Mark not submitted" : "Mark submitted"}
                       </Button>
                     </div>

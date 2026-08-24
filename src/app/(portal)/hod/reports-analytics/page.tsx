@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, SegmentedTabs, DataTable, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
+import { Card, Badge, Input, SegmentedTabs, DataTable, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import {
   useHodReportsSummary,
@@ -14,6 +14,7 @@ import {
 
 const YEAR_TABS = [
   { key: "", label: "All classes" },
+  { key: "I", label: "1st year" },
   { key: "II", label: "2nd year" },
   { key: "III", label: "3rd year" },
   { key: "IV", label: "4th year" },
@@ -35,7 +36,7 @@ function ChangeCell({ value }: { value: number | null }) {
 }
 
 function ClassStatusBadge({ changePts }: { changePts: number | null }) {
-  if (changePts == null) return null;
+  if (changePts == null) return <span className="text-subtle">—</span>;
   return changePts >= 0 ? <Badge tone="accent">improved</Badge> : <Badge tone="neutral">needs review</Badge>;
 }
 
@@ -47,6 +48,51 @@ function subjectRemark(subject: HodSubjectResult): string {
   if (subject.change_pts > 0) return "improved against previous semester";
   if (subject.change_pts < 0) return "slipped against previous semester";
   return "unchanged against previous semester";
+}
+
+function SubjectResultsGroup({
+  group,
+  search,
+  defaultOpen,
+}: {
+  group: HodSubjectResultGroup;
+  search: string;
+  defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const q = search.trim().toLowerCase();
+  const subjects = q
+    ? group.subjects.filter((s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q))
+    : group.subjects;
+
+  // A search that matches something in this group forces it open so results
+  // aren't hidden behind a collapsed header; clearing the search restores
+  // whatever the user last chose.
+  const isOpen = q ? subjects.length > 0 : open;
+  if (q && subjects.length === 0) return null;
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hod-hover-row"
+      >
+        <div>
+          <h3 className="text-[14px] font-extrabold text-ink">
+            {group.year} Year · Semester {group.semester} · sections {group.sections.join(", ")}
+          </h3>
+          <p className="mt-0.5 text-[12px] text-muted">{subjects.length} subject{subjects.length === 1 ? "" : "s"}</p>
+        </div>
+        <span className={`text-[13px] text-subtle transition-transform ${isOpen ? "rotate-180" : ""}`}>▾</span>
+      </button>
+      {isOpen && (
+        <div className="border-t border-divider px-5 pb-5 pt-1">
+          <SubjectResultsTable group={{ ...group, subjects }} />
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function SubjectResultsTable({ group }: { group: HodSubjectResultGroup }) {
@@ -108,6 +154,7 @@ export default function HodReportsAnalyticsPage() {
   const [year, setYear] = useState("");
   const classRates = useHodClassPassRates(year || null);
   const subjectResults = useHodSubjectResults();
+  const [subjectSearch, setSubjectSearch] = useState("");
 
   const s = summary.data;
   const c = classRates.data;
@@ -163,7 +210,7 @@ export default function HodReportsAnalyticsPage() {
         </div>
       ) : (
         <>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <Card className="hod-hover-card">
           <div className="text-[13px] font-bold text-body">Department pass %</div>
           <div className="mt-2.5 text-[32px] font-extrabold tracking-[-.03em] text-ink">{fmtPct(s?.pass_percent)}</div>
@@ -203,6 +250,13 @@ export default function HodReportsAnalyticsPage() {
               {s.distinction_count_change} vs last semester
             </div>
           )}
+        </Card>
+        <Card className="hod-hover-card">
+          <div className="text-[13px] font-bold text-body">Faculty with PhD</div>
+          <div className="mt-2.5 text-[32px] font-extrabold tracking-[-.03em] text-ink">{s?.phd_count ?? "—"}</div>
+          <div className="mt-0.5 text-[12.5px] text-muted">
+            {s ? (s.phd_count === 0 ? "No qualification data recorded yet" : `of ${s.faculty_count} faculty`) : ""}
+          </div>
         </Card>
       </div>
 
@@ -272,18 +326,21 @@ export default function HodReportsAnalyticsPage() {
       </div>
 
       <div>
-        <div className="mb-3">
-          <h2 className="text-[16px] font-extrabold text-ink">Subject-wise results · every section</h2>
-          <p className="text-[12px] text-muted">Current-semester pass % per section</p>
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-[16px] font-extrabold text-ink">Subject-wise results · every section</h2>
+            <p className="text-[12px] text-muted">Current-semester pass % per section</p>
+          </div>
+          <Input
+            value={subjectSearch}
+            onChange={(e) => setSubjectSearch(e.target.value)}
+            placeholder="Search subject name or code"
+            className="max-w-[280px]"
+          />
         </div>
-        <div className="flex flex-col gap-4">
-          {(subjectResults.data?.groups ?? []).map((group) => (
-            <Card key={group.semester}>
-              <h3 className="mb-3 text-[14px] font-extrabold text-ink">
-                {group.year} Year · Semester {group.semester} · sections {group.sections.join(", ")}
-              </h3>
-              <SubjectResultsTable group={group} />
-            </Card>
+        <div className="flex flex-col gap-3">
+          {(subjectResults.data?.groups ?? []).map((group, i) => (
+            <SubjectResultsGroup key={group.semester} group={group} search={subjectSearch} defaultOpen={i === 0} />
           ))}
         </div>
       </div>

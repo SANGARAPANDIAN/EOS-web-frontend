@@ -37,6 +37,11 @@ export default function HodEmployeeLibraryPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load library data — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Library</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -81,6 +86,9 @@ function BorrowedTab({ overview }: { overview: ReturnType<typeof useHodLibraryOv
   if (overview.isLoading) {
     return <SkeletonRows count={3} />;
   }
+  if (overview.isError) {
+    return null;
+  }
   if (rows.length === 0) {
     return (
       <Card>
@@ -114,7 +122,8 @@ function BorrowedTab({ overview }: { overview: ReturnType<typeof useHodLibraryOv
               <Button
                 variant="secondary"
                 onClick={() => renew.mutate(r.id)}
-                disabled={!canRenew || renew.isPending}
+                disabled={!canRenew}
+                loading={renew.isPending}
                 title={!canRenew ? (overdue ? "Overdue books cannot be renewed" : "Renewal limit reached") : undefined}
               >
                 Renew
@@ -148,9 +157,14 @@ function SearchTab() {
         placeholder="Search the catalogue by title, author or accession number"
         className="max-w-none rounded-pill"
       />
+      {search.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load the catalogue — please try again.
+        </div>
+      )}
       {search.isLoading ? (
         <SkeletonRows count={3} />
-      ) : rows.length === 0 ? (
+      ) : search.isError ? null : rows.length === 0 ? (
         <Card>
           <div className="text-[13px] text-subtle">
             {q.trim().length === 0 ? "No books in the catalogue yet." : `No books matched "${q}".`}
@@ -185,7 +199,7 @@ function SearchTab() {
                   <Button
                     variant="secondary"
                     onClick={() => request.mutate(b.id)}
-                    disabled={request.isPending}
+                    loading={request.isPending}
                   >
                     Request
                   </Button>
@@ -205,6 +219,13 @@ function EResourcesTab() {
 
   if (resources.isLoading) {
     return <SkeletonRows count={3} />;
+  }
+  if (resources.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load e-resources — please try again.
+      </div>
+    );
   }
   if (rows.length === 0) {
     return (
@@ -252,6 +273,9 @@ function HistoryTab({ overview }: { overview: ReturnType<typeof useHodLibraryOve
 
   if (overview.isLoading) {
     return <SkeletonRows count={3} />;
+  }
+  if (overview.isError) {
+    return null;
   }
   if (rows.length === 0) {
     return (

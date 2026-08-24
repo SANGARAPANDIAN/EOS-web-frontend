@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, Avatar, Badge, Button, PillTabs, Textarea, SkeletonTable } from "@/components/ui";
+import { Avatar, Badge, Button, PillTabs, Textarea, SkeletonTable, Modal } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import {
   useHodAppraisalRequests,
@@ -88,6 +88,7 @@ export default function HodAppraisalRequestsPage() {
                 variant="primarySmall"
                 onClick={() => decide.mutate({ id: r.id, decision: "approved" })}
                 disabled={decide.isPending}
+                loading={decide.isPending && decide.variables?.id === r.id}
               >
                 To Principal
               </Button>
@@ -100,6 +101,11 @@ export default function HodAppraisalRequestsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {requests.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load appraisal requests — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Appraisal Requests</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -121,7 +127,7 @@ export default function HodAppraisalRequestsPage() {
 
       {requests.isLoading ? (
         <SkeletonTable rows={5} />
-      ) : (
+      ) : requests.isError ? null : (
         <DataTable
           columns={columns}
           data={rows}
@@ -162,28 +168,27 @@ function SendBackModal({
   const [remarks, setRemarks] = useState("");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f1e3d]/45 p-4">
-      <div className="w-full max-w-[520px] rounded-modal bg-surface p-7 shadow-modal">
-        <h2 className="text-[20px] font-extrabold text-ink">Send back to {target.faculty_name}</h2>
-        <p className="mt-1 text-[13px] text-muted">
-          Let them know what needs to change before resubmitting.
-        </p>
-        <Textarea
-          className="mt-4"
-          rows={4}
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
-          placeholder="Remarks (optional)"
-        />
-        <div className="mt-5 flex justify-end gap-2.5">
-          <Button variant="secondary" onClick={onClose} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="primarySmall" onClick={() => onConfirm(remarks)} disabled={isPending}>
-            {isPending ? "Sending…" : "Send back"}
-          </Button>
-        </div>
+    <Modal
+      open
+      onClose={onClose}
+      title={`Send back to ${target.faculty_name}`}
+      subtitle="Let them know what needs to change before resubmitting."
+      className="max-w-[520px]"
+    >
+      <Textarea
+        rows={4}
+        value={remarks}
+        onChange={(e) => setRemarks(e.target.value)}
+        placeholder="Remarks (optional)"
+      />
+      <div className="mt-5 flex justify-end gap-2.5">
+        <Button variant="secondary" onClick={onClose} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button variant="primarySmall" onClick={() => onConfirm(remarks)} loading={isPending}>
+          Send back
+        </Button>
       </div>
-    </div>
+    </Modal>
   );
 }

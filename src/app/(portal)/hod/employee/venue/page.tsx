@@ -89,6 +89,11 @@ function ApplyForm() {
 
   return (
     <div className="flex flex-col gap-5">
+      {catalog.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load venue availability — please try again.
+        </div>
+      )}
       <Card className="hod-hover-card">
         {submitted && (
           <div className="mb-4 rounded-[10px] bg-accent-50 px-4 py-3 text-[13px] font-bold text-primary">
@@ -133,8 +138,14 @@ function ApplyForm() {
           <Input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="e.g. 120" />
         </div>
 
-        <Button variant="primary" className="mt-6" onClick={submit} disabled={!purpose || !fromDate || !toDate || create.isPending}>
-          {create.isPending ? "Submitting…" : "Submit Booking Request"}
+        <Button
+          variant="primary"
+          className="mt-6"
+          onClick={submit}
+          disabled={!purpose || !fromDate || !toDate}
+          loading={create.isPending}
+        >
+          Submit Booking Request
         </Button>
       </Card>
 
@@ -182,9 +193,14 @@ function HistoryList() {
           { key: "rejected", label: "Rejected" },
         ]}
       />
+      {bookings.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load venue bookings — please try again.
+        </div>
+      )}
       {bookings.isLoading ? (
         <SkeletonRows count={4} />
-      ) : !bookings.data || bookings.data.data.length === 0 ? (
+      ) : bookings.isError ? null : !bookings.data || bookings.data.data.length === 0 ? (
         <Card>
           <EmptyState message="No venue bookings yet." />
         </Card>

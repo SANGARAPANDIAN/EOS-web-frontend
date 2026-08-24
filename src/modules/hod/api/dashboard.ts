@@ -58,6 +58,8 @@ export interface HodDashboard {
     placed_count: number;
     eligible_count: number;
     pending_requests_count: number;
+    pending_sop_count: number;
+    pending_pop_count: number;
   };
 }
 

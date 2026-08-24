@@ -14,6 +14,13 @@ export default function HodAppraisalDetailPage() {
   if (detail.isLoading) {
     return <SkeletonBlock className="min-h-[300px]" />;
   }
+  if (detail.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load this appraisal request — please try again.
+      </div>
+    );
+  }
   if (!detail.data) {
     return (
       <Card>

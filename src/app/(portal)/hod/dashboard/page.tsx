@@ -54,36 +54,46 @@ export default function HodDashboardPage() {
         </div>
       ) : (
         <>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <StatCard
           className="hod-hover-card"
+          href="/hod/class-records"
           label={range === "term" ? "Student attendance this term" : "Student attendance today"}
-          value={d ? `${d.student_attendance.percentage}%` : "—"}
+          value={d ? (d.student_attendance.on_roll === 0 ? "0%" : `${d.student_attendance.percentage}%`) : "—"}
           sub={
             d
-              ? range === "term"
-                ? `${d.student_attendance.present.toLocaleString("en-IN")} present-marks of ${d.student_attendance.on_roll.toLocaleString("en-IN")} recorded this term`
-                : `${d.student_attendance.present.toLocaleString("en-IN")} present of ${d.student_attendance.on_roll.toLocaleString("en-IN")} on roll`
+              ? d.student_attendance.on_roll === 0
+                ? range === "term"
+                  ? "No attendance recorded this term yet"
+                  : "No attendance recorded for today yet"
+                : range === "term"
+                  ? `${d.student_attendance.present.toLocaleString("en-IN")} present-marks of ${d.student_attendance.on_roll.toLocaleString("en-IN")} recorded this term`
+                  : `${d.student_attendance.present.toLocaleString("en-IN")} present of ${d.student_attendance.on_roll.toLocaleString("en-IN")} on roll`
               : undefined
           }
-          barPercent={d?.student_attendance.percentage}
+          barPercent={d && d.student_attendance.on_roll > 0 ? d.student_attendance.percentage : undefined}
         />
         <StatCard
           className="hod-hover-card"
           href="/hod/faculty-staff"
           label={range === "term" ? "Faculty attendance this term" : "Faculty attendance today"}
-          value={d ? `${d.faculty_attendance.percentage}%` : "—"}
+          value={d ? (d.faculty_attendance.reported === 0 ? "0%" : `${d.faculty_attendance.percentage}%`) : "—"}
           sub={
             d
-              ? range === "term"
-                ? `${d.faculty_attendance.reported} attendance-days of ${d.faculty_attendance.on_roll} recorded this term`
-                : `${d.faculty_attendance.reported} reported of ${d.faculty_attendance.on_roll} on rolls`
+              ? d.faculty_attendance.reported === 0
+                ? range === "term"
+                  ? "No attendance recorded this term yet"
+                  : "No attendance recorded for today yet"
+                : range === "term"
+                  ? `${d.faculty_attendance.reported} attendance-days of ${d.faculty_attendance.on_roll} recorded this term`
+                  : `${d.faculty_attendance.reported} reported of ${d.faculty_attendance.on_roll} on rolls`
               : undefined
           }
-          barPercent={d?.faculty_attendance.percentage}
+          barPercent={d && d.faculty_attendance.reported > 0 ? d.faculty_attendance.percentage : undefined}
         />
         <StatCard
           className="hod-hover-card"
+          href="/hod/class-records"
           label="Average CGPA"
           value={d?.average_cgpa.value ?? (dashboard.isLoading ? "—" : "N/A")}
           delta={
@@ -98,12 +108,31 @@ export default function HodDashboardPage() {
           href="/hod/placements"
           label="Placements"
           value={d?.placements.placed_count ?? (dashboard.isLoading ? "—" : "—")}
-          sub={d ? `of ${d.placements.eligible_count} eligible final-year students` : undefined}
+          sub={
+            d
+              ? d.placements.placed_count === 0
+                ? `No offers yet · ${d.placements.eligible_count} department students`
+                : `of ${d.placements.eligible_count} department students`
+              : undefined
+          }
           barPercent={
-            d && d.placements.eligible_count > 0
+            d && d.placements.eligible_count > 0 && d.placements.placed_count > 0
               ? Math.round((d.placements.placed_count / d.placements.eligible_count) * 100)
               : undefined
           }
+        />
+        <StatCard
+          className="hod-hover-card"
+          href="/hod/leave-requests"
+          label="Total pending requests"
+          value={
+            d
+              ? d.needs_attention.pending_leaves_count +
+                d.needs_attention.pending_ods_count +
+                d.needs_attention.pending_requests_count
+              : "—"
+          }
+          sub="faculty leave/OD + student requests"
         />
       </div>
 
@@ -221,42 +250,34 @@ export default function HodDashboardPage() {
             <Button variant="text">Department board</Button>
           </Link>
         </div>
-        <div className="grid grid-cols-6 gap-3">
+        <div className="grid grid-cols-4 gap-3 max-w-[880px]">
           <StatCard
             className="hod-hover-card"
-            label="Attendance"
-            value={d ? `${d.my_department.attendance_percent}%` : "—"}
-            sub="term to date"
-          />
-          <StatCard
-            className="hod-hover-card"
+            href="/hod/class-records"
             label="Below 75%"
             value={d?.my_department.below_threshold_count ?? "—"}
             sub="condonation needed"
           />
           <StatCard
             className="hod-hover-card"
-            label="Average CGPA"
-            value={d?.my_department.average_cgpa ?? "—"}
-            sub="current semester"
-          />
-          <StatCard
-            className="hod-hover-card"
+            href="/hod/class-records"
             label="Arrears"
             value={d?.my_department.arrears_count ?? "—"}
             sub="students affected"
           />
           <StatCard
             className="hod-hover-card"
-            label="Placed"
-            value={d ? `${d.my_department.placed_count} / ${d.my_department.eligible_count}` : "—"}
-            sub="eligible final-year"
+            href="/hod/sop-pop-requests"
+            label="SOP Requests"
+            value={d?.my_department.pending_sop_count ?? "—"}
+            sub={d?.my_department.pending_sop_count === 0 ? "No requests pending" : "awaiting your review"}
           />
           <StatCard
             className="hod-hover-card"
-            label="Pending requests"
-            value={d?.my_department.pending_requests_count ?? "—"}
-            sub="leave · OD"
+            href="/hod/sop-pop-requests"
+            label="POP Requests"
+            value={d?.my_department.pending_pop_count ?? "—"}
+            sub={d?.my_department.pending_pop_count === 0 ? "No requests pending" : "awaiting your review"}
           />
         </div>
       </Card>

@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Card, Badge, Select, SkeletonFilterBar, SkeletonStatTiles, SkeletonTable } from "@/components/ui";
+import { useMemo, useState } from "react";
+import { Card, Badge, Button, Input, Select, SkeletonFilterBar, SkeletonStatTiles, SkeletonTable } from "@/components/ui";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { useHodSubjectRecords, type HodSubjectRecordsStudentRow } from "@/modules/hod/api/myClassSubjectRecords";
+import {
+  useSubjectRecords,
+  useSubjectRecordDetail,
+  usePublishSubjectRecord,
+} from "@/modules/advisor/api/subject-records";
+import { useExamMarkRoster, useEnterExamMarks, useUpdateExamMark } from "@/modules/advisor/api/exam-marks";
 
 const ROMAN_YEAR = ["I", "II", "III", "IV", "V", "VI"];
 function yearLabelForSemester(semester: number | null): string {
@@ -18,7 +25,22 @@ function gradeTone(grade: string): "accent" | "accentDark" | "danger" {
   return "accent";
 }
 
-export default function HodSubjectRecordsPage() {
+function gradeOf(pct: number | null): string | null {
+  if (pct === null) return null;
+  if (pct >= 91) return "O";
+  if (pct >= 81) return "A+";
+  if (pct >= 71) return "A";
+  if (pct >= 61) return "B+";
+  if (pct >= 50) return "B";
+  return "RA";
+}
+
+function errorMessageOf(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return "Failed to save marks.";
+}
+
+function GradebookTab() {
   const [classKey, setClassKey] = useState<string | null>(null);
   const [semester, setSemester] = useState<number | null>(null);
 
@@ -78,11 +100,12 @@ export default function HodSubjectRecordsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 animate-pop-in">
-      <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Subject Records</h1>
-        <p className="mt-1 text-[13px] text-muted">Marks for the subjects you handle personally</p>
-      </div>
+    <>
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load subject records — please try again.
+        </div>
+      )}
 
       {overview.isLoading ? (
         <div className="flex flex-col gap-5">
@@ -90,7 +113,7 @@ export default function HodSubjectRecordsPage() {
           <SkeletonStatTiles count={3} />
           <SkeletonTable rows={7} />
         </div>
-      ) : handled.length === 0 ? (
+      ) : overview.isError ? null : handled.length === 0 ? (
         <Card>
           <div className="text-[13px] text-subtle">You are not mapped to teach any class/subject yet.</div>
         </Card>
@@ -175,6 +198,292 @@ export default function HodSubjectRecordsPage() {
           )}
         </>
       )}
+    </>
+  );
+}
+
+function EnterMarksTab() {
+  const records = useSubjectRecords();
+  const rows = useMemo(() => records.data ?? [], [records.data]);
+
+  const semesters = useMemo(() => Array.from(new Set(rows.map((r) => r.exam.semester))).sort((a, b) => a - b), [rows]);
+  const [semOverride, setSemOverride] = useState<number | null>(null);
+  const sem = semOverride ?? (semesters.length ? semesters[semesters.length - 1] : null);
+
+  const inSemester = rows.filter((r) => r.exam.semester === sem);
+  const [mappingOverride, setMappingOverride] = useState<number | null>(null);
+  const mappingId =
+    mappingOverride != null && inSemester.some((r) => r.exam_subject_mapping_id === mappingOverride)
+      ? mappingOverride
+      : (inSemester[0]?.exam_subject_mapping_id ?? null);
+  function setSem(next: number) {
+    setSemOverride(next);
+    setMappingOverride(null);
+  }
+  function setMappingId(next: number) {
+    setMappingOverride(next);
+  }
+
+  const active = inSemester.find((r) => r.exam_subject_mapping_id === mappingId);
+  const detail = useSubjectRecordDetail(mappingId ?? undefined);
+  const publish = usePublishSubjectRecord();
+
+  const roster = useExamMarkRoster(mappingId ?? undefined);
+  const enterMarks = useEnterExamMarks();
+  const updateMark = useUpdateExamMark();
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [maxMarksInput, setMaxMarksInput] = useState("100");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const students = roster.data?.students ?? [];
+  const maxM = roster.data?.max_marks ?? (Number(maxMarksInput) || null);
+  const entered = students.map((s) => s.marks_obtained).filter((m): m is number => m !== null);
+  const mean = entered.length ? Math.round((entered.reduce((a, b) => a + b, 0) / entered.length) * 10) / 10 : null;
+
+  function saveMarks() {
+    if (!mappingId) return;
+    setSaveError(null);
+    const effectiveMaxMarks = roster.data?.max_marks || Number(maxMarksInput) || 100;
+    const newEntries = students
+      .filter((s) => s.mark_id === null && drafts[s.student_id] !== undefined && drafts[s.student_id] !== "")
+      .map((s) => ({ student_id: s.student_id, marks_obtained: Number(drafts[s.student_id]) }))
+      .filter((e) => Number.isFinite(e.marks_obtained));
+    if (newEntries.length) {
+      enterMarks.mutate(
+        { mappingId, max_marks: effectiveMaxMarks, entries: newEntries },
+        { onError: (e) => setSaveError(errorMessageOf(e)) },
+      );
+    }
+    students
+      .filter((s) => s.mark_id !== null && drafts[s.student_id] !== undefined && Number(drafts[s.student_id]) !== s.marks_obtained)
+      .forEach((s) =>
+        updateMark.mutate(
+          { id: s.mark_id as number, marks_obtained: Number(drafts[s.student_id]) },
+          { onError: (e) => setSaveError(errorMessageOf(e)) },
+        ),
+      );
+    setDrafts({});
+  }
+
+  const passCount = detail.data ? detail.data.grade_distribution.filter((g) => g.grade !== "RA").reduce((s, g) => s + g.count, 0) : 0;
+  const arrearCount = detail.data?.grade_distribution.find((g) => g.grade === "RA")?.count ?? 0;
+  const passPct = detail.data && detail.data.total_students > 0 ? Math.round((passCount / detail.data.total_students) * 1000) / 10 : null;
+
+  if (records.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load your exam mappings — please try again.
+      </div>
+    );
+  }
+
+  if (records.isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonFilterBar />
+        <SkeletonStatTiles count={4} />
+        <SkeletonTable rows={7} />
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <div className="text-[13px] text-subtle">No exams have been mapped to a subject you teach yet.</div>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card className="hod-hover-card">
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="mb-1.5 block text-[11px] font-extrabold tracking-[.08em] text-subtle uppercase">Semester</label>
+            <Select
+              value={sem ?? ""}
+              onChange={(e) => {
+                setSem(Number(e.target.value));
+                setDrafts({});
+              }}
+              className="font-bold text-[#080000]"
+            >
+              {semesters.map((s) => (
+                <option key={s} value={s}>
+                  Semester {s}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-extrabold tracking-[.08em] text-subtle uppercase">Subject · Exam</label>
+            <Select
+              value={mappingId ?? ""}
+              onChange={(e) => {
+                setMappingId(Number(e.target.value));
+                setDrafts({});
+              }}
+              className="font-bold text-[#080000]"
+            >
+              {inSemester.map((o) => (
+                <option key={o.exam_subject_mapping_id} value={o.exam_subject_mapping_id}>
+                  {o.class.label} · {o.subject.subject_code} {o.subject.name} · {o.exam.type}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        <div className="mt-3.5 border-t border-divider pt-3.5 text-[12.5px] font-bold text-body">
+          {inSemester.length} exam record{inSemester.length === 1 ? "" : "s"} this semester
+        </div>
+      </Card>
+
+      {active && (
+        <Card className="hod-hover-card">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="min-w-[220px] flex-1">
+              <div className="text-[11px] font-extrabold tracking-[.08em] text-subtle uppercase">Current exam</div>
+              <div className="mt-2 text-[20px] font-extrabold tracking-[-.02em] text-ink">
+                {active.class.label} · {active.subject.subject_code} {active.subject.name}
+              </div>
+              <div className="mt-1 text-[12.5px] font-semibold text-muted">
+                {active.exam.type} · {active.exam.academic_year}
+              </div>
+            </div>
+            <div className="grid min-w-[320px] flex-[1.4] grid-cols-4 gap-3">
+              {[
+                { label: "Strength", value: String(students.length) },
+                { label: "Mean", value: mean !== null ? String(mean) : "—" },
+                { label: "Pass %", value: passPct !== null ? `${passPct}%` : "—" },
+                { label: "Arrears", value: String(arrearCount) },
+              ].map((s) => (
+                <div key={s.label} className="rounded-[11px] border border-divider bg-surface-tint px-3.5 py-3">
+                  <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">{s.label}</div>
+                  <div className="mt-1 text-[18px] font-extrabold tracking-[-.02em] text-ink">{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {saveError && (
+            <div className="mt-3.5 rounded-[9px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[12.5px] font-semibold text-danger-fg">
+              {saveError}
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Badge tone={active.is_published ? "accentDark" : "neutral"}>
+              {active.is_published ? "Published" : "Draft · not published"}
+            </Badge>
+            {!roster.data?.max_marks && !active.is_published && (
+              <div className="flex items-center gap-2">
+                <div className="text-[12.5px] font-bold text-body">Max marks</div>
+                <Input
+                  value={maxMarksInput}
+                  onChange={(e) => setMaxMarksInput(e.target.value)}
+                  className="w-[76px] py-2 text-center font-bold"
+                />
+              </div>
+            )}
+            <div className="flex-1" />
+            {!active.is_published && (
+              <>
+                <Button
+                  variant="secondary"
+                  className="w-auto"
+                  onClick={saveMarks}
+                  loading={enterMarks.isPending || updateMark.isPending}
+                >
+                  Save
+                </Button>
+                <Button
+                  variant="primarySmall"
+                  onClick={() => active.entered_count > 0 && publish.mutate(active.exam_subject_mapping_id)}
+                  disabled={active.entered_count === 0}
+                  loading={publish.isPending}
+                >
+                  Publish
+                </Button>
+              </>
+            )}
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-[12px] border border-divider">
+            <div className="grid grid-cols-[2.4fr_1.2fr_1fr] gap-2 border-b border-divider bg-surface-tint px-4 py-3 text-[10.5px] font-extrabold tracking-[.09em] text-subtle uppercase">
+              <div>Student</div>
+              <div>Marks obtained</div>
+              <div>Grade</div>
+            </div>
+            {roster.isLoading ? (
+              <div className="p-4">
+                <SkeletonTable rows={6} />
+              </div>
+            ) : (
+              students.map((s, i) => {
+                const draft = drafts[s.student_id];
+                const value = draft !== undefined ? draft : s.marks_obtained !== null ? String(s.marks_obtained) : "";
+                const pct = s.marks_obtained !== null && maxM ? (s.marks_obtained / maxM) * 100 : null;
+                const grade = gradeOf(pct);
+                return (
+                  <div
+                    key={s.student_id}
+                    className="hod-hover-row grid grid-cols-[2.4fr_1.2fr_1fr] items-center gap-2 border-b border-divider px-4 py-3 last:border-b-0"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="w-6 text-[12px] font-extrabold text-subtle">{i + 1}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[13.5px] font-bold text-ink">{s.name}</div>
+                        <div className="mt-0.5 truncate text-[11px] font-semibold text-subtle">{s.roll_no}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        value={value}
+                        onChange={(e) => setDrafts((prev) => ({ ...prev, [s.student_id]: e.target.value }))}
+                        disabled={active.is_published || (roster.data?.locked && s.mark_id === null)}
+                        className="w-20 py-2 text-center font-bold"
+                      />
+                      <span className="text-[11.5px] font-semibold text-subtle"> / {maxM ?? "—"}</span>
+                    </div>
+                    <div>{grade && <Badge tone={gradeTone(grade)}>{grade}</Badge>}</div>
+                  </div>
+                );
+              })
+            )}
+            {!roster.isLoading && students.length === 0 && (
+              <div className="p-10 text-center text-[13.5px] font-semibold text-subtle">No students found for this exam.</div>
+            )}
+          </div>
+        </Card>
+      )}
+    </>
+  );
+}
+
+export default function HodSubjectRecordsPage() {
+  const [tab, setTab] = useState<"gradebook" | "enter">("gradebook");
+
+  return (
+    <div className="flex flex-col gap-5 animate-pop-in">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Subject Records</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {tab === "gradebook" ? "Marks for the subjects you handle personally" : "Enter marks · Save keeps a draft, Publish makes it visible"}
+          </p>
+        </div>
+        <SegmentedTabs
+          value={tab}
+          onChange={(k) => setTab(k as "gradebook" | "enter")}
+          options={[
+            { key: "gradebook", label: "Gradebook" },
+            { key: "enter", label: "Enter marks" },
+          ]}
+        />
+      </div>
+
+      {tab === "gradebook" ? <GradebookTab /> : <EnterMarksTab />}
     </div>
   );
 }

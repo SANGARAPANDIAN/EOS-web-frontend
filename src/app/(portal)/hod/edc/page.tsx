@@ -41,6 +41,9 @@ export default function HodEdcPage() {
   const overview = useHodEdc(search, batchId, departmentId);
   const o = overview.data;
   const rows = o?.rows ?? [];
+  const scopeLabel = departmentId
+    ? (o?.filters.departments.find((d) => d.department_id === departmentId)?.code ?? "selected department")
+    : "your department";
 
   const columns: DataTableColumn<HodEdcRow>[] = [
     {
@@ -102,6 +105,11 @@ export default function HodEdcPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load EDC data — please try again.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Entrepreneurship Development Cell</h1>
@@ -127,7 +135,7 @@ export default function HodEdcPage() {
             onChange={(e) => setDepartmentId(e.target.value === "all" ? null : Number(e.target.value))}
             className="max-w-[200px] font-bold"
           >
-            <option value="all">All departments</option>
+            <option value="all">My department</option>
             {(o?.filters.departments ?? []).map((d) => (
               <option key={d.department_id} value={d.department_id}>
                 {d.code}
@@ -139,12 +147,12 @@ export default function HodEdcPage() {
 
       {overview.isLoading ? (
         <SkeletonStatTiles count={4} />
-      ) : (
+      ) : overview.isError ? null : (
         <div className="grid grid-cols-4 gap-4">
           <Card className="hod-hover-card">
             <div className="text-[13.5px] text-[#5c6573]">Students in EDC</div>
             <div className="mt-1.5 text-[30px] font-extrabold text-ink">{o?.stats.total ?? 0}</div>
-            <div className="mt-1 text-[12.5px] text-subtle">Across all departments and batches</div>
+            <div className="mt-1 text-[12.5px] text-subtle">In {scopeLabel}, across all batches</div>
           </Card>
           <Card className="hod-hover-card">
             <div className="text-[13.5px] text-[#5c6573]">Startups</div>
@@ -180,7 +188,7 @@ export default function HodEdcPage() {
 
       {overview.isLoading ? (
         <SkeletonTable rows={7} />
-      ) : (
+      ) : overview.isError ? null : (
         <DataTable
           columns={columns}
           data={rows}

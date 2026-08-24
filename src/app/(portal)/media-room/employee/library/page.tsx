@@ -5,8 +5,6 @@ import { Card, Badge, Button, SkeletonRows } from "@/components/ui";
 import { SearchBar } from "@/components/ui/SearchBar";
 import {
   useMediaRoomLibraryOverview,
-  useRenewMediaRoomLibraryBook,
-  useRequestMediaRoomLibraryBook,
   useLibraryBookSearch,
   useLibraryEResources,
 } from "@/modules/media-room/api/employeeLibrary";
@@ -59,27 +57,20 @@ export default function MediaRoomEmployeeLibraryPage() {
       </div>
 
       {tab === "borrowed" && <BorrowedTab overview={overview} />}
-      {tab === "search" && <SearchTab overview={overview} />}
+      {tab === "search" && <SearchTab />}
       {tab === "e-resources" && <EResourcesTab />}
       {tab === "history" && <HistoryTab overview={overview} />}
     </div>
   );
 }
 
+/**
+ * Read-only. Issuing, renewing and returning are counter operations — the
+ * library's own screens own them, together with the fine and borrowing-limit
+ * checks that go with them. This tab reports the position; it does not change it.
+ */
 function BorrowedTab({ overview }: { overview: ReturnType<typeof useMediaRoomLibraryOverview> }) {
-  const renew = useRenewMediaRoomLibraryBook();
   const rows = overview.data?.borrowed ?? [];
-  const maxRenewals = overview.data?.max_renewals ?? 0;
-  const [error, setError] = useState<string | null>(null);
-
-  async function renewLoan(loanId: number) {
-    setError(null);
-    try {
-      await renew.mutateAsync(loanId);
-    } catch (err: unknown) {
-      setError((err as { message?: string })?.message ?? "Could not renew this loan.");
-    }
-  }
 
   if (overview.isLoading) {
     return <SkeletonRows count={3} />;
@@ -101,11 +92,9 @@ function BorrowedTab({ overview }: { overview: ReturnType<typeof useMediaRoomLib
 
   return (
     <div className="flex flex-col gap-4">
-      {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
       {rows.map((r) => {
         const left = daysLeft(r.due_date);
         const overdue = r.is_overdue || left < 0;
-        const canRenew = !overdue && r.renewal_count < maxRenewals;
         return (
           <Card data-mr-lift="1" key={r.id}>
             <div className="flex items-center gap-4">
@@ -118,14 +107,6 @@ function BorrowedTab({ overview }: { overview: ReturnType<typeof useMediaRoomLib
                 </div>
               </div>
               <Badge tone={overdue ? "danger" : "accent"}>{overdue ? "OVERDUE" : `${left} DAY${left === 1 ? "" : "S"} LEFT`}</Badge>
-              <Button
-                variant="secondary"
-                onClick={() => renewLoan(r.id)}
-                disabled={!canRenew || renew.isPending}
-                title={!canRenew ? (overdue ? "Overdue books cannot be renewed" : "Renewal limit reached") : undefined}
-              >
-                Renew
-              </Button>
             </div>
           </Card>
         );
@@ -139,27 +120,15 @@ const AVAILABILITY_TONE_CLASS = {
   reserve: "text-[#92400e] bg-[#fef7ec] border border-[#f6e2c3]",
 };
 
-function SearchTab({ overview }: { overview: ReturnType<typeof useMediaRoomLibraryOverview> }) {
+/** Catalogue lookup only — borrowing is done at the counter. */
+function SearchTab() {
   const [q, setQ] = useState("");
   const search = useLibraryBookSearch(q);
-  const request = useRequestMediaRoomLibraryBook();
   const rows = search.data?.data ?? [];
-  const [error, setError] = useState<string | null>(null);
-  const notReady = overview.data && !overview.data.ready;
-
-  async function requestBook(bookId: number) {
-    setError(null);
-    try {
-      await request.mutateAsync(bookId);
-    } catch (err: unknown) {
-      setError((err as { message?: string })?.message ?? "Could not request this book.");
-    }
-  }
 
   return (
     <div className="flex flex-col gap-4">
       <SearchBar value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the catalogue by title, author or accession number" className="max-w-none rounded-pill" />
-      {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
       {search.isLoading ? (
         <SkeletonRows count={3} />
       ) : rows.length === 0 ? (
@@ -186,9 +155,6 @@ function SearchTab({ overview }: { overview: ReturnType<typeof useMediaRoomLibra
                   >
                     {available ? "AVAILABLE" : "RESERVE"}
                   </span>
-                  <Button variant="secondary" onClick={() => requestBook(b.id)} disabled={request.isPending || !available || !!notReady}>
-                    Request
-                  </Button>
                 </div>
               </Card>
             );

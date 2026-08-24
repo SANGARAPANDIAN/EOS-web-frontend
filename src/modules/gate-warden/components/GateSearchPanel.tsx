@@ -2,7 +2,12 @@
 
 import { forwardRef, useImperativeHandle, useState, type ReactNode } from "react";
 import { Avatar, Badge, Button, ConfirmDialog, Icon, Input, SegmentedTabs } from "@/components/ui";
-import { useCreateGateLogEntry, useLookupStudent, type GateEntryType } from "@/modules/gate-warden/api/gateLog";
+import {
+  useCreateGateLogEntry,
+  useLookupStudent,
+  useGateStudentSearch,
+  type GateEntryType,
+} from "@/modules/gate-warden/api/gateLog";
 import { formatDisplayDate } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
@@ -34,6 +39,10 @@ export interface GateSearchPanelHandle {
  */
 export const GateSearchPanel = forwardRef<GateSearchPanelHandle>(function GateSearchPanel(_props, ref) {
   const [rollNo, setRollNo] = useState("");
+  // Whether the pick-list is showing. Hidden once a student is chosen, so the
+  // panel does not keep a stale list of matches under the loaded record.
+  const [picking, setPicking] = useState(false);
+  const matches = useGateStudentSearch(picking ? rollNo : "");
   const [direction, setDirection] = useState<GateEntryType>("out");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const lookup = useLookupStudent();
@@ -54,6 +63,7 @@ export const GateSearchPanel = forwardRef<GateSearchPanelHandle>(function GateSe
   useImperativeHandle(ref, () => ({
     search: (nextRollNo: string) => {
       setRollNo(nextRollNo);
+      setPicking(false);
       runSearch(nextRollNo);
     },
   }));
@@ -61,7 +71,17 @@ export const GateSearchPanel = forwardRef<GateSearchPanelHandle>(function GateSe
   const result = lookup.data;
 
   function handleSearch() {
+    setPicking(false);
     runSearch(rollNo.trim());
+  }
+
+  /** Chosen from the pick-list: look the student up by their exact roll number. */
+  function pickMatch(match: { roll_no: string | null; register_no: string | null }) {
+    const identifier = match.roll_no ?? match.register_no ?? "";
+    if (!identifier) return;
+    setRollNo(identifier);
+    setPicking(false);
+    runSearch(identifier);
   }
 
   function handleConfirm() {
@@ -96,20 +116,64 @@ export const GateSearchPanel = forwardRef<GateSearchPanelHandle>(function GateSe
         Look up a student when they reach the gate to verify who they are and whether they&apos;re cleared to leave.
       </p>
 
-      <div className="mt-4 flex gap-2">
-        <Input
-          value={rollNo}
-          onChange={(e) => setRollNo(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSearch();
-          }}
-          placeholder="Enter roll number"
-          className="max-w-xs"
-        />
-        <Button variant="primarySmall" className="w-auto inline-flex items-center gap-1.5 px-4" onClick={handleSearch} disabled={lookup.isPending}>
-          <Icon name="search" size={16} />
-          {lookup.isPending ? "Searching…" : "Search"}
-        </Button>
+      <div className="mt-4">
+        <div className="flex gap-2">
+          <Input
+            value={rollNo}
+            onChange={(e) => {
+              setRollNo(e.target.value);
+              setPicking(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+              if (e.key === "Escape") setPicking(false);
+            }}
+            placeholder="Search by name, roll number, register number or room"
+            className="max-w-md"
+          />
+          <Button variant="primarySmall" className="w-auto inline-flex items-center gap-1.5 px-4" onClick={handleSearch} disabled={lookup.isPending}>
+            <Icon name="search" size={16} />
+            {lookup.isPending ? "Searching…" : "Search"}
+          </Button>
+        </div>
+
+        {/* Pick-list. A dropdown of every student is unusable at this scale, so
+            matches are fetched as the warden types and chosen explicitly. */}
+        {picking && rollNo.trim().length >= 2 && (
+          <div className="mt-2 max-h-72 max-w-md overflow-y-auto rounded-[11px] border border-border-default bg-surface">
+            {matches.isFetching && !matches.data && (
+              <p className="px-3.5 py-3 text-[13px] text-muted">Searching…</p>
+            )}
+            {matches.data && matches.data.length === 0 && (
+              <p className="px-3.5 py-3 text-[13px] text-muted">
+                No student matches “{rollNo.trim()}”.
+              </p>
+            )}
+            {(matches.data ?? []).map((m) => (
+              <button
+                key={m.student_id}
+                type="button"
+                onClick={() => pickMatch(m)}
+                className="block w-full border-b border-border-subtle px-3.5 py-2.5 text-left last:border-b-0 hover:bg-nav-hover"
+              >
+                <span className="block text-[13px] font-semibold text-ink">
+                  {m.name || "Unnamed student"}
+                  {m.is_currently_out && (
+                    <span className="ml-2 rounded-full bg-accent-50 px-2 py-0.5 text-[10.5px] font-bold text-primary-dark">
+                      OUTSIDE
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 block text-[11.5px] text-muted">
+                  {m.roll_no ?? m.register_no ?? "—"}
+                  {m.class_label ? ` · ${m.class_label}` : ""}
+                  {m.room_number ? ` · Room ${m.room_number}` : ""}
+                  {m.student_type ? ` · ${m.student_type}` : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {toast && (

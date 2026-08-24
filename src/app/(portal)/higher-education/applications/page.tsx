@@ -8,6 +8,7 @@ import {
   useCreateApplicationWindow,
   type ApplicationWindow,
 } from "@/modules/higher-education/api/applications";
+import { ApplicationStudentsPanel } from "@/modules/higher-education/components/StudentListPanels";
 import { formatDisplayDate } from "@/lib/utils/date";
 
 /** Matches the Transport dashboard/routes hover-lift convention. */
@@ -128,6 +129,10 @@ export default function HigherEducationApplicationsPage() {
   const isLoading = applications.isLoading;
   const [showAdd, setShowAdd] = useState(false);
 
+  // Clicking a window opens its student list underneath, which is where
+  // students are added and moved between Applied and Selected.
+  const [openWindow, setOpenWindow] = useState<ApplicationWindow | null>(null);
+
   const columns: DataTableColumn<ApplicationWindow>[] = [
     { key: "university", header: "University", width: "1.5fr", render: (row) => <span className="font-bold text-ink">{row.university}</span> },
     { key: "country", header: "Country", width: "0.9fr", render: (row) => <span className="text-body">{row.country}</span> },
@@ -181,8 +186,24 @@ export default function HigherEducationApplicationsPage() {
         <div className="p-[18px_20px] pb-3">
           <h2 className="text-[17px] font-extrabold text-ink">Open application windows</h2>
         </div>
-        <DataTable columns={columns} data={data?.windows ?? []} rowKey={(row) => row.id} emptyMessage={isLoading ? "Loading…" : "No application windows recorded yet."} hoverableRows />
+        <DataTable
+          columns={columns}
+          data={data?.windows ?? []}
+          rowKey={(row) => row.id}
+          emptyMessage={isLoading ? "Loading…" : "No application windows recorded yet."}
+          hoverableRows
+          onRowClick={(row) => setOpenWindow((cur) => (cur?.id === row.id ? null : row))}
+        />
       </Card>
+
+      {/* Clicking a window above opens its student list here: search a student,
+          add them, then move them from Applied to Selected. */}
+      {openWindow && (
+        <ApplicationStudentsPanel
+          windowId={openWindow.id}
+          title={`${openWindow.university}${openWindow.intake ? " · " + openWindow.intake : ""}`}
+        />
+      )}
     </div>
   );
 }

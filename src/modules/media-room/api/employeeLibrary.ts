@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
 export interface MediaRoomLibraryRecord {
@@ -29,27 +29,15 @@ export function useMediaRoomLibraryOverview() {
   });
 }
 
-/** PATCH /media-room/employee/library/:id/renew */
-export function useRenewMediaRoomLibraryBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => apiClient.patch<MediaRoomLibraryRecord>(`/media-room/employee/library/${id}/renew`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media-room", "employee", "library"] }),
-  });
-}
-
-/** POST /media-room/employee/library/request — self-issues the book to the caller. */
-export function useRequestMediaRoomLibraryBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (bookId: number) => apiClient.post<MediaRoomLibraryRecord>("/media-room/employee/library/request", { book_id: bookId }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media-room", "employee", "library"] }),
-  });
-}
-
-// The catalogue endpoints below have no @Roles guard on their GET routes —
-// any authenticated user may read them — so these hit the real, shared
-// library catalogue directly rather than through a new wrapper (same as HOD).
+/*
+ * No renew / request hooks: the Library tab is read-only for staff. Loans are
+ * issued, renewed and returned at the library counter, which owns the fine and
+ * borrowing-limit checks that go with those operations.
+ *
+ * The catalogue reads below hit the shared /library/* routes directly — their
+ * GETs carry no role guard, so any authenticated user may browse them and no
+ * media-room-specific wrapper is needed.
+ */
 
 export interface LibraryBookResult {
   id: number;
@@ -68,7 +56,7 @@ interface LibraryPage<T> {
   data: T[];
 }
 
-/** GET /library/books?q= — real, role-agnostic. With no query, returns a default browsable page. */
+/** GET /library/books?q= — with no query, returns a browsable catalogue page. */
 export function useLibraryBookSearch(q: string) {
   const query = q.trim();
   return useQuery({

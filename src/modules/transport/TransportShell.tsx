@@ -20,7 +20,6 @@ export function TransportShell({ children }: { children: React.ReactNode }) {
         programLabel: "Transport officer",
         academicYearLabel: "2026–27",
         semesterParityLabel: "Odd Semester",
-        unreadNotifications: 1,
       }}
       navBadges={{
         fleetBuses: busesCount,

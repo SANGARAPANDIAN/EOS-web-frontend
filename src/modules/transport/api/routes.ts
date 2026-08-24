@@ -37,6 +37,47 @@ export interface RoutesResponse {
   routes: Route[];
 }
 
+export interface CreateRouteInput {
+  name: string;
+  boarding_area?: string;
+  distance_km?: number;
+  departure_time?: string;
+  arrival_time?: string;
+}
+
+/** POST /me/routes — create a route. */
+export function useCreateRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateRouteInput) => apiClient.post<{ id: number }>("/me/routes", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "routes"] }),
+  });
+}
+
+/**
+ * DELETE /me/routes/:id — the server refuses while buses or students are
+ * still assigned, and says which, so the message is worth surfacing verbatim.
+ */
+export function useDeleteRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (routeId: number) => apiClient.delete<{ id: number }>(`/me/routes/${routeId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "routes"] }),
+  });
+}
+
+/** DELETE /me/stages/:id — remove a boarding stage nothing depends on. */
+export function useDeleteStage(routeId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (stageId: number) => apiClient.delete<{ id: number }>(`/me/stages/${stageId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["me", "routes"] });
+      queryClient.invalidateQueries({ queryKey: ["me", "routes", routeId] });
+    },
+  });
+}
+
 /** GET /me/routes?search= — route list for the transport office. */
 export function useRoutes(search?: string) {
   return useQuery({

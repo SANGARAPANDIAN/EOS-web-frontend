@@ -27,7 +27,7 @@ type WorkspaceEducationLoanDdRow = StudentWorkspace["education_loan_dd"][number]
 import { ReceivePaymentModal, toastSx } from "@/modules/billing/ReceivePaymentModal";
 import { ConcessionModal } from "@/modules/billing/ConcessionModal";
 import { EducationLoanDDModal } from "@/modules/billing/EducationLoanDDModal";
-import { ReceiptDocument, type ReceiptPaymentRow, type ReceiptStudentInfo } from "@/modules/billing/ReceiptDocument";
+import { RECEIPT_LOGO_SRC, ReceiptDocument, type ReceiptPaymentRow, type ReceiptStudentInfo } from "@/modules/billing/ReceiptDocument";
 
 type TabKey = "receive" | "demand" | "history" | "concession" | "dd";
 
@@ -109,8 +109,30 @@ export default function BillingStudentDetailPage() {
       setSelectedPaymentIds([]);
     }
     window.addEventListener("afterprint", handleAfterPrint);
-    const timer = window.setTimeout(() => window.print(), 50);
+    // The receipt lives in a display:none container until the print
+    // stylesheet activates, and browsers do not reliably fetch images inside
+    // a display:none subtree — firing print() straight away left the
+    // letterhead crest blank on the printout. So decode the logo first and
+    // only then open the print dialog (and still open it if the image fails,
+    // so a missing asset can never block printing).
+    let cancelled = false;
+    let timer = 0;
+    const openPrintDialog = () => {
+      if (cancelled) return;
+      timer = window.setTimeout(() => window.print(), 50);
+    };
+    const logo = new window.Image();
+    logo.src = RECEIPT_LOGO_SRC;
+    if (logo.complete) {
+      openPrintDialog();
+    } else {
+      logo.onload = openPrintDialog;
+      logo.onerror = openPrintDialog;
+    }
     return () => {
+      cancelled = true;
+      logo.onload = null;
+      logo.onerror = null;
       window.removeEventListener("afterprint", handleAfterPrint);
       window.clearTimeout(timer);
     };
@@ -196,6 +218,7 @@ export default function BillingStudentDetailPage() {
     id: pmt.id,
     demandCategoryName: categoryByPaymentId.get(pmt.id) ?? null,
     amountPaid: Number(pmt.amount_paid),
+    paymentMode: pmt.payment_mode,
   }));
   // Academic year / semester come from the real demand_summary row(s) behind
   // the selected payments — joined on all selected mappings; distinct real
@@ -213,7 +236,6 @@ export default function BillingStudentDetailPage() {
     semester: semesters.join(", ") || "—",
   };
 
-  const hasEducationLoanDD = ws.education_loan_dd.length > 0;
   const canPrint =
     selectedPaymentIds.length > 0 && printDate.trim() !== "" && (!isEducationLoanReceipt || ddReferenceNumber.trim() !== "");
 
@@ -418,28 +440,34 @@ export default function BillingStudentDetailPage() {
                       style={inputSxSmall}
                     />
                   </label>
-                  {hasEducationLoanDD && (
-                    <button
-                      type="button"
-                      data-bill-tab
-                      disabled={selectedPaymentIds.length === 0}
-                      onClick={() => setIsEducationLoanReceipt((v) => !v)}
-                      aria-pressed={isEducationLoanReceipt}
-                      style={{
-                        borderRadius: 8,
-                        padding: "8px 14px",
-                        fontSize: 12.5,
-                        fontWeight: 700,
-                        cursor: selectedPaymentIds.length === 0 ? "not-allowed" : "pointer",
-                        opacity: selectedPaymentIds.length === 0 ? 0.5 : 1,
-                        border: isEducationLoanReceipt ? "1px solid #1d4ed8" : "1px solid #e2e8f0",
-                        background: isEducationLoanReceipt ? "#eef3ff" : "#fff",
-                        color: isEducationLoanReceipt ? "#1d4ed8" : "#334155",
-                      }}
-                    >
-                      From Education Loan
-                    </button>
-                  )}
+                  {/* Always offered, for any selected payment: whether this
+                      print is an education-loan (DD) receipt is the billing
+                      staff's call at print time, not something derivable from
+                      whether a prior education_loan_dd row happens to exist
+                      for the student. Toggling it on reveals the DD Reference
+                      Number field below and puts the DD number on the printed
+                      receipt; left off, printing works exactly as before with
+                      no DD text at all. */}
+                  <button
+                    type="button"
+                    data-bill-tab
+                    disabled={selectedPaymentIds.length === 0}
+                    onClick={() => setIsEducationLoanReceipt((v) => !v)}
+                    aria-pressed={isEducationLoanReceipt}
+                    style={{
+                      borderRadius: 8,
+                      padding: "8px 14px",
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      cursor: selectedPaymentIds.length === 0 ? "not-allowed" : "pointer",
+                      opacity: selectedPaymentIds.length === 0 ? 0.5 : 1,
+                      border: isEducationLoanReceipt ? "1px solid #1d4ed8" : "1px solid #e2e8f0",
+                      background: isEducationLoanReceipt ? "#eef3ff" : "#fff",
+                      color: isEducationLoanReceipt ? "#1d4ed8" : "#334155",
+                    }}
+                  >
+                    From Education Loan
+                  </button>
                   <button
                     type="button"
                     data-bill-primary

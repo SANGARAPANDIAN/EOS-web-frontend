@@ -604,3 +604,102 @@ body {
     display: block !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Finance module hover + motion recipes.
+
+   The Finance portal is required to be visually identical to the Secretary
+   portal, so these deliberately reuse Secretary's exact values
+   ([data-sec-lift] etc. above) rather than inventing a second look. They are
+   kept under their own [data-fin-*] attributes so the two modules stay
+   independently editable, matching how Billing already mirrors Secretary.
+   --------------------------------------------------------------------------- */
+[data-fin-lift],
+[data-fin-row],
+[data-fin-nav-item] {
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+[data-fin-lift]:hover {
+  transform: translateY(-3px);
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.13);
+}
+[data-fin-row]:hover {
+  transform: translateY(-3px);
+  background: #f7faff !important;
+  outline: 1px solid #1d4ed8;
+  outline-offset: -1px;
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.12);
+  position: relative;
+  z-index: 1;
+}
+[data-fin-nav-item]:hover {
+  background: #ffffff;
+}
+a:has(> [data-fin-nav-item]) {
+  outline: none;
+}
+[data-fin-collapse]:hover {
+  color: #1e3a8a !important;
+}
+[data-fin-soft]:hover {
+  background: #eef4ff !important;
+}
+[data-fin-danger]:hover {
+  background: #fef2f2 !important;
+}
+
+/* Entry/emphasis motion for the Finance dashboard visualisations. Kept in the
+   stylesheet (not inline) so it can be disabled wholesale for users who ask
+   for reduced motion. */
+@keyframes finRise {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes finPop {
+  from { transform: scale(0.94); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+@keyframes finDash {
+  from { stroke-dashoffset: var(--fin-dash-from); }
+  to   { stroke-dashoffset: var(--fin-dash-to); }
+}
+@keyframes finGrow {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes finSlide {
+  from { width: 0; }
+}
+@keyframes finPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(29, 78, 216, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(29, 78, 216, 0); }
+}
+@keyframes finFlow {
+  from { background-position: 0 0; }
+  to   { background-position: 26px 0; }
+}
+.fin-rise { animation: finRise 0.34s ease both; }
+.fin-pop  { animation: finPop 0.28s cubic-bezier(0.34, 1.5, 0.64, 1) both; }
+.fin-dash { animation: finDash 1s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.fin-grow { animation: finGrow 0.55s cubic-bezier(0.4, 0, 0.2, 1) both; transform-origin: bottom; }
+.fin-slide { animation: finSlide 0.7s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.fin-node-live { animation: finPulse 1.9s ease-out infinite; }
+.fin-rail-live {
+  background-image: linear-gradient(90deg, #1d4ed8 0 55%, rgba(29, 78, 216, 0.25) 55% 100%);
+  background-size: 26px 100%;
+  animation: finFlow 0.85s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fin-rise, .fin-pop, .fin-dash, .fin-grow, .fin-slide,
+  .fin-node-live, .fin-rail-live {
+    animation: none !important;
+  }
+  .fin-rail-live { background-image: none; background-color: #1d4ed8; }
+}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, EmptyState } from "@/components/ui";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
 import { useDeleteAnnouncement } from "@/modules/higher-education/api/announcements";
-import { NewAnnouncementModal, AnnouncementCard } from "@/modules/higher-education/components/AnnouncementParts";
+import { NewAnnouncementModal, EditAnnouncementModal, AnnouncementCard } from "@/modules/higher-education/components/AnnouncementParts";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 export default function HigherEducationAnnouncementsPage() {
@@ -12,6 +12,9 @@ export default function HigherEducationAnnouncementsPage() {
   const announcements = useAnnouncements();
   const deleteAnnouncement = useDeleteAnnouncement();
   const [showNew, setShowNew] = useState(false);
+  // Only ever set for an announcement this user posted — the card hides Edit
+  // otherwise, and the server enforces the same rule.
+  const [editing, setEditing] = useState<{ id: number; title: string; content: string; category?: string | null } | null>(null);
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -39,10 +42,12 @@ export default function HigherEducationAnnouncementsPage() {
               announcement={a}
               canDelete={a.posted_by_user_id === session?.user.id}
               onDelete={(id) => deleteAnnouncement.mutate(id)}
+              onEdit={() => setEditing({ id: a.id, title: a.title, content: a.content, category: a.category })}
             />
           ))
         )}
       </div>
+      {editing && <EditAnnouncementModal announcement={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }

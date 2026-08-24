@@ -34,3 +34,23 @@ export function useDeleteAnnouncement() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["announcements"] }),
   });
 }
+
+export interface UpdateAnnouncementInput {
+  title?: string;
+  content?: string;
+  category?: AnnouncementCategory;
+}
+
+/**
+ * PATCH /announcements/:id — only the poster (or Admin) may edit; enforced
+ * server-side by assertOwnership, so a card's Edit button is also hidden for
+ * anyone else's announcement rather than relying on the server alone.
+ */
+export function useUpdateAnnouncement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: UpdateAnnouncementInput & { id: number }) =>
+      apiClient.patch(`/announcements/${id}`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["announcements"] }),
+  });
+}

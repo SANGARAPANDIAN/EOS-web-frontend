@@ -9,6 +9,8 @@ import {
   useUpdateRoute,
   useUpdateStage,
   useCreateStage,
+  useCreateRoute,
+  useDeleteRoute,
   useRouteStudents,
   useAddRouteStudent,
   useRemoveRouteStudent,
@@ -346,6 +348,21 @@ export default function TransportRoutesPage() {
   const routes = useRoutes();
   const data = routes.data;
   const [editingRouteId, setEditingRouteId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const deleteRoute = useDeleteRoute();
+
+  async function handleDelete(route: Route) {
+    setError(null);
+    // The route is only removable once nothing points at it; the server
+    // explains what is still attached, so that message is shown as-is.
+    if (!window.confirm(`Delete ${routeLabel(route)}? This cannot be undone.`)) return;
+    try {
+      await deleteRoute.mutateAsync(route.id);
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not delete this route.");
+    }
+  }
 
   const columns: DataTableColumn<Route>[] = [
     {
@@ -447,28 +464,49 @@ export default function TransportRoutesPage() {
     {
       key: "edit",
       header: "",
-      width: "70px",
+      width: "130px",
+      align: "right",
       render: (route) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditingRouteId(route.id);
-          }}
-          className="text-[13px] font-bold text-primary hover:underline"
-        >
-          Edit
-        </button>
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingRouteId(route.id);
+            }}
+            className="text-[13px] font-bold text-primary hover:underline"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleDelete(route);
+            }}
+            disabled={deleteRoute.isPending}
+            className="text-[13px] font-bold text-muted hover:text-danger-fg disabled:opacity-50"
+          >
+            Delete
+          </button>
+        </div>
       ),
     },
   ];
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
-      <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Routes</h1>
-        <p className="mt-1 text-[13px] text-muted">Boarding areas, stops, timings and fares.</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Routes</h1>
+          <p className="mt-1 text-[13px] text-muted">Boarding areas, stops, timings and fares.</p>
+        </div>
+        <Button variant="primarySmall" className="w-auto" onClick={() => setCreating(true)}>
+          Add route
+        </Button>
       </div>
+
+      {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
 
       {!data?.extended.specs && data && (
         <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
@@ -476,6 +514,7 @@ export default function TransportRoutesPage() {
         </div>
       )}
 
+      {creating && <RouteCreateModal onClose={() => setCreating(false)} />}
       {editingRouteId != null && <RouteEditModal routeId={editingRouteId} onClose={() => setEditingRouteId(null)} />}
 
       <DataTable
@@ -486,5 +525,99 @@ export default function TransportRoutesPage() {
         hoverableRows
       />
     </div>
+  );
+}
+
+/**
+ * Creating a route only needs its name; the spec fields are optional because
+ * not every deployment tracks them (the banner above says so when they are
+ * absent). Stops and fares are added afterwards from Edit, which is where the
+ * stage editor already lives.
+ */
+function RouteCreateModal({ onClose }: { onClose: () => void }) {
+  const createRoute = useCreateRoute();
+  const [form, setForm] = useState({
+    name: "",
+    boarding_area: "",
+    distance_km: "",
+    departure_time: "",
+    arrival_time: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  function set(key: keyof typeof form, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function submit() {
+    if (!form.name.trim()) {
+      setError("Give the route a name.");
+      return;
+    }
+    setError(null);
+    try {
+      await createRoute.mutateAsync({
+        name: form.name.trim(),
+        boarding_area: form.boarding_area.trim() || undefined,
+        distance_km: form.distance_km ? Number(form.distance_km) : undefined,
+        departure_time: form.departure_time || undefined,
+        arrival_time: form.arrival_time || undefined,
+      });
+      onClose();
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not create this route.");
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
+      <div className="w-full max-w-[460px] rounded-modal bg-surface">
+        <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
+          <div className="text-[19px] font-extrabold text-ink">Add route</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex flex-col gap-4 px-[26px] py-[22px]">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Route name</label>
+            <Input className="mt-1.5" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Route 12 — Gandhipuram" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Boarding area</label>
+            <Input className="mt-1.5" value={form.boarding_area} onChange={(e) => set("boarding_area", e.target.value)} placeholder="Gandhipuram" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Distance (km)</label>
+            <Input className="mt-1.5" type="number" step="0.1" min="0" value={form.distance_km} onChange={(e) => set("distance_km", e.target.value)} />
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Departure</label>
+              <Input className="mt-1.5" type="time" value={form.departure_time} onChange={(e) => set("departure_time", e.target.value)} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Arrival</label>
+              <Input className="mt-1.5" type="time" value={form.arrival_time} onChange={(e) => set("arrival_time", e.target.value)} />
+            </div>
+          </div>
+          <p className="text-[12px] text-subtle">Add the stops and their fares from Edit once the route exists.</p>
+          {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
+        </div>
+        <div className="flex justify-end gap-2.5 border-t border-divider px-[26px] py-[18px]">
+          <Button variant="secondary" className="w-auto" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primarySmall" className="w-auto" onClick={submit} disabled={createRoute.isPending}>
+            {createRoute.isPending ? "Creating…" : "Create route"}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

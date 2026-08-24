@@ -10,6 +10,7 @@ import {
   useRejectBudgetRequest,
   type BudgetRequest,
 } from "@/modules/sports-admin/api/budget";
+import { useAuth } from "@/lib/auth/AuthContext";
 import type { ApprovalStatus } from "@/modules/sports-admin/api/types";
 import { ApiError } from "@/types/api";
 
@@ -27,6 +28,13 @@ export default function BudgetPage() {
   const createBudgetRequest = useCreateBudgetRequest();
   const approveBudgetRequest = useApproveBudgetRequest();
   const rejectBudgetRequest = useRejectBudgetRequest();
+
+  // Sports raises a budget request; Finance decides it (POST :id/approve is
+  // @Roles(FINANCE, ADMIN)). Showing the buttons to a sports_admin produced a
+  // 403 on every click, so the decision controls only render for the roles that
+  // actually hold the decision.
+  const { session } = useAuth();
+  const canDecide = session?.user.role === "finance" || session?.user.role === "admin";
 
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
@@ -82,8 +90,14 @@ export default function BudgetPage() {
       header: "Status",
       width: "1.2fr",
       align: "right",
-      render: (r) =>
-        r.status === "pending" ? (
+      render: (r) => {
+        if (r.status !== "pending") return <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>;
+        if (!canDecide) {
+          // Says where the request actually is, instead of offering an action
+          // this role cannot perform.
+          return <Badge tone="neutral">Awaiting Finance</Badge>;
+        }
+        return (
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => approveBudgetRequest.mutate(r.id)}
@@ -100,9 +114,8 @@ export default function BudgetPage() {
               Reject
             </button>
           </div>
-        ) : (
-          <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>
-        ),
+        );
+      },
     },
   ];
 

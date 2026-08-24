@@ -1,0 +1,71 @@
+"use client";
+
+import { AppShell } from "@/components/layout/AppShell";
+import { coeModuleConfig } from "@/modules/coe/nav";
+import { CoeTopbar } from "@/modules/coe/CoeTopbar";
+import { useMe } from "@/modules/coe/api/identity";
+import { useRevaluationRequests } from "@/modules/coe/api/revaluation";
+import { useExamRegistrations } from "@/modules/coe/api/examRegistrations";
+import { useHallPlans } from "@/modules/coe/api/hallPlans";
+import { useHallTicketsTotalCount } from "@/modules/coe/api/hallTicketsManagement";
+import { useInvigilationDuties } from "@/modules/coe/api/invigilation";
+import { useQuestionPapersTotalCount } from "@/modules/coe/api/questionPapers";
+import { useMalpracticeIncidents } from "@/modules/coe/api/malpractice";
+import { ROLE_LABEL } from "@/lib/config";
+
+/**
+ * The design reference puts the search bar and notification bell inline
+ * with each page's own title row (not in a separate global strip), so the
+ * shared Topbar is hidden here (`hideTopbar`) and each COE page renders
+ * that row itself via `CoePageHeader` — see modules/coe/PageHeader.tsx.
+ * Every other module still gets the normal Topbar; this is opt-in.
+ *
+ * studentName/registerNumber still feed the Sidebar's own footer identity
+ * block (unrelated to the now-hidden Topbar) — /auth/me doesn't join
+ * coe_profiles (nothing in the backend does), so there's no real display
+ * name beyond the account email; the role label falls back to the same
+ * static ROLE_LABEL every other module uses.
+ *
+ * The revaluation nav badge is a real count of status: "requested" rows.
+ * The Exam Cycle/Conduct group badges (design shows a count chip next to
+ * Exam Registration/Hall & Seating/Hall Tickets/Invigilation/Question
+ * Papers/Malpractice) are each a real total fetched unfiltered across every
+ * exam — same pattern as revaluation, not fabricated numbers.
+ */
+export function CoeShell({ children }: { children: React.ReactNode }) {
+  const me = useMe();
+  const revaluation = useRevaluationRequests();
+  const registrations = useExamRegistrations({});
+  const hallPlans = useHallPlans();
+  const hallTickets = useHallTicketsTotalCount();
+  const invigilation = useInvigilationDuties();
+  const questionPapers = useQuestionPapersTotalCount();
+  const malpractice = useMalpracticeIncidents();
+
+  const pendingRevaluation = revaluation.data?.filter((r) => r.status === "requested").length;
+
+  return (
+    <AppShell
+      moduleConfig={coeModuleConfig}
+      hideTopbar
+      header={{
+        studentName: me.data?.email,
+        registerNumber: ROLE_LABEL.coe,
+      }}
+      navBadges={{
+        coeRevaluationPending: pendingRevaluation || undefined,
+        coeExamRegistrations: registrations.data?.length || undefined,
+        coeHallSeating: hallPlans.data?.meta.total || undefined,
+        coeHallTickets: hallTickets.data?.total || undefined,
+        coeInvigilation: invigilation.data?.meta.total || undefined,
+        coeQuestionPapers: questionPapers.data?.total || undefined,
+        coeMalpractice: malpractice.data?.meta.total || undefined,
+      }}
+    >
+      <div className="flex flex-col gap-5">
+        <CoeTopbar />
+        {children}
+      </div>
+    </AppShell>
+  );
+}

@@ -122,7 +122,7 @@ export default function PrincipalFacultyPage() {
         </select>
       </div>
 
-      <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+      <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
         <div className="flex items-center border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
           <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
             Faculty register
@@ -159,7 +159,7 @@ export default function PrincipalFacultyPage() {
                       ? "#B42318"
                       : principalColors.heading;
                 return (
-                  <tr key={f.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={f.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                     <td
                       className="whitespace-nowrap px-5 py-3.5 font-semibold"
                       style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.primary }}
@@ -219,7 +219,7 @@ export default function PrincipalFacultyPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+      <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
         <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
           <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
             Department-wise strength
@@ -245,7 +245,7 @@ export default function PrincipalFacultyPage() {
             <tbody>
               {deptStrength.isLoading && <PrincipalTableSkeleton columns={5} />}
               {deptStrength.data?.departments.map((d) => (
-                <tr key={d.department.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={d.department.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {d.department.code}
                   </td>

@@ -20,7 +20,7 @@ function BusCard({ bus, onOpen }: { bus: TransportBus; onOpen: () => void }) {
   return (
     <div
       onClick={onOpen}
-      className="flex cursor-pointer flex-col gap-3.5 rounded-2xl border p-5"
+      className="flex cursor-pointer flex-col gap-3.5 rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
       style={{ background: principalColors.bg, borderColor: principalColors.border }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -106,7 +106,7 @@ function BusDetailView({ busId, onBack }: { busId: number; onBack: () => void })
           </div>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
-            <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+            <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
               <div className="flex items-center border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
                 <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
                   Route
@@ -147,7 +147,7 @@ function BusDetailView({ busId, onBack }: { busId: number; onBack: () => void })
               </div>
               <div className="grid grid-cols-1 gap-x-8 px-5 py-2 sm:grid-cols-2">
                 {bus.stops.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 border-b py-2.5 text-sm" style={{ borderColor: principalColors.borderMuted }}>
+                  <div key={s.id} className="flex items-center gap-3 border-b py-2.5 text-sm transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                     <span className="font-mono text-xs" style={{ color: principalColors.textFaint }}>
                       {String(s.sequence_no).padStart(2, "0")}
                     </span>
@@ -160,7 +160,7 @@ function BusDetailView({ busId, onBack }: { busId: number; onBack: () => void })
             </div>
 
             <div className="flex flex-col gap-5">
-              <div className="rounded-2xl border p-5" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+              <div className="rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold" style={{ color: principalColors.textFaint }}>
                     Occupancy
@@ -195,7 +195,7 @@ function BusDetailView({ busId, onBack }: { busId: number; onBack: () => void })
                 )}
               </div>
 
-              <div className="rounded-2xl border p-5" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+              <div className="rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
                 <div className="text-sm font-semibold" style={{ color: principalColors.textFaint }}>
                   Driver
                 </div>

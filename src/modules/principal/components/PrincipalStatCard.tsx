@@ -1,3 +1,4 @@
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { principalColors } from "@/modules/principal/theme";
@@ -12,13 +13,19 @@ interface PrincipalStatCardProps {
   footer?: string;
   /** True while the query backing this tile is still in flight — renders skeleton bars instead of the (still-fallback) value/sub/footer, so nothing flashes text before real data arrives. */
   loading?: boolean;
+  /** Real page this tile's data actually lives on — omit when no such page exists yet, rather than linking somewhere that doesn't back it. */
+  href?: string;
 }
 
-/** One KPI tile matching the reference design's card style exactly (border, radius, hover lift). */
-export function PrincipalStatCard({ label, icon, value, delta, sub, progressPercent, footer, loading }: PrincipalStatCardProps) {
+/** One KPI tile matching the reference design's card style exactly (border, radius, hover lift). Clickable to the real page its data comes from, when one exists. */
+export function PrincipalStatCard({ label, icon, value, delta, sub, progressPercent, footer, loading, href }: PrincipalStatCardProps) {
+  const router = useRouter();
+  const Tag = href ? "button" : "div";
   return (
-    <div
-      className="rounded-2xl border p-5 shadow-[0_1px_2px_rgba(13,30,79,0.06)] transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+    <Tag
+      type={href ? "button" : undefined}
+      onClick={href ? () => router.push(href) : undefined}
+      className={`rounded-2xl border p-5 text-left shadow-[0_1px_2px_rgba(13,30,79,0.06)] hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)] ${href ? "cursor-pointer" : ""}`}
       style={{ background: principalColors.bg, borderColor: principalColors.border }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -72,6 +79,6 @@ export function PrincipalStatCard({ label, icon, value, delta, sub, progressPerc
           )}
         </>
       )}
-    </div>
+    </Tag>
   );
 }

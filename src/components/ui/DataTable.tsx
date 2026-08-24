@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils/cn";
 
@@ -9,6 +9,13 @@ export interface DataTableColumn<T> {
   width?: string;
   align?: "left" | "right" | "center";
   render: (row: T, index: number) => ReactNode;
+  /**
+   * Opt-in click-to-sort for this column — return the raw comparable value
+   * (not the rendered node). Columns that omit this stay static, matching
+   * every existing caller. Numbers sort numerically, everything else via
+   * localeCompare (same rule the design reference's sortable tables use).
+   */
+  sortValue?: (row: T) => string | number;
 }
 
 interface DataTableProps<T> {
@@ -58,9 +65,30 @@ export function DataTable<T>({
   title,
   titleNote,
 }: DataTableProps<T>) {
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
   const gridTemplateColumns = columns.map((c) => c.width ?? "1fr").join(" ");
   const alignClass = (align?: DataTableColumn<T>["align"]) =>
     align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
+
+  const sortCol = sortKey ? columns.find((c) => c.key === sortKey) : undefined;
+  const sortedData = useMemo(() => {
+    if (!sortCol?.sortValue) return data;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...data].sort((a, b) => {
+      const va = sortCol.sortValue!(a);
+      const vb = sortCol.sortValue!(b);
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+  }, [data, sortCol, sortDir]);
+
+  const toggleSort = (col: DataTableColumn<T>) => {
+    if (!col.sortValue) return;
+    setSortKey(col.key);
+    setSortDir((d) => (sortKey === col.key && d === "asc" ? "desc" : "asc"));
+  };
 
   return (
     <div className={cn("overflow-hidden rounded-card border border-border-default bg-surface", className)}>
@@ -74,18 +102,30 @@ export function DataTable<T>({
         className="grid gap-2 px-5 py-3 text-[10.5px] font-extrabold tracking-[.09em] text-subtle uppercase bg-surface-muted"
         style={{ gridTemplateColumns }}
       >
-        {columns.map((col) => (
-          <div key={col.key} className={alignClass(col.align)}>
-            {col.header}
-          </div>
-        ))}
+        {columns.map((col) =>
+          col.sortValue ? (
+            <button
+              key={col.key}
+              type="button"
+              onClick={() => toggleSort(col)}
+              className={cn("cursor-pointer select-none", alignClass(col.align))}
+            >
+              {col.header}
+              {sortKey === col.key ? (sortDir === "asc" ? "  ↑" : "  ↓") : ""}
+            </button>
+          ) : (
+            <div key={col.key} className={alignClass(col.align)}>
+              {col.header}
+            </div>
+          ),
+        )}
       </div>
-      {data.length === 0 ? (
+      {sortedData.length === 0 ? (
         <div className="px-5">
           <EmptyState loading={loading} message={emptyMessage} size={32} />
         </div>
       ) : (
-        data.map((row, index) => (
+        sortedData.map((row, index) => (
           <div
             key={rowKey(row)}
             onClick={onRowClick ? () => onRowClick(row) : undefined}

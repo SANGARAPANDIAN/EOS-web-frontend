@@ -72,7 +72,11 @@ export default function PrincipalAnnouncementsPage() {
         )}
 
         {announcements.data?.map((a) => (
-          <div key={a.id} className="rounded-2xl border p-6" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+          <div
+            key={a.id}
+            className="rounded-2xl border p-6 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+            style={{ background: principalColors.bg, borderColor: principalColors.border }}
+          >
             <div className="flex flex-wrap items-center gap-3">
               <span
                 className="rounded-md px-2 py-1 text-[11px] font-bold tracking-wide"

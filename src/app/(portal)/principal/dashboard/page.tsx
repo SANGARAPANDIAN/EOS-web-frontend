@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useMyIdentity } from "@/modules/principal/api/profile";
 import {
@@ -25,6 +27,7 @@ const PERIOD_TABS: { key: DashboardPeriod; label: string }[] = [
 ];
 
 export default function PrincipalDashboardPage() {
+  const router = useRouter();
   const [period, setPeriod] = useState<DashboardPeriod>("today");
   const identity = useMyIdentity();
   const summary = usePrincipalDashboardSummary(period);
@@ -99,6 +102,7 @@ export default function PrincipalDashboardPage() {
                   : undefined
               }
               footer={`${todayView.students.absent_today.toLocaleString("en-IN")} marked absent today`}
+              href="/principal/students"
             />
             <PrincipalStatCard
               label="Faculty & staff"
@@ -117,6 +121,7 @@ export default function PrincipalDashboardPage() {
                   ? `${todayView.faculty.on_leave_today.toLocaleString("en-IN")} faculty on approved leave`
                   : "Today's faculty attendance hasn't been marked yet"
               }
+              href="/principal/faculty"
             />
             <PrincipalStatCard
               label="Mean attendance"
@@ -127,6 +132,7 @@ export default function PrincipalDashboardPage() {
               sub={markedTotal > 0 ? `of ${markedTotal.toLocaleString("en-IN")} marked today` : undefined}
               progressPercent={todayView.students.attendance_percentage_today ?? undefined}
               footer={markedTotal > 0 ? `${todayView.students.on_duty_today.toLocaleString("en-IN")} on official duty` : "No attendance marked yet today"}
+              href="/principal/students"
             />
           </>
         )}
@@ -140,6 +146,7 @@ export default function PrincipalDashboardPage() {
               value={periodView.students.total_active.toLocaleString("en-IN")}
               delta={`+${periodView.students.new_admissions.toLocaleString("en-IN")}`}
               sub="new admissions this period"
+              href="/principal/students"
             />
             <PrincipalStatCard
               label="Faculty & staff"
@@ -148,6 +155,7 @@ export default function PrincipalDashboardPage() {
               value={(periodView.faculty.total_active + periodView.non_teaching_staff.total_active).toLocaleString("en-IN")}
               delta={`+${periodView.faculty.new_hires.toLocaleString("en-IN")}`}
               sub="hires this period"
+              href="/principal/faculty"
             />
             <PrincipalStatCard
               label="Mean attendance"
@@ -158,15 +166,16 @@ export default function PrincipalDashboardPage() {
               sub={periodView.attendance.percentage != null ? "students below 75%" : undefined}
               progressPercent={periodView.attendance.percentage ?? undefined}
               footer={periodView.attendance.best_month ? `best month: ${periodView.attendance.best_month}` : "no attendance recorded this period yet"}
+              href="/principal/students"
             />
           </>
         )}
 
         {!s && (
           <>
-            <PrincipalStatCard label="Total students" icon="groups" loading={summary.isLoading} value="—" />
-            <PrincipalStatCard label="Faculty & staff" icon="badge" loading={summary.isLoading} value="—" />
-            <PrincipalStatCard label="Mean attendance" icon="fact_check" loading={summary.isLoading} value="—" />
+            <PrincipalStatCard label="Total students" icon="groups" loading={summary.isLoading} value="—" href="/principal/students" />
+            <PrincipalStatCard label="Faculty & staff" icon="badge" loading={summary.isLoading} value="—" href="/principal/faculty" />
+            <PrincipalStatCard label="Mean attendance" icon="fact_check" loading={summary.isLoading} value="—" href="/principal/students" />
           </>
         )}
 
@@ -176,6 +185,7 @@ export default function PrincipalDashboardPage() {
           loading={summary.isLoading}
           value={s ? s.departments.total.toLocaleString("en-IN") : "—"}
           footer="across the institution"
+          href="/principal/departments"
         />
       </div>
 
@@ -184,13 +194,16 @@ export default function PrincipalDashboardPage() {
         <PrincipalAttentionCard flags={insights.data?.attention_flags} isLoading={insights.isLoading} />
 
         <div
-          className="flex flex-col overflow-hidden rounded-2xl border"
+          className="flex flex-col overflow-hidden rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
           style={{ background: principalColors.bg, borderColor: principalColors.border }}
         >
           <div className="flex items-center gap-3 border-b px-5 py-[18px]" style={{ borderColor: principalColors.borderLight }}>
             <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
               Announcements
             </div>
+            <Link href="/principal/announcements" className="ml-auto text-sm font-semibold" style={{ color: principalColors.primary }}>
+              View all
+            </Link>
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             {announcements.isLoading &&
@@ -206,7 +219,13 @@ export default function PrincipalDashboardPage() {
               </div>
             )}
             {announcements.data?.slice(0, 6).map((a) => (
-              <div key={a.id} className="border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => router.push("/principal/announcements")}
+                className="hover-lift w-full border-b px-5 py-3.5 text-left last:border-b-0"
+                style={{ borderColor: principalColors.borderMuted }}
+              >
                 <div className="text-sm font-semibold" style={{ color: principalColors.heading }}>
                   {a.title}
                 </div>
@@ -216,7 +235,7 @@ export default function PrincipalDashboardPage() {
                 <div className="mt-1 text-xs" style={{ color: principalColors.textSubtle }}>
                   {a.posted_by?.name ?? "Unknown"} · {formatDayAndTime(a.created_at)}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

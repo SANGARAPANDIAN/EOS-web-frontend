@@ -35,7 +35,8 @@ export type NavBadgeKey =
   | "mrUpcomingEvents"
   | "mrPendingIndents"
   | "hrPendingRequests"
-  | "hrPendingAppraisals";
+  | "hrPendingAppraisals"
+  | "iqacPendingApprovals";
 
 export interface NavItem {
   key: string;

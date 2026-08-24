@@ -198,7 +198,7 @@ export function PrincipalAnnouncementComposer({ onClose }: PrincipalAnnouncement
                   return (
                     <label
                       key={g.key}
-                      className="flex cursor-pointer items-start gap-2.5 border-b px-3 py-2.5 last:border-b-0"
+                      className="flex cursor-pointer items-start gap-2.5 border-b px-3 py-2.5 transition-colors last:border-b-0 hover:bg-[rgba(13,30,79,0.03)]"
                       style={{ borderColor: principalColors.borderMuted, background: selected ? principalColors.surfaceTint : "transparent" }}
                     >
                       <input type="checkbox" checked={selected} onChange={() => toggleGroup(g.key)} className="mt-0.5" />

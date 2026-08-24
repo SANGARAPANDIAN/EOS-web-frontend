@@ -35,7 +35,14 @@ export type NavBadgeKey =
   | "mrUpcomingEvents"
   | "mrPendingIndents"
   | "hrPendingRequests"
-  | "hrPendingAppraisals";
+  | "hrPendingAppraisals"
+  | "coeRevaluationPending"
+  | "coeExamRegistrations"
+  | "coeHallSeating"
+  | "coeHallTickets"
+  | "coeInvigilation"
+  | "coeQuestionPapers"
+  | "coeMalpractice";
 
 export interface NavItem {
   key: string;

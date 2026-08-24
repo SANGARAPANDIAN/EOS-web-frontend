@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar, type TopbarSearchConfig, type TopbarQuickCreateConfig } from "@/components/layout/Topbar";
 import type { ModuleConfig, NavBadgeKey } from "@/modules/types";
+import { cn } from "@/lib/utils/cn";
 
 export interface ShellHeaderData {
   studentName?: string;
@@ -26,6 +27,15 @@ interface AppShellProps {
   programIcon?: string;
   /** Omit to hide the topbar's "+" quick-create button entirely. */
   quickCreate?: TopbarQuickCreateConfig;
+  /**
+   * Replaces the shared Topbar with a module-specific one — rendered in the
+   * exact same full-width slot (flush with the sidebar's border), not inset
+   * inside the content padding like `children` is. Use this instead of
+   * nesting a custom header inside `children`, which would leave its border
+   * inset by the content's own `px-7` and out of alignment with the
+   * sidebar — e.g. COE's search/AY chips row replaces Topbar entirely.
+   */
+  customTopbar?: ReactNode;
   children: ReactNode;
 }
 
@@ -36,7 +46,7 @@ interface AppShellProps {
  * data and passes it in as `header` — this component never fetches data
  * itself, which is what keeps it reusable for future modules like faculty.
  */
-export function AppShell({ moduleConfig, header, navBadges, search, programIcon, quickCreate, children }: AppShellProps) {
+export function AppShell({ moduleConfig, header, navBadges, search, programIcon, quickCreate, customTopbar, children }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-surface font-sans text-ink">
       <Sidebar
@@ -46,20 +56,22 @@ export function AppShell({ moduleConfig, header, navBadges, search, programIcon,
         navBadges={navBadges}
       />
       <main className="flex flex-1 flex-col overflow-y-auto">
-        <Topbar
-          moduleConfig={moduleConfig}
-          searchPlaceholder={header?.searchPlaceholder}
-          programLabel={header?.programLabel}
-          programIcon={programIcon}
-          roleDeptLabel={header?.roleDeptLabel}
-          academicYearLabel={header?.academicYearLabel}
-          semesterParityLabel={header?.semesterParityLabel}
-          unreadNotifications={header?.unreadNotifications}
-          showNotifications={header?.showNotifications}
-          search={search}
-          quickCreate={quickCreate}
-        />
-        <div className="flex flex-1 flex-col gap-5 px-7 pt-9 pb-14">{children}</div>
+        {customTopbar ?? (
+          <Topbar
+            moduleConfig={moduleConfig}
+            searchPlaceholder={header?.searchPlaceholder}
+            programLabel={header?.programLabel}
+            programIcon={programIcon}
+            roleDeptLabel={header?.roleDeptLabel}
+            academicYearLabel={header?.academicYearLabel}
+            semesterParityLabel={header?.semesterParityLabel}
+            unreadNotifications={header?.unreadNotifications}
+            showNotifications={header?.showNotifications}
+            search={search}
+            quickCreate={quickCreate}
+          />
+        )}
+        <div className={cn("flex flex-1 flex-col gap-5 px-7 pb-14", customTopbar ? "pt-5" : "pt-9")}>{children}</div>
       </main>
     </div>
   );

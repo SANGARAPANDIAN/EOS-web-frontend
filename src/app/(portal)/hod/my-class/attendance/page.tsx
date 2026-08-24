@@ -33,6 +33,12 @@ export default function HodMyClassAttendancePage() {
         </p>
       </div>
 
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load attendance data — please try again.
+        </div>
+      )}
+
       {overview.isLoading ? (
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-5 rounded-card border border-border-default bg-surface p-5">
@@ -41,7 +47,7 @@ export default function HodMyClassAttendancePage() {
           </div>
           <SkeletonRows count={5} />
         </div>
-      ) : handled.length === 0 || !o?.selected_class ? (
+      ) : overview.isError ? null : handled.length === 0 || !o?.selected_class ? (
         <Card>
           <div className="text-[13px] text-subtle">You are not mapped to teach any class/subject yet.</div>
         </Card>
@@ -179,8 +185,8 @@ function AttendanceBoard({
           <Button variant="secondary" onClick={clearAll} disabled={alreadySaved}>
             Clear
           </Button>
-          <Button variant="primary" onClick={save} disabled={alreadySaved || mark.isPending}>
-            {alreadySaved ? "Attendance saved ✓" : mark.isPending ? "Saving…" : "Save attendance"}
+          <Button variant="primary" onClick={save} disabled={alreadySaved} loading={mark.isPending}>
+            {alreadySaved ? "Attendance saved ✓" : "Save attendance"}
           </Button>
         </div>
       </Card>

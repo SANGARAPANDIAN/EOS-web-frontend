@@ -1,18 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BILLING_NAV } from "./nav";
 import { BillingIcon } from "./icons";
 import { useFeePaymentsDashboard, groupDashboardByStudent, useFinanceOverview } from "./api/fees";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { useMyRoles } from "@/lib/auth/roles";
-import { getModuleConfig } from "@/modules/registry";
-import { ROLE_LABEL } from "@/lib/config";
-import { Avatar } from "@/components/ui/Avatar";
-import { IconButton } from "@/components/ui/IconButton";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BrandMark } from "@/components/layout/SidebarBrandHeader";
+import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
 import {
   useUnreadNotificationCount,
   useNotificationsPanel,
@@ -35,38 +30,9 @@ import {
 export function BillingShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, logout, switchRole } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<"quick" | "bell" | "help" | null>(null);
-  const [switching, setSwitching] = useState(false);
-  const [rolesOpen, setRolesOpen] = useState(false);
-  const [confirmingLogout, setConfirmingLogout] = useState(false);
-  const rolesRef = useRef<HTMLDivElement>(null);
-
-  const roles = useMyRoles();
-  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
-
-  useEffect(() => {
-    if (!rolesOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [rolesOpen]);
-
-  async function handleSwitchRole(roleId: number) {
-    setSwitching(true);
-    try {
-      const newSession = await switchRole(roleId);
-      setRolesOpen(false);
-      const target = getModuleConfig(newSession.user.role);
-      router.push(target ? `${target.basePath}/dashboard` : "/login");
-    } finally {
-      setSwitching(false);
-    }
-  }
 
   const activeId = BILLING_NAV.flatMap((g) => g.items).find((item) => pathname?.startsWith(item.href))?.id;
 
@@ -93,12 +59,8 @@ export function BillingShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "#fff" }}>
       <header style={{ height: 72, flex: "0 0 72px", display: "flex", alignItems: "center", gap: 18, padding: "0 22px", background: "#fff", borderBottom: "1px solid #e6e9ef", position: "relative", zIndex: 40 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 11, width: 240, flex: "0 0 240px" }}>
-          <div style={{ width: 38, height: 38, borderRadius: 9, background: "#0f2d6b", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 800 }}>♛</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <div style={{ fontSize: 16.5, fontWeight: 800, letterSpacing: -0.2 }}>Sri Eshwar</div>
-            <div style={{ fontSize: 11.5, color: "#64748b", fontWeight: 500 }}>College of Engineering</div>
-          </div>
+        <div style={{ width: 240, flex: "0 0 240px" }}>
+          <BrandMark />
         </div>
         <button onClick={() => setCollapsed((v) => !v)} title="Collapse navigation" style={{ width: 38, height: 38, flex: "0 0 38px", borderRadius: 10, border: "1px solid #e6e9ef", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#334155" }}>
           <BillingIcon name="menu" size={17} />
@@ -237,55 +199,9 @@ export function BillingShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
 
-          <div
-            style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 22, paddingTop: 14, borderTop: "1px solid #eef1f6" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Avatar name={session?.user.email || "Billing"} className="bg-[#152f6d]" />
-            {!collapsed && (
-              <>
-                <div style={{ minWidth: 0, flex: 1, lineHeight: 1.25 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {session?.user.email ?? "—"}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>Billing</div>
-                </div>
-                {otherRoles.length > 0 && (
-                  <div ref={rolesRef} className="relative">
-                    <IconButton icon="swap_horiz" size={34} iconSize={17} title="Switch role" onClick={() => setRolesOpen((v) => !v)} />
-                    {rolesOpen && (
-                      <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 min-w-[210px] overflow-hidden rounded-card border border-border-default bg-surface py-1.5 shadow-modal">
-                        <div className="px-4 pb-1 pt-1.5 text-[10.5px] font-extrabold tracking-[.09em] text-subtle">SWITCH ROLE</div>
-                        {otherRoles.map((r) => (
-                          <button
-                            key={r.id}
-                            type="button"
-                            disabled={switching}
-                            onClick={() => handleSwitchRole(r.id)}
-                            className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-nav-hover disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {ROLE_LABEL[r.name] ?? r.description ?? r.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
-              </>
-            )}
+          <div style={{ marginTop: 22 }} onClick={(e) => e.stopPropagation()}>
+            <SidebarUserFooter subLabel="Billing" portalName="Billing" collapsed={collapsed} />
           </div>
-
-          <ConfirmDialog
-            open={confirmingLogout}
-            title="Sign out?"
-            description="You'll need to log in again to access the Billing portal."
-            confirmLabel="Sign out"
-            cancelLabel="Cancel"
-            destructive
-            onConfirm={logout}
-            onCancel={() => setConfirmingLogout(false)}
-          />
         </aside>
 
         <main style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "26px 32px 60px" }} onClick={(e) => e.stopPropagation()}>

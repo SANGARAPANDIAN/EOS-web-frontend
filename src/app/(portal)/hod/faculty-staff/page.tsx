@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, StatCard, Avatar, Input, SkeletonTable } from "@/components/ui";
+import { Card, StatCard, Avatar, Input, Select, SkeletonTable, SkeletonStatTiles } from "@/components/ui";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
@@ -14,11 +14,27 @@ import {
 } from "@/modules/hod/api/facultyStaff";
 import { formatDisplayDate } from "@/lib/utils/date";
 
+const DESIGNATION_SHORT_LABEL: Record<string, string> = {
+  "Assistant Professor": "Asst Prof",
+  "Associate Professor": "Assoc Prof",
+  "Professor & Head": "Prof & Head",
+  Professor: "Prof",
+  lab_assistant: "Lab Assistant",
+  housekeeping: "Housekeeping",
+  security: "Security",
+  office: "Office",
+};
+
+function designationShortLabel(designation: string): string {
+  return DESIGNATION_SHORT_LABEL[designation] ?? designation;
+}
+
 export default function HodFacultyStaffPage() {
   const overview = useHodFacultyStaffOverview();
   const [tab, setTab] = useState<HodFacultyStaffType>("all");
   const [search, setSearch] = useState("");
-  const list = useHodFacultyStaffList(tab, search);
+  const [designation, setDesignation] = useState<string | null>(null);
+  const list = useHodFacultyStaffList(tab, search, designation);
   const router = useRouter();
 
   const columns: DataTableColumn<HodFacultyStaffRow>[] = useMemo(
@@ -33,7 +49,7 @@ export default function HodFacultyStaffPage() {
             <div className="min-w-0">
               <div className="truncate text-[13.5px] font-bold text-ink">{row.name}</div>
               <div className="truncate text-[11.5px] text-muted">
-                {row.designation} · {row.department_code}
+                {designationShortLabel(row.designation)} · {row.department_code}
               </div>
             </div>
           </div>
@@ -91,9 +107,15 @@ export default function HodFacultyStaffPage() {
   }
 
   const o = overview.data;
+  const anyError = overview.isError || list.isError;
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {anyError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load faculty &amp; staff data — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Faculty &amp; Staff</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -101,41 +123,53 @@ export default function HodFacultyStaffPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="hod-hover-card">
-          <div className="text-[13px] font-bold text-body">Faculty attendance today</div>
-          <div className="mt-2.5 text-[32px] font-extrabold tracking-[-.03em] text-ink">
-            {o ? `${o.faculty_attendance.percentage}%` : "—"}
-          </div>
-          <div className="mt-0.5 text-[12.5px] text-muted">
-            {o ? `${o.faculty_attendance.reported} reported of ${o.faculty_attendance.on_roll} on rolls` : ""}
-          </div>
-          {o && <ProgressBar percent={o.faculty_attendance.percentage} className="mt-3.5" />}
-          <div className="mt-2 text-[12px] text-subtle">
-            {o
-              ? `${o.faculty_attendance.on_leave} on approved leave · ${o.faculty_attendance.on_duty} on OD`
-              : ""}
-          </div>
-        </Card>
-        <StatCard
-          className="hod-hover-card"
-          label="On duty today"
-          value={o ? o.on_duty_today.count : "—"}
-          sub={o ? `${o.on_duty_today.on_approved_leave} on approved leave` : ""}
-        />
-        <StatCard
-          className="hod-hover-card"
-          label="Leave requests"
-          value={o ? o.leave_requests_pending : "—"}
-          sub="awaiting your approval"
-        />
-        <StatCard
-          className="hod-hover-card"
-          label="Appraisals closed"
-          value={o ? `${o.appraisal.closed}/${o.appraisal.total}` : "—"}
-          sub={o?.appraisal.cycle_end_date ? `cycle ends ${formatDisplayDate(o.appraisal.cycle_end_date)}` : ""}
-        />
-      </div>
+      {overview.isLoading ? (
+        <SkeletonStatTiles count={4} />
+      ) : overview.isError ? null : (
+        <div className="grid grid-cols-4 gap-4">
+          <Card className="hod-hover-card">
+            <div className="text-[13px] font-bold text-body">Faculty attendance today</div>
+            <div className="mt-2.5 text-[32px] font-extrabold tracking-[-.03em] text-ink">
+              {o ? (o.faculty_attendance.reported === 0 ? "0%" : `${o.faculty_attendance.percentage}%`) : "—"}
+            </div>
+            <div className="mt-0.5 text-[12.5px] text-muted">
+              {o
+                ? o.faculty_attendance.reported === 0
+                  ? "No attendance recorded for today yet"
+                  : `${o.faculty_attendance.reported} reported of ${o.faculty_attendance.on_roll} on rolls`
+                : ""}
+            </div>
+            {o && o.faculty_attendance.reported > 0 && (
+              <ProgressBar percent={o.faculty_attendance.percentage} className="mt-3.5" />
+            )}
+            {o && o.faculty_attendance.reported > 0 && (
+              <div className="mt-2 text-[12px] text-subtle">
+                {`${o.faculty_attendance.on_leave} on approved leave · ${o.faculty_attendance.on_duty} on OD`}
+              </div>
+            )}
+          </Card>
+          <StatCard
+            className="hod-hover-card"
+            label="On duty today"
+            value={o ? o.on_duty_today.count : "—"}
+            sub={o ? `${o.on_duty_today.on_approved_leave} on approved leave` : ""}
+          />
+          <StatCard
+            className="hod-hover-card"
+            href="/hod/leave-requests"
+            label="Leave requests"
+            value={o ? o.leave_requests_pending : "—"}
+            sub="awaiting your approval"
+          />
+          <StatCard
+            className="hod-hover-card"
+            href="/hod/appraisal-requests"
+            label="Appraisals closed"
+            value={o ? `${o.appraisal.closed}/${o.appraisal.total}` : "—"}
+            sub={o?.appraisal.cycle_end_date ? `cycle ends ${formatDisplayDate(o.appraisal.cycle_end_date)}` : ""}
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <SegmentedTabs
@@ -149,15 +183,30 @@ export default function HodFacultyStaffPage() {
         />
       </div>
 
-      <Input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by name, designation, qualification or subject"
-      />
+      <div className="flex items-center gap-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or designation"
+          className="flex-1"
+        />
+        <Select
+          value={designation ?? "all"}
+          onChange={(e) => setDesignation(e.target.value === "all" ? null : e.target.value)}
+          className="max-w-[200px] font-bold"
+        >
+          <option value="all">All designations</option>
+          {(o?.designations ?? []).map((d) => (
+            <option key={d} value={d}>
+              {designationShortLabel(d)}
+            </option>
+          ))}
+        </Select>
+      </div>
 
       {list.isLoading ? (
         <SkeletonTable rows={8} />
-      ) : (
+      ) : list.isError ? null : (
         <DataTable
           columns={columns}
           data={list.data?.rows ?? []}

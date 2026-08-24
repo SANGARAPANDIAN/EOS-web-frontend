@@ -4,10 +4,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { higherEducationModuleConfig } from "@/modules/higher-education/nav";
 import { HIGHER_EDUCATION_MOCK_SUMMARY } from "@/modules/higher-education/summary";
 
-// Design-only pass: header identity and nav badge counts are static mock
-// values standing in for the real Higher Education Cell coordinator profile
-// + live aspirant/application/scholarship counts that will replace them once
-// this module is wired to the backend.
+// Design-only pass: nav badge counts are static mock values standing in for
+// live aspirant/application/scholarship counts that will replace them once
+// this module is wired to the backend. Sidebar identity comes from the real
+// logged-in session (Sidebar/SidebarUserFooter falls back to session email
+// when studentName is omitted) — no fake coordinator name here.
 
 export function HigherEducationShell({ children }: { children: React.ReactNode }) {
   const { aspirantsCount, applicationsCount, testsCount, universitiesCount, scholarshipsCount } =
@@ -17,7 +18,6 @@ export function HigherEducationShell({ children }: { children: React.ReactNode }
     <AppShell
       moduleConfig={higherEducationModuleConfig}
       header={{
-        studentName: "Dr. V. Kalaiselvi",
         registerNumber: "Higher Education Cell",
         programLabel: "Higher Education Cell · Coordinator",
         academicYearLabel: "2026–27",

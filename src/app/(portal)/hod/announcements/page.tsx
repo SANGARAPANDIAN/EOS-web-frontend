@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, Badge, Button, EmptyState, Select, Textarea, Input, SkeletonRows } from "@/components/ui";
+import { Card, Badge, Button, EmptyState, Select, Textarea, Input, SkeletonRows, Modal } from "@/components/ui";
 import {
   useHodAnnouncements,
   useCreateHodAnnouncement,
@@ -16,12 +16,15 @@ import { ROLE_LABEL } from "@/lib/config";
 type Audience = "students" | "teachers";
 
 function audienceLabel(a: HodAnnouncement, deptCode: string, totalClasses: number): string {
-  if (a.classes.length === 0) return "No classes selected";
-  const coversAll = a.classes.length >= totalClasses;
+  if (a.target_audience === "roles") {
+    return a.role_labels.length > 0 ? `Roles: ${a.role_labels.join(", ")}` : "No roles selected";
+  }
+  if (a.class_ids.length === 0) return "No classes selected";
+  const coversAll = a.class_ids.length >= totalClasses;
   if (coversAll) {
     return a.target_audience === "teachers" ? `All ${deptCode} faculty` : `Everyone in ${deptCode}`;
   }
-  const labels = a.classes.map((c) => c.label).join(", ");
+  const labels = a.class_labels.join(", ");
   if (a.target_audience === "teachers") return `Faculty of ${labels}`;
   if (a.target_audience === "parents") return `Parents of ${labels}`;
   return labels;
@@ -36,8 +39,8 @@ function categoryTone(category: AnnouncementCategory): "accent" | "accentDark" |
 
 function posterLabel(a: HodAnnouncement): string {
   if (!a.posted_by) return "—";
-  if (a.posted_by.role === "hod" && a.posted_by.department_code) {
-    return `HoD · ${a.posted_by.department_code}`;
+  if (a.posted_by.role === "hod" && a.posted_by.department) {
+    return `HoD · ${a.posted_by.department}`;
   }
   return ROLE_LABEL[a.posted_by.role] ?? a.posted_by.role;
 }
@@ -52,6 +55,11 @@ export default function HodAnnouncementsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {announcements.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load announcements — please try again.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Announcements</h1>
@@ -64,7 +72,7 @@ export default function HodAnnouncementsPage() {
 
       {announcements.isLoading ? (
         <SkeletonRows count={5} />
-      ) : !announcements.data || announcements.data.length === 0 ? (
+      ) : announcements.isError ? null : !announcements.data || announcements.data.length === 0 ? (
         <Card>
           <EmptyState message="No announcements yet." />
         </Card>
@@ -147,19 +155,8 @@ function NewAnnouncementModal({ deptCode, onClose }: { deptCode: string; onClose
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f1e3d]/45 p-4">
-      <div className="w-full max-w-[620px] rounded-modal bg-surface p-7 shadow-modal">
-        <div className="flex items-center justify-between border-b border-divider pb-4">
-          <h2 className="text-[22px] font-extrabold text-ink">New announcement</h2>
-          <button
-            onClick={onClose}
-            className="flex size-8 items-center justify-center rounded-input border border-border-default text-subtle hover:bg-nav-hover"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-4">
+    <Modal open onClose={onClose} title="New announcement" className="max-w-[620px]">
+      <div className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-[13px] font-bold text-primary">Headline</label>
             <Input
@@ -216,15 +213,14 @@ function NewAnnouncementModal({ deptCode, onClose }: { deptCode: string; onClose
             Cancel
           </Button>
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={() => submit("draft")} disabled={createAnnouncement.isPending}>
+            <Button variant="secondary" onClick={() => submit("draft")} loading={createAnnouncement.isPending}>
               Save as draft
             </Button>
-            <Button variant="primarySmall" onClick={() => submit("published")} disabled={createAnnouncement.isPending}>
+            <Button variant="primarySmall" onClick={() => submit("published")} loading={createAnnouncement.isPending}>
               Publish now
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

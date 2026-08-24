@@ -170,7 +170,7 @@ export default function LoginPage() {
             </span>
             <span className="flex items-center gap-1.5">
               <Icon name="mail" size={15} />
-              erp@srec.ac.in
+              erp@sece.ac.in
             </span>
           </div>
         </div>

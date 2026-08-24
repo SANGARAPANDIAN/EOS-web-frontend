@@ -45,6 +45,13 @@ export default function HodFacultyProfilePage() {
       </div>
     );
   }
+  if (profile.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load this faculty member&apos;s profile — please try again.
+      </div>
+    );
+  }
   if (!profile.data) {
     return (
       <Card>

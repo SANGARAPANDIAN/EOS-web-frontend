@@ -67,6 +67,11 @@ export default function HodEmployeeAttendancePage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {attendance.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load attendance data — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">My Attendance</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -104,7 +109,11 @@ export default function HodEmployeeAttendancePage() {
       <div className="grid grid-cols-[1.4fr_1fr] gap-5">
         <Card className="hod-hover-card">
           {!currentMonth ? (
-            <EmptyState loading={attendance.isLoading} size={32} message="No attendance recorded yet." />
+            <EmptyState
+              loading={attendance.isLoading}
+              size={32}
+              message={attendance.isError ? "Couldn't load attendance data." : "No attendance recorded yet."}
+            />
           ) : (
             <>
               <div className="flex items-center justify-between">
@@ -165,7 +174,10 @@ export default function HodEmployeeAttendancePage() {
         <Card>
           <h2 className="text-[18px] font-extrabold text-ink">Recent punches</h2>
           {!attendance.data || attendance.data.recent_punches.length === 0 ? (
-            <EmptyState message="No punches recorded yet." />
+            <EmptyState
+              loading={attendance.isLoading}
+              message={attendance.isError ? "Couldn't load recent punches." : "No punches recorded yet."}
+            />
           ) : (
             <div className="mt-2 flex flex-col">
               {attendance.data.recent_punches.map((p) => (

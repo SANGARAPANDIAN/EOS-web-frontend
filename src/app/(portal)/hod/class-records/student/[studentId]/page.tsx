@@ -58,9 +58,14 @@ function MeetingNotesCard({ studentId }: { studentId: number }) {
     <Card>
       <h2 className="text-[17px] font-extrabold text-ink">Parent-teacher meeting notes</h2>
 
+      {notes.isError && (
+        <div className="mt-3 rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load meeting notes — please try again.
+        </div>
+      )}
       {notes.isLoading ? (
         <div className="mt-3 text-[13px] text-muted">Loading…</div>
-      ) : !notes.data || notes.data.length === 0 ? (
+      ) : notes.isError ? null : !notes.data || notes.data.length === 0 ? (
         <div className="mt-3">
           <EmptyState message="No meeting notes recorded yet." />
         </div>
@@ -92,9 +97,10 @@ function MeetingNotesCard({ studentId }: { studentId: number }) {
           variant="primarySmall"
           className="mt-3"
           onClick={submit}
-          disabled={!meetingDate || !note.trim() || addNote.isPending}
+          disabled={!meetingDate || !note.trim()}
+          loading={addNote.isPending}
         >
-          {addNote.isPending ? "Saving…" : "Add note"}
+          Add note
         </Button>
       </div>
     </Card>
@@ -112,6 +118,13 @@ export default function HodStudentProfilePage() {
       <div className="flex flex-col gap-4">
         <SkeletonBlock />
         <SkeletonBlock />
+      </div>
+    );
+  }
+  if (profile.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load this student&apos;s profile — please try again.
       </div>
     );
   }

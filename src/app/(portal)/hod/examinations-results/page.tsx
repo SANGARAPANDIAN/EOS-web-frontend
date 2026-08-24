@@ -66,12 +66,12 @@ export default function HodExaminationsResultsPage() {
       (s, i) => ({
         key: `subject-${s.id}`,
         header: (
-          <div>
+          <div className="max-w-[120px]" title={s.name}>
             <div className="font-extrabold text-ink normal-case tracking-normal">{s.code}</div>
-            <div className="mt-0.5 font-medium text-subtle normal-case tracking-normal">{s.name}</div>
+            <div className="mt-0.5 truncate font-medium text-subtle normal-case tracking-normal">{s.name}</div>
           </div>
         ),
-        width: "1fr",
+        width: "110px",
         render: (row) => <span className="text-[13px] text-ink">{row.marks[i] ?? "—"}</span>,
       }),
     );
@@ -140,8 +140,15 @@ export default function HodExaminationsResultsPage() {
     ? `${grid.data.candidates} candidates · ${grid.data.class.batch_label} · Semester ${grid.data.class.semester} · ${grid.data.department.code} · Section ${grid.data.class.section} · ${grid.data.exam_type.name}`
     : "";
 
+  const anyError = filters.isError || grid.isError;
+
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {anyError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load examination data — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Examinations &amp; Results</h1>
         <p className="mt-1 text-[13px] text-muted">Paper-wise marks and grades for every candidate in the department</p>
@@ -238,7 +245,7 @@ export default function HodExaminationsResultsPage() {
         </div>
         {grid.isLoading || filters.isLoading ? (
           <SkeletonTable rows={8} className="rounded-none border-0 bg-transparent" />
-        ) : !grid.data || grid.data.papers === 0 ? (
+        ) : anyError ? null : !grid.data || grid.data.papers === 0 ? (
           <EmptyState message="No examination found for this selection." />
         ) : (
           <DataTable columns={columns} data={filteredRows} rowKey={(r) => r.student_id} rowClassName="hod-hover-row" />

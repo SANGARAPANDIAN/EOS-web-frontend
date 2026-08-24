@@ -43,6 +43,11 @@ export default function HodAcademicCalendarPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {calendar.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load the academic calendar — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Academic Calendar</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -109,7 +114,7 @@ export default function HodAcademicCalendarPage() {
           <h2 className="text-[16px] font-extrabold text-ink">Events in {monthLabel(viewYear, viewMonth).split(" ")[0]}</h2>
           {calendar.isLoading ? (
             <SkeletonRows count={4} className="mt-2" />
-          ) : events.length === 0 ? (
+          ) : calendar.isError ? null : events.length === 0 ? (
             <EmptyState message="No calendar events recorded for this month." />
           ) : (
             <div className="mt-2 flex flex-col gap-2.5">

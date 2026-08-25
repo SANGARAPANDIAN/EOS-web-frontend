@@ -284,7 +284,7 @@ export default function PrincipalExamsPage() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+          <div className="overflow-hidden rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
             {results.isLoading && (
               <div className="p-5">
                 <Skeleton className="h-4 w-56" />
@@ -336,7 +336,7 @@ export default function PrincipalExamsPage() {
                     </thead>
                     <tbody>
                       {filteredRows.map((row) => (
-                        <tr key={row.student_id_no} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                        <tr key={row.student_id_no} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                           <td className="whitespace-nowrap px-4 py-3 font-semibold" style={{ color: principalColors.primary }}>
                             {row.student_id_no}
                           </td>

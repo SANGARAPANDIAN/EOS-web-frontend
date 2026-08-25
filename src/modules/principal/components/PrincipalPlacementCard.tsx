@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { principalColors } from "@/modules/principal/theme";
 import type { PrincipalPlacementSummary } from "@/modules/principal/api/dashboard";
@@ -17,13 +18,16 @@ export function PrincipalPlacementCard({ data, isLoading }: PrincipalPlacementCa
 
   return (
     <div
-      className="flex flex-col overflow-hidden rounded-2xl border"
+      className="hover-lift flex flex-col overflow-hidden rounded-2xl border transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
       style={{ background: principalColors.bg, borderColor: principalColors.border }}
     >
       <div className="flex items-center gap-3 border-b px-5 py-[18px]" style={{ borderColor: principalColors.borderLight }}>
         <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
           Placement command center
         </div>
+        <Link href="/principal/placements" className="ml-auto text-sm font-semibold" style={{ color: principalColors.primary }}>
+          Open placements
+        </Link>
       </div>
 
       {isLoading && (

@@ -166,6 +166,37 @@ export function usePendingReturns() {
   });
 }
 
+export interface GateStudentMatch {
+  student_id: number;
+  name: string;
+  roll_no: string | null;
+  register_no: string | null;
+  student_type: string | null;
+  photo_url: string | null;
+  room_number: string | null;
+  hostel_name: string | null;
+  class_label: string | null;
+  is_currently_out: boolean;
+}
+
+/**
+ * GET /hostel/gate-log/search?q= — type-ahead pick-list for the gate desk.
+ *
+ * Matches partial text against name, roll number, register number and room
+ * number, case-insensitively, so staff can find a student without knowing the
+ * exact roll number or its capitalisation. Two characters minimum, mirroring
+ * the server, so a single keystroke does not fire a query.
+ */
+export function useGateStudentSearch(term: string) {
+  const q = term.trim();
+  return useQuery({
+    queryKey: ["gate-warden", "student-search", q],
+    queryFn: () => apiClient.get<GateStudentMatch[]>("/hostel/gate-log/search", { q }),
+    enabled: q.length >= 2,
+    placeholderData: (prev) => prev,
+  });
+}
+
 /** GET /hostel/gate-log/lookup?roll_no= — roll-number search at the gate; modeled as a mutation since it's user-triggered, not keyed on every keystroke. */
 export function useLookupStudent() {
   return useMutation({

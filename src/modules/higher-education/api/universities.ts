@@ -50,3 +50,36 @@ export function useCreateUniversity() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-universities"] }),
   });
 }
+
+export interface UpdateUniversityInput {
+  name?: string;
+  country?: string;
+  programmes?: string;
+  applied_count?: number;
+  admits_count?: number;
+  funded_count?: number;
+  relation?: string;
+}
+
+/** PATCH /me/higher-education-universities/:id */
+export function useUpdateUniversity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: UpdateUniversityInput & { id: number }) =>
+      apiClient.patch(`/me/higher-education-universities/${id}`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-universities"] }),
+  });
+}
+
+/**
+ * DELETE /me/higher-education-universities/:id
+ * Refused while aspirants still name this university as their preference; the
+ * server says how many, so surface its message.
+ */
+export function useDeleteUniversity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/higher-education-universities/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-universities"] }),
+  });
+}

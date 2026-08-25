@@ -72,7 +72,7 @@ export default function PrincipalSportsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+        <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
           <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
             <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
               Achievements this semester
@@ -85,7 +85,7 @@ export default function PrincipalSportsPage() {
             {achievements.data?.map((a) => {
               const badge = resultBadge(a.result);
               return (
-                <div key={a.id} className="flex items-center gap-3 border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
+                <div key={a.id} className="flex items-center gap-3 border-b px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                   <Icon name="emoji_events" size={18} style={{ color: principalColors.primary }} />
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold" style={{ color: principalColors.heading }}>
@@ -109,7 +109,7 @@ export default function PrincipalSportsPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+        <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
           <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
             <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
               Sports faculty
@@ -117,7 +117,7 @@ export default function PrincipalSportsPage() {
           </div>
           <div className="flex flex-col">
             {faculty.data?.map((f) => (
-              <div key={f.team_id} className="flex items-center gap-3 border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
+              <div key={f.team_id} className="flex items-center gap-3 border-b px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: principalColors.surfaceTint, color: principalColors.primaryDark }}>
                   <Icon name="person" size={18} />
                 </div>

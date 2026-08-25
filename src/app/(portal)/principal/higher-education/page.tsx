@@ -145,7 +145,7 @@ export default function PrincipalHigherEducationPage() {
                 <Fragment key={r.id}>
                   <tr
                     onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    className="cursor-pointer border-t"
+                    className="cursor-pointer border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]"
                     style={{ borderColor: principalColors.borderMuted }}
                   >
                     <td className="px-5 py-3.5">

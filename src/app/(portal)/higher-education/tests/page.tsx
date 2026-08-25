@@ -9,6 +9,7 @@ import {
   type TestSummaryRow,
   type TestReadinessLevel,
 } from "@/modules/higher-education/api/testReadiness";
+import { TestStudentsPanel } from "@/modules/higher-education/components/StudentListPanels";
 
 /** Matches the Transport dashboard/routes hover-lift convention. */
 const HOVERABLE = "transition-all duration-150 hover:-translate-y-1 hover:border-primary hover:shadow-hover-lift";
@@ -125,6 +126,10 @@ export default function HigherEducationTestReadinessPage() {
   const isLoading = testReadiness.isLoading;
   const [showAdd, setShowAdd] = useState(false);
 
+  // Clicking a test opens its register underneath — the tab where students
+  // are added and moved through Enrolled / Attempted / Cleared.
+  const [openTest, setOpenTest] = useState<string | null>(null);
+
   const columns: DataTableColumn<TestSummaryRow>[] = [
     { key: "test", header: "Test", render: (row) => <span className="font-bold text-ink">{row.testName}</span> },
     { key: "enrolled", header: "Enrolled", align: "right", render: (row) => <span className="font-mono text-body">{row.enrolled ?? "—"}</span> },
@@ -155,7 +160,14 @@ export default function HigherEducationTestReadinessPage() {
       {showAdd && <AddTestModal onClose={() => setShowAdd(false)} />}
 
       <Card className={`overflow-hidden p-0 ${HOVERABLE}`}>
-        <DataTable columns={columns} data={data?.tests ?? []} rowKey={(row) => row.testName} emptyMessage={isLoading ? "Loading…" : "No tests recorded yet."} hoverableRows />
+        <DataTable
+          columns={columns}
+          data={data?.tests ?? []}
+          rowKey={(row) => row.testName}
+          emptyMessage={isLoading ? "Loading…" : "No tests recorded yet."}
+          hoverableRows
+          onRowClick={(row) => setOpenTest((cur) => (cur === row.testName ? null : row.testName))}
+        />
       </Card>
 
       <div className="grid grid-cols-3 gap-4">
@@ -207,6 +219,9 @@ export default function HigherEducationTestReadinessPage() {
           )}
         </Card>
       </div>
+
+      {/* Clicking a test above opens its register here. */}
+      {openTest && <TestStudentsPanel testName={openTest} />}
     </div>
   );
 }

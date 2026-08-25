@@ -1,26 +1,58 @@
 import { useSyncExternalStore } from "react";
 
-function subscribe(): () => void {
-  return () => {};
+/**
+ * Cached clock, ticking once a minute.
+ *
+ * `useSyncExternalStore` compares snapshots with `Object.is` on every render,
+ * so `getSnapshot` MUST return a stable value between real changes. Returning
+ * `Date.now()` directly — a different number on every call — makes React treat
+ * the store as changed on each render and re-render forever, which is what
+ * threw "Maximum update depth exceeded" on the dashboards.
+ *
+ * So the value is cached here and only replaced on a tick. A minute is fine
+ * for the "is this overdue as of now" filters that use it, and it keeps the
+ * component honest: the clock is genuinely an external store with a change
+ * event, rather than an impure read dressed up as one.
+ */
+
+let now = Date.now();
+const listeners = new Set<() => void>();
+let timer: ReturnType<typeof setInterval> | null = null;
+
+const TICK_MS = 60_000;
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  // The interval only runs while something is actually subscribed, so an app
+  // with no clock-dependent screen mounted does no work.
+  if (timer === null) {
+    timer = setInterval(() => {
+      now = Date.now();
+      for (const l of listeners) l();
+    }, TICK_MS);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
 }
 
 function getSnapshot(): number {
-  return Date.now();
+  return now;
 }
 
+/**
+ * 0 on the server so the markup is deterministic — the real clock would differ
+ * between the server render and the client's first render and trip hydration.
+ */
 function getServerSnapshot(): number {
   return 0;
 }
 
-/**
- * Returns the current timestamp (ms) via `useSyncExternalStore` — the
- * React-sanctioned way to read an impure/external value (like the clock)
- * during render without tripping the react-hooks/purity rule, which
- * disallows calling `Date.now()` directly in a component's render body.
- * There's nothing to subscribe to (the clock has no change event), so this
- * simply re-reads the real value on every render rather than "ticking" on
- * its own — good enough for one-off "is this overdue as of now" filters.
- */
+/** Current timestamp (ms), refreshed once a minute while mounted. */
 export function useNow(): number {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

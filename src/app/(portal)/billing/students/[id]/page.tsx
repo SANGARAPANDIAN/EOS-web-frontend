@@ -10,7 +10,7 @@
 // (one row per fee structure, no fake per-category split), real
 // payment_history, real fee_concessions, real education_loan_dd.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -92,6 +92,13 @@ export default function BillingStudentDetailPage() {
 
   // ---- Print Receipt state (Payment History tab) ----
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<number[]>([]);
+  /**
+   * Anchor for shift-click range selection. Holding shift and clicking a
+   * second row selects everything between the two, which is how people
+   * expect to pick a run of receipts to print together.
+   */
+  const lastClickedPaymentId = useRef<number | null>(null);
+
   const [printDate, setPrintDate] = useState(todayLocalDateString());
   const [isEducationLoanReceipt, setIsEducationLoanReceipt] = useState(false);
   const [ddReferenceNumber, setDdReferenceNumber] = useState("");
@@ -205,6 +212,31 @@ export default function BillingStudentDetailPage() {
   const selectablePaymentIds = sortedHistory.map((pmt) => pmt.id);
   const allPaymentsSelected = selectablePaymentIds.length > 0 && selectablePaymentIds.every((id) => selectedPaymentIds.includes(id));
   const somePaymentsSelected = selectedPaymentIds.length > 0 && !allPaymentsSelected;
+
+  /**
+   * Selects from a click anywhere on the row, not just the checkbox — the
+   * whole row is the target. Clicks that land on a control inside the row
+   * (the receipt link, a button) are ignored so they keep their own
+   * behaviour instead of toggling selection underneath the user.
+   */
+  function handleRowClick(event: React.MouseEvent<HTMLTableRowElement>, id: number) {
+    if ((event.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+
+    if (event.shiftKey && lastClickedPaymentId.current !== null) {
+      const ids = selectablePaymentIds;
+      const from = ids.indexOf(lastClickedPaymentId.current);
+      const to = ids.indexOf(id);
+      if (from !== -1 && to !== -1) {
+        const range = ids.slice(Math.min(from, to), Math.max(from, to) + 1);
+        // Extend rather than replace, so an existing selection is kept.
+        setSelectedPaymentIds((prev) => Array.from(new Set([...prev, ...range])));
+        return;
+      }
+    }
+
+    lastClickedPaymentId.current = id;
+    togglePayment(id);
+  }
 
   function togglePayment(id: number) {
     setSelectedPaymentIds((prev) => (prev.includes(id) ? prev.filter((selId) => selId !== id) : [...prev, id]));
@@ -401,13 +433,50 @@ export default function BillingStudentDetailPage() {
                 {sortedHistory.map((pmt) => {
                   const isSelected = selectedPaymentIds.includes(pmt.id);
                   return (
-                    <tr key={pmt.id} data-bill-rowtable style={{ borderTop: "1px solid #f1f5f9", background: isSelected ? "#eef3ff" : undefined }}>
+                    <tr
+                      key={pmt.id}
+                      data-bill-rowtable
+                      onClick={(e) => handleRowClick(e, pmt.id)}
+                      // Reachable and operable without a mouse: the row takes
+                      // focus and Enter/Space toggles it, matching the
+                      // checkbox it stands in for.
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      aria-label={`Select payment ${pmt.receipt_no}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          lastClickedPaymentId.current = pmt.id;
+                          togglePayment(pmt.id);
+                        }
+                      }}
+                      style={{
+                        borderTop: "1px solid #f1f5f9",
+                        background: isSelected ? "#eef3ff" : undefined,
+                        cursor: "pointer",
+                        userSelect: "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) e.currentTarget.style.background = "#f8fafc";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) e.currentTarget.style.background = "";
+                      }}
+                    >
                       <td style={{ padding: "12px 8px 12px 18px" }}>
                         <input
                           type="checkbox"
+                          // The row handler already covers this click; without
+                          // stopping propagation the two would fire and cancel
+                          // each other out.
+                          onClick={(e) => e.stopPropagation()}
                           aria-label={`Select payment ${pmt.receipt_no}`}
                           checked={isSelected}
-                          onChange={() => togglePayment(pmt.id)}
+                          onChange={() => {
+                            lastClickedPaymentId.current = pmt.id;
+                            togglePayment(pmt.id);
+                          }}
                           style={{ width: 15, height: 15, accentColor: "#1d4ed8" }}
                         />
                       </td>

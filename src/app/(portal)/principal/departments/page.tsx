@@ -27,7 +27,10 @@ function abbrev(code: string): string {
 
 function DepartmentTile({ dept, onOpen }: { dept: DepartmentCard; onOpen: () => void }) {
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border p-5" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+    <div
+      className="flex flex-col gap-4 rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+      style={{ background: principalColors.bg, borderColor: principalColors.border }}
+    >
       <div className="flex items-center gap-3">
         <div
           className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-sm font-extrabold"
@@ -255,7 +258,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
         </>
       )}
 
-      <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+      <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
         <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
           <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
             Sections
@@ -284,7 +287,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
             <tbody>
               {sections.isLoading && <PrincipalTableSkeleton columns={8} />}
               {sections.data?.map((s) => (
-                <tr key={s.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={s.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {s.section} {s.semester != null ? `· Sem ${s.semester}` : ""}
                   </td>

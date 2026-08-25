@@ -18,6 +18,8 @@ import { mediaRoomModuleConfig } from "@/modules/media-room/nav";
 import { hrModuleConfig } from "@/modules/hr/nav";
 import { gateWardenModuleConfig } from "@/modules/gate-warden/nav";
 import { billingModuleConfig } from "@/modules/billing/nav";
+import { coeModuleConfig } from "@/modules/coe/nav";
+import { iqacModuleConfig } from "@/modules/iqac/nav";
 import { financeModuleConfig } from "@/modules/finance/nav";
 
 /**
@@ -47,6 +49,8 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   hr_payroll: hrModuleConfig,
   gate_warden: gateWardenModuleConfig,
   billing: billingModuleConfig,
+  coe: coeModuleConfig,
+  iqac: iqacModuleConfig,
   finance: financeModuleConfig,
 };
 

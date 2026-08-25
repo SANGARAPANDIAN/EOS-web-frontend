@@ -116,7 +116,7 @@ export default function PrincipalLibraryPage() {
               {list.map((b) => {
                 const badge = statusBadge(b.status);
                 return (
-                  <tr key={b.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={b.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                     <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                       {b.title}
                     </td>

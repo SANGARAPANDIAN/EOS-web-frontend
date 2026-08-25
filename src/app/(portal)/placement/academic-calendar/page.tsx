@@ -267,19 +267,28 @@ function CalendarPeriodView({ period, batchName }: { period: AcademicCalendarPer
             </div>
           ))}
         </div>
-        <div className="mt-2 grid grid-cols-7 gap-2">
-          {cells.map((c, i) => (
-            <div
-              key={i}
-              title={c.events.map((e) => e.title).join(", ")}
-              className={`flex min-h-[46px] flex-col items-center justify-center gap-1 rounded-admin-sm border px-1 py-1.5 text-[12.5px] ${
-                c.inMonth ? "text-admin-ink" : "text-admin-border-hover"
-              } ${c.isToday ? "border-admin-primary bg-admin-tint-strong" : c.events.length > 0 ? "border-transparent bg-admin-tint" : "border-transparent"}`}
-            >
-              <span className={c.isToday ? "font-bold" : "font-medium"}>{c.day ?? ""}</span>
-              {c.events.length > 0 && <span className="size-[5px] rounded-full bg-admin-primary" />}
-            </div>
-          ))}
+        {/* Square cells, event state shown by fill and today by a ring — the
+            same month-grid treatment the other modules use, rather than short
+            rectangles with a marker dot. */}
+        <div className="mt-2 grid grid-cols-7 gap-1.5">
+          {cells.map((c, i) => {
+            const hasEvents = c.events.length > 0;
+            return (
+              <div
+                key={i}
+                title={hasEvents ? c.events.map((e) => e.title).join(", ") : undefined}
+                className={`flex aspect-square items-center justify-center rounded-admin-sm text-[13px] ${
+                  !c.inMonth
+                    ? "text-admin-border-hover"
+                    : hasEvents
+                      ? "bg-admin-tint-strong font-bold text-admin-primary"
+                      : "font-medium text-admin-ink"
+                } ${c.isToday ? "ring-2 ring-admin-primary" : ""}`}
+              >
+                {c.day ?? ""}
+              </div>
+            );
+          })}
         </div>
       </Card>
 

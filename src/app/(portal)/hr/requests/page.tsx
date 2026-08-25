@@ -399,7 +399,6 @@ export default function HrRequestsPage() {
           icon="pending_actions"
           value={awaitingHrCount}
           sub="HOD approved, HR to decide"
-          accent={awaitingHrCount > 0}
         />
         <StatCard label="Awaiting HOD" icon="hourglass_top" value={awaitingHodCount} sub="Not yet with HR" />
         <StatCard label="Approved" icon="task_alt" value={approvedCount} sub="On this page" />

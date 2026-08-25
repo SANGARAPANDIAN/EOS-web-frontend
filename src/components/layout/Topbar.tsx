@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
-import { NotificationPanel } from "@/modules/advisor/NotificationPanel";
+import { NotificationPanel } from "@/components/layout/NotificationPanel";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
 import { cn } from "@/lib/utils/cn";
 import type { ModuleConfig } from "@/modules/types";

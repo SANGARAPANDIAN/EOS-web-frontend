@@ -20,6 +20,7 @@ import { gateWardenModuleConfig } from "@/modules/gate-warden/nav";
 import { billingModuleConfig } from "@/modules/billing/nav";
 import { coeModuleConfig } from "@/modules/coe/nav";
 import { iqacModuleConfig } from "@/modules/iqac/nav";
+import { financeModuleConfig } from "@/modules/finance/nav";
 
 /**
  * Single lookup point from JWT role -> module shell config (nav groups, base
@@ -50,6 +51,7 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   billing: billingModuleConfig,
   coe: coeModuleConfig,
   iqac: iqacModuleConfig,
+  finance: financeModuleConfig,
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

@@ -16,6 +16,11 @@ import { ApiError } from "@/types/api";
  * endpoint that returns a PDF or Excel file and is logged to audit_logs (which
  * is what "Generated this month" counts).
  *
+ * Each card offers both formats and tracks its own in-flight download. A single
+ * shared "busy" flag used to drive every button at once, so downloading one
+ * report made all three read "Generating…" as though everything had been
+ * triggered.
+ *
  * The prescribed statutory formats — NIRF, NAAC/NBA, the AICTE return — are
  * deliberately NOT offered as one-click downloads. Those are fixed submission
  * templates that do not exist anywhere in this system, and labelling a generic
@@ -30,6 +35,8 @@ interface ReportCard {
   tag: "MANAGEMENT" | "OPERATIONS" | "ANALYSIS";
   title: string;
   desc: string;
+  /** What the saved file is called, so the three are visibly distinct. */
+  filenameHint: string;
 }
 
 const TAG_TONE: Record<ReportCard["tag"], BadgeTone> = {
@@ -44,18 +51,21 @@ const REPORT_CARDS: ReportCard[] = [
     tag: "MANAGEMENT",
     title: "Class-wise placement summary",
     desc: "Eligible, applied, placed and offer counts for every class in the selected batch.",
+    filenameHint: "class-wise-placement-report",
   },
   {
     kind: "summary-department",
     tag: "ANALYSIS",
     title: "Department-wise placement summary",
     desc: "The same figures rolled up per department, for comparing performance across the college.",
+    filenameHint: "department-wise-placement-report",
   },
   {
     kind: "student",
     tag: "OPERATIONS",
     title: "Student-wise placement report",
     desc: "One row per student: drives applied to, rounds cleared, offers held and current status.",
+    filenameHint: "student-report",
   },
 ];
 
@@ -72,14 +82,17 @@ export default function ReportsPage() {
   const batches = useBatches();
 
   const [batchId, setBatchId] = useState<number | "all">("all");
-  const [format, setFormat] = useState<ReportFormat>("excel");
+  // Which single button is mid-download, as "<kind>:<format>". Per-button so
+  // one download never makes the other cards look busy.
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const exportSummary = useExportPlacementSummary();
   const exportStudents = useExportStudentReport();
-  const busy = exportSummary.isPending || exportStudents.isPending;
 
-  async function generate(card: ReportCard) {
+  async function generate(card: ReportCard, format: ReportFormat) {
+    const key = `${card.kind}:${format}`;
     const batch = batchId === "all" ? undefined : batchId;
+    setBusyKey(key);
     try {
       if (card.kind === "student") {
         await exportStudents.mutateAsync({ batchId: batch, format });
@@ -90,11 +103,13 @@ export default function ReportsPage() {
           format,
         });
       }
-      show(`${card.title} downloaded.`, "success");
+      show(`${card.title} downloaded as ${format === "excel" ? "Excel" : "PDF"}.`, "success");
       // The tile counts audit-logged exports, so it moves after a real download.
       void generatedCount.refetch();
     } catch (err) {
       show(err instanceof ApiError ? err.message : "Could not generate this report.", "error");
+    } finally {
+      setBusyKey(null);
     }
   }
 
@@ -102,22 +117,19 @@ export default function ReportsPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Reports"
-        description="Placement reporting — exported as PDF or Excel from live drive, application and offer data."
+        description="Placement reporting — every report exports as Excel or PDF from live drive, application and offer data."
         actions={
-          <>
-            <Select value={batchId === "all" ? "all" : String(batchId)} onChange={(e) => setBatchId(e.target.value === "all" ? "all" : Number(e.target.value))}>
-              <option value="all">All batches</option>
-              {(batches.data ?? []).map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </Select>
-            <Select value={format} onChange={(e) => setFormat(e.target.value as ReportFormat)}>
-              <option value="excel">Excel (.xlsx)</option>
-              <option value="pdf">PDF</option>
-            </Select>
-          </>
+          <Select
+            value={batchId === "all" ? "all" : String(batchId)}
+            onChange={(e) => setBatchId(e.target.value === "all" ? "all" : Number(e.target.value))}
+          >
+            <option value="all">All batches</option>
+            {(batches.data ?? []).map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </Select>
         }
       />
 
@@ -129,26 +141,51 @@ export default function ReportsPage() {
           value={generatedCount.data ?? (generatedCount.isLoading ? "…" : "—")}
           sub="Counted from logged exports"
         />
-        <KpiCard label="Export formats" icon="download" value={2} sub="PDF and Excel" />
+        <KpiCard label="Export formats" icon="download" value={2} sub="Excel and PDF, per report" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {REPORT_CARDS.map((card) => (
-          <Card key={card.kind} hoverable={false} className="flex flex-col gap-2.5 p-5">
-            <div className="flex items-center gap-2.5">
-              <Badge tone={TAG_TONE[card.tag]} className="font-mono text-[10px] tracking-[.06em]">
-                {card.tag}
-              </Badge>
-            </div>
-            <h3 className="font-sans text-sm font-bold text-admin-ink">{card.title}</h3>
-            <p className="flex-1 text-xs leading-relaxed text-admin-muted">{card.desc}</p>
-            <div className="mt-1">
-              <Button size="sm" variant="primary" onClick={() => void generate(card)} disabled={busy}>
-                {busy ? "Generating…" : `Download ${format === "excel" ? "Excel" : "PDF"}`}
-              </Button>
-            </div>
-          </Card>
-        ))}
+        {REPORT_CARDS.map((card) => {
+          const excelKey = `${card.kind}:excel`;
+          const pdfKey = `${card.kind}:pdf`;
+
+          return (
+            <Card key={card.kind} hoverable={false} className="flex flex-col gap-2.5 p-5">
+              <div className="flex items-center gap-2.5">
+                <Badge tone={TAG_TONE[card.tag]} className="font-mono text-[10px] tracking-[.06em]">
+                  {card.tag}
+                </Badge>
+              </div>
+              <h3 className="font-sans text-sm font-bold text-admin-ink">{card.title}</h3>
+              <p className="flex-1 text-xs leading-relaxed text-admin-muted">{card.desc}</p>
+
+              <div className="mt-1 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => void generate(card, "excel")}
+                  disabled={busyKey === excelKey}
+                >
+                  {busyKey === excelKey ? "Preparing…" : "Excel"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void generate(card, "pdf")}
+                  disabled={busyKey === pdfKey}
+                >
+                  {busyKey === pdfKey ? "Preparing…" : "PDF"}
+                </Button>
+              </div>
+
+              {/* Naming the file makes it obvious the three reports are
+                  distinct downloads, not the same export three times. */}
+              <p className="text-[10.5px] text-admin-muted">
+                Saves as <span className="font-mono">{card.filenameHint}</span>
+              </p>
+            </Card>
+          );
+        })}
       </div>
 
       <Card hoverable={false} className="flex flex-col gap-3 p-5">

@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, Button, Input, Modal, Select, ProgressBar, EmptyState, type BadgeTone } from "@/components/ui";
+import { Badge, Button, Icon, Input, Modal, Select, EmptyState, type BadgeTone } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   useCamps,
-  useRegisterBatch,
   useCreateCamp,
   useUpdateCamp,
   useDeleteCamp,
@@ -14,13 +13,16 @@ import {
   type UpcomingCamp,
   type PastCamp,
 } from "@/modules/medical-centre/api/camps";
+import { CampRegisterDialog } from "@/modules/medical-centre/CampRegisterDialog";
 import { ApiError } from "@/types/api";
 
 const STATE_TONE: Record<string, BadgeTone> = { Running: "accentDark", Scheduled: "accent", Planning: "neutral" };
 
 export default function CampsPage() {
   const camps = useCamps();
-  const registerBatch = useRegisterBatch();
+  // Which camp the Register dialog is open for. A camp behaves like a folder:
+  // the card shows its details and opens onto its own roster.
+  const [registeringCamp, setRegisteringCamp] = useState<UpcomingCamp | null>(null);
   const [query, setQuery] = useState("");
   const [showHistory, setShowHistory] = useState(false);
 
@@ -164,6 +166,16 @@ export default function CampsPage() {
         </div>
       </div>
 
+      {registeringCamp && (
+        <CampRegisterDialog
+          campId={registeringCamp.id}
+          campTitle={registeringCamp.title}
+          campDate={registeringCamp.date}
+          targetCount={registeringCamp.target}
+          onClose={() => setRegisteringCamp(null)}
+        />
+      )}
+
       {camps.isLoading ? (
         <EmptyState message="Loading…" />
       ) : !showHistory ? (
@@ -179,17 +191,30 @@ export default function CampsPage() {
                 <Badge tone={STATE_TONE[camp.state] ?? "neutral"}>{camp.state}</Badge>
               </div>
               <div className="font-mono text-[12.5px] text-subtle">{camp.date}</div>
-              <div>
-                <div className="mb-1.5 flex justify-between text-[13px]">
-                  <span className="text-muted">Registered</span>
-                  <span className="font-mono text-ink">
-                    {camp.done} / {camp.target}
-                  </span>
+
+              {/* Camp details, read as a folder summary. The old progress bar and
+                  "Register a batch" button are gone: that button added 60 to a
+                  counter and recorded nobody, so the bar tracked a number that
+                  stood for no actual people. Registered is now the size of the
+                  camp's real roster. */}
+              <div className="grid grid-cols-2 gap-2 rounded-[11px] border border-border-default bg-surface-tint px-3.5 py-2.5">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[.05em] text-muted">Registered</div>
+                  <div className="mt-0.5 text-[19px] font-extrabold text-ink">{camp.done}</div>
                 </div>
-                <ProgressBar percent={camp.target > 0 ? Math.round((camp.done / camp.target) * 100) : 0} height={6} />
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[.05em] text-muted">Target</div>
+                  <div className="mt-0.5 text-[19px] font-extrabold text-body">{camp.target}</div>
+                </div>
               </div>
-              <Button variant="primarySmall" onClick={() => registerBatch.mutate(camp.id)} disabled={camp.done >= camp.target || registerBatch.isPending}>
-                Register a batch
+
+              <Button
+                variant="primarySmall"
+                className="inline-flex items-center justify-center gap-1.5"
+                onClick={() => setRegisteringCamp(camp)}
+              >
+                <Icon name="how_to_reg" size={16} />
+                Register
               </Button>
               <div className="flex justify-end gap-3 border-t border-divider pt-2.5">
                 <button type="button" onClick={() => openEditUpcoming(camp)} className="text-[12.5px] font-bold text-body hover:text-primary">

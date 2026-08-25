@@ -14,6 +14,10 @@ function getSnapshot(): number {
   return cachedNow;
 }
 
+/**
+ * 0 on the server so the markup is deterministic — the real clock would differ
+ * between the server render and the client's first render and trip hydration.
+ */
 function getServerSnapshot(): number {
   return 0;
 }

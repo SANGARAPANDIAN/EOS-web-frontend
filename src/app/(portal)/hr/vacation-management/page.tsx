@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Avatar,
   Badge,
@@ -13,7 +13,9 @@ import {
   IconButton,
   Input,
   Modal,
+  SegmentedTabs,
   Select,
+  StatCard,
   Textarea,
   type DataTableColumn,
 } from "@/components/ui";
@@ -25,7 +27,8 @@ import {
   type ApprovalStatus,
   type HrUnifiedRequest,
 } from "@/modules/hr/api/requests";
-import { useHrFaculties } from "@/modules/hr/api/facultyDirectory";
+import { HrFacultyPicker } from "@/modules/hr/components/HrFacultyPicker";
+import type { HrFaculty } from "@/modules/hr/api/facultyDirectory";
 import { useLeaveTypes } from "@/modules/hr/api/leaveTypes";
 import { formatDisplayDate, toIsoDateString, todayDateOnly } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
@@ -36,8 +39,8 @@ const STATUS_TONE: Record<ApprovalStatus, BadgeTone> = {
   rejected: "danger",
 };
 
-function facultyName(f: { first_name: string; last_name: string }): string {
-  return `${f.first_name} ${f.last_name}`.trim();
+function facultyName(f: { prefix?: string | null; first_name: string; last_name: string }): string {
+  return [f.prefix, f.first_name, f.last_name].filter(Boolean).join(" ");
 }
 
 function dateOnly(iso: string): string {
@@ -45,7 +48,9 @@ function dateOnly(iso: string): string {
 }
 
 function formatDateRange(from: string, to: string): string {
-  return dateOnly(from) === dateOnly(to) ? formatDisplayDate(from) : `${formatDisplayDate(from)} – ${formatDisplayDate(to)}`;
+  return dateOnly(from) === dateOnly(to)
+    ? formatDisplayDate(from)
+    : `${formatDisplayDate(from)} – ${formatDisplayDate(to)}`;
 }
 
 function monthBounds(date: Date = new Date()): { start: string; end: string } {
@@ -54,46 +59,44 @@ function monthBounds(date: Date = new Date()): { start: string; end: string } {
   return { start: toIsoDateString(start), end: toIsoDateString(end) };
 }
 
-interface AddFormState {
-  facultyId: string;
-  kind: "leave" | "od";
-  date: string;
-  leaveTypeId: string;
-  reason: string;
-}
-
-function emptyAddForm(): AddFormState {
-  return { facultyId: "", kind: "leave", date: todayDateOnly(), leaveTypeId: "", reason: "" };
+/** A labelled cell, so the filter bar and the form read as forms rather than rows of loose controls. */
+function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[.05em] text-muted">{label}</label>
+      {children}
+    </div>
+  );
 }
 
 function AddEntryModal({ onClose }: { onClose: () => void }) {
   const createEntry = useCreateHrVacationEntry();
-  const faculties = useHrFaculties({ status: "active", limit: 200 });
   const leaveTypes = useLeaveTypes();
-  const [form, setForm] = useState<AddFormState>(emptyAddForm());
+
+  const [faculty, setFaculty] = useState<HrFaculty | null>(null);
+  const [kind, setKind] = useState<"leave" | "od">("leave");
+  const [date, setDate] = useState(todayDateOnly());
+  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  function update<K extends keyof AddFormState>(key: K, value: AddFormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
   async function submit() {
-    if (!form.facultyId) {
+    if (faculty === null) {
       setError("Choose a faculty member.");
       return;
     }
-    if (!form.date) {
+    if (!date) {
       setError("Choose a date.");
       return;
     }
     setError(null);
     try {
       await createEntry.mutateAsync({
-        faculty_id: Number(form.facultyId),
-        kind: form.kind,
-        date: form.date,
-        reason: form.reason.trim() || undefined,
-        leave_type_id: form.kind === "leave" && form.leaveTypeId ? Number(form.leaveTypeId) : undefined,
+        faculty_id: faculty.id,
+        kind,
+        date,
+        reason: reason.trim() || undefined,
+        leave_type_id: kind === "leave" && leaveTypeId ? Number(leaveTypeId) : undefined,
       });
       onClose();
     } catch (err) {
@@ -102,61 +105,63 @@ function AddEntryModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal open onClose={onClose} title="Record a leave / OD entry" subtitle="Directly registers a single-day entry on someone's behalf">
-      <div className="flex flex-col gap-3.5">
-        <div>
-          <div className="mb-1.5 text-[13px] font-bold text-body">Faculty</div>
-          <Select value={form.facultyId} onChange={(e) => update("facultyId", e.target.value)}>
-            <option value="">Select faculty…</option>
-            {faculties.data?.data.map((f) => (
-              <option key={f.id} value={f.id}>
-                {facultyName(f)} — {f.designation}
-              </option>
-            ))}
-          </Select>
+    <Modal
+      open
+      onClose={onClose}
+      title="Record a leave / OD entry"
+      subtitle="Directly registers a single-day entry on someone's behalf"
+    >
+      <div className="flex flex-col gap-4">
+        <Field label="Faculty">
+          <HrFacultyPicker value={faculty} onChange={setFaculty} />
+        </Field>
+
+        <Field label="Kind">
+          <SegmentedTabs
+            value={kind}
+            onChange={(k) => setKind(k as "leave" | "od")}
+            options={[
+              { key: "leave", label: "Leave" },
+              { key: "od", label: "On duty" },
+            ]}
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Date">
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+          {kind === "leave" && (
+            <Field label="Leave type">
+              <Select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}>
+                <option value="">Not specified</option>
+                {leaveTypes.data?.map((lt) => (
+                  <option key={lt.id} value={lt.id}>
+                    {lt.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3.5">
-          <div>
-            <div className="mb-1.5 text-[13px] font-bold text-body">Kind</div>
-            <Select value={form.kind} onChange={(e) => update("kind", e.target.value as "leave" | "od")}>
-              <option value="leave">Leave</option>
-              <option value="od">On duty</option>
-            </Select>
-          </div>
-          <div>
-            <div className="mb-1.5 text-[13px] font-bold text-body">Date</div>
-            <Input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} />
-          </div>
-        </div>
-
-        {form.kind === "leave" && (
-          <div>
-            <div className="mb-1.5 text-[13px] font-bold text-body">Leave type</div>
-            <Select value={form.leaveTypeId} onChange={(e) => update("leaveTypeId", e.target.value)}>
-              <option value="">Not specified</option>
-              {leaveTypes.data?.map((lt) => (
-                <option key={lt.id} value={lt.id}>
-                  {lt.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-
-        <div>
-          <div className="mb-1.5 text-[13px] font-bold text-body">Reason (optional)</div>
-          <Textarea rows={2} value={form.reason} onChange={(e) => update("reason", e.target.value)} placeholder="Why this entry is being recorded" />
-        </div>
+        <Field label="Reason">
+          <Textarea
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why this entry is being recorded (optional)"
+          />
+        </Field>
 
         {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
       </div>
 
-      <div className="mt-6 flex justify-end gap-2.5">
+      <div className="mt-6 flex justify-end gap-2.5 border-t border-divider pt-5">
         <Button variant="secondary" className="w-auto" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant="primarySmall" className="w-auto" onClick={submit} disabled={createEntry.isPending}>
+        <Button variant="primarySmall" className="w-auto px-6" onClick={submit} disabled={createEntry.isPending}>
           {createEntry.isPending ? "Saving…" : "Save entry"}
         </Button>
       </div>
@@ -168,23 +173,33 @@ export default function HrVacationManagementPage() {
   const bounds = useMemo(() => monthBounds(), []);
   const [fromDate, setFromDate] = useState(bounds.start);
   const [toDate, setToDate] = useState(bounds.end);
-  const [facultyId, setFacultyId] = useState("");
+  const [faculty, setFaculty] = useState<HrFaculty | null>(null);
   const [kind, setKind] = useState<"" | "leave" | "od">("");
   const [showAdd, setShowAdd] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HrUnifiedRequest | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const requests = useHrRequests({
-    faculty_id: facultyId ? Number(facultyId) : undefined,
+    faculty_id: faculty?.id,
     kind: kind || undefined,
-    limit: 200,
+    limit: 100,
   });
-  const faculties = useHrFaculties({ status: "active", limit: 200 });
   const deleteEntry = useDeleteHrVacationEntry();
 
   function updateFromDate(value: string) {
     setFromDate(value);
     if (value && toDate && value > toDate) setToDate(value);
   }
+
+  function resetFilters() {
+    setFromDate(bounds.start);
+    setToDate(bounds.end);
+    setFaculty(null);
+    setKind("");
+  }
+
+  const filtersActive =
+    fromDate !== bounds.start || toDate !== bounds.end || faculty !== null || kind !== "";
 
   const filtered = useMemo(() => {
     const rows = requests.data?.data ?? [];
@@ -193,43 +208,74 @@ export default function HrVacationManagementPage() {
       .sort((a, b) => b.from_date.localeCompare(a.from_date));
   }, [requests.data, fromDate, toDate]);
 
+  const leaveCount = filtered.filter((r) => r.kind === "leave").length;
+  const odCount = filtered.filter((r) => r.kind === "od").length;
+  const pendingCount = filtered.filter((r) => r.overall_status === "pending").length;
+
   const columns: DataTableColumn<HrUnifiedRequest>[] = [
     {
       key: "faculty",
       header: "Faculty",
-      width: "1.5fr",
+      width: "minmax(210px, 1.7fr)",
       render: (row) => (
-        <div className="flex items-center gap-3">
-          <Avatar name={facultyName(row.faculty)} imageUrl={row.faculty.profile_url} size={32} />
+        <div className="flex items-center gap-2.5">
+          <Avatar name={facultyName(row.faculty)} imageUrl={row.faculty.profile_url} size={34} />
           <div className="min-w-0">
-            <div className="truncate font-bold text-ink">{facultyName(row.faculty)}</div>
-            <div className="truncate text-[12px] text-muted">{row.faculty.department.name}</div>
+            <div className="truncate text-[13.5px] font-bold text-ink">{facultyName(row.faculty)}</div>
+            <div className="truncate text-[11.5px] text-subtle">{row.faculty.department.name}</div>
           </div>
         </div>
       ),
     },
     {
-      key: "kind",
-      header: "Kind",
-      align: "center",
-      render: (row) => <Badge tone={row.kind === "leave" ? "accentDark" : "neutral"}>{row.kind === "leave" ? "Leave" : "OD"}</Badge>,
+      key: "entry",
+      header: "Entry",
+      width: "minmax(200px, 1.6fr)",
+      // Kind, dates and the type/reason were three cramped columns describing
+      // one entry, so they share a cell now and each has room to be read.
+      render: (row) => (
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Badge tone={row.kind === "leave" ? "accentDark" : "neutral"}>
+              {row.kind === "leave" ? "Leave" : "OD"}
+            </Badge>
+            <span className="truncate text-[13px] font-bold text-ink">
+              {formatDateRange(row.from_date, row.to_date)}
+            </span>
+          </div>
+          <div className="mt-0.5 truncate text-[11.5px] text-subtle">
+            {row.leave_type?.name ?? row.detail ?? "No reason recorded"}
+          </div>
+        </div>
+      ),
     },
-    { key: "dates", header: "Dates", render: (row) => formatDateRange(row.from_date, row.to_date) },
-    { key: "detail", header: "Type / reason", render: (row) => row.leave_type?.name ?? row.detail ?? "—" },
     {
       key: "status",
       header: "Status",
+      width: "120px",
       align: "center",
       render: (row) => <Badge tone={STATUS_TONE[row.overall_status]}>{row.overall_status}</Badge>,
     },
-    { key: "created_at", header: "Recorded", render: (row) => formatDisplayDate(row.created_at) },
+    {
+      key: "created_at",
+      header: "Recorded",
+      width: "130px",
+      render: (row) => <span className="text-[12.5px] text-body">{formatDisplayDate(row.created_at)}</span>,
+    },
     {
       key: "actions",
       header: "",
-      width: "60px",
+      width: "70px",
       align: "right",
       render: (row) => (
-        <IconButton icon="delete" size={32} iconSize={16} className="text-danger-fg" onClick={() => setDeleteTarget(row)} />
+        <IconButton
+          icon="delete"
+          size={32}
+          iconSize={16}
+          title="Remove this entry"
+          className="text-danger-fg"
+          onClick={() => setDeleteTarget(row)}
+        />
       ),
     },
   ];
@@ -244,47 +290,84 @@ export default function HrVacationManagementPage() {
             incoming request instead, use the Requests page.
           </p>
         </div>
-        <Button variant="primarySmall" className="inline-flex w-auto items-center gap-1.5 px-5 py-3" onClick={() => setShowAdd(true)}>
+        <Button
+          variant="primarySmall"
+          className="inline-flex w-auto shrink-0 items-center gap-1.5 px-5 py-3"
+          onClick={() => setShowAdd(true)}
+        >
           <Icon name="add" size={16} />
           Record entry
         </Button>
       </div>
 
       {requests.isError && (
-        <Banner>{requests.error instanceof ApiError ? requests.error.message : "Could not load leave / OD entries."}</Banner>
+        <Banner>
+          {requests.error instanceof ApiError ? requests.error.message : "Could not load leave / OD entries."}
+        </Banner>
       )}
+      {deleteError && <Banner>{deleteError}</Banner>}
 
-      <Card className="flex flex-wrap items-center gap-3 p-4">
-        <div className="flex items-center gap-2">
-          <span className="text-[12.5px] font-bold text-muted">From</span>
-          <Input type="date" value={fromDate} onChange={(e) => updateFromDate(e.target.value)} className="w-auto" />
+      {/* Counts describe the rows currently in view, not the whole year. */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Entries in range" icon="event_note" value={filtered.length} sub={`${fromDate} → ${toDate}`} />
+        <StatCard label="Leave" icon="beach_access" value={leaveCount} sub="In this range" />
+        <StatCard label="On duty" icon="work" value={odCount} sub="In this range" />
+        <StatCard label="Still pending" icon="hourglass_top" value={pendingCount} sub="Not yet fully approved" />
+      </div>
+
+      <Card className="flex flex-col gap-4 p-[18px_20px]">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-extrabold text-ink">Filters</h2>
+          {filtersActive && (
+            <button type="button" onClick={resetFilters} className="text-[12.5px] font-bold text-primary">
+              Reset to this month
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[12.5px] font-bold text-muted">To</span>
-          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-auto" />
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Field label="From">
+            <Input type="date" value={fromDate} onChange={(e) => updateFromDate(e.target.value)} />
+          </Field>
+          <Field label="To">
+            <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </Field>
+          <Field label="Kind">
+            <Select value={kind} onChange={(e) => setKind(e.target.value as "" | "leave" | "od")}>
+              <option value="">Leave + OD</option>
+              <option value="leave">Leave only</option>
+              <option value="od">OD only</option>
+            </Select>
+          </Field>
         </div>
-        <Select value={kind} onChange={(e) => setKind(e.target.value as "" | "leave" | "od")} className="w-auto">
-          <option value="">Leave + OD</option>
-          <option value="leave">Leave only</option>
-          <option value="od">OD only</option>
-        </Select>
-        <Select value={facultyId} onChange={(e) => setFacultyId(e.target.value)} className="w-auto min-w-[200px]">
-          <option value="">All faculty</option>
-          {faculties.data?.data.map((f) => (
-            <option key={f.id} value={f.id}>
-              {facultyName(f)}
-            </option>
-          ))}
-        </Select>
+
+        <Field label="Faculty">
+          {/* A dropdown could only ever hold the first 100 of ~500 faculty, so
+              this searches server-side by name, roll number or email and shows
+              everyone by default. */}
+          <HrFacultyPicker
+            value={faculty}
+            onChange={setFaculty}
+            placeholder="All faculty — search by name, roll no, designation or email"
+          />
+        </Field>
       </Card>
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        rowKey={(row) => row.id}
-        loading={requests.isLoading}
-        emptyMessage="No leave / OD entries in this date range."
-      />
+      <Card className="flex flex-col gap-3 p-[18px_20px]">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-[15px] font-extrabold text-ink">Recorded entries</h2>
+          <span className="text-[12px] text-subtle">{filtered.length} in range</span>
+        </div>
+        <div className="overflow-x-auto">
+          <DataTable
+            columns={columns}
+            data={filtered}
+            rowKey={(row) => row.id}
+            loading={requests.isLoading}
+            emptyMessage="No leave / OD entries in this date range."
+          />
+        </div>
+      </Card>
 
       {showAdd && <AddEntryModal onClose={() => setShowAdd(false)} />}
 
@@ -300,9 +383,16 @@ export default function HrVacationManagementPage() {
         confirmLabel={deleteEntry.isPending ? "Removing…" : "Remove entry"}
         onConfirm={() => {
           if (!deleteTarget) return;
+          setDeleteError(null);
           deleteEntry.mutate(
             { kind: deleteTarget.kind, sourceId: deleteTarget.source_id },
-            { onSuccess: () => setDeleteTarget(null) },
+            {
+              onSuccess: () => setDeleteTarget(null),
+              onError: (err) => {
+                setDeleteError(err instanceof ApiError ? err.message : "Could not remove this entry.");
+                setDeleteTarget(null);
+              },
+            },
           );
         }}
         onCancel={() => setDeleteTarget(null)}

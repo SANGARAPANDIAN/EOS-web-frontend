@@ -12,7 +12,6 @@ import {
   IconButton,
   Input,
   Modal,
-  Select,
   SegmentedTabs,
   type DataTableColumn,
 } from "@/components/ui";
@@ -23,7 +22,8 @@ import {
   type PayslipRequest,
   type PayslipRequestStatus,
 } from "@/modules/hr/api/payslipRequests";
-import { useHrFaculties } from "@/modules/hr/api/facultyDirectory";
+import { HrFacultyPicker } from "@/modules/hr/components/HrFacultyPicker";
+import type { HrFaculty } from "@/modules/hr/api/facultyDirectory";
 import { formatDisplayDate } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
@@ -94,16 +94,16 @@ function ProcessPayslipModal({ request, onClose }: { request: PayslipRequest; on
 export default function HrPayslipRequestsPage() {
   const [tab, setTab] = useState<Tab>("all");
   const [month, setMonth] = useState("");
-  const [facultyId, setFacultyId] = useState("");
+  const [faculty, setFaculty] = useState<HrFaculty | null>(null);
   const [processTarget, setProcessTarget] = useState<PayslipRequest | null>(null);
   const [rejectTarget, setRejectTarget] = useState<PayslipRequest | null>(null);
 
   const payslips = usePayslipRequests({
     month: month || undefined,
-    faculty_id: facultyId ? Number(facultyId) : undefined,
+    faculty_id: faculty?.id,
     limit: 100,
   });
-  const faculties = useHrFaculties({ limit: 200 });
+
   const rejectRequest = useUpdatePayslipRequest();
 
   const allRows = payslips.data?.data ?? [];
@@ -179,16 +179,24 @@ export default function HrPayslipRequestsPage() {
 
       <SegmentedTabs options={tabOptions} value={tab} onChange={(key) => setTab(key as Tab)} />
 
-      <Card className="flex flex-wrap items-center gap-3 p-4">
-        <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-auto" />
-        <Select value={facultyId} onChange={(e) => setFacultyId(e.target.value)} className="w-auto min-w-[220px]">
-          <option value="">All faculty</option>
-          {faculties.data?.data.map((f) => (
-            <option key={f.id} value={f.id}>
-              {facultyName(f)}
-            </option>
-          ))}
-        </Select>
+      <Card className="flex flex-col gap-4 p-[18px_20px]">
+        <h2 className="text-[15px] font-extrabold text-ink">Filters</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+          <div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Month</label>
+            <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Faculty</label>
+            {/* Searchable rather than a dropdown: the list endpoint caps a page
+                at 100 rows and there are ~500 faculty. */}
+            <HrFacultyPicker
+              value={faculty}
+              onChange={setFaculty}
+              placeholder="All faculty — search by name, roll no, designation or email"
+            />
+          </div>
+        </div>
       </Card>
 
       <DataTable columns={columns} data={rows} rowKey={(row) => row.id} loading={payslips.isLoading} emptyMessage="No payslip requests match these filters." />

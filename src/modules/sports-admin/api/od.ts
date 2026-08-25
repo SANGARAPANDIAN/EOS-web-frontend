@@ -56,18 +56,31 @@ export function useCreateOdRequest() {
   });
 }
 
-export function useApproveOdRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => apiClient.post(`/sports-admin/od-requests/${id}/approve`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sports-admin", "od-requests"] }),
-  });
+/*
+ * There is deliberately no approve/reject hook here.
+ *
+ * A sports OD releases students from class, so it is approved by the HoD of
+ * each department represented in the squad — a squad drawn from AIDS, CSE, ECE
+ * and EEE needs all four HoDs. Sports raises the request and can watch its
+ * progress; it cannot decide it. The backend enforces the same rule: those
+ * routes are granted to the HoD role only.
+ */
+
+export interface OdDepartmentApproval {
+  department_id: number;
+  department_name: string | null;
+  status: "pending" | "approved" | "rejected";
+  reviewed_at: string | null;
+  remarks: string | null;
+  /** How many students in the squad belong to this department. */
+  student_count: number;
 }
 
-export function useRejectOdRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => apiClient.post(`/sports-admin/od-requests/${id}/reject`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sports-admin", "od-requests"] }),
+/** GET /sports-admin/od-requests/:id/approvals — who still has to agree. */
+export function useOdRequestApprovals(id: number | null) {
+  return useQuery({
+    queryKey: ["sports-admin", "od-requests", id, "approvals"],
+    queryFn: () => apiClient.get<OdDepartmentApproval[]>(`/sports-admin/od-requests/${id}/approvals`),
+    enabled: id != null,
   });
 }

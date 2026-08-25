@@ -22,7 +22,6 @@ export function HigherEducationShell({ children }: { children: React.ReactNode }
         programLabel: "Higher Education Cell · Coordinator",
         academicYearLabel: "2026–27",
         semesterParityLabel: "Odd Semester",
-        unreadNotifications: 1,
       }}
       navBadges={{
         heAspirants: aspirantsCount,

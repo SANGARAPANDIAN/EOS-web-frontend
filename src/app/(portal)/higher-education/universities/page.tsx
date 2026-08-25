@@ -8,7 +8,11 @@ import {
   useCreateUniversity,
   type UniversityRow,
   type UniversityRelation,
+  useUpdateUniversity,
+  useDeleteUniversity,
 } from "@/modules/higher-education/api/universities";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ApiError } from "@/types/api";
 
 /** Matches the Transport dashboard/routes hover-lift convention. */
 const HOVERABLE = "transition-all duration-150 hover:-translate-y-1 hover:border-primary hover:shadow-hover-lift";
@@ -127,6 +131,59 @@ export default function HigherEducationUniversitiesPage() {
   const isLoading = universities.isLoading;
   const [showAdd, setShowAdd] = useState(false);
 
+  const updateUniversity = useUpdateUniversity();
+  const deleteUniversity = useDeleteUniversity();
+  const [editRow, setEditRow] = useState<UniversityRow | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", country: "", programmes: "", applied: "", admits: "", funded: "" });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<UniversityRow | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+
+  function openEdit(row: UniversityRow) {
+    setEditRow(row);
+    setEditForm({
+      name: row.name,
+      country: row.country,
+      programmes: row.programmes ?? "",
+      applied: String(row.applied ?? ""),
+      admits: String(row.admits ?? ""),
+      funded: String(row.funded ?? ""),
+    });
+    setEditError(null);
+  }
+
+  async function saveEdit() {
+    if (!editRow) return;
+    setEditError(null);
+    try {
+      await updateUniversity.mutateAsync({
+        id: editRow.id,
+        name: editForm.name,
+        country: editForm.country,
+        programmes: editForm.programmes || undefined,
+        applied_count: editForm.applied === "" ? undefined : Number(editForm.applied),
+        admits_count: editForm.admits === "" ? undefined : Number(editForm.admits),
+        funded_count: editForm.funded === "" ? undefined : Number(editForm.funded),
+      });
+      setEditRow(null);
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Could not save this university.");
+    }
+  }
+
+  async function confirmRemove() {
+    if (!removing) return;
+    setRowError(null);
+    try {
+      await deleteUniversity.mutateAsync(removing.id);
+    } catch (err) {
+      // Refused while aspirants still name it; the server says how many.
+      setRowError(err instanceof ApiError ? err.message : "Could not delete this university.");
+    } finally {
+      setRemoving(null);
+    }
+  }
+
   const columns: DataTableColumn<UniversityRow>[] = [
     { key: "university", header: "University", width: "1.6fr", render: (row) => <span className="font-bold text-ink">{row.name}</span> },
     { key: "country", header: "Country", width: "0.9fr", render: (row) => <span className="text-body">{row.country}</span> },
@@ -135,6 +192,22 @@ export default function HigherEducationUniversitiesPage() {
     { key: "admits", header: "Admits", align: "right", render: (row) => <span className="font-mono text-ink">{row.admits}</span> },
     { key: "funded", header: "Funded", align: "right", render: (row) => <span className="font-mono text-body">{row.funded}</span> },
     { key: "relation", header: "Relation", align: "right", render: (row) => <Badge tone="accent">{RELATION_LABEL[row.relation]}</Badge> },
+    {
+      key: "actions",
+      header: "",
+      width: "1.1fr",
+      align: "right",
+      render: (row) => (
+        <div className="flex items-center justify-end gap-3">
+          <button type="button" onClick={() => openEdit(row)} className="text-[12.5px] font-bold text-primary hover:underline">
+            Edit
+          </button>
+          <button type="button" onClick={() => setRemoving(row)} className="text-[12.5px] font-bold text-muted hover:text-danger-fg">
+            Delete
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -163,6 +236,67 @@ export default function HigherEducationUniversitiesPage() {
           hoverableRows
         />
       </Card>
+      {editRow &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
+            <div className="w-full max-w-[520px] rounded-modal bg-surface">
+              <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
+                <div className="text-[19px] font-extrabold text-ink">Edit university</div>
+                <button type="button" onClick={() => setEditRow(null)} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
+                  ✕
+                </button>
+              </div>
+              <div className="flex flex-col gap-4 px-[26px] py-[22px]">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Name</label>
+                  <Input className="mt-1.5" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Country</label>
+                  <Input className="mt-1.5" value={editForm.country} onChange={(e) => setEditForm((f) => ({ ...f, country: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Programmes</label>
+                  <Input className="mt-1.5" value={editForm.programmes} onChange={(e) => setEditForm((f) => ({ ...f, programmes: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Applied</label>
+                    <Input className="mt-1.5" type="number" min="0" value={editForm.applied} onChange={(e) => setEditForm((f) => ({ ...f, applied: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Admits</label>
+                    <Input className="mt-1.5" type="number" min="0" value={editForm.admits} onChange={(e) => setEditForm((f) => ({ ...f, admits: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Funded</label>
+                    <Input className="mt-1.5" type="number" min="0" value={editForm.funded} onChange={(e) => setEditForm((f) => ({ ...f, funded: e.target.value }))} />
+                  </div>
+                </div>
+                {editError && <div className="text-[13px] font-semibold text-danger-fg">{editError}</div>}
+              </div>
+              <div className="flex justify-end gap-2.5 border-t border-divider px-[26px] py-[18px]">
+                <Button variant="secondary" className="w-auto" onClick={() => setEditRow(null)}>
+                  Cancel
+                </Button>
+                <Button variant="primarySmall" onClick={() => void saveEdit()} disabled={updateUniversity.isPending}>
+                  {updateUniversity.isPending ? "Saving…" : "Save changes"}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <ConfirmDialog
+        open={removing != null}
+        title="Delete this university?"
+        description={removing ? `${removing.name} will be removed from the register.` : undefined}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoving(null)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSubjectRecords, useSubjectRecordDetail, usePublishSubjectRecord } from "@/modules/advisor/api/subject-records";
 import { useExamMarkRoster, useEnterExamMarks, useUpdateExamMark } from "@/modules/advisor/api/exam-marks";
 
@@ -45,18 +45,22 @@ export default function AdvisorSubjectRecordsPage() {
   const rows = records.data ?? [];
 
   const semesters = useMemo(() => Array.from(new Set(rows.map((r) => r.exam.semester))).sort((a, b) => a - b), [rows]);
-  const [sem, setSem] = useState<number | null>(null);
-  useEffect(() => {
-    if (sem === null && semesters.length) setSem(semesters[semesters.length - 1]);
-  }, [sem, semesters]);
+  // Both selections are derived rather than synced via effect (same fix as
+  // the Attendance/Assignment-Status pages' selectors) — default to the
+  // latest semester / first mapping in it until the user picks otherwise,
+  // without a setState-in-effect.
+  const [semOverride, setSemOverride] = useState<number | null>(null);
+  const sem = semOverride ?? (semesters.length ? semesters[semesters.length - 1] : null);
+  const setSem = setSemOverride;
 
   const inSemester = rows.filter((r) => r.exam.semester === sem);
-  const [mappingId, setMappingId] = useState<number | null>(null);
-  useEffect(() => {
-    if (inSemester.length && !inSemester.some((r) => r.exam_subject_mapping_id === mappingId)) {
-      setMappingId(inSemester[0].exam_subject_mapping_id);
-    }
-  }, [inSemester, mappingId]);
+  const [mappingIdOverride, setMappingIdOverride] = useState<number | null>(null);
+  const mappingId = inSemester.some((r) => r.exam_subject_mapping_id === mappingIdOverride)
+    ? mappingIdOverride
+    : inSemester.length
+      ? inSemester[0].exam_subject_mapping_id
+      : null;
+  const setMappingId = setMappingIdOverride;
 
   const active = inSemester.find((r) => r.exam_subject_mapping_id === mappingId);
   const detail = useSubjectRecordDetail(mappingId ?? undefined);
@@ -74,6 +78,17 @@ export default function AdvisorSubjectRecordsPage() {
   const entered = students.map((s) => s.marks_obtained).filter((m): m is number => m !== null);
   const mean = entered.length ? Math.round((entered.reduce((a, b) => a + b, 0) / entered.length) * 10) / 10 : null;
 
+  // Client-side bounds check against max_marks — the backend already
+  // rejects an out-of-range value server-side, but previously the only
+  // feedback was a generic error banner after clicking Save. Flags the
+  // exact row inline instead, before a round-trip is even attempted.
+  function outOfRange(draftValue: string | undefined): boolean {
+    if (draftValue === undefined || draftValue === "" || maxM === null) return false;
+    const n = Number(draftValue);
+    return Number.isFinite(n) && (n < 0 || n > maxM);
+  }
+  const hasOutOfRangeDraft = students.some((s) => outOfRange(drafts[s.student_id]));
+
   function errorMessageOf(e: unknown): string {
     if (e instanceof Error) {
       // ApiError.message can be a joined string OR (per the backend's
@@ -86,7 +101,7 @@ export default function AdvisorSubjectRecordsPage() {
   }
 
   function saveMarks() {
-    if (!mappingId) return;
+    if (!mappingId || hasOutOfRangeDraft) return;
     setSaveError(null);
     const effectiveMaxMarks = roster.data?.max_marks || Number(maxMarksInput) || 100;
     const newEntries = students
@@ -198,6 +213,11 @@ export default function AdvisorSubjectRecordsPage() {
               {saveError}
             </div>
           )}
+          {hasOutOfRangeDraft && (
+            <div style={{ marginTop: 14, padding: "11px 16px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, color: "#DC2626", fontSize: 12.5, fontWeight: 600 }}>
+              One or more marks are negative or exceed the max marks ({maxM}) — fix the highlighted row(s) before saving.
+            </div>
+          )}
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 18 }}>
             <div
@@ -227,8 +247,17 @@ export default function AdvisorSubjectRecordsPage() {
             {!active.is_published && (
               <>
                 <div
-                  onClick={saveMarks}
-                  style={{ padding: "9px 18px", background: "#fff", border: "1px solid #93C5FD", color: "#1D4ED8", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
+                  onClick={() => !hasOutOfRangeDraft && saveMarks()}
+                  style={{
+                    padding: "9px 18px",
+                    background: hasOutOfRangeDraft ? "#F8FAFC" : "#fff",
+                    border: `1px solid ${hasOutOfRangeDraft ? "#E2E8F0" : "#93C5FD"}`,
+                    color: hasOutOfRangeDraft ? "#94A3B8" : "#1D4ED8",
+                    borderRadius: 9,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: hasOutOfRangeDraft ? "not-allowed" : "pointer",
+                  }}
                 >
                   {enterMarks.isPending || updateMark.isPending ? "Saving…" : "Save"}
                 </div>
@@ -273,6 +302,7 @@ export default function AdvisorSubjectRecordsPage() {
               const value = draft !== undefined ? draft : s.marks_obtained !== null ? String(s.marks_obtained) : "";
               const pct = s.marks_obtained !== null && maxM ? (s.marks_obtained / maxM) * 100 : null;
               const grade = gradeOf(pct);
+              const invalid = outOfRange(draft);
               return (
                 <div key={s.student_id} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "2.4fr 1.2fr 1fr", padding: "13px 18px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -287,7 +317,18 @@ export default function AdvisorSubjectRecordsPage() {
                       value={value}
                       onChange={(e) => setDrafts((prev) => ({ ...prev, [s.student_id]: e.target.value }))}
                       disabled={active.is_published || (roster.data?.locked && s.mark_id === null)}
-                      style={{ width: 80, height: 36, border: "1px solid #DDE3EC", borderRadius: 8, padding: "0 10px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, background: active.is_published ? "#F8FAFC" : "#fff" }}
+                      style={{
+                        width: 80,
+                        height: 36,
+                        border: `1px solid ${invalid ? "#FCA5A5" : "#DDE3EC"}`,
+                        borderRadius: 8,
+                        padding: "0 10px",
+                        fontFamily: "inherit",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        background: active.is_published ? "#F8FAFC" : invalid ? "#FEF2F2" : "#fff",
+                        color: invalid ? "#DC2626" : "#0F172A",
+                      }}
                     />
                     <span style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600 }}> / {maxM ?? "—"}</span>
                   </div>

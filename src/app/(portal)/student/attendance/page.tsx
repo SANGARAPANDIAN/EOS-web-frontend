@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { Card, Badge, SegmentedTabs, ProgressBar, EmptyState, IconButton, Icon } from "@/components/ui";
 import { useMyAcademicCalendar } from "@/modules/student/api/profile";
 import { useMyAttendance } from "@/modules/student/api/attendance";
+import { useMyTimetableForDay, displayPeriodNumbers } from "@/modules/student/api/timetable";
 import { ATTENDANCE_THRESHOLD_PERCENT } from "@/lib/config";
-import { getMonthGrid, monthLabel, todayDateOnly, formatLongDate } from "@/lib/utils/date";
+import { getMonthGrid, monthLabel, todayDateOnly, formatLongDate, formatTime12h } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
 type SortMode = "risk" | "alpha";
@@ -101,8 +102,40 @@ export default function AttendancePage() {
   }
 
   const weeks = useMemo(() => getMonthGrid(viewYear, viewMonth, "sunday"), [viewYear, viewMonth]);
-  const selectedRecords = recordsByDate.get(selectedDate) ?? [];
+  const selectedRecords = useMemo(() => recordsByDate.get(selectedDate) ?? [], [recordsByDate, selectedDate]);
   const selectedStatus = dayStatus(selectedDate);
+
+  // Real, scheduled periods for the selected day (from the same timetable
+  // the student's own Timetable page uses) — paired with whatever
+  // attendance was actually recorded for that date. Most classes in this
+  // institution are still marked once per day rather than per subject (see
+  // recordsByDate — subject_id is usually null), so most periods below fall
+  // back to that single day-level status rather than an independent one per
+  // period; that's the honest ceiling of what the data actually captures,
+  // not a fabricated per-hour breakdown.
+  const selectedDayOfWeek = new Date(selectedDate + "T00:00:00").getDay();
+  const dayTimetable = useMyTimetableForDay(selectedDayOfWeek === 0 ? null : selectedDayOfWeek);
+  const wholeDayRecord = selectedRecords.find((r) => r.subject_id === null);
+  const subjectRecordBySubjectId = useMemo(() => {
+    const map = new Map<number, { subject_id: number | null; subject_code: string | null; status: string }>();
+    for (const r of selectedRecords) if (r.subject_id !== null) map.set(r.subject_id, r);
+    return map;
+  }, [selectedRecords]);
+  // Gapless P1..Pn display numbers for the day — see displayPeriodNumbers'
+  // own doc comment (same fix as Timetable/Dashboard).
+  const dayDisplayNumbers = useMemo(() => displayPeriodNumbers(dayTimetable.data?.slots ?? []), [dayTimetable.data]);
+  const periodRows = useMemo(() => {
+    return (dayTimetable.data?.slots ?? []).map((slot) => {
+      const ownRecord = subjectRecordBySubjectId.get(slot.subject.id);
+      return {
+        slot,
+        displayNumber: dayDisplayNumbers.get(slot.period_number) ?? slot.period_number,
+        status: ownRecord?.status ?? wholeDayRecord?.status ?? null,
+        fromWholeDayMark: !ownRecord && !!wholeDayRecord,
+      };
+    });
+  }, [dayTimetable.data, subjectRecordBySubjectId, wholeDayRecord, dayDisplayNumbers]);
+
   const overall = attendance.data?.overall;
   const eligible = overall ? overall.percentage >= ATTENDANCE_THRESHOLD_PERCENT : undefined;
   const semester = academicCalendar.data?.semester;
@@ -122,7 +155,7 @@ export default function AttendancePage() {
         )}
       </div>
 
-      <div className="grid grid-cols-[1.15fr_1fr] items-start gap-4">
+      <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-4">
         <Card>
           <div className="flex items-end justify-between">
             <div>
@@ -156,14 +189,16 @@ export default function AttendancePage() {
               <h2 className="text-[15px] font-extrabold tracking-[-.02em] text-ink">Subject-wise attendance</h2>
               <div className="mt-[3px] text-[12.5px] text-muted">{subjectSummary ?? (attendance.isLoading ? "Loading…" : "No subject-wise records yet.")}</div>
             </div>
-            <SegmentedTabs
-              options={[
-                { key: "risk", label: "At risk first" },
-                { key: "alpha", label: "A–Z" },
-              ]}
-              value={sortMode}
-              onChange={(k) => setSortMode(k as SortMode)}
-            />
+            {sortedSubjects.length > 0 && (
+              <SegmentedTabs
+                options={[
+                  { key: "risk", label: "At risk first" },
+                  { key: "alpha", label: "A–Z" },
+                ]}
+                value={sortMode}
+                onChange={(k) => setSortMode(k as SortMode)}
+              />
+            )}
           </div>
           {sortedSubjects.length > 0 && (
             <div className="mt-2 flex flex-col">
@@ -181,7 +216,7 @@ export default function AttendancePage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-[1.15fr_1fr] items-start gap-4">
+      <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-4">
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <IconButton
@@ -248,7 +283,11 @@ export default function AttendancePage() {
               <div className="mt-0.5 text-[12.5px] text-muted">
                 {selectedStatus === "holiday"
                   ? "No classes scheduled"
-                  : `${selectedRecords.filter((r) => r.status !== "absent").length} of ${selectedRecords.length} classes attended`}
+                  : periodRows.length > 0
+                    ? periodRows.every((p) => p.status === null)
+                      ? "Not marked yet"
+                      : `${periodRows.filter((p) => p.status === "present" || p.status === "on_duty").length} of ${periodRows.length} periods attended`
+                    : `${selectedRecords.filter((r) => r.status !== "absent").length} of ${selectedRecords.length} classes attended`}
               </div>
             </div>
             {selectedStatus && (
@@ -258,23 +297,58 @@ export default function AttendancePage() {
             )}
           </div>
           <div className="mt-4 flex flex-col">
-            {selectedRecords.length === 0 ? (
+            {periodRows.length > 0 ? (
+              periodRows.map(({ slot, displayNumber, status, fromWholeDayMark }) => (
+                <div key={slot.period_number} className="flex items-center gap-3.5 border-t border-divider py-[11px] first:border-0">
+                  <div className="w-[74px] shrink-0">
+                    <div className="text-[12.5px] font-bold text-ink">{formatTime12h(slot.start_time)}</div>
+                    <div className="text-[11px] text-subtle">Period {displayNumber}</div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13.5px] font-bold text-ink">{slot.subject.name}</div>
+                    <div className="truncate text-[11.5px] text-subtle">
+                      {slot.subject.subject_code} · {slot.faculty.name}
+                    </div>
+                  </div>
+                  {status ? (
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge tone={status === "absent" ? "accentDark" : "accent"}>{DAY_STATUS_LABEL[status as DayStatus] ?? status}</Badge>
+                      {fromWholeDayMark && <span className="text-[10px] text-subtle">whole-day mark</span>}
+                    </div>
+                  ) : (
+                    <Badge tone="neutral">Not marked</Badge>
+                  )}
+                </div>
+              ))
+            ) : selectedRecords.length === 0 ? (
               <EmptyState message="No attendance records for this date." />
             ) : (
-              selectedRecords.map((r, i) => {
-                const subject = r.subject_id ? subjectNameById.get(r.subject_id) : undefined;
-                return (
-                  <div key={i} className="flex items-center gap-3.5 border-t border-divider py-[11px] first:border-0">
-                    <div className="flex-1">
-                      <div className="text-[13.5px] font-bold text-ink">{subject?.name ?? "Whole day"}</div>
-                      {(r.subject_code ?? subject?.code) && (
-                        <div className="font-mono text-[11.5px] text-subtle">{r.subject_code ?? subject?.code}</div>
-                      )}
+              // Real per-subject marks (subject_id set) are shown per row —
+              // genuinely new information (which subject). A subject_id-null
+              // "whole day" mark is the same single fact the header above
+              // already states (its own status badge + "X of Y classes
+              // attended" line), so it's dropped here rather than repeated
+              // as a redundant "Whole day" row with nothing else to add.
+              (() => {
+                const subjectRecords = selectedRecords.filter((r) => r.subject_id !== null);
+                if (subjectRecords.length === 0) {
+                  return <EmptyState message="Marked for the entire day — see status above." />;
+                }
+                return subjectRecords.map((r, i) => {
+                  const subject = subjectNameById.get(r.subject_id!);
+                  return (
+                    <div key={i} className="flex items-center gap-3.5 border-t border-divider py-[11px] first:border-0">
+                      <div className="flex-1">
+                        <div className="text-[13.5px] font-bold text-ink">{subject?.name ?? "Subject"}</div>
+                        {(r.subject_code ?? subject?.code) && (
+                          <div className="font-mono text-[11.5px] text-subtle">{r.subject_code ?? subject?.code}</div>
+                        )}
+                      </div>
+                      <Badge tone={r.status === "absent" ? "accentDark" : "accent"}>{DAY_STATUS_LABEL[r.status as DayStatus] ?? r.status}</Badge>
                     </div>
-                    <Badge tone={r.status === "absent" ? "accentDark" : "accent"}>{DAY_STATUS_LABEL[r.status as DayStatus] ?? r.status}</Badge>
-                  </div>
-                );
-              })
+                  );
+                });
+              })()
             )}
           </div>
         </Card>

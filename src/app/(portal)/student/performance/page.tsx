@@ -16,10 +16,25 @@ function PassFailBadge({ pct }: { pct: number }) {
   return <Badge tone={pass ? "accent" : "accentDark"}>{pass ? "Pass" : "Fail"}</Badge>;
 }
 
+function facultyName(faculty: ExamResultSubject["faculty"]): string | null {
+  if (!faculty) return null;
+  return `${faculty.first_name} ${faculty.last_name}`.trim();
+}
+
+function CourseCell({ subject }: { subject: ExamResultSubject }) {
+  const faculty = facultyName(subject.faculty);
+  return (
+    <div className="min-w-0">
+      <div className="truncate font-semibold text-ink">{subject.name}</div>
+      {faculty && <div className="truncate text-[11.5px] text-subtle">{faculty}</div>}
+    </div>
+  );
+}
+
 function InternalsSubjectTable({ subjects }: { subjects: ExamResultSubject[] }) {
   const columns: DataTableColumn<ExamResultSubject>[] = [
     { key: "code", header: "Code", width: "0.9fr", render: (r) => <span className="font-mono text-[12.5px] text-muted">{r.code}</span> },
-    { key: "name", header: "Course", width: "1.6fr", render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
+    { key: "name", header: "Course", width: "1.6fr", render: (r) => <CourseCell subject={r} /> },
     { key: "max", header: "Max", width: "1fr", align: "right", render: (r) => r.max },
     { key: "scored", header: "Scored", width: "1fr", align: "right", render: (r) => r.scored },
     { key: "result", header: "Pass/Fail", width: "1fr", align: "right", render: (r) => <PassFailBadge pct={(r.scored / r.max) * 100} /> },
@@ -30,7 +45,7 @@ function InternalsSubjectTable({ subjects }: { subjects: ExamResultSubject[] }) 
 function SemesterSubjectTable({ subjects }: { subjects: ExamResultSubject[] }) {
   const columns: DataTableColumn<ExamResultSubject>[] = [
     { key: "code", header: "Code", width: "0.9fr", render: (r) => <span className="font-mono text-[12.5px] text-muted">{r.code}</span> },
-    { key: "name", header: "Course", width: "1.6fr", render: (r) => <span className="font-semibold text-ink">{r.name}</span> },
+    { key: "name", header: "Course", width: "1.6fr", render: (r) => <CourseCell subject={r} /> },
     {
       key: "grade",
       header: "Grade",
@@ -69,7 +84,15 @@ function InternalsAccordion({ groups }: { groups: ExamResultGroup[] }) {
   }
 
   if (groups.length === 0) {
-    return <EmptyState message="No internal assessments entered for this semester yet." />;
+    // Wrapped in a Card so the empty state looks the same whichever tab
+    // you're on — the Semester exam tab's empty state is always inside a
+    // Card, so without this the outer border would appear/disappear
+    // depending on which tab happened to be selected.
+    return (
+      <Card>
+        <EmptyState message="No internal assessments entered for this semester yet." />
+      </Card>
+    );
   }
 
   return (
@@ -190,7 +213,7 @@ export default function PerformancePage() {
                       <div className="text-[22px] font-extrabold tracking-[-.03em] text-primary-dark">SGPA {semesterGpa}</div>
                     )}
                     <div className="text-[12.5px] font-semibold text-primary-dark">
-                      CGPA {cgpa.isLoading ? "…" : cgpa.cgpa ?? "N/A"}
+                      CGPA {cgpa.isLoading ? "…" : (cgpa.cgpa ?? "—")}
                     </div>
                   </div>
                   {marksheetForSemester ? (

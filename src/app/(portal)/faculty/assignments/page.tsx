@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useAssignments, useAssignmentStudents, useSetAssignmentStudentStatus } from "@/modules/advisor/api/assignments";
+import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // Backed by GET /me/assignments and GET /me/assignments/:id/students
 // (AssignmentsController). The design's per-row submission timestamp ("07
@@ -18,10 +19,11 @@ export default function AdvisorAssignmentsPage() {
   const assignments = useAssignments();
   const rows = assignments.data ?? [];
 
-  const [assignmentId, setAssignmentId] = useState<number | null>(null);
-  useEffect(() => {
-    if (!assignmentId && rows.length) setAssignmentId(rows[0].id);
-  }, [assignmentId, rows]);
+  // Derived rather than synced via effect (same fix as the Attendance
+  // page's class/subject selector) — defaults to the first assignment
+  // until the user picks a different one, without a setState-in-effect.
+  const [assignmentIdOverride, setAssignmentId] = useState<number | null>(null);
+  const assignmentId = assignmentIdOverride ?? (rows.length ? rows[0].id : null);
 
   const active = rows.find((a) => a.id === assignmentId);
   const students = useAssignmentStudents(assignmentId ?? undefined);
@@ -29,6 +31,20 @@ export default function AdvisorAssignmentsPage() {
 
   const studentRows = students.data ?? [];
   const subCount = studentRows.filter((r) => r.is_submitted).length;
+
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"All" | "Submitted" | "Not submitted">("All");
+  const FILTERS = ["All", "Submitted", "Not submitted"] as const;
+
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return studentRows.filter((r) => {
+      if (q && !(r.name.toLowerCase().includes(q) || r.student_id_no.toLowerCase().includes(q))) return false;
+      if (filter === "Submitted") return r.is_submitted;
+      if (filter === "Not submitted") return !r.is_submitted;
+      return true;
+    });
+  }, [studentRows, query, filter]);
 
   return (
     <div style={{ width: "100%" }}>
@@ -64,8 +80,33 @@ export default function AdvisorAssignmentsPage() {
         )}
       </div>
 
+      <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "14px 16px", marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 280px", minWidth: 220, display: "flex", alignItems: "center", gap: 10, height: 44, padding: "0 14px", border: "1px solid #E2E8F0", borderRadius: 10, background: "#F8FAFC" }}>
+          <AdvisorIcon kind="search" width={15} height={15} style={{ color: "#94A3B8", flex: "0 0 15px" }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or roll number"
+            style={{ flex: "1 1 0", minWidth: 0, border: 0, outline: 0, background: "transparent", fontFamily: "inherit", fontSize: 14, fontWeight: 500, color: "#0F172A" }}
+          />
+        </div>
+        {FILTERS.map((f) => {
+          const isActive = filter === f;
+          return (
+            <div
+              key={f}
+              data-advisor-lift=""
+              onClick={() => setFilter(f)}
+              style={{ padding: "9px 16px", borderRadius: 10, fontSize: 12.5, fontWeight: 700, cursor: "pointer", background: isActive ? "#1D4ED8" : "#fff", border: `1px solid ${isActive ? "#1D4ED8" : "#E2E8F0"}`, color: isActive ? "#fff" : "#475569", whiteSpace: "nowrap" }}
+            >
+              {f}
+            </div>
+          );
+        })}
+      </div>
+
       <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, marginTop: 16, overflow: "hidden" }}>
-        {studentRows.map((r) => (
+        {filteredRows.map((r) => (
           <div key={r.student_id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 22px", borderBottom: "1px solid #F4F6FA" }}>
             <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {initialsOf(r.name)}
@@ -97,8 +138,10 @@ export default function AdvisorAssignmentsPage() {
             </div>
           </div>
         ))}
-        {studentRows.length === 0 && !students.isLoading && (
-          <div style={{ padding: "40px 22px", textAlign: "center", fontSize: 13.5, color: "#94A3B8", fontWeight: 600 }}>No students found for this assignment.</div>
+        {filteredRows.length === 0 && !students.isLoading && (
+          <div style={{ padding: "40px 22px", textAlign: "center", fontSize: 13.5, color: "#94A3B8", fontWeight: 600 }}>
+            {studentRows.length === 0 ? "No students found for this assignment." : "No students match this filter."}
+          </div>
         )}
       </div>
     </div>

@@ -24,7 +24,14 @@ export function StatCard({ label, value, icon, sub, delta, barPercent, threshold
   const content = (
     <div
       className={cn(
-        "min-w-0 rounded-card border bg-surface p-[18px_18px_16px]",
+        // h-full is a no-op unless the parent (typically a `grid` row) gives
+        // this card a definite height to fill — but when it does, this is
+        // what keeps every card's visible border/background box the same
+        // height as its row-mates. Without it, a card with less content
+        // (e.g. no `sub` line, no progress bar) renders visibly shorter than
+        // its siblings even though they're all the same grid row height,
+        // since only the outer grid cell was stretched, not this inner box.
+        "flex h-full min-w-0 flex-col rounded-card border bg-surface p-[18px_18px_16px]",
         href && "transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md",
         accent
           ? "border-[1.5px] border-primary shadow-[0_8px_20px_color-mix(in_srgb,var(--color-primary)_14%,transparent)]"

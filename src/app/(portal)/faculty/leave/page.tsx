@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useStudentLeaves, useFacultyApproveLeave, type StudentLeaveRow } from "@/modules/advisor/api/requests";
 import { useIsClassAdvisor } from "@/modules/advisor/api/profile";
+import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // Backed by GET /me/student-leaves + PATCH /me/student-leaves/:id/faculty-approve
 // (StudentLeavesController). Backend has no separate "days" or "duration"
@@ -82,7 +83,7 @@ export default function AdvisorLeavePage() {
 
       <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px", marginTop: 20, display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: 42, height: 42, borderRadius: 11, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 14, height: 14, border: "2px solid #1D4ED8", borderRadius: 4 }} />
+          <AdvisorIcon kind="leave" width={20} height={20} style={{ color: "#1D4ED8" }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em" }}>{primaryClass?.department.name ?? ""} {primaryClass ? `— ${primaryClass.section}` : ""}</div>
@@ -159,7 +160,9 @@ export default function AdvisorLeavePage() {
         ))}
         {list.length === 0 && !leaves.isLoading && (
           <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 64, textAlign: "center" }}>
-            <div style={{ width: 34, height: 34, border: "2px solid #CBD5E1", borderRadius: "50%", margin: "0 auto" }} />
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <AdvisorIcon kind="leave" width={30} height={30} style={{ color: "#CBD5E1" }} />
+            </div>
             <div style={{ fontSize: 14, color: "#94A3B8", fontWeight: 600, marginTop: 14 }}>No requests here</div>
           </div>
         )}

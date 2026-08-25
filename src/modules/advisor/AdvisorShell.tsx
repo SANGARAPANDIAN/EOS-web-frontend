@@ -42,6 +42,7 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
   const [rolesOpen, setRolesOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const rolesRef = useRef<HTMLDivElement>(null);
 
   const roles = useMyRoles();
@@ -123,35 +124,46 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
     >
       <aside
         style={{
-          width: 266,
-          flex: "0 0 266px",
+          width: collapsed ? 76 : 266,
+          flex: collapsed ? "0 0 76px" : "0 0 266px",
           background: "#FFFFFF",
           borderRight: "1px solid #E6EAF0",
           display: "flex",
           flexDirection: "column",
           height: "100vh",
+          transition: "width 0.16s ease, flex-basis 0.16s ease",
         }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            padding: "18px 20px",
+            padding: collapsed ? "18px 12px" : "18px 20px",
             borderBottom: "1px solid #EEF1F6",
           }}
         >
-          <BrandMark subtitle="Faculty Portal" />
+          <BrandMark subtitle="Faculty Portal" collapsed={collapsed} />
         </div>
 
         <nav style={{ flex: 1, overflowY: "auto", padding: "14px 12px 24px" }}>
           {visibleNav.map((group) => (
             <div key={group.label}>
-              <div style={{ display: "flex", alignItems: "center", padding: "16px 12px 8px" }}>
-                <div style={{ flex: 1, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.12em", color: "#94A3B8" }}>
-                  {group.label}
-                </div>
+              <div style={{ display: "flex", alignItems: "center", padding: collapsed ? "16px 4px 8px" : "16px 12px 8px", justifyContent: collapsed ? "center" : "flex-start" }}>
+                {!collapsed && (
+                  <div style={{ flex: 1, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.12em", color: "#94A3B8" }}>
+                    {group.label}
+                  </div>
+                )}
                 {group.chevron && (
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#94A3B8", cursor: "pointer" }}>«</div>
+                  <div
+                    onClick={() => setCollapsed((c) => !c)}
+                    role="button"
+                    aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+                    title={collapsed ? "Expand navigation" : "Collapse navigation"}
+                    style={{ fontSize: 13, fontWeight: 800, color: "#94A3B8", cursor: "pointer" }}
+                  >
+                    {collapsed ? "»" : "«"}
+                  </div>
                 )}
               </div>
               {group.items.map((item) => {
@@ -161,11 +173,13 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
                     key={item.key}
                     href={item.href}
                     data-advisor-lift=""
+                    title={collapsed ? item.label : undefined}
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: collapsed ? "center" : "flex-start",
                       gap: 13,
-                      padding: "10px 12px",
+                      padding: collapsed ? "10px 0" : "10px 12px",
                       borderRadius: 10,
                       cursor: "pointer",
                       marginBottom: 2,
@@ -186,8 +200,8 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
                     >
                       <AdvisorIcon kind={item.icon} />
                     </div>
-                    <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>
-                    {item.badgeKey && badgeValue(item.badgeKey) > 0 && (
+                    {!collapsed && <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>}
+                    {!collapsed && item.badgeKey && badgeValue(item.badgeKey) > 0 && (
                       <div style={{ fontSize: 11, fontWeight: 800, color: "#1D4ED8", background: "#EFF6FF", borderRadius: 6, padding: "2px 7px" }}>
                         {badgeValue(item.badgeKey)}
                       </div>
@@ -202,15 +216,17 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
         <div
           style={{
             borderTop: "1px solid #EEF1F6",
-            padding: "12px 14px",
+            padding: collapsed ? "12px 8px" : "12px 14px",
             display: "flex",
+            flexDirection: collapsed ? "column" : "row",
             alignItems: "center",
             gap: 9,
           }}
         >
           <div
             onClick={() => setProfileOpen(true)}
-            style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, cursor: "pointer" }}
+            title={collapsed ? displayName : undefined}
+            style={{ display: "flex", alignItems: "center", gap: 11, flex: collapsed ? "0 0 auto" : 1, minWidth: 0, cursor: "pointer" }}
           >
             <div
               style={{
@@ -229,22 +245,24 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
             >
               {initials}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {displayName}
+            {!collapsed && (
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {displayName}
+                </div>
+                <div style={{ fontSize: 11, color: "#7C8899", fontWeight: 500 }}>
+                  {[designation, departmentCode].filter(Boolean).join(" · ")}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: "#7C8899", fontWeight: 500 }}>
-                {[designation, departmentCode].filter(Boolean).join(" · ")}
-              </div>
-            </div>
+            )}
           </div>
 
           {otherRoles.length > 0 && (
@@ -478,7 +496,7 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
               background: "#F8FAFC",
             }}
           >
-            <div style={{ width: 13, height: 13, border: "2px solid #94A3B8", borderRadius: "50%" }} />
+            <AdvisorIcon kind="search" width={15} height={15} style={{ color: "#94A3B8", flexShrink: 0 }} />
             <input
               placeholder="Search students, classes, assignments…"
               style={{

@@ -15,6 +15,7 @@ import {
   useFacultyLessonPlan,
   useCreateLessonSession,
 } from "@/modules/advisor/api/lms";
+import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // CONNECTED FOR REAL — all three tabs (Material/Task/Lesson plan) previously
 // rendered entirely fabricated sample content behind TODO(backend) comments
@@ -50,13 +51,13 @@ function fmtDate(d: string | null) {
 function tabButtonStyle(active: boolean) {
   return {
     padding: "13px 22px",
-    borderRadius: 11,
+    borderRadius: 8,
     fontSize: 13.5,
     fontWeight: 700,
     cursor: "pointer",
-    background: active ? "#1D4ED8" : "#fff",
-    border: `1px solid ${active ? "#1D4ED8" : "#E2E8F0"}`,
-    color: active ? "#fff" : "#0F172A",
+    background: active ? "#fff" : "transparent",
+    color: active ? "#1D4ED8" : "#64748B",
+    boxShadow: active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
     textAlign: "center" as const,
   };
 }
@@ -236,7 +237,7 @@ export default function AdvisorCurrentSemesterPage() {
             {subject.subject_code} · {subject.section} · {subject.hours_per_week || "—"} hrs / week
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", background: "#EEF1F7", borderRadius: 11, padding: 4, gap: 4 }}>
           <div data-advisor-lift="" onClick={() => setTab("material")} style={tabButtonStyle(tab === "material")}>
             Material
           </div>
@@ -316,7 +317,7 @@ export default function AdvisorCurrentSemesterPage() {
                     style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 13px", borderRadius: 11, cursor: "pointer", background: active ? "#EFF6FF" : "transparent", border: `1px solid ${active ? "#DBEAFE" : "transparent"}` }}
                   >
                     <div style={{ width: 34, height: 34, borderRadius: 9, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
-                      <div style={{ width: 14, height: 11, border: "2px solid #1D4ED8", borderRadius: 3 }} />
+                      <AdvisorIcon kind="subject" width={16} height={16} style={{ color: "#1D4ED8" }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 700 }}>{f.title}</div>
@@ -375,7 +376,9 @@ export default function AdvisorCurrentSemesterPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 12 }}>
               {(resources.data ?? []).map((item) => (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 0", borderBottom: "1px solid #F4F6FA" }}>
-                  <div style={{ width: 22, height: 22, border: "1.5px solid #CBD5E1", borderRadius: 6, flex: "0 0 22px" }} />
+                  <div style={{ width: 22, height: 22, border: "1.5px solid #CBD5E1", borderRadius: 6, flex: "0 0 22px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <AdvisorIcon kind="assignment" width={13} height={13} style={{ color: "#94A3B8" }} />
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 700 }}>{item.title}</div>
                     <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>Added {fmtDate(item.created_at)}</div>

@@ -10,6 +10,7 @@ export interface ExamResultSubject {
   name: string;
   max: number;
   scored: number;
+  faculty: { id: number; first_name: string; last_name: string } | null;
 }
 
 export interface ExamResultGroup {

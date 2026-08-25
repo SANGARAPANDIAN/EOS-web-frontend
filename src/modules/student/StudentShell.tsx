@@ -23,12 +23,16 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   const feedbackForms = useFeedbackForms();
 
   const semester = academicCalendar.data?.semester ?? undefined;
-  // Always a real string from first paint (never undefined while loading)
-  // so the pill's slot in the topbar is never absent — conditionally
-  // rendering it based on async data made the header's content shift
-  // between page loads depending on fetch timing, which read as
-  // "inconsistent alignment" (same fix as HodShell.tsx).
-  const programLabel = [academicProfile.data?.course_name ?? "—", semester ? `Semester ${semester}` : null]
+  // Omits the department/course segment entirely while academicProfile is
+  // still loading, rather than a "—" placeholder — course_id is a required
+  // FK (see prisma/schema.prisma), so course_name is never actually empty
+  // once loaded; showing a dash here only ever meant "still loading" and
+  // read as a confusing, permanent-looking gap next to the semester number.
+  // "Semester N" alone still keeps the pill's slot non-empty during that
+  // brief window, so the topbar layout doesn't shift (same concern as
+  // HodShell.tsx's roleDeptLabel, which keeps its own "—" fallback since
+  // that one prefixes a fixed "HoD · " label instead of standing alone).
+  const programLabel = [academicProfile.data?.course_name, semester ? `Semester ${semester}` : null]
     .filter(Boolean)
     .join(" · ");
 

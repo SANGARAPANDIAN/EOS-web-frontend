@@ -25,6 +25,8 @@ export interface StudentOdRow {
   unique_code: string;
   member_count: number;
   creator: { id: number; student_id_no: string; name: string; section: string | null; department_name: string | null };
+  /** Every other real student on this OD team (creator excluded) — who the "+N more" on the card actually refers to. */
+  other_members: { id: number; student_id_no: string; name: string }[];
   from_date: string;
   to_date: string;
   from_time: string | null;

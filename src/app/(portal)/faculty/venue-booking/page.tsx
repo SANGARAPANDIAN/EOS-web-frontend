@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useVenues, useMyVenueBookings, useCreateVenueBooking } from "@/modules/advisor/api/employee";
+import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // Backed by GET /venues, POST/GET /venue-bookings (VenuesController). Real
 // CreateVenueBookingDto uses a single from_datetime/to_datetime ISO pair
@@ -153,7 +154,7 @@ export default function AdvisorVenueBookingPage() {
                 <div key={v.id} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 18 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <div style={{ width: 38, height: 38, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 38px" }}>
-                      <div style={{ width: 13, height: 13, border: "2px solid #1D4ED8", borderRadius: 3 }} />
+                      <AdvisorIcon kind="venue" width={19} height={19} style={{ color: "#1D4ED8" }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.015em" }}>{v.name}</div>

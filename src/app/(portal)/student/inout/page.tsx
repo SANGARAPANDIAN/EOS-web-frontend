@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, Badge, SegmentedTabs, Button, Input, Textarea, DataTable, EmptyState } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import { useMyCampusOutings, useCreateCampusOuting, type CampusOuting } from "@/modules/student/api/campusOutings";
-import { formatDisplayDate } from "@/lib/utils/date";
+import { formatDisplayDate, formatTime12h } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
 type Tab = "apply" | "history";
@@ -59,9 +59,9 @@ export default function InOutPage() {
 
   const columns: DataTableColumn<CampusOuting>[] = [
     { key: "from", header: "From", width: "1fr", render: (r) => formatDisplayDate(r.from_date) },
-    { key: "out", header: "Out", width: "0.8fr", render: (r) => r.start_time },
+    { key: "out", header: "Out", width: "0.8fr", render: (r) => formatTime12h(r.start_time) },
     { key: "to", header: "To", width: "1fr", render: (r) => formatDisplayDate(r.to_date) },
-    { key: "in", header: "In", width: "0.8fr", render: (r) => r.return_time ?? "—" },
+    { key: "in", header: "In", width: "0.8fr", render: (r) => (r.return_time ? formatTime12h(r.return_time) : "—") },
     { key: "reason", header: "Reason", width: "1.5fr", render: (r) => r.reason ?? "—" },
     { key: "approver", header: "Approved by", width: "1.3fr", render: (r) => r.approved_by_hod ?? r.approved_by_faculty ?? "—" },
     {

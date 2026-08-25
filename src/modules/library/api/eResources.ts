@@ -51,6 +51,16 @@ export interface CreateEResourceInput {
 
 export type UpdateEResourceInput = Partial<CreateEResourceInput>;
 
+export interface UploadEResourceInput {
+  file: File;
+  title: string;
+  category_id?: number;
+  pages?: number;
+  license_type?: EResourceLicenseType;
+  concurrent_seats?: number;
+  publish_state?: EResourcePublishState;
+}
+
 const BASE = "/library/e-resources";
 
 export function useEResources(params: EResourceListParams) {
@@ -65,6 +75,24 @@ export function useCreateEResource() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateEResourceInput) => apiClient.post<EResource>(BASE, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: libraryKeys.eResources.all() });
+      queryClient.invalidateQueries({ queryKey: libraryKeys.dashboard() });
+    },
+  });
+}
+
+export function useUploadEResource() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, ...fields }: UploadEResourceInput) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) formData.append(key, String(value));
+      }
+      return apiClient.uploadFile<EResource>(`${BASE}/upload`, formData);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: libraryKeys.eResources.all() });
       queryClient.invalidateQueries({ queryKey: libraryKeys.dashboard() });

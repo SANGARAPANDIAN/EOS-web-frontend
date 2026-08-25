@@ -9,7 +9,7 @@ import { useMyAttendance } from "@/modules/student/api/attendance";
 import { useMyCgpa } from "@/modules/student/api/examResults";
 import { useMyFees } from "@/modules/student/api/fees";
 import { useMyExamSchedule } from "@/modules/student/api/examSchedule";
-import { useMyTimetableForDay } from "@/modules/student/api/timetable";
+import { useMyTimetableForDay, displayPeriodNumbers } from "@/modules/student/api/timetable";
 import { usePendingLmsTasks } from "@/modules/student/api/lms";
 import { useUpcomingDrives } from "@/modules/student/api/placements";
 import { useFeedbackForms } from "@/modules/student/api/feedback";
@@ -104,6 +104,9 @@ export default function StudentDashboardPage() {
   }, [todayTimetable.data]);
   const shownSlots = upcomingSlots.slice(0, 2);
   const periodsToday = todayTimetable.data?.slots.length ?? (todayDay === null ? 0 : undefined);
+  // Gapless P1..Pn display numbers for the whole day — see
+  // displayPeriodNumbers' own doc comment (same fix as Timetable/Attendance).
+  const dayDisplayNumbers = useMemo(() => displayPeriodNumbers(todayTimetable.data?.slots ?? []), [todayTimetable.data]);
 
   const worstAttendanceSubject = useMemo(() => {
     const rows = attendance.data?.by_subject ?? [];
@@ -251,7 +254,7 @@ export default function StudentDashboardPage() {
           label="CGPA"
           icon="workspace_premium"
           href="/student/performance"
-          value={cgpa.cgpa ?? (cgpa.isLoading ? "—" : "N/A")}
+          value={cgpa.cgpa ?? "—"}
           sub={
             cgpa.previous && cgpa.latest
               ? `${cgpa.latest.gpa! >= cgpa.previous.gpa! ? "+" : ""}${Math.round((cgpa.latest.gpa! - cgpa.previous.gpa!) * 100) / 100} vs semester ${cgpa.previous.semester}`
@@ -297,7 +300,7 @@ export default function StudentDashboardPage() {
                   <div className="flex-1">
                     <div className="text-[13.5px] font-bold text-ink">{slot.subject.name}</div>
                     <div className="text-[12px] text-muted">
-                      P{slot.period_number} · {slot.faculty.name}
+                      P{dayDisplayNumbers.get(slot.period_number) ?? slot.period_number} · {slot.faculty.name}
                     </div>
                   </div>
                   <Badge tone="accent">Upcoming</Badge>

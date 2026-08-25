@@ -194,7 +194,13 @@ export default function AdvisorAnnouncementsPage() {
               />
 
               <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1D4ED8" }}>Audience</div>
+                {/* This picks which CLASS receives it (class_ids), not who
+                    sees it in the audience sense — every faculty-authored
+                    announcement is always tagged target_audience=students
+                    (the TEACHERS/STUDENTS/ROLES badge on the read side).
+                    Labeled "Class" rather than "Audience" so it isn't read
+                    as a students/teachers/roles picker it isn't. */}
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1D4ED8" }}>Class</div>
                 <select
                   value={classId}
                   onChange={(e) => setClassId(e.target.value === "all" ? "all" : Number(e.target.value))}

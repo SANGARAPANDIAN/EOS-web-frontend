@@ -3,21 +3,24 @@
 import { useHandledClasses } from "@/modules/advisor/api/classes";
 import { useSubjectRecords, useSubjectRecordDetail } from "@/modules/advisor/api/subject-records";
 import { useIsClassAdvisor } from "@/modules/advisor/api/profile";
+import { useWeeklyAttendanceTrend } from "@/modules/advisor/api/reports";
 
 // CONNECTED FOR REAL — this page was previously 100% fabricated design
 // sample data (REPORT_KPIS/ATTENDANCE_BARS/PASS_RATES/CLASS_SUMMARY
-// constants), never wired to any endpoint. There is no dedicated "reports"
-// backend endpoint, so this composes from GET /me/handled-classes and
-// GET /me/subject-records (+ per-mapping detail for grade distribution),
-// plus the mentee roster when the faculty is a class advisor. Anything the
-// backend genuinely has no source for (a weekly attendance trend, a raw
-// numeric CIA average) is omitted rather than invented — real subject
-// records only expose grade-distribution counts, not per-exam averages.
+// constants), never wired to any endpoint. Composes from GET
+// /me/handled-classes, GET /me/subject-records (+ per-mapping detail), the
+// mentee roster when the faculty is a class advisor, and — since this
+// session — GET /me/reports/weekly-attendance (a real dedicated endpoint,
+// not a client-side composition): attendance_records for every student in
+// every class this faculty handles, grouped by ISO week.
 
 export default function AdvisorReportsPage() {
   const handled = useHandledClasses();
   const { isAdvisor, classes: menteeClasses } = useIsClassAdvisor();
   const primaryMentee = menteeClasses[0];
+
+  const weeklyAttendance = useWeeklyAttendanceTrend();
+  const weeks = weeklyAttendance.data?.weeks ?? [];
 
   const records = useSubjectRecords();
   const mappings = (records.data ?? []).slice(0, 4);
@@ -70,45 +73,24 @@ export default function AdvisorReportsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginTop: 16, alignItems: "start" }}>
         <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>Grade distribution by exam</div>
+          <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>Weekly attendance trend</div>
           <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 500, marginTop: 4 }}>
-            No weekly attendance-trend endpoint exists yet — this chart shows real grade distribution per exam record instead.
+            Real attendance across every class you handle, by week
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 20 }}>
-            {mappings.map((m, i) => {
-              const detail = details[i]?.data;
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 200, marginTop: 22, overflowX: "auto" }}>
+            {weeks.map((w) => {
+              const d = new Date(w.week_start + "T00:00:00Z");
+              const label = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", timeZone: "UTC" });
               return (
-                <div key={m.exam_subject_mapping_id}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>
-                    {m.class.label} · {m.subject.subject_code} · {m.exam.type}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                    {detail ? (
-                      detail.grade_distribution.map((g) => (
-                        <div
-                          key={g.grade}
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 20,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: g.grade === "RA" ? "#FEF2F2" : "#EFF6FF",
-                            border: `1px solid ${g.grade === "RA" ? "#FECACA" : "#DBEAFE"}`,
-                            color: g.grade === "RA" ? "#DC2626" : "#1D4ED8",
-                          }}
-                        >
-                          {g.grade}: {g.count}
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>Loading…</div>
-                    )}
-                  </div>
+                <div key={w.week_start} style={{ flex: "0 0 44px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, height: "100%", justifyContent: "flex-end" }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: "#475569" }}>{w.present_percent}%</div>
+                  <div style={{ width: "62%", height: `${w.present_percent}%`, background: "#1D4ED8", borderRadius: "6px 6px 0 0" }} />
+                  <div style={{ fontSize: 10.5, color: "#94A3B8", fontWeight: 600, textAlign: "center" }}>{label}</div>
                 </div>
               );
             })}
-            {mappings.length === 0 && !records.isLoading && (
-              <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>No exam records yet for the subjects you handle.</div>
+            {weeks.length === 0 && !weeklyAttendance.isLoading && (
+              <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>No attendance marked yet for the classes you handle.</div>
             )}
           </div>
         </div>
@@ -121,7 +103,7 @@ export default function AdvisorReportsPage() {
               return (
                 <div key={m.exam_subject_mapping_id}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700 }}>
-                    <div>{m.class.label} · {m.subject.subject_code}</div>
+                    <div>{m.class.label} · {m.subject.subject_code} · {m.exam.type}</div>
                     <div style={{ color: "#1D4ED8" }}>{pct !== null ? `${pct}%` : "—"}</div>
                   </div>
                   <div style={{ height: 8, borderRadius: 8, background: "#EDF1F7", marginTop: 8, overflow: "hidden" }}>

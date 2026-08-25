@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { Card, SegmentedTabs, EmptyState, Badge } from "@/components/ui";
-import { useMyTimetableForDay, useMyFullWeekTimetable, type TimetableSlot } from "@/modules/student/api/timetable";
+import { useMyTimetableForDay, useMyFullWeekTimetable, displayPeriodNumbers, type TimetableSlot } from "@/modules/student/api/timetable";
 import { useMyAcademicCalendar } from "@/modules/student/api/profile";
 import { todayBackendDayOfWeek, formatLongDate, formatTime12h } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
@@ -41,12 +41,12 @@ function weekDatesStartingMonday(): Date[] {
   });
 }
 
-function PeriodRow({ slot }: { slot: TimetableSlot }) {
+function PeriodRow({ slot, displayNumber }: { slot: TimetableSlot; displayNumber: number }) {
   return (
     <div className="flex items-center gap-4 rounded-[13px] border border-border-default bg-surface px-[18px] py-[15px] transition-colors hover:border-border-accent">
       <div className="w-[78px] shrink-0">
         <div className="font-mono text-[13.5px] font-extrabold whitespace-nowrap text-primary">{formatTime12h(slot.start_time)}</div>
-        <div className="mt-0.5 text-[11px] font-bold text-subtle">P{slot.period_number}</div>
+        <div className="mt-0.5 text-[11px] font-bold text-subtle">P{displayNumber}</div>
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-[15px] font-bold text-ink">{slot.subject.name}</div>
@@ -98,6 +98,11 @@ export default function TimetablePage() {
       { label: "AFTERNOON", periods: slots.filter((s) => s.start_time >= "12:00") },
     ].filter((s) => s.periods.length > 0);
   }, [dayTimetable.data]);
+
+  // Gapless P1..Pn display numbers for the whole day (forenoon continuing
+  // into afternoon), independent of the real period_number's gaps — see
+  // displayPeriodNumbers' own doc comment.
+  const dayDisplayNumbers = useMemo(() => displayPeriodNumbers(dayTimetable.data?.slots ?? []), [dayTimetable.data]);
 
   const labCount = useMemo(
     () => (dayTimetable.data?.slots ?? []).filter((s) => isLabCourse(s.subject.course_type)).length,
@@ -181,7 +186,7 @@ export default function TimetablePage() {
                 <div className="pl-0.5 text-[10.5px] font-extrabold tracking-[.11em] text-subtle">{sess.label}</div>
                 <div className="flex flex-col gap-2.5">
                   {sess.periods.map((slot) => (
-                    <PeriodRow key={slot.period_number} slot={slot} />
+                    <PeriodRow key={slot.period_number} slot={slot} displayNumber={dayDisplayNumbers.get(slot.period_number) ?? slot.period_number} />
                   ))}
                 </div>
               </div>

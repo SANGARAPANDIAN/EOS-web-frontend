@@ -42,3 +42,20 @@ export function useMyFullWeekTimetable() {
     queryFn: () => apiClient.get<WeekTimetable>("/me/timetable"),
   });
 }
+
+/**
+ * Maps each real period_number to its 1-based position among the slots
+ * given, sorted by period_number. The raw period_number can have gaps for a
+ * given day (e.g. a lunch period reserved between periods 3 and 5 has no
+ * class of its own, so a day's real slots are numbered 1,2,3,5,6,7) — shown
+ * as-is, "P5" would visibly skip "P4" right after "P3" for no reason a
+ * student can see. The real period_number is still what's used for keys,
+ * sorting, and matching slots across forenoon/afternoon or across days;
+ * only the number shown to the student is renumbered to be gapless.
+ */
+export function displayPeriodNumbers(slots: { period_number: number }[]): Map<number, number> {
+  const sorted = [...slots].sort((a, b) => a.period_number - b.period_number);
+  const map = new Map<number, number>();
+  sorted.forEach((s, i) => map.set(s.period_number, i + 1));
+  return map;
+}

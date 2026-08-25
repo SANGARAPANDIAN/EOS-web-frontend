@@ -10,14 +10,21 @@ const SEMESTERS = Array.from({ length: 8 }, (_, i) => i + 1);
 
 // Fixed, always-shown buckets matching the design reference's "Internal 1 /
 // Internal 2 / Semester" buttons, mapped onto the real exam_types.name
-// values (the full "Internal Assessment I" etc. strings, not these short
-// labels). A real exam type outside this map — e.g. "Model Examination" —
-// still gets its own button, appended after the fixed three, rather than
-// being silently hidden.
+// values — confirmed directly against the live exam_types table
+// (CIA1/CIA2/CIA3/"University End Semester Exam"), which do NOT match the
+// made-up "Internal Assessment I"/"University Semester Examination" strings
+// this used to have. That mismatch meant these 3 buttons (including the
+// default-selected one on first load) always filtered to zero rows, while
+// the real data only ever surfaced through a same-looking but separate
+// auto-generated "University End Semester Exam" button below — two buttons
+// for the same exam, one dead. A real exam type outside this map — e.g. a
+// future "Model Examination" — still gets its own button, appended after
+// the fixed four, rather than being silently hidden.
 const FIXED_EXAM_TYPE_BUCKETS: { label: string; realType: string }[] = [
-  { label: "Internal 1", realType: "Internal Assessment I" },
-  { label: "Internal 2", realType: "Internal Assessment II" },
-  { label: "Semester", realType: "University Semester Examination" },
+  { label: "Internal 1", realType: "CIA1" },
+  { label: "Internal 2", realType: "CIA2" },
+  { label: "Internal 3", realType: "CIA3" },
+  { label: "Semester", realType: "University End Semester Exam" },
 ];
 
 function shortDate(iso: string): string {
@@ -141,7 +148,7 @@ export default function ExamSchedulePage() {
                 <div>
                   <Badge tone="accent">{SESSION_LABEL[r.session]}</Badge>
                 </div>
-                <div className="text-right text-[13px] text-muted">{r.venue_name ?? "NA"}</div>
+                <div className="text-right text-[13px] text-muted">{r.venue_name ?? "—"}</div>
               </div>
             ))
           )}

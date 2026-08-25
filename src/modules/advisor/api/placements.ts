@@ -11,21 +11,18 @@ export interface UpcomingDrive {
   scheduled_date: string;
   is_disclosed: boolean;
   disclosed_reveal_date: string | null;
-  // Absent on the real GET /me/upcoming-drives response — DrivesService.
-  // getUpcomingDrivesForFaculty() never sets these (a faculty isn't an
-  // applicant, so there's no per-application status/rounds/eligibility to
-  // attach). Optional here rather than `| null` because the backend omits
-  // the keys entirely rather than sending them as null.
-  job_role?: string | null;
-  venue?: string | null;
-  status?: string;
-  eligibility_cgpa?: number | null;
-  registered_count?: number;
+  // Real columns on placement_drives — DrivesService.getUpcomingDrivesForFaculty()
+  // always includes these keys (job_role/venue/eligibility_cgpa can themselves
+  // be null values, but the keys are never omitted).
+  job_role: string | null;
+  venue: string | null;
+  status: string;
+  eligibility_cgpa: number | null;
+  registered_count: number;
 }
 
 /** GET /me/upcoming-drives (Faculty/HoD) — institution-wide, not scoped to
- * any student; no per-application status/rounds/eligibility exists for a
- * faculty viewer (those fields don't exist anywhere on this endpoint). */
+ * any student. */
 export function useUpcomingDrives() {
   return useQuery({
     queryKey: ["me", "upcoming-drives"],

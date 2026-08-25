@@ -257,7 +257,7 @@ export default function TransportBusesPage() {
 
       {!extended?.specs && data && (
         <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
-          Model, route distance and boarding-area/time-window aren't tracked yet — those fields show "—" below.
+          Model, route distance and boarding-area/time-window aren&apos;t tracked yet — those fields show &quot;—&quot; below.
         </div>
       )}
 

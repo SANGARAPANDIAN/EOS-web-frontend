@@ -301,7 +301,10 @@ export default function HrReportsPage() {
                           <Button
                             variant="primarySmall"
                             className="inline-flex w-auto items-center gap-1.5 px-3.5 py-2 text-[12.5px]"
-                            disabled={blocked || busyKey !== null}
+                            // Only this button reacts. Disabling every button
+                            // while one downloaded made it look as though the
+                            // whole set had been triggered.
+                            disabled={blocked || busyKey === `${entry.kind}:excel`}
                             title={blocked ? "Choose an employee above first." : undefined}
                             onClick={() => void run(entry, "excel")}
                           >
@@ -311,7 +314,7 @@ export default function HrReportsPage() {
                           <Button
                             variant="secondary"
                             className="inline-flex w-auto items-center gap-1.5 px-3.5 py-2 text-[12.5px]"
-                            disabled={blocked || busyKey !== null}
+                            disabled={blocked || busyKey === `${entry.kind}:pdf`}
                             title={blocked ? "Choose an employee above first." : undefined}
                             onClick={() => void run(entry, "pdf")}
                           >

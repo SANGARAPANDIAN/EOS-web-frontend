@@ -34,15 +34,6 @@ export function useCamps() {
   });
 }
 
-/** POST /me/medical-centre-camps/:id/register-batch */
-export function useRegisterBatch() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => apiClient.post(`/me/medical-centre-camps/${id}/register-batch`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "medical-centre-camps"] }),
-  });
-}
-
 /**
  * Stored state values. There is deliberately no "completed": the table models a
  * finished camp as a past date plus an outcome summary, and whether it is past

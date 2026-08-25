@@ -597,10 +597,15 @@ body {
    content) regardless of how deeply nested they are, leaving only the
    receipt visible in the print preview/output. */
 @media print {
-  body > *:not(#receipt-print-root) {
+  /* Printing shows exactly one document and hides the rest of the app.
+     Keyed on [data-print-root] rather than a single id: the rule used to name
+     only #receipt-print-root, so when the medical receipt was added under its
+     own id it was hidden along with everything else and the sheet came out
+     blank. Any future printable document just needs the attribute. */
+  body > *:not([data-print-root]) {
     display: none !important;
   }
-  #receipt-print-root {
+  [data-print-root] {
     display: block !important;
   }
 }

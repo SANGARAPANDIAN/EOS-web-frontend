@@ -587,7 +587,7 @@ export default function BillingStudentDetailPage() {
       {isPrinting &&
         receiptNumber !== null &&
         createPortal(
-          <div id="receipt-print-root" className="hidden print:block">
+          <div id="receipt-print-root" data-print-root className="hidden print:block">
             <ReceiptDocument
               student={receiptStudent}
               payments={receiptPayments}

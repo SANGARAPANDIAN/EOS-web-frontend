@@ -15,7 +15,6 @@ export function TransportShell({ children }: { children: React.ReactNode }) {
     <AppShell
       moduleConfig={transportModuleConfig}
       header={{
-        studentName: "Dr. R. Sasikumar",
         registerNumber: "Transport in-charge",
         programLabel: "Transport officer",
         academicYearLabel: "2026–27",

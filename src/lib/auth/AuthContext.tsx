@@ -17,6 +17,8 @@ interface AuthContextValue {
   session: Session | null;
   status: AuthStatus;
   login: (email: string, password: string) => Promise<Session>;
+  /** Re-issues a session scoped to a different role the caller holds — see /auth/switch-role. */
+  switchRole: (roleId: number) => Promise<Session>;
   logout: () => void;
 }
 
@@ -57,6 +59,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return newSession;
   }, []);
 
+  const switchRole = useCallback(async (roleId: number) => {
+    const result = await apiClient.post<LoginResponse>("/auth/switch-role", { role_id: roleId });
+    const newSession: Session = { accessToken: result.accessToken, user: result.user };
+    setSession(newSession);
+    setSessionState(newSession);
+    return newSession;
+  }, []);
+
   const logout = useCallback(() => {
     clearSession();
     setSessionState(null);
@@ -65,8 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ session, status, login, logout }),
-    [session, status, login, logout],
+    () => ({ session, status, login, switchRole, logout }),
+    [session, status, login, switchRole, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

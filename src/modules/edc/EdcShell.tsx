@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useNow } from "@/lib/hooks/useNow";
+import { BrandMark } from "@/components/layout/SidebarBrandHeader";
+import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
 import { EDC_NAV } from "./nav";
 import { useEdcAnnouncements } from "./api/announcements";
 import { useEdcEntrepreneurship, isBeyondIdeaStage } from "./api/entrepreneurship";
@@ -41,7 +43,6 @@ interface EdcAlert {
 }
 
 export function EdcShell({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(true);
   const [bellOpen, setBellOpen] = useState(false);
@@ -66,9 +67,10 @@ export function EdcShell({ children }: { children: React.ReactNode }) {
   const events = useEdcEvents();
   const documents = useEdcDocuments();
 
+  const now = useNow();
   const alerts: EdcAlert[] = [];
   for (const i of incubations.data ?? []) {
-    if (i.next_review_date && new Date(i.next_review_date).getTime() < Date.now()) {
+    if (i.next_review_date && new Date(i.next_review_date).getTime() < now) {
       alerts.push({ title: "Incubation review overdue", meta: `${i.business_name ?? "A venture"} — was due ${new Date(i.next_review_date).toLocaleDateString()}`, href: `/edc/incubation/${i.id}` });
     }
   }
@@ -82,16 +84,16 @@ export function EdcShell({ children }: { children: React.ReactNode }) {
       alerts.push({ title: "Startup idea awaiting review", meta: `${idea.title} — ${idea.student.name}`, href: `/edc/ideas/${idea.id}` });
     }
   }
-  const soon = Date.now() + 7 * 86_400_000;
+  const soon = now + 7 * 86_400_000;
   for (const e of events.data ?? []) {
     const t = new Date(e.event_date).getTime();
-    if (t >= Date.now() && t <= soon) {
+    if (t >= now && t <= soon) {
       alerts.push({ title: "Upcoming event", meta: `${e.title} — ${new Date(e.event_date).toLocaleDateString()}`, href: "/edc/events" });
     }
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", minWidth: 1560, overflow: "hidden", fontFamily: "'Plus Jakarta Sans',system-ui,sans-serif", color: "#0F172A", background: "#fff" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Plus Jakarta Sans',system-ui,sans-serif", color: "#0F172A", background: "#fff" }}>
       <aside
         style={{
           width: expanded ? 292 : 82,
@@ -103,31 +105,8 @@ export function EdcShell({ children }: { children: React.ReactNode }) {
           transition: "width .16s ease",
         }}
       >
-        <div style={{ height: 80, flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "0 18px" }}>
-          <div
-            style={{
-              width: 40,
-              height: 44,
-              borderRadius: 6,
-              background: "repeating-linear-gradient(135deg,#ffffff 0 6px,#eff6ff 6px 12px)",
-              border: "1px solid #DBE7F7",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 8,
-              color: "#5B7398",
-              flex: "none",
-            }}
-          >
-            crest
-          </div>
-          {expanded && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-              <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>Sri Eshwar</div>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: "#7B8AA0", lineHeight: 1 }}>College of Engineering</div>
-            </div>
-          )}
+        <div style={{ height: 80, flex: "none", display: "flex", alignItems: "center", padding: "0 18px" }}>
+          <BrandMark collapsed={!expanded} />
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "14px 12px 8px" }}>
@@ -200,17 +179,7 @@ export function EdcShell({ children }: { children: React.ReactNode }) {
           ))}
         </div>
 
-        <div style={{ flex: "none", borderTop: "1px solid #EEF2F7", padding: "12px 14px", display: "flex", alignItems: "center", gap: 11 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 99, background: "#1D4ED8", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flex: "none" }}>
-            PS
-          </div>
-          {expanded && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.2 }}>Dr. P. Sundaravadivel</div>
-              <div style={{ fontSize: 11.5, color: "#7B8AA0" }}>EDC Coordinator</div>
-            </div>
-          )}
-        </div>
+        <SidebarUserFooter subLabel="EDC Coordinator" portalName="EDC" collapsed={!expanded} />
       </aside>
 
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
@@ -283,13 +252,6 @@ export function EdcShell({ children }: { children: React.ReactNode }) {
             </div>
             <div style={{ width: 44, height: 44, border: "1px solid #DBE4F0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#334155" }}>
               <span className="ms" style={{ fontSize: 21 }}>settings</span>
-            </div>
-            <div
-              onClick={logout}
-              title="Log out"
-              style={{ width: 44, height: 44, border: "1px solid #DBE4F0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#DC2626", cursor: "pointer" }}
-            >
-              <span className="ms" style={{ fontSize: 21 }}>logout</span>
             </div>
           </div>
         </header>

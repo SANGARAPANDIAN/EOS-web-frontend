@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils/cn";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { BrandMark } from "@/components/layout/SidebarBrandHeader";
+import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
 import { LIBRARY_NAV } from "@/modules/library/nav";
 
 interface LibrarySidebarProps {
@@ -15,7 +15,6 @@ interface LibrarySidebarProps {
   mobileOpen: boolean;
   onCloseMobile: () => void;
   badges?: Partial<Record<"totalBooks", ReactNode>>;
-  userEmail?: string;
 }
 
 function NavContent({
@@ -91,35 +90,7 @@ function NavContent({
   );
 }
 
-function UserFooter({ collapsed, userEmail }: { collapsed: boolean; userEmail?: string }) {
-  const { logout } = useAuth();
-  const initials = (userEmail || "?").trim().charAt(0).toUpperCase();
-
-  return (
-    <div className={cn("flex items-center gap-2.5 border-t border-admin-border p-3", collapsed && "justify-center")}>
-      <div className="grid size-9 shrink-0 place-items-center rounded-admin-pill bg-admin-primary-deep font-sans text-sm font-bold text-white">
-        {initials}
-      </div>
-      {!collapsed && (
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-bold text-admin-ink">{userEmail ?? " "}</div>
-          <div className="text-[12px] text-admin-muted">Library</div>
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={logout}
-        title="Log out"
-        aria-label="Log out"
-        className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-admin-sm text-admin-subtle hover:bg-admin-tint-strong hover:text-admin-body"
-      >
-        <Icon name="logout" size={17} />
-      </button>
-    </div>
-  );
-}
-
-export function LibrarySidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile, badges, userEmail }: LibrarySidebarProps) {
+export function LibrarySidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile, badges }: LibrarySidebarProps) {
   return (
     <>
       <aside
@@ -128,17 +99,11 @@ export function LibrarySidebar({ collapsed, onToggleCollapsed, mobileOpen, onClo
           collapsed ? "w-[76px]" : "w-[264px]",
         )}
       >
-        <div className={cn("flex items-center gap-3 border-b border-admin-border px-5 pt-5 pb-[18px]", collapsed && "justify-center px-0")}>
-          <Image src="/college-logo.png" alt="College logo" width={36} height={36} priority className="shrink-0 object-contain" />
-          {!collapsed && (
-            <div className="leading-[1.15]">
-              <div className="text-[15px] font-extrabold tracking-[-.02em] text-admin-ink">Sri Eshwar</div>
-              <div className="text-[10.5px] font-semibold text-admin-muted">Library Module</div>
-            </div>
-          )}
+        <div className={cn("border-b border-admin-border px-5 pt-5 pb-[18px]", collapsed && "flex justify-center px-0")}>
+          <BrandMark subtitle="Library Module" collapsed={collapsed} />
         </div>
         <NavContent collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} badges={badges} />
-        <UserFooter collapsed={collapsed} userEmail={userEmail} />
+        <SidebarUserFooter subLabel="Library" portalName="Library" collapsed={collapsed} />
       </aside>
 
       {mobileOpen && (
@@ -146,13 +111,13 @@ export function LibrarySidebar({ collapsed, onToggleCollapsed, mobileOpen, onClo
           <div className="fixed inset-0 bg-[rgba(13,30,79,.28)]" onClick={onCloseMobile} aria-hidden="true" />
           <aside className="relative flex h-full w-[264px] flex-col overflow-hidden bg-admin-canvas shadow-admin-modal">
             <div className="flex items-center justify-between border-b border-admin-border px-5 py-4">
-              <div className="text-[15px] font-extrabold tracking-[-.02em] text-admin-ink">Sri Eshwar</div>
+              <BrandMark subtitle="Library Module" />
               <button onClick={onCloseMobile} aria-label="Close menu" className="text-admin-muted hover:text-admin-ink">
                 <Icon name="close" size={20} />
               </button>
             </div>
             <NavContent collapsed={false} onToggleCollapsed={onToggleCollapsed} onItemClick={onCloseMobile} badges={badges} />
-            <UserFooter collapsed={false} userEmail={userEmail} />
+            <SidebarUserFooter subLabel="Library" portalName="Library" collapsed={false} />
           </aside>
         </div>
       )}

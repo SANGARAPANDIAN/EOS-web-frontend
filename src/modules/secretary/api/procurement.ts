@@ -78,7 +78,7 @@ export function useCreatePurchaseRequest() {
 // `me/service-requests` and, being imported earlier in app.module.ts, won
 // every single request — the real Secretary-owned draft/multi-item/
 // submit/withdraw module was 100% unreachable despite being fully built.
-// The Procurement module was moved to `me/service-indent-requests` (no
+// The Procurement module was moved to `me/procurement-service-requests` (no
 // other frontend page called it) so this real module is finally live.
 export type ServiceRequestStatus = "draft" | "pending" | "approved" | "rejected";
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Badge, Button, Card, EmptyState, Input, type BadgeTone } from "@/components/ui";
 import {
@@ -73,7 +74,7 @@ function DeliverModal({ request, onClose }: { request: MediaRequest; onClose: ()
         <div className="flex flex-col gap-4 px-[26px] py-[22px]">
           <p className="text-[13.5px] text-body">
             Upload the final photo/video for <span className="font-bold">{request.event_name ?? "this request"}</span>. The requester gets a
-            notification with the file once it's attached.
+            notification with the file once it&apos;s attached.
           </p>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">File</label>
@@ -149,7 +150,7 @@ function InternalRequestModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-[26px] py-[22px]">
-          <p className="mb-4 text-[13px] text-muted">Raised by the Media Room itself — for internal coverage needs that don't come through a faculty or secretary request.</p>
+          <p className="mb-4 text-[13px] text-muted">Raised by the Media Room itself — for internal coverage needs that don&apos;t come through a faculty or secretary request.</p>
           <div className="flex flex-col gap-3.5">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Description</label>
@@ -215,8 +216,14 @@ function InternalRequestModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function isFilterKey(value: string | null): value is "all" | MediaRequestStatus {
+  return FILTERS.some((f) => f.key === value);
+}
+
 export default function MediaRequestsPage() {
-  const [filter, setFilter] = useState<"all" | MediaRequestStatus>("all");
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status");
+  const [filter, setFilter] = useState<"all" | MediaRequestStatus>(isFilterKey(statusParam) ? statusParam : "all");
   const [query, setQuery] = useState("");
   const [deliverTarget, setDeliverTarget] = useState<MediaRequest | null>(null);
   const [showInternal, setShowInternal] = useState(false);

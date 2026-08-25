@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { SECRETARY_NAV } from "./nav";
 import { SecretaryIcon } from "./icons";
-import { initialsOf } from "./helpers";
-import { useAuth } from "@/lib/auth/AuthContext";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
 import { NotificationPanel } from "@/modules/advisor/NotificationPanel";
+import { BrandMark } from "@/components/layout/SidebarBrandHeader";
+import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
 
 // Pixel-exact port of the shell (header + aside) from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 27-108. Every
@@ -29,18 +29,14 @@ import { NotificationPanel } from "@/modules/advisor/NotificationPanel";
 
 export function SecretaryShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [year, setYear] = useState("2026-27");
   const [semester, setSemester] = useState<"Odd Semester" | "Even Semester">("Odd Semester");
-  const { logout } = useAuth();
   const { data: unreadCount } = useUnreadNotificationCount();
 
   const department = "CSE";
-  const secretaryName = "Ms. R. Kavitha";
-  const initials = initialsOf(secretaryName);
 
   const activeId = SECRETARY_NAV.flatMap((g) => g.items).find((item) => pathname?.startsWith(item.href))?.id;
 
@@ -56,20 +52,8 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
           clipped the notification-bell popup to this 80px-tall header
           (it rendered, just invisible). Real bug, not a styling nit. */}
       <header data-no-print="" style={{ height: 80, flex: "0 0 80px", background: "#ffffff", borderBottom: "1px solid #e5e9f2", display: "flex", alignItems: "center", gap: 20, padding: "0 28px", position: "sticky", top: 0, zIndex: 40 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 13, width: 292, flex: "0 1 auto", minWidth: 168, overflow: "hidden" }}>
-          <div style={{ width: 40, height: 44, borderRadius: "6px 6px 20px 20px", background: "#1e3a8a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.2, fontWeight: 700, letterSpacing: 0.5 }}>SE</div>
-          <div style={{ lineHeight: 1.2 }}>
-            <div style={{ fontSize: 16.5, fontWeight: 700, letterSpacing: -0.2 }}>Sri Eshwar</div>
-            <div style={{ fontSize: 11.8, color: "#64748b", fontWeight: 500 }}>College of Engineering</div>
-          </div>
-        </div>
-        <div
-          data-sec-lift=""
-          onClick={() => setCollapsed((v) => !v)}
-          title="Toggle navigation"
-          style={{ width: 48, height: 48, flex: "0 0 auto", borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
-          <SecretaryIcon name="menu" size={20} />
+        <div style={{ width: 292, flex: "0 1 auto", minWidth: 168, overflow: "hidden" }}>
+          <BrandMark />
         </div>
         <div style={{ flex: "1 1 220px", minWidth: 220, maxWidth: 660, position: "relative", display: "flex", alignItems: "center" }}>
           <span style={{ position: "absolute", left: 16, display: "flex", color: "#94a3b8" }}>
@@ -117,9 +101,6 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
               <SecretaryIcon name="gear" size={18} />
             </div>
           </Link>
-          <div data-sec-lift="" onClick={logout} title="Log out" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#dc2626", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <SecretaryIcon name="exit" size={18} />
-          </div>
         </div>
       </header>
 
@@ -131,7 +112,18 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px 10px" }}>
                   {!collapsed && <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, color: "#94a3b8", textTransform: "uppercase" }}>{g.label}</span>}
                   {gi === 0 && (
-                    <span data-sec-collapse="" onClick={() => setCollapsed((v) => !v)} title="Collapse navigation" style={{ border: 0, background: "transparent", color: "#94a3b8", fontSize: 12.2, cursor: "pointer", padding: "0 2px" }}>«</span>
+                    <button
+                      type="button"
+                      data-sec-collapse=""
+                      onClick={() => setCollapsed((v) => !v)}
+                      title={collapsed ? "Expand navigation" : "Collapse navigation"}
+                      aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+                      style={{ width: 26, height: 26, flexShrink: 0, border: 0, borderRadius: 7, background: "transparent", color: "#64748b", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      {collapsed ? "»" : "«"}
+                    </button>
                   )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -161,18 +153,7 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
               </div>
             ))}
           </div>
-          <Link href="/secretary/settings" style={{ textDecoration: "none", color: "inherit" }}>
-            <div data-sec-nav-item="" style={{ borderTop: "1px solid #eef2f7", background: "#ffffff", width: "100%", textAlign: "left", padding: 16, display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 999, background: "#1e3a8a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.7, fontWeight: 700, flex: "none" }}>{initials}</div>
-              {!collapsed && (
-                <div style={{ flex: 1, minWidth: 0, lineHeight: 1.3 }}>
-                  <div style={{ fontSize: 13.1, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{secretaryName}</div>
-                  <div style={{ fontSize: 11.8, color: "#64748b" }}>Department Secretary · {department}</div>
-                </div>
-              )}
-              {!collapsed && <span style={{ color: "#94a3b8", fontSize: 12.2 }}>›</span>}
-            </div>
-          </Link>
+          <SidebarUserFooter subLabel={`Department Secretary · ${department}`} portalName="Secretary" collapsed={collapsed} />
         </aside>
 
         <main style={{ flex: 1, minWidth: 0, padding: "34px 40px 60px" }}>{children}</main>

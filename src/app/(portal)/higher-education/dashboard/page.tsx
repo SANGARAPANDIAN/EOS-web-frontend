@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, Badge, Button, Icon, ProgressBar, EmptyState, DataTable, SegmentedTabs, type DataTableColumn } from "@/components/ui";
 import { useHigherEducationDashboard, type HigherEducationDashboard } from "@/modules/higher-education/api/dashboard";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
@@ -71,7 +72,7 @@ export default function HigherEducationDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/higher-education/aspirants" className={`min-w-0 block rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Registered aspirants</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -85,9 +86,9 @@ export default function HigherEducationDashboardPage() {
             <span className="text-[14px] font-extrabold text-primary">{isLoading ? "—" : data?.kpis.aspirants.withinIndia ?? 0}</span>
             <span className="text-[13px] text-muted">within India · {data?.kpis.aspirants.abroad ?? 0} overseas</span>
           </div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/higher-education/applications" className={`min-w-0 block rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Applications filed</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -100,9 +101,9 @@ export default function HigherEducationDashboardPage() {
           <div className="mt-3 text-[13px] text-muted">
             {data?.extended ? "aspirants who have submitted their application" : "enable aspirant tracking to see this"}
           </div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <div className="min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px]">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Admits confirmed</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -122,7 +123,7 @@ export default function HigherEducationDashboardPage() {
           </div>
         </div>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/higher-education/scholarships" className={`min-w-0 block rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Scholarship secured</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -140,7 +141,7 @@ export default function HigherEducationDashboardPage() {
               </>
             )}
           </div>
-        </div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-[1.35fr_1fr_1fr] gap-4 items-start">

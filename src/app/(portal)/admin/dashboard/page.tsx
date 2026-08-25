@@ -103,6 +103,7 @@ export default function AdminDashboardPage() {
           label="Active students"
           icon="groups"
           value={activeStudents.data !== undefined ? activeStudents.data : activeStudents.isLoading ? "…" : "—"}
+          href="/admin/students"
         />
         <KpiCard
           label="Fee collected"
@@ -122,6 +123,7 @@ export default function AdminDashboardPage() {
           label="Faculty on roll"
           icon="badge"
           value={facultyCount.data ? facultyCount.data.meta.total : facultyCount.isLoading ? "…" : "—"}
+          href="/admin/faculty"
         />
       </div>
 
@@ -135,6 +137,7 @@ export default function AdminDashboardPage() {
           value={pipeline ? pipeline.total : admissions.isLoading ? "…" : "—"}
           delta={pipeline ? String(pipeline.admissionConfirmed) : undefined}
           sub={pipeline ? "confirmed" : undefined}
+          href="/admin/students/admit"
         />
         <KpiCard
           label="Average cutoff"
@@ -148,6 +151,7 @@ export default function AdminDashboardPage() {
           }
           delta={cutoffSummary ? String(cutoffSummary.admitted_count) : undefined}
           sub={cutoffSummary ? "students admitted" : undefined}
+          href="/admin/students/admit"
         />
         <KpiCard
           label="Placement rate"

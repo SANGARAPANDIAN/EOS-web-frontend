@@ -1,10 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useMyRoles } from "@/lib/auth/roles";
+import { getModuleConfig } from "@/modules/registry";
+import { ROLE_LABEL } from "@/lib/config";
+import { IconButton } from "@/components/ui/IconButton";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { BrandMark } from "@/components/layout/SidebarBrandHeader";
 import { ADVISOR_NAV } from "./nav";
 import { AdvisorIcon } from "./icons";
 import { useMyFacultyProfile, useIsClassAdvisor } from "./api/profile";
@@ -30,9 +35,38 @@ function initialsOf(name: string | undefined) {
 }
 
 export function AdvisorShell({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
+  const router = useRouter();
+  const { session, logout, switchRole } = useAuth();
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const rolesRef = useRef<HTMLDivElement>(null);
+
+  const roles = useMyRoles();
+  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
+
+  useEffect(() => {
+    if (!rolesOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [rolesOpen]);
+
+  async function handleSwitchRole(roleId: number) {
+    setSwitching(true);
+    try {
+      const newSession = await switchRole(roleId);
+      setRolesOpen(false);
+      const target = getModuleConfig(newSession.user.role);
+      router.push(target ? `${target.basePath}/dashboard` : "/login");
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   const myProfile = useMyFacultyProfile();
   const { isAdvisor, isLoading: advisorLoading, classes: menteeClasses } = useIsClassAdvisor();
@@ -102,26 +136,11 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 12,
             padding: "18px 20px",
             borderBottom: "1px solid #EEF1F6",
           }}
         >
-          <Image
-            src="/college-logo.png"
-            alt="Sri Eshwar College of Engineering"
-            width={40}
-            height={40}
-            style={{ width: 40, height: 40, objectFit: "contain", flex: "0 0 40px" }}
-          />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", color: "#1E3A8A" }}>
-              Sri Eshwar
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#7C8899", letterSpacing: "0.01em" }}>
-              Faculty Portal
-            </div>
-          </div>
+          <BrandMark subtitle="Faculty Portal" />
         </div>
 
         <nav style={{ flex: 1, overflowY: "auto", padding: "14px 12px 24px" }}>
@@ -181,51 +200,116 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div
-          onClick={() => setProfileOpen(true)}
           style={{
             borderTop: "1px solid #EEF1F6",
-            padding: "14px 18px",
+            padding: "12px 14px",
             display: "flex",
             alignItems: "center",
-            gap: 11,
-            cursor: "pointer",
+            gap: 9,
           }}
         >
           <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "#DBEAFE",
-              color: "#1D4ED8",
-              fontWeight: 800,
-              fontSize: 12.5,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            onClick={() => setProfileOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, cursor: "pointer" }}
           >
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                fontSize: 13,
-                fontWeight: 700,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                width: 34,
+                height: 34,
+                flex: "0 0 34px",
+                borderRadius: "50%",
+                background: "#DBEAFE",
+                color: "#1D4ED8",
+                fontWeight: 800,
+                fontSize: 12.5,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              {displayName}
+              {initials}
             </div>
-            <div style={{ fontSize: 11, color: "#7C8899", fontWeight: 500 }}>
-              {[designation, departmentCode].filter(Boolean).join(" · ")}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {displayName}
+              </div>
+              <div style={{ fontSize: 11, color: "#7C8899", fontWeight: 500 }}>
+                {[designation, departmentCode].filter(Boolean).join(" · ")}
+              </div>
             </div>
           </div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#CBD5E1" }}>›</div>
+
+          {otherRoles.length > 0 && (
+            <div ref={rolesRef} style={{ position: "relative", flex: "0 0 auto" }}>
+              <IconButton icon="swap_horiz" size={34} iconSize={17} title="Switch role" onClick={() => setRolesOpen((v) => !v)} />
+              {rolesOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(100% + 6px)",
+                    right: 0,
+                    minWidth: 200,
+                    background: "#fff",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 12,
+                    boxShadow: "0 18px 40px rgba(15,23,42,.18)",
+                    padding: 8,
+                    zIndex: 60,
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", color: "#94A3B8", padding: "8px 10px 6px" }}>
+                    SWITCH ROLE
+                  </div>
+                  {otherRoles.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      disabled={switching}
+                      onClick={() => handleSwitchRole(r.id)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "9px 10px",
+                        border: 0,
+                        background: "transparent",
+                        borderRadius: 8,
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        cursor: switching ? "not-allowed" : "pointer",
+                        opacity: switching ? 0.5 : 1,
+                        color: "#0F172A",
+                      }}
+                    >
+                      {ROLE_LABEL[r.name] ?? r.description ?? r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
         </div>
       </aside>
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Sign out?"
+        description="You'll need to log in again to access the Faculty portal."
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={logout}
+        onCancel={() => setConfirmingLogout(false)}
+      />
 
       {profileOpen && (
         <div
@@ -493,28 +577,6 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
             {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
-          </div>
-          <div
-            onClick={logout}
-            title="Log out"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 38,
-              height: 38,
-              flex: "0 0 38px",
-              border: "1px solid #E2E8F0",
-              borderRadius: 9,
-              cursor: "pointer",
-              color: "#DC2626",
-            }}
-          >
-            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-              <path d="M16 17l5-5-5-5" />
-              <path d="M21 12H9" />
-            </svg>
           </div>
         </header>
 

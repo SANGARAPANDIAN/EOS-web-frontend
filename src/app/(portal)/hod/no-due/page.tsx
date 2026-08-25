@@ -30,7 +30,7 @@ function CategoryDot({ cleared, editable, onClick }: { cleared: boolean; editabl
         (editable ? " cursor-pointer" : " cursor-default")
       }
     >
-      {cleared ? "✓" : "···"}
+      {cleared ? "✓" : "✕"}
     </button>
   );
 }
@@ -87,6 +87,11 @@ export default function HodNoDuePage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {list.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load no-due data — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">No-Due Status</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -142,7 +147,7 @@ export default function HodNoDuePage() {
               </div>
             ))}
           </div>
-        ) : !list.data || list.data.rows.length === 0 ? (
+        ) : list.isError ? null : !list.data || list.data.rows.length === 0 ? (
           <EmptyState message="No students in this class." className="px-5" />
         ) : (
           list.data.rows.map((row) => {
@@ -185,7 +190,7 @@ export default function HodNoDuePage() {
                       <Button
                         variant="primarySmall"
                         onClick={() => commit(row.student_id)}
-                        disabled={update.isPending}
+                        loading={update.isPending}
                       >
                         Done
                       </Button>

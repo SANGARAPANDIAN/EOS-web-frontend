@@ -104,9 +104,10 @@ function RequestForm() {
         variant="primary"
         className="mt-6"
         onClick={submit}
-        disabled={category === CATEGORIES[0] || !subject || create.isPending}
+        disabled={category === CATEGORIES[0] || !subject}
+        loading={create.isPending}
       >
-        {create.isPending ? "Submitting…" : "Submit Request"}
+        Submit Request
       </Button>
     </Card>
   );
@@ -118,9 +119,14 @@ function RequestStatusList() {
   return (
     <div className="flex flex-col gap-4">
       <div className="text-[11px] font-extrabold tracking-[.08em] text-subtle uppercase">Request Status</div>
+      {requests.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load HR/Payroll requests — please try again.
+        </div>
+      )}
       {requests.isLoading ? (
         <SkeletonRows count={3} />
-      ) : !requests.data || requests.data.length === 0 ? (
+      ) : requests.isError ? null : !requests.data || requests.data.length === 0 ? (
         <Card>
           <EmptyState message="No HR/Payroll requests yet." />
         </Card>

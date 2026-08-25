@@ -111,6 +111,7 @@ export default function PrincipalStudentsPage() {
           loading={summary.isLoading}
           value={summary.data?.placement.placed ?? "—"}
           sub={summary.data ? `of ${summary.data.placement.registered} registered candidates` : undefined}
+          href="/principal/placements"
         />
         <PrincipalStatCard
           label="Fees pending"
@@ -118,6 +119,7 @@ export default function PrincipalStudentsPage() {
           loading={summary.isLoading}
           value={summary.data?.fees.students_pending ?? "—"}
           sub={summary.data ? `${formatRupees(summary.data.fees.total_outstanding)} outstanding` : undefined}
+          href="/principal/finance"
         />
       </div>
 
@@ -247,7 +249,7 @@ export default function PrincipalStudentsPage() {
                       ? "#B42318"
                       : principalColors.heading;
                 return (
-                  <tr key={s.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                     <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                       {s.name}
                     </td>

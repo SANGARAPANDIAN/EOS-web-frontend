@@ -265,73 +265,66 @@ export default function PrincipalCalendarPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_420px]">
-        <div
-          className="rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
-          style={{ background: principalColors.bg, borderColor: principalColors.border }}
-        >
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-[20px] border-2 p-6" style={{ background: principalColors.bg, borderColor: principalColors.primary }}>
           <div className="mb-4 flex items-center justify-between">
             <button
               type="button"
               onClick={goPrevMonth}
-              className="grid h-9 w-9 place-items-center rounded-lg border"
-              style={{ borderColor: principalColors.border, color: principalColors.primary }}
+              className="flex h-11 w-12 items-center justify-center rounded-[14px]"
+              style={{ background: principalColors.surfaceMuted, color: principalColors.body }}
             >
-              <Icon name="chevron_left" size={18} />
+              <Icon name="chevron_left" size={20} />
             </button>
             <div className="text-center">
-              <div className="text-lg font-extrabold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
+              <div className="text-[30px] font-extrabold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
                 {MONTH_NAMES[month - 1]} {year}
               </div>
-              <div className="text-xs" style={{ color: principalColors.textFaint }}>
+              <div className="mt-0.5 text-[13.5px]" style={{ color: principalColors.textFaint }}>
                 {items.length} calendar item{items.length === 1 ? "" : "s"}
               </div>
             </div>
             <button
               type="button"
               onClick={goNextMonth}
-              className="grid h-9 w-9 place-items-center rounded-lg border"
-              style={{ borderColor: principalColors.border, color: principalColors.primary }}
+              className="flex h-11 w-12 items-center justify-center rounded-[14px]"
+              style={{ background: principalColors.surfaceMuted, color: principalColors.body }}
             >
-              <Icon name="chevron_right" size={18} />
+              <Icon name="chevron_right" size={20} />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
-            {WEEKDAYS.map((w, i) => (
-              <div key={i} className="pb-1.5 text-center text-[11px] font-bold tracking-wide" style={{ color: principalColors.textFaint }}>
-                {w}
-              </div>
-            ))}
+          <div className="grid grid-cols-7 gap-2 text-center text-[14px] font-bold" style={{ color: principalColors.textSubtle }}>
+            {WEEKDAYS.map((w, i) => <div key={i}>{w}</div>)}
+          </div>
+          <div className="mt-2 grid grid-cols-7 gap-2">
             {weeks.flat().map((d, i) => {
               const dayItems = d != null ? itemsByDay.get(d) : undefined;
               const hasPublished = dayItems?.some((it) => it.kind === "published");
               const hasPersonal = dayItems?.some((it) => it.kind === "personal");
+              if (d == null) return <div key={i} className="h-16" />;
               return (
                 <div
                   key={i}
-                  className={`relative flex aspect-square items-center justify-center rounded-[10px] border text-sm transition-all ${d != null ? "hover:-translate-y-[1px] hover:shadow-[0_4px_10px_rgba(13,30,79,0.1)]" : ""}`}
+                  className="relative flex h-16 items-center justify-center rounded-[12px] border text-[17px] font-bold"
                   style={
-                    d == null
-                      ? { borderColor: "transparent" }
-                      : dayItems && dayItems.length > 0
-                        ? { borderColor: principalColors.chipBorder, background: principalColors.surfaceTint, color: principalColors.primaryDark, fontWeight: 700 }
+                    hasPublished
+                      ? { borderColor: principalColors.primary, background: principalColors.surfaceTint, color: principalColors.primary }
+                      : hasPersonal
+                        ? { borderColor: "#B98900", background: "#FEF3C7", color: "#92400E" }
                         : { borderColor: principalColors.border, color: principalColors.heading }
                   }
                 >
                   {d}
-                  {(hasPublished || hasPersonal) && (
-                    <div className="absolute bottom-1 flex gap-0.5">
-                      {hasPublished && <span className="h-1 w-1 rounded-full" style={{ background: principalColors.primary }} />}
-                      {hasPersonal && <span className="h-1 w-1 rounded-full" style={{ background: "#B98900" }} />}
-                    </div>
+                  {hasPublished && hasPersonal && (
+                    <span className="absolute bottom-1.5 h-1.5 w-1.5 rounded-full" style={{ background: "#B98900" }} />
                   )}
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-3 flex gap-4 text-xs" style={{ color: principalColors.textFaint }}>
+          <div className="mt-4 flex gap-4 text-xs" style={{ color: principalColors.textFaint }}>
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: principalColors.primary }} /> College events
             </span>
@@ -341,20 +334,15 @@ export default function PrincipalCalendarPage() {
           </div>
         </div>
 
-        <div
-          className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
-          style={{ background: principalColors.bg, borderColor: principalColors.border }}
-        >
-          <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
-            <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
-              This month
-            </div>
+        <div className="rounded-2xl border p-5" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+          <div className="mb-3 text-[20px] font-extrabold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
+            Events in {MONTH_NAMES[month - 1]}
           </div>
           <div className="flex flex-col">
             {isLoading &&
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-start gap-3.5 border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
-                  <Skeleton className="h-11 w-11 shrink-0 rounded-lg" />
+                <div key={i} className="flex items-start gap-4 border-b px-5 py-4 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
+                  <Skeleton className="h-14 w-14 shrink-0 rounded-xl" />
                   <div className="flex-1">
                     <Skeleton className="h-4 w-40" />
                     <Skeleton className="mt-2 h-3.5 w-28" />
@@ -373,31 +361,28 @@ export default function PrincipalCalendarPage() {
               return (
                 <div
                   key={item.key}
-                  className="hover-lift flex items-start gap-3.5 border-b px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[rgba(13,30,79,0.03)]"
+                  className="hover-lift flex items-start gap-4 border-b px-5 py-4 transition-colors last:border-b-0 hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]"
                   style={{ borderColor: principalColors.borderMuted }}
                 >
                   <div
-                    className="flex w-11 shrink-0 flex-col items-center justify-center rounded-lg py-1.5"
-                    style={{ background: principalColors.surfaceTint, color: principalColors.primaryDark }}
+                    className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border"
+                    style={{ borderColor: principalColors.border, color: principalColors.heading }}
                   >
-                    <span className="text-base font-extrabold leading-none">{dayNum}</span>
-                    <span className="mt-0.5 text-[9px] font-bold">{weekdayAbbr}</span>
+                    <span className="text-[19px] font-extrabold leading-none">{dayNum}</span>
+                    <span className="mt-0.5 text-[10px] font-bold" style={{ color: principalColors.textFaint }}>
+                      {weekdayAbbr}
+                    </span>
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm font-bold" style={{ color: principalColors.heading }}>
+                    <div className="text-[15.5px] font-bold" style={{ color: principalColors.heading }}>
                       {item.title}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: principalColors.textFaint }}>
+                    <div className="mt-1 flex items-center gap-1.5 text-[13px]" style={{ color: principalColors.textFaint }}>
                       {d.toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                      {item.kind === "personal" ? (
+                      {item.kind === "personal" && (
                         <>
-                          <Icon name="lock_person" size={12} />
+                          · <Icon name="lock_person" size={12} />
                           Only visible to you
-                        </>
-                      ) : (
-                        <>
-                          <Icon name="groups" size={12} />
-                          Visible to everyone
                         </>
                       )}
                     </div>

@@ -168,7 +168,7 @@ export default function MedicalCentreDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/records" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Visits</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -182,9 +182,9 @@ export default function MedicalCentreDashboardPage() {
           </div>
           <ProgressBar percent={isLoading ? 0 : kpis?.visitsBarPercent ?? 0} height={6} className="mt-3" />
           <div className="mt-3 text-[12.5px] text-subtle">{kpis?.visitsNote}</div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/sickroom" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Sick room beds</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -202,9 +202,9 @@ export default function MedicalCentreDashboardPage() {
           <div className="mt-3 text-[12.5px] text-subtle">
             {kpis?.longestStayMinutes != null ? `Longest stay ${kpis.longestStayMinutes} min · observation` : "No one currently admitted"}
           </div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/opd" className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-primary-dark">Waiting in OPD</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-surface">
@@ -219,12 +219,9 @@ export default function MedicalCentreDashboardPage() {
             <span className="text-[13px] text-primary-dark/80">in consultation now</span>
           </div>
           <ProgressBar percent={isLoading ? 0 : kpis?.opdBarPercent ?? 0} height={6} className="mt-3" />
-          <Link href="/medical-centre/opd" className="mt-3 block text-[13px] font-bold text-primary-dark hover:underline">
-            Open the queue
-          </Link>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/pharmacy" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Medicines dispensed</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -239,10 +236,7 @@ export default function MedicalCentreDashboardPage() {
             <span className="text-[13px] text-muted">items below reorder level</span>
           </div>
           <ProgressBar percent={isLoading ? 0 : kpis?.dispensedBarPercent ?? 0} height={6} className="mt-3" />
-          <Link href="/medical-centre/pharmacy" className="mt-3 block text-[13px] font-bold text-primary hover:underline">
-            Review pharmacy stock
-          </Link>
-        </div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-[1.15fr_1fr_1fr] gap-4 items-start">

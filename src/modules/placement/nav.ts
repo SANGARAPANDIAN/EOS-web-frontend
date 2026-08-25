@@ -34,7 +34,7 @@ export const PLACEMENT_NAV: PlacementNavGroup[] = [
   {
     label: "Overview",
     items: [
-      { href: "/placement", label: "Dashboard", icon: "dashboard" },
+      { href: "/placement/dashboard", label: "Dashboard", icon: "dashboard" },
       { href: "/placement/announcements", label: "Announcements", icon: "campaign" },
       { href: "/placement/academic-calendar", label: "Academic calendar", icon: "calendar_month" },
     ],

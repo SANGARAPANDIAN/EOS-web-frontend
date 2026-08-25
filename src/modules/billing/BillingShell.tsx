@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { BILLING_NAV } from "./nav";
 import { BillingIcon } from "./icons";
 import { useFeePaymentsDashboard, groupDashboardByStudent, useFinanceOverview } from "./api/fees";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { BrandMark } from "@/components/layout/SidebarBrandHeader";
+import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
 import {
   useUnreadNotificationCount,
   useNotificationsPanel,
@@ -15,14 +16,6 @@ import {
   usePinNotification,
   useUnpinNotification,
 } from "@/modules/shared/api/notifications";
-
-/** Real logged-in user has no first/last name on the session (only
- * id/email/role) — initials are derived from the email's local part
- * rather than fabricating a display name. */
-function emailInitials(email: string): string {
-  const local = email.split("@")[0] ?? "";
-  return local.slice(0, 2).toUpperCase();
-}
 
 // Pixel-exact port of the shell (header + aside) from
 // "Billing Module - Web/Billing Admin.dc.html" (lines 27-187). Fake-data
@@ -37,10 +30,9 @@ function emailInitials(email: string): string {
 export function BillingShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
-  const [menu, setMenu] = useState<"quick" | "bell" | "help" | "profile" | null>(null);
+  const [menu, setMenu] = useState<"quick" | "bell" | "help" | null>(null);
 
   const activeId = BILLING_NAV.flatMap((g) => g.items).find((item) => pathname?.startsWith(item.href))?.id;
 
@@ -67,12 +59,8 @@ export function BillingShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "#fff" }}>
       <header style={{ height: 72, flex: "0 0 72px", display: "flex", alignItems: "center", gap: 18, padding: "0 22px", background: "#fff", borderBottom: "1px solid #e6e9ef", position: "relative", zIndex: 40 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 11, width: 240, flex: "0 0 240px" }}>
-          <div style={{ width: 38, height: 38, borderRadius: 9, background: "#0f2d6b", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 800 }}>♛</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <div style={{ fontSize: 16.5, fontWeight: 800, letterSpacing: -0.2 }}>Sri Eshwar</div>
-            <div style={{ fontSize: 11.5, color: "#64748b", fontWeight: 500 }}>College of Engineering</div>
-          </div>
+        <div style={{ width: 240, flex: "0 0 240px" }}>
+          <BrandMark />
         </div>
         <button onClick={() => setCollapsed((v) => !v)} title="Collapse navigation" style={{ width: 38, height: 38, flex: "0 0 38px", borderRadius: 10, border: "1px solid #e6e9ef", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#334155" }}>
           <BillingIcon name="menu" size={17} />
@@ -211,35 +199,8 @@ export function BillingShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
 
-          <div style={{ position: "relative", marginTop: 22, paddingTop: 14, borderTop: "1px solid #eef1f6" }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenu((m) => (m === "profile" ? null : "profile")); }}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "14px 12px 8px", border: 0, background: "transparent", cursor: "pointer", textAlign: "left" }}
-            >
-              <div style={{ width: 38, height: 38, borderRadius: 999, background: "#152f6d", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flex: "0 0 38px" }}>
-                {session?.user.email ? emailInitials(session.user.email) : "?"}
-              </div>
-              {!collapsed && (
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{session?.user.email ?? "—"}</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>Billing</div>
-                </div>
-              )}
-              {!collapsed && <span style={{ color: "#94a3b8", fontSize: 12 }}>▾</span>}
-            </button>
-            {menu === "profile" && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{ position: "absolute", bottom: "calc(100% + 4px)", left: 8, right: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 18px 40px rgba(15,23,42,.18)", padding: 8, zIndex: 60 }}
-              >
-                <button
-                  onClick={() => { setMenu(null); logout(); }}
-                  style={{ width: "100%", textAlign: "left", padding: "9px 10px", border: 0, background: "transparent", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: "pointer", color: "#dc2626" }}
-                >
-                  Sign out
-                </button>
-              </div>
-            )}
+          <div style={{ marginTop: 22 }} onClick={(e) => e.stopPropagation()}>
+            <SidebarUserFooter subLabel="Billing" portalName="Billing" collapsed={collapsed} />
           </div>
         </aside>
 

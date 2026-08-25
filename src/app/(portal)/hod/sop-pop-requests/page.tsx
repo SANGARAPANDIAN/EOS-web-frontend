@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, Button, PillTabs, Textarea, EmptyState, SkeletonRows } from "@/components/ui";
+import { Card, Badge, Button, PillTabs, SegmentedTabs, Textarea, EmptyState, SkeletonRows } from "@/components/ui";
 import {
   useHodSopPopRequests,
   useDecideHodSopPopRequest,
@@ -18,7 +18,7 @@ function statusTone(status: SopPopStatus): "accent" | "danger" | "neutral" {
 }
 
 function statusLabel(status: SopPopStatus): string {
-  if (status === "sent_to_principal") return "Sent to Principal";
+  if (status === "sent_to_principal") return "Sent to Finance";
   if (status === "rejected") return "Rejected";
   return "Awaiting HoD approval";
 }
@@ -30,16 +30,18 @@ function currency(value: number | null): string {
 function SopPopRequestCard({
   r,
   onDecide,
-  isPending,
+  approvePending,
+  rejectPending,
 }: {
   r: HodSopPopRequestRow;
   onDecide: (decision: "approved" | "rejected", remarks: string) => void;
-  isPending: boolean;
+  approvePending: boolean;
+  rejectPending: boolean;
 }) {
   const [remarks, setRemarks] = useState("");
 
   return (
-    <Card className="hod-hover-card">
+    <Card className="hod-hover-card py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2.5">
           <Badge tone="accent">{r.kind.toUpperCase()}</Badge>
@@ -50,107 +52,124 @@ function SopPopRequestCard({
         <Badge tone={statusTone(r.status)}>{statusLabel(r.status)}</Badge>
       </div>
 
-      <h2 className="mt-3 text-[19px] font-extrabold text-ink">{r.title}</h2>
-      <p className="mt-1.5 text-[13.5px] text-body">{r.description}</p>
+      <h2 className="mt-2 text-[16px] font-extrabold text-ink">{r.title}</h2>
+      <p className="mt-1 text-[13px] text-body">{r.description}</p>
 
-      <div className="mt-4 grid grid-cols-4 gap-4 border-t border-divider pt-4">
-        <div>
-          <div className="text-[11px] font-extrabold tracking-[.06em] text-subtle uppercase">Raised by</div>
-          <div className="mt-1 text-[13.5px] font-bold text-ink">
-            {r.raised_by} · {r.raised_by_role}
-          </div>
-        </div>
-        <div>
-          <div className="text-[11px] font-extrabold tracking-[.06em] text-subtle uppercase">Amount</div>
-          <div className="mt-1 text-[13.5px] font-bold text-ink">{currency(r.amount)}</div>
-        </div>
-        <div>
-          <div className="text-[11px] font-extrabold tracking-[.06em] text-subtle uppercase">Needed by</div>
-          <div className="mt-1 text-[13.5px] font-bold text-ink">
-            {r.needed_by ? formatDisplayDate(r.needed_by) : "—"}
-          </div>
-        </div>
-        <div>
-          <div className="text-[11px] font-extrabold tracking-[.06em] text-subtle uppercase">Next stage</div>
-          <div className="mt-1 text-[13.5px] font-bold text-ink">{r.next_stage}</div>
-        </div>
-      </div>
+      <p className="mt-2 text-[12.5px] text-muted">
+        {r.raised_by} · {r.raised_by_role}
+        {" · "}
+        {currency(r.amount)}
+        {r.needed_by ? ` · Due ${formatDisplayDate(r.needed_by)}` : ""}
+        {" · Next: "}
+        {r.next_stage}
+      </p>
 
       {r.status === "awaiting_hod" ? (
-        <div className="mt-4 border-t border-divider pt-4">
+        <div className="mt-3 flex items-start gap-2.5">
           <Textarea
-            rows={2}
+            rows={1}
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             placeholder="Remarks (optional)"
+            className="flex-1"
           />
-          <div className="mt-3 flex justify-end gap-2.5">
-            <Button
-              variant="secondary"
-              className="text-danger-fg border-danger-border"
-              onClick={() => onDecide("rejected", remarks)}
-              disabled={isPending}
-            >
-              Reject
-            </Button>
-            <Button variant="primarySmall" onClick={() => onDecide("approved", remarks)} disabled={isPending}>
-              Send to Principal
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            className="shrink-0 text-danger-fg border-danger-border"
+            onClick={() => onDecide("rejected", remarks)}
+            disabled={approvePending || rejectPending}
+            loading={rejectPending}
+          >
+            Reject
+          </Button>
+          <Button
+            variant="primarySmall"
+            className="shrink-0"
+            onClick={() => onDecide("approved", remarks)}
+            disabled={approvePending || rejectPending}
+            loading={approvePending}
+          >
+            Send to Finance
+          </Button>
         </div>
       ) : (
         (r.hod_remarks || r.reviewed_by) && (
-          <div className="mt-4 border-t border-divider pt-4">
-            <div className="text-[11px] font-extrabold tracking-[.06em] text-subtle uppercase">Your review</div>
-            {r.hod_remarks && <p className="mt-1 text-[13.5px] text-body">{r.hod_remarks}</p>}
-            {r.reviewed_by && (
-              <p className="mt-1 text-[12px] text-subtle">
-                {r.reviewed_by}
-                {r.reviewed_at ? ` · ${formatDisplayDate(r.reviewed_at)}` : ""}
-              </p>
-            )}
-          </div>
+          <p className="mt-2 text-[12.5px] text-subtle">
+            <span className="font-bold text-ink">Your review:</span>{" "}
+            {r.hod_remarks ? r.hod_remarks : "Approved"}
+            {r.reviewed_by
+              ? ` — ${r.reviewed_by}${r.reviewed_at ? ` · ${formatDisplayDate(r.reviewed_at)}` : ""}`
+              : ""}
+          </p>
         )
       )}
     </Card>
   );
 }
 
+type View = "pending" | "history";
+
 export default function HodSopPopRequestsPage() {
   const [kind, setKind] = useState<SopPopKind>("sop");
+  const [view, setView] = useState<View>("pending");
   const requests = useHodSopPopRequests();
   const decide = useDecideHodSopPopRequest();
 
-  const c = requests.data?.counts;
-  const rows = requests.data ? requests.data[kind] : [];
+  const allRows = requests.data ? requests.data[kind] : [];
+  const pendingSop = requests.data?.sop.filter((r) => r.status === "awaiting_hod").length ?? 0;
+  const pendingPop = requests.data?.pop.filter((r) => r.status === "awaiting_hod").length ?? 0;
+  const rows = allRows.filter((r) =>
+    view === "pending" ? r.status === "awaiting_hod" : r.status !== "awaiting_hod",
+  );
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {requests.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load SOP/POP requests — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">
           {kind === "sop" ? "SOP Requests" : "POP Requests"}
         </h1>
         <p className="mt-1 text-[13px] text-muted">
           {kind === "sop"
-            ? "Standard operating procedures raised by the department secretary · your approval forwards them to the Principal"
-            : "Purchase order proposals raised by the department secretary · your approval forwards them to the Principal"}
+            ? "Standard operating procedures raised by the department secretary · your approval forwards them to Finance for review"
+            : "Purchase order proposals raised by the department secretary · your approval forwards them to Finance for review"}
         </p>
       </div>
 
-      <PillTabs
-        value={kind}
-        onChange={(k) => setKind(k as SopPopKind)}
-        options={[
-          { key: "sop", label: `SOP requests (${c?.sop ?? 0})` },
-          { key: "pop", label: `POP requests (${c?.pop ?? 0})` },
-        ]}
-      />
+      <div className="flex items-center justify-between gap-4">
+        <PillTabs
+          value={kind}
+          onChange={(k) => setKind(k as SopPopKind)}
+          options={[
+            { key: "sop", label: `SOP requests (${pendingSop})` },
+            { key: "pop", label: `POP requests (${pendingPop})` },
+          ]}
+        />
+        <SegmentedTabs
+          value={view}
+          onChange={(k) => setView(k as View)}
+          options={[
+            { key: "pending", label: "Pending" },
+            { key: "history", label: "History" },
+          ]}
+        />
+      </div>
 
       {requests.isLoading ? (
         <SkeletonRows count={3} />
-      ) : rows.length === 0 ? (
+      ) : requests.isError ? null : rows.length === 0 ? (
         <Card>
-          <EmptyState message={`No ${kind === "sop" ? "SOP" : "POP"} requests.`} />
+          <EmptyState
+            message={
+              view === "pending"
+                ? `No ${kind === "sop" ? "SOP" : "POP"} requests awaiting your review.`
+                : `No decided ${kind === "sop" ? "SOP" : "POP"} requests yet.`
+            }
+          />
         </Card>
       ) : (
         <div className="flex flex-col gap-4">
@@ -158,7 +177,18 @@ export default function HodSopPopRequestsPage() {
             <SopPopRequestCard
               key={r.id}
               r={r}
-              isPending={decide.isPending}
+              approvePending={
+                decide.isPending &&
+                decide.variables?.kind === r.kind &&
+                decide.variables?.id === r.id &&
+                decide.variables?.decision === "approved"
+              }
+              rejectPending={
+                decide.isPending &&
+                decide.variables?.kind === r.kind &&
+                decide.variables?.id === r.id &&
+                decide.variables?.decision === "rejected"
+              }
               onDecide={(decision, remarks) =>
                 decide.mutate({ kind: r.kind, id: r.id, decision, remarks: remarks || undefined })
               }

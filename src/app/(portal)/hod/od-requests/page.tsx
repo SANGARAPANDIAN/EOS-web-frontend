@@ -37,6 +37,11 @@ export default function HodOdRequestsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {list.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load OD requests — please try again.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">
@@ -71,7 +76,7 @@ export default function HodOdRequestsPage() {
 
       {list.isLoading ? (
         <SkeletonRows count={5} />
-      ) : !list.data || list.data.rows.length === 0 ? (
+      ) : list.isError ? null : !list.data || list.data.rows.length === 0 ? (
         <Card>
           <EmptyState message="No requests in this view." />
         </Card>
@@ -108,6 +113,11 @@ export default function HodOdRequestsPage() {
                     variant="primarySmall"
                     onClick={() => decide.mutate({ kind: row.kind, id: row.id, decision: "approved" })}
                     disabled={decide.isPending}
+                    loading={
+                      decide.isPending &&
+                      decide.variables?.id === row.id &&
+                      decide.variables?.decision === "approved"
+                    }
                   >
                     Approve
                   </Button>
@@ -115,6 +125,11 @@ export default function HodOdRequestsPage() {
                     variant="secondary"
                     onClick={() => decide.mutate({ kind: row.kind, id: row.id, decision: "rejected" })}
                     disabled={decide.isPending}
+                    loading={
+                      decide.isPending &&
+                      decide.variables?.id === row.id &&
+                      decide.variables?.decision === "rejected"
+                    }
                   >
                     Reject
                   </Button>

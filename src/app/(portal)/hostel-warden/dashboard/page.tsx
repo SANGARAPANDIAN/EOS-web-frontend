@@ -9,6 +9,7 @@ import { useComplaints } from "@/modules/hostel-warden/api/complaints";
 import { StudentDetailModal } from "@/modules/hostel-warden/components/StudentDetailModal";
 import { formatLongDate, formatTime12h, greetingForHour } from "@/lib/utils/date";
 import { useState } from "react";
+import { useNow } from "@/lib/hooks/useNow";
 
 /** Matches the Medical Centre/Transport dashboard hover-lift convention. */
 const HOVERABLE = "transition-all duration-150 hover:-translate-y-1 hover:border-primary hover:shadow-hover-lift";
@@ -30,8 +31,9 @@ export default function HostelWardenDashboardPage() {
   const onLeavePct = data && totalResidents > 0 ? Math.round((data.on_leave / totalResidents) * 100) : 0;
   const approvalsPct = data ? Math.min(100, Math.round((data.pending_approvals / Math.max(1, totalResidents * 0.05)) * 100)) : 0;
 
+  const now = useNow();
   const overdueComplaints = (openComplaints.data?.data ?? []).filter(
-    (c) => Date.now() - new Date(c.created_at).getTime() > 48 * 60 * 60 * 1000,
+    (c) => now - new Date(c.created_at).getTime() > 48 * 60 * 60 * 1000,
   );
 
   return (
@@ -55,7 +57,7 @@ export default function HostelWardenDashboardPage() {
       )}
 
       <div className="grid grid-cols-4 gap-4">
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/hostel-warden/residents" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Residents</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -73,9 +75,9 @@ export default function HostelWardenDashboardPage() {
           <div className="mt-3 text-[12.5px] text-subtle">
             {data ? `${data.beds_vacant} of ${data.beds_total} beds vacant` : "—"}
           </div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/hostel-warden/leave" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Out on leave</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -91,9 +93,9 @@ export default function HostelWardenDashboardPage() {
           </div>
           <ProgressBar percent={isLoading ? 0 : onLeavePct} height={6} className="mt-3" />
           <div className="mt-3 text-[12.5px] text-subtle">On an approved outing covering today</div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/hostel-warden/passes" className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-primary-dark">Approvals waiting</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-surface">
@@ -107,12 +109,10 @@ export default function HostelWardenDashboardPage() {
             <span className="text-[13px] text-primary-dark/80">Outing and leave requests</span>
           </div>
           <ProgressBar percent={isLoading ? 0 : approvalsPct} height={6} className="mt-3" />
-          <Link href="/hostel-warden/passes" className="mt-3 block text-[13px] font-bold text-primary-dark hover:underline">
-            Open the queue
-          </Link>
-        </div>
+          <span className="mt-3 block text-[13px] font-bold text-primary-dark">Open the queue →</span>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/hostel-warden/complaints" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Open complaints</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -127,10 +127,8 @@ export default function HostelWardenDashboardPage() {
             <span className="text-[13px] text-muted">open beyond 48 hrs</span>
           </div>
           <ProgressBar percent={isLoading ? 0 : Math.min(100, (data?.complaints_open ?? 0) * 20)} height={6} className="mt-3" />
-          <Link href="/hostel-warden/complaints" className="mt-3 block text-[13px] font-bold text-primary hover:underline">
-            View complaints
-          </Link>
-        </div>
+          <span className="mt-3 block text-[13px] font-bold text-primary">View complaints →</span>
+        </Link>
       </div>
 
       <div className="grid grid-cols-[1.4fr_1fr] gap-4 items-start">

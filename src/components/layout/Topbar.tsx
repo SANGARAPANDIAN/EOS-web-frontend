@@ -95,8 +95,8 @@ export function Topbar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex items-center gap-4 border-b border-border-default px-7",
-        searchPlaceholder ? "h-20 shrink-0 bg-white" : "bg-white/92 py-3 backdrop-blur-[8px]",
+        "sticky top-0 z-20 flex h-20 shrink-0 items-center gap-4 border-b border-border-default px-7",
+        searchPlaceholder ? "bg-white" : "bg-white/92 backdrop-blur-[8px]",
       )}
     >
       {searchPlaceholder ? (

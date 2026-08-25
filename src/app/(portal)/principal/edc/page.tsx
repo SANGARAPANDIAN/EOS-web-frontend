@@ -145,7 +145,7 @@ export default function PrincipalEdcPage() {
                 <Fragment key={r.id}>
                   <tr
                     onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    className="cursor-pointer border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]"
+                    className="cursor-pointer border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]"
                     style={{ borderColor: principalColors.borderMuted }}
                   >
                     <td className="px-5 py-3.5">

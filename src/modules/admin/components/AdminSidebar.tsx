@@ -2,11 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useMyRoles } from "@/lib/auth/roles";
+import { getModuleConfig } from "@/modules/registry";
+import { ROLE_LABEL } from "@/lib/config";
 import { ADMIN_NAV } from "@/modules/admin/nav";
 
 interface AdminSidebarProps {
@@ -95,8 +99,37 @@ function NavContent({
 }
 
 function UserFooter({ collapsed, userName, userEmail }: { collapsed: boolean; userName?: string; userEmail?: string }) {
-  const { logout } = useAuth();
+  const router = useRouter();
+  const { session, logout, switchRole } = useAuth();
   const initials = (userName || userEmail || "?").trim().charAt(0).toUpperCase();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const rolesRef = useRef<HTMLDivElement>(null);
+
+  const roles = useMyRoles();
+  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
+
+  useEffect(() => {
+    if (!rolesOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [rolesOpen]);
+
+  async function handleSwitchRole(roleId: number) {
+    setSwitching(true);
+    try {
+      const newSession = await switchRole(roleId);
+      setRolesOpen(false);
+      const target = getModuleConfig(newSession.user.role);
+      router.push(target ? `${target.basePath}/dashboard` : "/login");
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   return (
     <div className={cn("flex items-center gap-2.5 border-t border-admin-border p-3", collapsed && "justify-center")}>
@@ -109,15 +142,55 @@ function UserFooter({ collapsed, userName, userEmail }: { collapsed: boolean; us
           <div className="text-[12px] text-admin-muted">Admin</div>
         </div>
       )}
+      {otherRoles.length > 0 && (
+        <div ref={rolesRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setRolesOpen((v) => !v)}
+            title="Switch role"
+            aria-label="Switch role"
+            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-admin-sm text-admin-subtle hover:bg-admin-tint-strong hover:text-admin-body"
+          >
+            <Icon name="swap_horiz" size={17} />
+          </button>
+          {rolesOpen && (
+            <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 min-w-[200px] overflow-hidden rounded-card border border-admin-border bg-surface py-1.5 shadow-modal">
+              <div className="px-4 pb-1 pt-1.5 text-[10.5px] font-extrabold tracking-[.09em] text-admin-subtle">SWITCH ROLE</div>
+              {otherRoles.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  disabled={switching}
+                  onClick={() => handleSwitchRole(r.id)}
+                  className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-admin-ink hover:bg-admin-tint disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {ROLE_LABEL[r.name] ?? r.description ?? r.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <button
         type="button"
-        onClick={logout}
+        onClick={() => setConfirmingLogout(true)}
         title="Log out"
         aria-label="Log out"
         className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-admin-sm text-admin-subtle hover:bg-admin-tint-strong hover:text-admin-body"
       >
         <Icon name="logout" size={17} />
       </button>
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Sign out?"
+        description="You'll need to log in again to access the Admin console."
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={logout}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </div>
   );
 }

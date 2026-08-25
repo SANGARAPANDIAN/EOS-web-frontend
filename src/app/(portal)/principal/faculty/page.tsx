@@ -159,7 +159,7 @@ export default function PrincipalFacultyPage() {
                       ? "#B42318"
                       : principalColors.heading;
                 return (
-                  <tr key={f.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={f.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                     <td
                       className="whitespace-nowrap px-5 py-3.5 font-semibold"
                       style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.primary }}
@@ -245,7 +245,7 @@ export default function PrincipalFacultyPage() {
             <tbody>
               {deptStrength.isLoading && <PrincipalTableSkeleton columns={5} />}
               {deptStrength.data?.departments.map((d) => (
-                <tr key={d.department.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={d.department.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {d.department.code}
                   </td>

@@ -113,6 +113,11 @@ export default function HodHigherEducationPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load higher-education data — please try again.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Higher Education</h1>
@@ -150,7 +155,7 @@ export default function HodHigherEducationPage() {
 
       {overview.isLoading ? (
         <SkeletonStatTiles count={3} />
-      ) : (
+      ) : overview.isError ? null : (
         <div className="grid grid-cols-3 gap-4">
           <Card className="hod-hover-card">
             <div className="text-[13.5px] text-[#5c6573]">Total higher education</div>
@@ -189,7 +194,7 @@ export default function HodHigherEducationPage() {
 
       {overview.isLoading ? (
         <SkeletonTable rows={7} />
-      ) : (
+      ) : overview.isError ? null : (
         <DataTable
           columns={columns}
           data={rows}

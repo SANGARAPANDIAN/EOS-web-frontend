@@ -13,8 +13,10 @@ export interface HodAnnouncement {
   scheduled_at: string | null;
   created_at: string;
   class_ids: number[];
-  classes: { id: number; label: string }[];
-  posted_by: { role: string; department_code: string | null } | null;
+  class_labels: string[];
+  role_ids: number[];
+  role_labels: string[];
+  posted_by: { name: string; role: string; designation: string | null; department: string | null } | null;
 }
 
 /** GET /announcements — real visibility scoping already applied server-side per role. */

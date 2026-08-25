@@ -12,6 +12,8 @@ export interface HodReportsSummary {
   arrears_count_change: number | null;
   distinction_count: number;
   distinction_count_change: number;
+  phd_count: number;
+  faculty_count: number;
 }
 
 /** GET /hod/reports/summary */

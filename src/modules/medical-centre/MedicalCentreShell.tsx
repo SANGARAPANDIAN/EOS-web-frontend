@@ -4,10 +4,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { medicalCentreModuleConfig } from "@/modules/medical-centre/nav";
 import { MEDICAL_CENTRE_MOCK_SUMMARY } from "@/modules/medical-centre/summary";
 
-// Design-only pass: header identity and nav badge counts are static mock
-// values standing in for the real medical-officer profile + live OPD/sick-
-// room/pharmacy counts that will replace them once this module is wired to
-// the backend.
+// Design-only pass: nav badge counts are static mock values standing in for
+// live OPD/sick-room/pharmacy counts that will replace them once this module
+// is wired to the backend. Sidebar identity comes from the real logged-in
+// session (Sidebar/SidebarUserFooter falls back to session email when
+// studentName is omitted) — no fake medical-officer name here.
 
 export function MedicalCentreShell({ children }: { children: React.ReactNode }) {
   const { opdWaiting, bedsOccupied, lowStockCount } = MEDICAL_CENTRE_MOCK_SUMMARY;
@@ -16,7 +17,6 @@ export function MedicalCentreShell({ children }: { children: React.ReactNode }) 
     <AppShell
       moduleConfig={medicalCentreModuleConfig}
       header={{
-        studentName: "Dr. S. Meenambal",
         registerNumber: "Medical Centre",
         programLabel: "Medical officer",
         academicYearLabel: "2026–27",

@@ -67,6 +67,7 @@ export default function TransportDashboardPage() {
       subB: extended?.fleet_status ? "idle, in depot or workshop" : "run the setup SQL to enable",
       barPercent: extended?.fleet_status ? onRoutePercent : 0,
       foot: extended?.fleet_status ? `${data?.fleet.buses_maintenance ?? 0} off road for service` : "see fleet status notes below",
+      href: "/transport/buses",
     },
     {
       key: "students",
@@ -87,6 +88,7 @@ export default function TransportDashboardPage() {
       subB: "routes at/above 90%",
       barPercent: occupancyPercent ?? 0,
       foot: data ? `${riders} students across ${data.ridership.routes.length} routes` : "—",
+      href: "/transport/routes",
     },
     {
       key: "renewals",
@@ -135,28 +137,34 @@ export default function TransportDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        {STAT_TILES.map((tile) => (
-          <div
-            key={tile.key}
-            className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-[14.5px] font-bold text-body">{tile.label}</div>
-              <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
-                <Icon name={tile.icon} size={19} className="text-primary" />
+        {STAT_TILES.map((tile) => {
+          const tileContent = (
+            <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${tile.href ? HOVERABLE : ""}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[14.5px] font-bold text-body">{tile.label}</div>
+                <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
+                  <Icon name={tile.icon} size={19} className="text-primary" />
+                </div>
               </div>
+              <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
+                {isLoading ? "—" : tile.value}
+              </div>
+              <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                <span className="text-[14px] font-extrabold text-primary">{isLoading ? "—" : tile.subA}</span>
+                <span className="text-[13px] text-muted">{tile.subB}</span>
+              </div>
+              <ProgressBar percent={isLoading ? 0 : tile.barPercent} height={6} className="mt-3" />
+              <div className="mt-3 text-[12.5px] text-subtle">{tile.foot}</div>
             </div>
-            <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-              {isLoading ? "—" : tile.value}
-            </div>
-            <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-              <span className="text-[14px] font-extrabold text-primary">{isLoading ? "—" : tile.subA}</span>
-              <span className="text-[13px] text-muted">{tile.subB}</span>
-            </div>
-            <ProgressBar percent={isLoading ? 0 : tile.barPercent} height={6} className="mt-3" />
-            <div className="mt-3 text-[12.5px] text-subtle">{tile.foot}</div>
-          </div>
-        ))}
+          );
+          return tile.href ? (
+            <Link key={tile.key} href={tile.href}>
+              {tileContent}
+            </Link>
+          ) : (
+            <div key={tile.key}>{tileContent}</div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-[1.1fr_1fr_1fr] gap-4 items-start">

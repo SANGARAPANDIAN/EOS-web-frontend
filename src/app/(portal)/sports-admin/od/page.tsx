@@ -9,6 +9,7 @@ import { useDisciplines } from "@/modules/sports-admin/api/disciplines";
 import {
   useOdRequests,
   useCreateOdRequest,
+  useOdRequestApprovals,
   type OdRequest,
 } from "@/modules/sports-admin/api/od";
 import { useIssueOdLetterNumbers } from "@/modules/sports-admin/api/odLetters";
@@ -47,6 +48,9 @@ export default function OdPage() {
   const disciplines = useDisciplines();
   const createOdRequest = useCreateOdRequest();
   const issueLetterNumbers = useIssueOdLetterNumbers();
+  // Which request's department breakdown is expanded.
+  const [approvalsFor, setApprovalsFor] = useState<number | null>(null);
+  const approvals = useOdRequestApprovals(approvalsFor);
 
   const [odType, setOdType] = useState(OD_TYPES[0]);
   const [periodsAffected, setPeriodsAffected] = useState(PERIODS[0]);
@@ -219,12 +223,24 @@ export default function OdPage() {
       header: "Status",
       width: "1.3fr",
       align: "right",
-      render: (r) =>
-        r.status === "pending" ? (
-          <Badge tone="neutral">Awaiting HoD</Badge>
-        ) : (
-          <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>
-        ),
+      // No approve/reject here: a sports OD releases students from class, so
+      // the HoD of each department in the squad decides it. Sports raises the
+      // request and watches its progress.
+      render: (r) => (
+        <div className="flex items-center justify-end gap-2">
+          {r.status === "pending" ? (
+            <Badge tone="neutral">Awaiting HoD</Badge>
+          ) : (
+            <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>
+          )}
+          <button
+            onClick={() => setApprovalsFor((cur) => (cur === r.id ? null : r.id))}
+            className="rounded-[8px] border border-border-default px-2.5 py-1.5 text-[11.5px] font-bold text-muted hover:text-primary"
+          >
+            {approvalsFor === r.id ? "Hide HoDs" : "HoD approvals"}
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -631,12 +647,49 @@ export default function OdPage() {
           <EmptyState message="Loading…" />
         </Card>
       ) : (
-        <DataTable
-          columns={columns}
-          data={odRequests.data ?? []}
-          rowKey={(r) => r.id}
-          emptyMessage="No OD requests yet."
-        />
+        <div className="flex flex-col gap-4">
+          <DataTable
+            columns={columns}
+            data={odRequests.data ?? []}
+            rowKey={(r) => r.id}
+            emptyMessage="No OD requests yet."
+          />
+
+          {approvalsFor != null && (
+            <Card>
+              <h2 className="mb-1 text-[17px] font-extrabold text-ink">Department approvals</h2>
+              <p className="mb-3 text-[12.5px] text-muted">
+                Every department with a student in this squad has to release them. The request is approved only once all
+                of them agree, and a single rejection rejects it.
+              </p>
+              {approvals.isLoading ? (
+                <EmptyState message="Loading…" />
+              ) : (approvals.data ?? []).length === 0 ? (
+                <EmptyState message="No department approvals recorded for this request." />
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {(approvals.data ?? []).map((d) => (
+                    <div
+                      key={d.department_id}
+                      className="flex items-center justify-between gap-3 rounded-[10px] border border-border-default px-3.5 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-[13.5px] font-bold text-ink">
+                          {d.department_name ?? "Unassigned department"}
+                        </div>
+                        <div className="mt-0.5 text-[11.5px] text-muted">
+                          {d.student_count} student{d.student_count === 1 ? "" : "s"} in the squad
+                          {d.remarks ? " · " + d.remarks : ""}
+                        </div>
+                      </div>
+                      <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

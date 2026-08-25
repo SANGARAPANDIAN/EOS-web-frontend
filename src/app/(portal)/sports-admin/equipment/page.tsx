@@ -4,7 +4,15 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Button, Icon, Input, Modal, SearchBar, Select, DataTable, type DataTableColumn } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
-import { useEquipmentList, useCreateEquipment, type Equipment, type EquipmentStatus } from "@/modules/sports-admin/api/equipment";
+import {
+  useEquipmentList,
+  useCreateEquipment,
+  useUpdateEquipment,
+  useDeleteEquipment,
+  type Equipment,
+  type EquipmentStatus,
+} from "@/modules/sports-admin/api/equipment";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useFacilities } from "@/modules/sports-admin/api/facilities";
 import { ApiError } from "@/types/api";
 
@@ -18,6 +26,8 @@ export default function EquipmentPage() {
   const router = useRouter();
   const facilities = useFacilities();
   const createEquipment = useCreateEquipment();
+  const updateEquipment = useUpdateEquipment();
+  const deleteEquipment = useDeleteEquipment();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("");
 
@@ -36,32 +46,73 @@ export default function EquipmentPage() {
   const [reorderLevel, setReorderLevel] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // The same modal serves add and edit: null = adding, an item = editing it.
+  const [editing, setEditing] = useState<Equipment | null>(null);
+  const [status_, setStatus_] = useState<EquipmentStatus>("available");
+  const [deleting, setDeleting] = useState<Equipment | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+
   function openModal() {
+    setEditing(null);
     setName("");
     setCategory("");
     setTotalQuantity("");
     setFacilityId("");
     setReorderLevel("");
+    setStatus_("available");
     setError(null);
     setShowModal(true);
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  function openEdit(item: Equipment) {
+    setEditing(item);
+    setName(item.name);
+    setCategory(item.category ?? "");
+    setTotalQuantity(String(item.total_quantity ?? ""));
+    setFacilityId(item.facility ? String(item.facility.id) : "");
+    setReorderLevel(item.reorder_level != null ? String(item.reorder_level) : "");
+    setStatus_(item.status);
+    setError(null);
+    setShowModal(true);
+  }
+
+  async function handleDelete() {
+    if (!deleting) return;
+    setRowError(null);
+    try {
+      await deleteEquipment.mutateAsync(deleting.id);
+      setDeleting(null);
+    } catch (err) {
+      // The server refuses while units are still issued out, and says so —
+      // that message is more useful than a generic failure.
+      setRowError(err instanceof ApiError ? err.message : "Could not delete this item.");
+      setDeleting(null);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const payload = {
+      name,
+      category: category || undefined,
+      total_quantity: totalQuantity ? Number(totalQuantity) : undefined,
+      facility_id: facilityId ? Number(facilityId) : undefined,
+      reorder_level: reorderLevel ? Number(reorderLevel) : undefined,
+    };
     try {
-      await createEquipment.mutateAsync({
-        name,
-        category: category || undefined,
-        total_quantity: totalQuantity ? Number(totalQuantity) : undefined,
-        facility_id: facilityId ? Number(facilityId) : undefined,
-        reorder_level: reorderLevel ? Number(reorderLevel) : undefined,
-      });
+      if (editing) {
+        await updateEquipment.mutateAsync({ id: editing.id, ...payload, status: status_ });
+      } else {
+        await createEquipment.mutateAsync(payload);
+      }
       setShowModal(false);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }
   }
+
+  const saving = editing ? updateEquipment.isPending : createEquipment.isPending;
 
   const columns: DataTableColumn<Equipment>[] = [
     {
@@ -103,20 +154,40 @@ export default function EquipmentPage() {
       render: (e) => <Badge tone={STATUS_TONE[e.status]}>{e.status.replace("_", " ")}</Badge>,
     },
     {
-      key: "open",
+      key: "actions",
       header: "",
-      width: "0.6fr",
+      width: "1.3fr",
       align: "right",
       render: (e) => (
-        <button
-          onClick={(ev) => {
-            ev.stopPropagation();
-            router.push(`/sports-admin/equipment/${e.id}`);
-          }}
-          className="rounded-[8px] border border-border-accent bg-accent-50 px-3 py-1.5 text-[12px] font-bold text-primary"
-        >
-          Open
-        </button>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation();
+              router.push(`/sports-admin/equipment/${e.id}`);
+            }}
+            className="rounded-[8px] border border-border-accent bg-accent-50 px-3 py-1.5 text-[12px] font-bold text-primary"
+          >
+            Open
+          </button>
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation();
+              openEdit(e);
+            }}
+            className="rounded-[8px] border border-border-default px-3 py-1.5 text-[12px] font-bold text-body hover:text-primary"
+          >
+            Edit
+          </button>
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation();
+              setDeleting(e);
+            }}
+            className="rounded-[8px] border border-border-default px-3 py-1.5 text-[12px] font-bold text-muted hover:text-danger-fg"
+          >
+            Delete
+          </button>
+        </div>
       ),
     },
   ];
@@ -148,6 +219,12 @@ export default function EquipmentPage() {
         </Select>
       </Card>
 
+      {rowError && (
+        <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+          {rowError}
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={rows}
@@ -156,8 +233,17 @@ export default function EquipmentPage() {
         emptyMessage={equipment.isLoading ? "Loading…" : "No equipment matches these filters."}
       />
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Add equipment" subtitle="Adds a new item type to the sports equipment inventory">
-        <form onSubmit={handleCreate} className="flex flex-col gap-4">
+      <Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title={editing ? "Edit equipment" : "Add equipment"}
+        subtitle={
+          editing
+            ? "Updates this item type in the sports equipment inventory"
+            : "Adds a new item type to the sports equipment inventory"
+        }
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-bold text-primary">Item name</label>
             <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Basketball" />
@@ -189,6 +275,18 @@ export default function EquipmentPage() {
               <Input type="number" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} placeholder="e.g. 5" />
             </div>
           </div>
+          {/* Status is only editable on an existing item — a new one always
+              starts available. */}
+          {editing && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-bold text-primary">Status</label>
+              <Select value={status_} onChange={(e) => setStatus_(e.target.value as EquipmentStatus)}>
+                <option value="available">Available</option>
+                <option value="in_service">In service</option>
+                <option value="retired">Retired</option>
+              </Select>
+            </div>
+          )}
           {error && (
             <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
               {error}
@@ -198,12 +296,26 @@ export default function EquipmentPage() {
             <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primarySmall" className="px-6" disabled={!name || createEquipment.isPending}>
-              {createEquipment.isPending ? "Adding…" : "Add item"}
+            <Button type="submit" variant="primarySmall" className="px-6" disabled={!name || saving}>
+              {saving ? (editing ? "Saving…" : "Adding…") : editing ? "Save changes" : "Add item"}
             </Button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={deleting != null}
+        title="Delete this equipment item?"
+        description={
+          deleting
+            ? `${deleting.name} will be removed from the inventory. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   );
 }

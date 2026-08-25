@@ -27,3 +27,51 @@ export function useToggleEquipmentCondition() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "medical-centre-equipment"] }),
   });
 }
+
+/** Stored values, as opposed to the `Condition` display labels above. */
+export type ConditionValue = "working" | "under_service";
+
+export const CONDITION_LABEL: Record<ConditionValue, Condition> = {
+  working: "Working",
+  under_service: "Under service",
+};
+
+/** Display label -> stored value, for prefilling the edit form from a list row. */
+export function conditionValueOf(label: Condition): ConditionValue {
+  return label === "Working" ? "working" : "under_service";
+}
+
+export interface EquipmentInput {
+  name: string;
+  quantity?: number;
+  location?: string;
+  condition?: ConditionValue;
+}
+
+/** POST /me/medical-centre-equipment */
+export function useCreateEquipment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: EquipmentInput) => apiClient.post<{ id: number }>("/me/medical-centre-equipment", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "medical-centre-equipment"] }),
+  });
+}
+
+/** PATCH /me/medical-centre-equipment/:id */
+export function useUpdateEquipment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: Partial<EquipmentInput> & { id: number }) =>
+      apiClient.patch(`/me/medical-centre-equipment/${id}`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "medical-centre-equipment"] }),
+  });
+}
+
+/** DELETE /me/medical-centre-equipment/:id */
+export function useDeleteEquipment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/medical-centre-equipment/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "medical-centre-equipment"] }),
+  });
+}

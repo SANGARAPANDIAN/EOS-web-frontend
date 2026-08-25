@@ -62,3 +62,36 @@ export function useCreateScheme() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-scholarships"] }),
   });
 }
+
+export interface UpdateSchemeInput {
+  name?: string;
+  scheme_type?: string;
+  academic_year?: string;
+  status?: string;
+  applied_count?: number;
+  awarded_count?: number;
+  total_value?: number;
+}
+
+/** PATCH /me/higher-education-scholarship-schemes/:id */
+export function useUpdateScheme() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: UpdateSchemeInput & { id: number }) =>
+      apiClient.patch(`/me/higher-education-scholarship-schemes/${id}`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-scholarships"] }),
+  });
+}
+
+/**
+ * DELETE /me/higher-education-scholarship-schemes/:id
+ * Refused once awards exist under the scheme — those record money granted to
+ * named students.
+ */
+export function useDeleteScheme() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/higher-education-scholarship-schemes/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-scholarships"] }),
+  });
+}

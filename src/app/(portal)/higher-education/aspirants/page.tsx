@@ -4,7 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Badge, Button, DataTable, Input, Select, SearchBar, Icon, type BadgeTone, type DataTableColumn } from "@/components/ui";
-import { useAspirants, useCreateAspirant, type AspirantListItem, type AspirantStatus } from "@/modules/higher-education/api/aspirants";
+import {
+  useAspirants,
+  useCreateAspirant,
+  useUpdateAspirant,
+  useDeleteAspirant,
+  type AspirantListItem,
+  type AspirantStatus,
+} from "@/modules/higher-education/api/aspirants";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ApiError } from "@/types/api";
 
 const STATUS_LABEL: Record<AspirantStatus, string> = {
   interested: "Interested",
@@ -149,6 +158,59 @@ function AddAspirantModal({ onClose }: { onClose: () => void }) {
 
 export default function HigherEducationAspirantsPage() {
   const router = useRouter();
+  const updateAspirant = useUpdateAspirant();
+  const deleteAspirant = useDeleteAspirant();
+  const [editRow, setEditRow] = useState<AspirantListItem | null>(null);
+  const [editForm, setEditForm] = useState({ programme: "", university: "", country: "", intake: "", stage: "interested" as AspirantStatus });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<AspirantListItem | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+
+  function openEdit(row: AspirantListItem) {
+    setEditRow(row);
+    // The list shows placeholder dashes for empty values; those must not be
+    // written back as literal text.
+    const clean = (v: string) => (v && v !== "\u2014" ? v : "");
+    setEditForm({
+      programme: clean(row.programme),
+      university: clean(row.university),
+      country: clean(row.country),
+      intake: "",
+      stage: row.status,
+    });
+    setEditError(null);
+  }
+
+  async function saveEdit() {
+    if (!editRow) return;
+    setEditError(null);
+    try {
+      await updateAspirant.mutateAsync({
+        id: editRow.aspirant_id,
+        programme: editForm.programme || undefined,
+        university: editForm.university || undefined,
+        country: editForm.country || undefined,
+        intake: editForm.intake || undefined,
+        stage: editForm.stage,
+      });
+      setEditRow(null);
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Could not save this record.");
+    }
+  }
+
+  async function confirmRemove() {
+    if (!removing) return;
+    setRowError(null);
+    try {
+      await deleteAspirant.mutateAsync(removing.aspirant_id);
+    } catch (err) {
+      setRowError(err instanceof ApiError ? err.message : "Could not delete this record.");
+    } finally {
+      setRemoving(null);
+    }
+  }
+
   const [search, setSearch] = useState("");
   const [batch, setBatch] = useState("");
   const [department, setDepartment] = useState("");
@@ -181,6 +243,30 @@ export default function HigherEducationAspirantsPage() {
       width: "0.9fr",
       align: "right",
       render: (row) => <Badge tone={STATUS_TONE[row.status]}>{STATUS_LABEL[row.status]}</Badge>,
+    },
+    {
+      key: "actions",
+      header: "",
+      width: "1.1fr",
+      align: "right",
+      render: (row) => (
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+            className="text-[12.5px] font-bold text-primary hover:underline"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setRemoving(row); }}
+            className="text-[12.5px] font-bold text-muted hover:text-danger-fg"
+          >
+            Delete
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -299,6 +385,83 @@ export default function HigherEducationAspirantsPage() {
         emptyMessage={aspirants.isLoading ? "Loading…" : "No aspirants found — try widening your filters."}
         hoverableRows
         onRowClick={(row) => router.push(`/higher-education/aspirants/${row.aspirant_id}`)}
+      />
+      {rowError && (
+        <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+          {rowError}
+        </div>
+      )}
+
+      {editRow &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
+            <div className="w-full max-w-[500px] rounded-modal bg-surface">
+              <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
+                <div>
+                  <div className="text-[19px] font-extrabold text-ink">Edit aspiration</div>
+                  <div className="mt-0.5 text-[12.5px] text-muted">
+                    {editRow.student_name} · {editRow.student_id_no}
+                  </div>
+                </div>
+                <button type="button" onClick={() => setEditRow(null)} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
+                  ✕
+                </button>
+              </div>
+              <div className="flex flex-col gap-4 px-[26px] py-[22px]">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Programme</label>
+                  <Input className="mt-1.5" value={editForm.programme} onChange={(e) => setEditForm((f) => ({ ...f, programme: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">University</label>
+                    <Input className="mt-1.5" value={editForm.university} onChange={(e) => setEditForm((f) => ({ ...f, university: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Country</label>
+                    <Input className="mt-1.5" value={editForm.country} onChange={(e) => setEditForm((f) => ({ ...f, country: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Intake</label>
+                    <Input className="mt-1.5" value={editForm.intake} onChange={(e) => setEditForm((f) => ({ ...f, intake: e.target.value }))} placeholder="e.g. Fall 2027" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Stage</label>
+                    <Select className="mt-1.5" value={editForm.stage} onChange={(e) => setEditForm((f) => ({ ...f, stage: e.target.value as AspirantStatus }))}>
+                      <option value="interested">Interested</option>
+                      <option value="applied">Applied</option>
+                      <option value="admitted">Admitted</option>
+                      <option value="enrolled">Enrolled</option>
+                    </Select>
+                  </div>
+                </div>
+                {/* Register number is deliberately not editable: it identifies
+                    which student this record belongs to. */}
+                {editError && <div className="text-[13px] font-semibold text-danger-fg">{editError}</div>}
+              </div>
+              <div className="flex justify-end gap-2.5 border-t border-divider px-[26px] py-[18px]">
+                <Button variant="secondary" className="w-auto" onClick={() => setEditRow(null)}>
+                  Cancel
+                </Button>
+                <Button variant="primarySmall" onClick={() => void saveEdit()} disabled={updateAspirant.isPending}>
+                  {updateAspirant.isPending ? "Saving…" : "Save changes"}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <ConfirmDialog
+        open={removing != null}
+        title="Delete this aspiration record?"
+        description={removing ? `${removing.student_name}'s higher-education record will be removed. The student itself is untouched.` : undefined}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoving(null)}
       />
     </div>
   );

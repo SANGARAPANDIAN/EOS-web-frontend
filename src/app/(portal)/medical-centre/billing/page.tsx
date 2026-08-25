@@ -20,73 +20,135 @@ type CreateBillMode = "cash" | "upi" | "student_account" | "staff_welfare";
 
 const STATUS_TONE: Record<Bill["status"], BadgeTone> = { Paid: "accent", Pending: "accentDark", Settled: "neutral" };
 
-function BillHistoryModal({ onClose }: { onClose: () => void }) {
+/**
+ * Bill history, rendered as a permanent section of the page rather than a
+ * modal.
+ *
+ * It used to be a modal, which is why clearing the form appeared to "wipe the
+ * history": the history was only ever visible transiently, so anything that
+ * closed it looked destructive. It is now always on screen, and Clear form
+ * touches nothing but the form fields.
+ *
+ * Collecting payment lives on each row here — deliberately separate from the
+ * billing form, which is for raising a new bill.
+ */
+function BillHistoryPanel() {
   const history = useBillHistory();
   const collect = useCollectBill();
   const bills = history.data?.bills ?? [];
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  async function collectPayment(billId: number) {
+    setError(null);
+    try {
+      await collect.mutateAsync(billId);
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not collect this payment.");
+    }
+  }
 
   const columns: DataTableColumn<Bill>[] = [
     { key: "id", header: "Bill no", width: "0.9fr", render: (row) => <span className="font-mono font-bold text-primary">{row.id}</span> },
-    { key: "patient", header: "Patient", width: "1.3fr", render: (row) => <span className="font-bold text-ink">{row.patient}</span> },
-    { key: "condition", header: "Condition", width: "1.4fr", render: (row) => <span className="text-body">{row.condition}</span> },
-    { key: "items", header: "Items", width: "1.6fr", render: (row) => <span className="text-body">{row.items}</span> },
+    {
+      key: "patient",
+      header: "Patient",
+      width: "1.4fr",
+      render: (row) => (
+        <div className="min-w-0">
+          <div className="truncate font-bold text-ink">{row.patient}</div>
+          {row.condition && <div className="mt-0.5 truncate text-[11.5px] text-muted">{row.condition}</div>}
+        </div>
+      ),
+    },
+    {
+      key: "items",
+      header: "Medicines & services",
+      width: "2fr",
+      render: (row) => (
+        <button
+          type="button"
+          onClick={() => setExpanded((cur) => (cur === row.billId ? null : row.billId))}
+          className="max-w-full truncate text-left text-body hover:text-primary"
+          title={row.items}
+        >
+          {row.items || "\u2014"}
+        </button>
+      ),
+    },
     { key: "staff", header: "Attended by", width: "1.2fr", render: (row) => <span className="text-body">{row.staff}</span> },
-    { key: "total", header: "Total", width: "0.8fr", align: "right", render: (row) => <span className="font-bold text-primary">₹{row.total}</span> },
+    { key: "mode", header: "Mode", width: "0.9fr", render: (row) => <span className="text-[12.5px] text-body">{row.mode}</span> },
+    { key: "when", header: "When", width: "1.1fr", render: (row) => <span className="font-mono text-[12px] text-subtle">{row.when}</span> },
+    { key: "total", header: "Total", width: "0.8fr", align: "right", render: (row) => <span className="font-bold text-primary">\u20b9{row.total}</span> },
     { key: "status", header: "Status", width: "0.9fr", align: "right", render: (row) => <Badge tone={STATUS_TONE[row.status]}>{row.status}</Badge> },
     {
       key: "action",
-      header: "Action",
-      width: "0.9fr",
+      header: "Payment",
+      width: "1.1fr",
       align: "right",
       render: (row) =>
         row.status === "Pending" ? (
-          <button type="button" onClick={() => collect.mutate(row.billId)} disabled={collect.isPending} className="text-[12.5px] font-bold text-primary hover:underline">
-            Collect
+          <button
+            type="button"
+            onClick={() => void collectPayment(row.billId)}
+            disabled={collect.isPending}
+            className="rounded-[8px] border border-border-accent bg-accent-50 px-3 py-1.5 text-[12px] font-bold text-primary disabled:opacity-50"
+          >
+            Collect payment
           </button>
         ) : (
-          <span className="text-[12.5px] text-subtle">Receipt</span>
+          <span className="text-[12.5px] text-subtle">Settled</span>
         ),
     },
   ];
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/45 p-10">
-      <div className="w-full max-w-[920px] rounded-modal bg-surface">
-        <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
-          <div className="text-[19px] font-extrabold text-ink">Bill history</div>
-          <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
-            ✕
-          </button>
+  return (
+    <div className="flex flex-col gap-4 rounded-card border border-border-default bg-surface p-[20px_22px]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[19px] font-extrabold text-ink">Bill history</h2>
+          <p className="mt-0.5 text-[12.5px] text-muted">
+            {bills.length} bill{bills.length === 1 ? "" : "s"} on record \u00b7 collect pending payments from here
+          </p>
         </div>
-        <div className="flex gap-4 px-[26px] py-[18px]">
-          <div className="flex-1 rounded-[11px] border border-border-default p-4">
-            <div className="text-[12.5px] text-muted">Collected</div>
-            <div className="mt-1 text-[22px] font-extrabold text-primary">₹{history.data?.collected ?? 0}</div>
+        <div className="flex gap-3">
+          <div className="rounded-[11px] border border-border-default px-4 py-2.5">
+            <div className="text-[11.5px] text-muted">Collected</div>
+            <div className="mt-0.5 text-[19px] font-extrabold text-primary">\u20b9{history.data?.collected ?? 0}</div>
           </div>
-          <div className="flex-1 rounded-[11px] border border-border-default p-4">
-            <div className="text-[12.5px] text-muted">Pending</div>
-            <div className="mt-1 text-[22px] font-extrabold text-primary-dark">₹{history.data?.pending ?? 0}</div>
+          <div className="rounded-[11px] border border-border-default px-4 py-2.5">
+            <div className="text-[11.5px] text-muted">Pending</div>
+            <div className="mt-0.5 text-[19px] font-extrabold text-primary-dark">\u20b9{history.data?.pending ?? 0}</div>
           </div>
-        </div>
-        {history.isLoading ? (
-          <EmptyState message="Loading…" />
-        ) : (
-          <DataTable columns={columns} data={bills} rowKey={(row) => row.billId} emptyMessage="No bills recorded yet." hoverableRows />
-        )}
-        <div className="flex justify-end border-t border-divider px-[26px] py-[18px]">
-          <Button variant="secondary" className="w-auto" onClick={onClose}>
-            Close
-          </Button>
         </div>
       </div>
-    </div>,
-    document.body,
+
+      {error && (
+        <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+          {error}
+        </div>
+      )}
+
+      {history.isLoading ? (
+        <EmptyState message="Loading\u2026" />
+      ) : (
+        <DataTable columns={columns} data={bills} rowKey={(row) => row.billId} emptyMessage="No bills recorded yet." hoverableRows />
+      )}
+
+      {expanded != null && (
+        <div className="rounded-[11px] border border-border-default bg-surface-tint p-4">
+          <div className="text-[12.5px] font-bold text-primary">Full line items</div>
+          <div className="mt-1.5 text-[13px] text-body">
+            {bills.find((b) => b.billId === expanded)?.items || "No items recorded on this bill."}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function BillingPage() {
   const router = useRouter();
-  const [showHistory, setShowHistory] = useState(false);
 
   const pharmacy = usePharmacyStock();
   const team = useTeam();
@@ -110,7 +172,11 @@ export default function BillingPage() {
   const [medQuery, setMedQuery] = useState("");
   const [pickerQty, setPickerQty] = useState<Record<number, number>>({});
   const [items, setItems] = useState<BillItemInput[]>([]);
-  const [selectedServices, setSelectedServices] = useState<string[]>(["Consultation"]);
+  // Starts empty rather than pre-selecting a hardcoded name: the catalogue is
+  // loaded from medical_services (where it is "General Consultation", not
+  // "Consultation"), so a guessed default matched nothing and submitting the
+  // bill crashed on the missing row.
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const inCart = (stockId: number) => items.find((i) => i.stock_id === stockId)?.quantity ?? 0;
@@ -171,7 +237,7 @@ export default function BillingPage() {
 
   function clearForm() {
     setItems([]);
-    setSelectedServices(["Consultation"]);
+    setSelectedServices([]);
     setPatient("");
     setDept("");
     setCondition("");
@@ -184,10 +250,18 @@ export default function BillingPage() {
       return;
     }
     setError(null);
-    const serviceItems: BillItemInput[] = selectedServices.map((name) => {
-      const svc = serviceList.find((s) => s.name === name)!;
-      return { item_type: "service", description: svc.name, quantity: 1, rate: svc.rate };
-    });
+    // Resolved against the loaded catalogue and filtered, never asserted: a
+    // selection that no longer exists (catalogue edited in another tab) must
+    // not take the whole bill down.
+    const serviceItems: BillItemInput[] = selectedServices
+      .map((name) => serviceList.find((s) => s.name === name))
+      .filter((svc): svc is NonNullable<typeof svc> => svc !== undefined)
+      .map((svc) => ({
+        item_type: "service" as const,
+        description: svc.name,
+        quantity: 1,
+        rate: svc.rate,
+      }));
     try {
       await createBill.mutateAsync({
         patient_name: patient.trim(),
@@ -272,12 +346,11 @@ export default function BillingPage() {
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Billing</h1>
           <p className="mt-1 text-[13px] text-muted">Consultation is free for students and staff · medicines and procedures are charged at cost.</p>
         </div>
-        <Button variant="secondary" className="w-auto" onClick={() => setShowHistory(true)}>
-          History · {historyForCount.data?.bills.length ?? 0} bills
-        </Button>
+        <div className="rounded-[11px] border border-border-default px-4 py-2.5 text-right">
+          <div className="text-[11.5px] text-muted">Bills on record</div>
+          <div className="mt-0.5 text-[19px] font-extrabold text-ink">{historyForCount.data?.bills.length ?? 0}</div>
+        </div>
       </div>
-
-      {showHistory && <BillHistoryModal onClose={() => setShowHistory(false)} />}
 
       <div className="rounded-card border border-border-default bg-surface p-[16px_18px]">
         <div className="mb-3 text-[13px] font-bold uppercase tracking-[.05em] text-muted">Staff on duty at OPD now</div>
@@ -496,7 +569,14 @@ export default function BillingPage() {
             <Button variant="secondary" onClick={() => submitBill("pending")} disabled={createBill.isPending}>
               Save as pending
             </Button>
-            <button type="button" onClick={clearForm} className="text-center text-[12.5px] font-bold text-subtle hover:text-ink">
+            {/* Clears only the fields above. Saved bills are untouched and stay
+                listed in Bill history below. */}
+            <button
+              type="button"
+              onClick={clearForm}
+              title="Empties this form only — saved bills stay in Bill history below"
+              className="text-center text-[12.5px] font-bold text-subtle hover:text-ink"
+            >
               Clear form
             </button>
           </div>
@@ -505,6 +585,11 @@ export default function BillingPage() {
           </p>
         </div>
       </div>
+
+      {/* Always on screen, below the form. Clearing the form cannot make this
+          disappear, and collecting a payment happens here rather than in the
+          form that raises a new bill. */}
+      <BillHistoryPanel />
     </div>
   );
 }

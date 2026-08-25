@@ -93,7 +93,7 @@ export default function PrincipalFacilitiesHubPage() {
               <Link
                 key={card.href}
                 href={card.href}
-                className="flex items-center gap-4 rounded-2xl border p-5 transition-transform hover:-translate-y-0.5"
+                className="flex items-center gap-4 rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
                 style={{ background: principalColors.bg, borderColor: principalColors.border }}
               >
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: principalColors.surfaceTint, color: principalColors.primaryDark }}>

@@ -42,7 +42,8 @@ export type NavBadgeKey =
   | "coeHallTickets"
   | "coeInvigilation"
   | "coeQuestionPapers"
-  | "coeMalpractice";
+  | "coeMalpractice"
+  | "iqacPendingApprovals";
 
 export interface NavItem {
   key: string;

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { placementKeys } from "./queryKeys";
 
@@ -98,5 +98,55 @@ export function useCalendarEvents(academicCalendarId?: number) {
       });
       return rows.map(toEvent);
     },
+  });
+}
+
+export interface CreateCalendarEventInput {
+  academic_calendar_id: number;
+  title: string;
+  event_date: string;
+  event_type: "holiday" | "event";
+  /** The backend requires both times in HH:mm; the form defaults them. */
+  start_time: string;
+  end_time: string;
+  description?: string;
+}
+
+/**
+ * POST /academic-calendar-events
+ *
+ * Placement may add its own events (drive dates, pre-placement talks). Editing
+ * or deleting is scoped server-side to events this user created, so the shared
+ * institution entries — semester boundaries, exam dates — cannot be touched
+ * from here.
+ */
+export function useCreateCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateCalendarEventInput) =>
+      apiClient.post<BackendCalendarEvent>("/academic-calendar-events", input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: placementKeys.academicCalendarEvents(undefined).slice(0, -1) }),
+  });
+}
+
+/** PATCH /academic-calendar-events/:id — own events only (server-enforced). */
+export function useUpdateCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: Partial<CreateCalendarEventInput> & { id: number }) =>
+      apiClient.patch<BackendCalendarEvent>(`/academic-calendar-events/${id}`, input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: placementKeys.academicCalendarEvents(undefined).slice(0, -1) }),
+  });
+}
+
+/** DELETE /academic-calendar-events/:id — own events only (server-enforced). */
+export function useDeleteCalendarEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/academic-calendar-events/${id}`),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: placementKeys.academicCalendarEvents(undefined).slice(0, -1) }),
   });
 }

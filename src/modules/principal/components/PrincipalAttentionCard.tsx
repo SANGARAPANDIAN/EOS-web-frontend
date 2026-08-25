@@ -1,3 +1,4 @@
+import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { principalColors } from "@/modules/principal/theme";
 import type { PrincipalAttentionFlag } from "@/modules/principal/api/dashboard";
@@ -7,11 +8,20 @@ interface PrincipalAttentionCardProps {
   isLoading: boolean;
 }
 
+/** Where each real flag type is actually shown elsewhere in the Principal module. */
+const FLAG_DESTINATIONS: Record<PrincipalAttentionFlag["type"], string> = {
+  attendance: "/principal/students",
+  fees: "/principal/finance",
+  workload: "/principal/faculty",
+  course_completion: "/principal/exams",
+};
+
 /** Every flag here is threshold-triggered from real data (see PrincipalDashboardService.attentionFlags on the backend) — nothing is a static mockup value. */
 export function PrincipalAttentionCard({ flags, isLoading }: PrincipalAttentionCardProps) {
+  const router = useRouter();
   return (
     <div
-      className="flex flex-col overflow-hidden rounded-2xl border"
+      className="flex flex-col overflow-hidden rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
       style={{ background: principalColors.bg, borderColor: principalColors.border }}
     >
       <div
@@ -47,19 +57,28 @@ export function PrincipalAttentionCard({ flags, isLoading }: PrincipalAttentionC
             completion all look healthy.
           </div>
         )}
-        {flags?.map((f, i) => (
-          <div key={i} className="flex items-start gap-3 border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
-            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: principalColors.primary }} />
-            <div>
-              <div className="text-sm font-semibold" style={{ color: principalColors.heading }}>
-                {f.title}
+        {flags?.map((f, i) => {
+          const dest = FLAG_DESTINATIONS[f.type];
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => router.push(dest)}
+              className="hover-lift flex w-full items-start gap-3 border-b px-5 py-3.5 text-left last:border-b-0"
+              style={{ borderColor: principalColors.borderMuted }}
+            >
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: principalColors.primary }} />
+              <div>
+                <div className="text-sm font-semibold" style={{ color: principalColors.heading }}>
+                  {f.title}
+                </div>
+                <div className="text-[13px]" style={{ color: principalColors.textFaint }}>
+                  {f.description}
+                </div>
               </div>
-              <div className="text-[13px]" style={{ color: principalColors.textFaint }}>
-                {f.description}
-              </div>
-            </div>
-          </div>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -266,7 +266,10 @@ export default function PrincipalCalendarPage() {
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_420px]">
-        <div className="rounded-2xl border p-5" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+        <div
+          className="rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+          style={{ background: principalColors.bg, borderColor: principalColors.border }}
+        >
           <div className="mb-4 flex items-center justify-between">
             <button
               type="button"
@@ -307,7 +310,7 @@ export default function PrincipalCalendarPage() {
               return (
                 <div
                   key={i}
-                  className="relative flex aspect-square items-center justify-center rounded-[10px] border text-sm"
+                  className={`relative flex aspect-square items-center justify-center rounded-[10px] border text-sm transition-all ${d != null ? "hover:-translate-y-[1px] hover:shadow-[0_4px_10px_rgba(13,30,79,0.1)]" : ""}`}
                   style={
                     d == null
                       ? { borderColor: "transparent" }
@@ -338,7 +341,10 @@ export default function PrincipalCalendarPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+        <div
+          className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+          style={{ background: principalColors.bg, borderColor: principalColors.border }}
+        >
           <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
             <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
               This month
@@ -365,7 +371,11 @@ export default function PrincipalCalendarPage() {
               const dayNum = d.getUTCDate();
               const weekdayAbbr = d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }).toUpperCase();
               return (
-                <div key={item.key} className="flex items-start gap-3.5 border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
+                <div
+                  key={item.key}
+                  className="hover-lift flex items-start gap-3.5 border-b px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[rgba(13,30,79,0.03)]"
+                  style={{ borderColor: principalColors.borderMuted }}
+                >
                   <div
                     className="flex w-11 shrink-0 flex-col items-center justify-center rounded-lg py-1.5"
                     style={{ background: principalColors.surfaceTint, color: principalColors.primaryDark }}

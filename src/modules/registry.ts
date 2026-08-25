@@ -18,7 +18,8 @@ import { mediaRoomModuleConfig } from "@/modules/media-room/nav";
 import { hrModuleConfig } from "@/modules/hr/nav";
 import { gateWardenModuleConfig } from "@/modules/gate-warden/nav";
 import { billingModuleConfig } from "@/modules/billing/nav";
-import { financeModuleConfig } from "@/modules/finance/nav";
+import { coeModuleConfig } from "@/modules/coe/nav";
+import { iqacModuleConfig } from "@/modules/iqac/nav";
 
 /**
  * Single lookup point from JWT role -> module shell config (nav groups, base
@@ -47,7 +48,8 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   hr_payroll: hrModuleConfig,
   gate_warden: gateWardenModuleConfig,
   billing: billingModuleConfig,
-  finance: financeModuleConfig,
+  coe: coeModuleConfig,
+  iqac: iqacModuleConfig,
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

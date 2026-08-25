@@ -17,7 +17,7 @@ export function PrincipalComingSoon({ title, icon }: PrincipalComingSoonProps) {
         {title}
       </h1>
       <div
-        className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border py-24 text-center"
+        className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border py-24 text-center hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
         style={{ background: principalColors.surfaceMuted, borderColor: principalColors.borderLight }}
       >
         <div className="grid h-14 w-14 place-items-center rounded-2xl" style={{ background: principalColors.surfaceTint }}>

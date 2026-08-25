@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
+import { NotificationPanel } from "@/components/layout/NotificationPanel";
 import { cn } from "@/lib/utils/cn";
 import type { ModuleConfig } from "@/modules/types";
 
@@ -67,6 +68,7 @@ export function Topbar({
 }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const quickCreateRef = useRef<HTMLDivElement>(null);
 
@@ -193,10 +195,15 @@ export function Topbar({
 
       {showNotifications && (
         <div className="relative">
-          <IconButton icon="notifications" aria-label="Notifications" />
+          <IconButton
+            icon="notifications"
+            aria-label="Notifications"
+            onClick={() => setNotificationsOpen((v) => !v)}
+          />
           {unreadNotifications > 0 && (
             <span className={cn("absolute size-[7px] rounded-full bg-primary")} style={{ top: 6, right: 7 }} />
           )}
+          {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
         </div>
       )}
     </header>

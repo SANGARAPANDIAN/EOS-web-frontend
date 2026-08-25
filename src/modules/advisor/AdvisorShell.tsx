@@ -16,7 +16,7 @@ import { useMyFacultyProfile, useIsClassAdvisor } from "./api/profile";
 import { useHandledClasses } from "./api/classes";
 import { usePendingStudentLeaveCount, usePendingStudentOdCount } from "./api/requests";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
-import { NotificationPanel } from "./NotificationPanel";
+import { NotificationPanel } from "@/components/layout/NotificationPanel";
 
 // Standalone, pixel-accurate port of the sidebar/header/profile-drawer shell
 // from "Advisor (Final) - Web/Faculty Portal.dc.html" — deliberately NOT

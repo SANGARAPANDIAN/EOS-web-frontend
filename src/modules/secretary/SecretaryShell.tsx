@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { SECRETARY_NAV } from "./nav";
 import { SecretaryIcon } from "./icons";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
-import { NotificationPanel } from "@/modules/advisor/NotificationPanel";
+import { NotificationPanel } from "@/components/layout/NotificationPanel";
 import { BrandMark } from "@/components/layout/SidebarBrandHeader";
 import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
 

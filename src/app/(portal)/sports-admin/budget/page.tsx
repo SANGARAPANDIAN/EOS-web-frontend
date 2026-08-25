@@ -6,8 +6,6 @@ import type { BadgeTone } from "@/components/ui/Badge";
 import {
   useBudgetRequests,
   useCreateBudgetRequest,
-  useApproveBudgetRequest,
-  useRejectBudgetRequest,
   type BudgetRequest,
 } from "@/modules/sports-admin/api/budget";
 import type { ApprovalStatus } from "@/modules/sports-admin/api/types";
@@ -25,8 +23,6 @@ export default function BudgetPage() {
   const [status, setStatus] = useState<string>("");
   const budgetRequests = useBudgetRequests((status as ApprovalStatus) || undefined);
   const createBudgetRequest = useCreateBudgetRequest();
-  const approveBudgetRequest = useApproveBudgetRequest();
-  const rejectBudgetRequest = useRejectBudgetRequest();
 
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
@@ -84,22 +80,7 @@ export default function BudgetPage() {
       align: "right",
       render: (r) =>
         r.status === "pending" ? (
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={() => approveBudgetRequest.mutate(r.id)}
-              disabled={approveBudgetRequest.isPending}
-              className="rounded-[8px] border border-border-accent bg-accent-50 px-3 py-1.5 text-[12px] font-bold text-primary disabled:opacity-50"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => rejectBudgetRequest.mutate(r.id)}
-              disabled={rejectBudgetRequest.isPending}
-              className="rounded-[8px] border border-border-default px-3 py-1.5 text-[12px] font-bold text-muted hover:text-danger-fg disabled:opacity-50"
-            >
-              Reject
-            </button>
-          </div>
+          <Badge tone="neutral">Awaiting finance</Badge>
         ) : (
           <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>
         ),

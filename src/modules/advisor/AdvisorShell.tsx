@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useMyRoles } from "@/lib/auth/roles";
-import { getModuleConfig } from "@/modules/registry";
-import { ROLE_LABEL } from "@/lib/config";
 import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BrandMark } from "@/components/layout/SidebarBrandHeader";
@@ -35,39 +32,11 @@ function initialsOf(name: string | undefined) {
 }
 
 export function AdvisorShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { session, logout, switchRole } = useAuth();
+  const { logout } = useAuth();
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [rolesOpen, setRolesOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const rolesRef = useRef<HTMLDivElement>(null);
-
-  const roles = useMyRoles();
-  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
-
-  useEffect(() => {
-    if (!rolesOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [rolesOpen]);
-
-  async function handleSwitchRole(roleId: number) {
-    setSwitching(true);
-    try {
-      const newSession = await switchRole(roleId);
-      setRolesOpen(false);
-      const target = getModuleConfig(newSession.user.role);
-      router.push(target ? `${target.basePath}/dashboard` : "/login");
-    } finally {
-      setSwitching(false);
-    }
-  }
 
   const myProfile = useMyFacultyProfile();
   const { isAdvisor, isLoading: advisorLoading, classes: menteeClasses } = useIsClassAdvisor();
@@ -264,55 +233,6 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
               </div>
             )}
           </div>
-
-          {otherRoles.length > 0 && (
-            <div ref={rolesRef} style={{ position: "relative", flex: "0 0 auto" }}>
-              <IconButton icon="swap_horiz" size={34} iconSize={17} title="Switch role" onClick={() => setRolesOpen((v) => !v)} />
-              {rolesOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "calc(100% + 6px)",
-                    right: 0,
-                    minWidth: 200,
-                    background: "#fff",
-                    border: "1px solid #E2E8F0",
-                    borderRadius: 12,
-                    boxShadow: "0 18px 40px rgba(15,23,42,.18)",
-                    padding: 8,
-                    zIndex: 60,
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", color: "#94A3B8", padding: "8px 10px 6px" }}>
-                    SWITCH ROLE
-                  </div>
-                  {otherRoles.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      disabled={switching}
-                      onClick={() => handleSwitchRole(r.id)}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "9px 10px",
-                        border: 0,
-                        background: "transparent",
-                        borderRadius: 8,
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        cursor: switching ? "not-allowed" : "pointer",
-                        opacity: switching ? 0.5 : 1,
-                        color: "#0F172A",
-                      }}
-                    >
-                      {ROLE_LABEL[r.name] ?? r.description ?? r.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -9,9 +9,6 @@ import { FinanceIcon } from "./icons";
 import { useFinanceDashboard } from "./api/finance";
 import { useFeeStudents, groupFeeStudents } from "./api/fees";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useMyRoles } from "@/lib/auth/roles";
-import { getModuleConfig } from "@/modules/registry";
-import { ROLE_LABEL } from "@/lib/config";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -33,38 +30,11 @@ import {
 export function FinanceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, logout, switchRole } = useAuth();
+  const { session, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<"quick" | "bell" | "help" | null>(null);
-  const [switching, setSwitching] = useState(false);
-  const [rolesOpen, setRolesOpen] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
-  const rolesRef = useRef<HTMLDivElement>(null);
-
-  const roles = useMyRoles();
-  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
-
-  useEffect(() => {
-    if (!rolesOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [rolesOpen]);
-
-  async function handleSwitchRole(roleId: number) {
-    setSwitching(true);
-    try {
-      const newSession = await switchRole(roleId);
-      setRolesOpen(false);
-      const target = getModuleConfig(newSession.user.role);
-      router.push(target ? `${target.basePath}/dashboard` : "/login");
-    } finally {
-      setSwitching(false);
-    }
-  }
 
   // Longest-prefix wins: /finance/fees/students must highlight "Students",
   // not "Fees Overview" (/finance/fees), which also prefix-matches it.
@@ -289,27 +259,6 @@ export function FinanceShell({ children }: { children: React.ReactNode }) {
                   </div>
                   <div style={{ fontSize: 12, color: "#64748b" }}>Finance</div>
                 </div>
-                {otherRoles.length > 0 && (
-                  <div ref={rolesRef} className="relative">
-                    <IconButton icon="swap_horiz" size={34} iconSize={17} title="Switch role" onClick={() => setRolesOpen((v) => !v)} />
-                    {rolesOpen && (
-                      <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 min-w-[210px] overflow-hidden rounded-card border border-border-default bg-surface py-1.5 shadow-modal">
-                        <div className="px-4 pb-1 pt-1.5 text-[10.5px] font-extrabold tracking-[.09em] text-subtle">SWITCH ROLE</div>
-                        {otherRoles.map((r) => (
-                          <button
-                            key={r.id}
-                            type="button"
-                            disabled={switching}
-                            onClick={() => handleSwitchRole(r.id)}
-                            className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-nav-hover disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {ROLE_LABEL[r.name] ?? r.description ?? r.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
                 <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
               </>
             )}

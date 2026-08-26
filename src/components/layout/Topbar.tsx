@@ -5,6 +5,8 @@ import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
+import { NotificationPanel } from "@/components/layout/NotificationPanel";
+import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
 import { cn } from "@/lib/utils/cn";
 import type { ModuleConfig } from "@/modules/types";
 
@@ -67,6 +69,14 @@ export function Topbar({
 }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  // The count is fetched here rather than passed down, so every module that
+  // uses this header gets a live one without wiring it itself. Some shells
+  // used to hand in a hardcoded 1, which lit the dot permanently whether or
+  // not anything had actually happened.
+  const { data: liveUnread } = useUnreadNotificationCount();
+  const unreadCount = liveUnread?.count ?? unreadNotifications;
   const containerRef = useRef<HTMLDivElement>(null);
   const quickCreateRef = useRef<HTMLDivElement>(null);
 
@@ -193,9 +203,20 @@ export function Topbar({
 
       {showNotifications && (
         <div className="relative">
-          <IconButton icon="notifications" aria-label="Notifications" />
-          {unreadNotifications > 0 && (
+          <IconButton
+            icon="notifications"
+            aria-label="Notifications"
+            onClick={() => setNotifOpen((v) => !v)}
+          />
+          {unreadCount > 0 && (
             <span className={cn("absolute size-[7px] rounded-full bg-primary")} style={{ top: 6, right: 7 }} />
+          )}
+          {notifOpen && (
+            // stopPropagation so acting on a row (marking read, pinning) does
+            // not bubble up and close the panel mid-interaction.
+            <div onClick={(e) => e.stopPropagation()}>
+              <NotificationPanel onClose={() => setNotifOpen(false)} />
+            </div>
           )}
         </div>
       )}

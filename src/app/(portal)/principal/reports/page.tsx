@@ -93,7 +93,6 @@ export default function PrincipalReportsPage() {
           loading={summary.isLoading}
           value={summary.data?.placement_rate.value ?? "—"}
           footer={summary.data?.placement_rate.detail}
-          href="/principal/placements"
         />
         <PrincipalStatCard
           label="Fee recovery"
@@ -101,7 +100,6 @@ export default function PrincipalReportsPage() {
           loading={summary.isLoading}
           value={summary.data?.fee_recovery.value ?? "—"}
           footer={summary.data?.fee_recovery.detail}
-          href="/principal/finance"
         />
       </div>
 
@@ -141,7 +139,7 @@ export default function PrincipalReportsPage() {
               {scorecard.data?.rows.map((row) => {
                 const attainmentPct = row.attainment.endsWith("%") ? parseFloat(row.attainment) : null;
                 return (
-                  <tr key={row.metric} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={row.metric} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                     <td className="px-6 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                       {row.metric}
                     </td>

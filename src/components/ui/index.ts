@@ -23,3 +23,4 @@ export * from "@/components/ui/Skeleton";
 export * from "@/components/ui/message-loading";
 export * from "@/components/ui/ConfirmDialog";
 export * from "@/components/ui/Modal";
+export * from "@/components/ui/Toggle";

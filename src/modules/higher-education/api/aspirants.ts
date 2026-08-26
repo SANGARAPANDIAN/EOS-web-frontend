@@ -112,3 +112,45 @@ export function useCreateAspirant() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-aspirants"] }),
   });
 }
+
+export interface UpdateAspirantInput {
+  programme?: string;
+  country?: string;
+  university?: string;
+  intake?: string;
+  cgpa?: number;
+  percentage?: number;
+  test_scores_summary?: string;
+  scholarship_name?: string;
+  scholarship_value?: number;
+  stage?: "interested" | "applied" | "admitted" | "enrolled";
+  remarks?: string;
+}
+
+/**
+ * PATCH /me/higher-education-aspirants/:id
+ *
+ * `register_no` is deliberately not editable: it identifies which student the
+ * record belongs to, so a wrong one is deleted and re-added rather than
+ * silently re-pointed at somebody else.
+ */
+export function useUpdateAspirant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: UpdateAspirantInput & { id: number }) =>
+      apiClient.patch(`/me/higher-education-aspirants/${id}`, input),
+    onSuccess: (_r, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["me", "higher-education-aspirants"] });
+      queryClient.invalidateQueries({ queryKey: ["me", "higher-education-aspirants", id] });
+    },
+  });
+}
+
+/** DELETE /me/higher-education-aspirants/:id — removes the record, not the student. */
+export function useDeleteAspirant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/higher-education-aspirants/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "higher-education-aspirants"] }),
+  });
+}

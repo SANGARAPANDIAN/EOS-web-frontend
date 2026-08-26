@@ -10,7 +10,7 @@
 // (one row per fee structure, no fake per-category split), real
 // payment_history, real fee_concessions, real education_loan_dd.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -27,7 +27,7 @@ type WorkspaceEducationLoanDdRow = StudentWorkspace["education_loan_dd"][number]
 import { ReceivePaymentModal, toastSx } from "@/modules/billing/ReceivePaymentModal";
 import { ConcessionModal } from "@/modules/billing/ConcessionModal";
 import { EducationLoanDDModal } from "@/modules/billing/EducationLoanDDModal";
-import { ReceiptDocument, type ReceiptPaymentRow, type ReceiptStudentInfo } from "@/modules/billing/ReceiptDocument";
+import { RECEIPT_LOGO_SRC, ReceiptDocument, type ReceiptPaymentRow, type ReceiptStudentInfo } from "@/modules/billing/ReceiptDocument";
 
 type TabKey = "receive" | "demand" | "history" | "concession" | "dd";
 
@@ -92,6 +92,13 @@ export default function BillingStudentDetailPage() {
 
   // ---- Print Receipt state (Payment History tab) ----
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<number[]>([]);
+  /**
+   * Anchor for shift-click range selection. Holding shift and clicking a
+   * second row selects everything between the two, which is how people
+   * expect to pick a run of receipts to print together.
+   */
+  const lastClickedPaymentId = useRef<number | null>(null);
+
   const [printDate, setPrintDate] = useState(todayLocalDateString());
   const [isEducationLoanReceipt, setIsEducationLoanReceipt] = useState(false);
   const [ddReferenceNumber, setDdReferenceNumber] = useState("");
@@ -109,8 +116,30 @@ export default function BillingStudentDetailPage() {
       setSelectedPaymentIds([]);
     }
     window.addEventListener("afterprint", handleAfterPrint);
-    const timer = window.setTimeout(() => window.print(), 50);
+    // The receipt lives in a display:none container until the print
+    // stylesheet activates, and browsers do not reliably fetch images inside
+    // a display:none subtree — firing print() straight away left the
+    // letterhead crest blank on the printout. So decode the logo first and
+    // only then open the print dialog (and still open it if the image fails,
+    // so a missing asset can never block printing).
+    let cancelled = false;
+    let timer = 0;
+    const openPrintDialog = () => {
+      if (cancelled) return;
+      timer = window.setTimeout(() => window.print(), 50);
+    };
+    const logo = new window.Image();
+    logo.src = RECEIPT_LOGO_SRC;
+    if (logo.complete) {
+      openPrintDialog();
+    } else {
+      logo.onload = openPrintDialog;
+      logo.onerror = openPrintDialog;
+    }
     return () => {
+      cancelled = true;
+      logo.onload = null;
+      logo.onerror = null;
       window.removeEventListener("afterprint", handleAfterPrint);
       window.clearTimeout(timer);
     };
@@ -184,6 +213,31 @@ export default function BillingStudentDetailPage() {
   const allPaymentsSelected = selectablePaymentIds.length > 0 && selectablePaymentIds.every((id) => selectedPaymentIds.includes(id));
   const somePaymentsSelected = selectedPaymentIds.length > 0 && !allPaymentsSelected;
 
+  /**
+   * Selects from a click anywhere on the row, not just the checkbox — the
+   * whole row is the target. Clicks that land on a control inside the row
+   * (the receipt link, a button) are ignored so they keep their own
+   * behaviour instead of toggling selection underneath the user.
+   */
+  function handleRowClick(event: React.MouseEvent<HTMLTableRowElement>, id: number) {
+    if ((event.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+
+    if (event.shiftKey && lastClickedPaymentId.current !== null) {
+      const ids = selectablePaymentIds;
+      const from = ids.indexOf(lastClickedPaymentId.current);
+      const to = ids.indexOf(id);
+      if (from !== -1 && to !== -1) {
+        const range = ids.slice(Math.min(from, to), Math.max(from, to) + 1);
+        // Extend rather than replace, so an existing selection is kept.
+        setSelectedPaymentIds((prev) => Array.from(new Set([...prev, ...range])));
+        return;
+      }
+    }
+
+    lastClickedPaymentId.current = id;
+    togglePayment(id);
+  }
+
   function togglePayment(id: number) {
     setSelectedPaymentIds((prev) => (prev.includes(id) ? prev.filter((selId) => selId !== id) : [...prev, id]));
   }
@@ -196,6 +250,7 @@ export default function BillingStudentDetailPage() {
     id: pmt.id,
     demandCategoryName: categoryByPaymentId.get(pmt.id) ?? null,
     amountPaid: Number(pmt.amount_paid),
+    paymentMode: pmt.payment_mode,
   }));
   // Academic year / semester come from the real demand_summary row(s) behind
   // the selected payments — joined on all selected mappings; distinct real
@@ -213,7 +268,6 @@ export default function BillingStudentDetailPage() {
     semester: semesters.join(", ") || "—",
   };
 
-  const hasEducationLoanDD = ws.education_loan_dd.length > 0;
   const canPrint =
     selectedPaymentIds.length > 0 && printDate.trim() !== "" && (!isEducationLoanReceipt || ddReferenceNumber.trim() !== "");
 
@@ -379,13 +433,50 @@ export default function BillingStudentDetailPage() {
                 {sortedHistory.map((pmt) => {
                   const isSelected = selectedPaymentIds.includes(pmt.id);
                   return (
-                    <tr key={pmt.id} data-bill-rowtable style={{ borderTop: "1px solid #f1f5f9", background: isSelected ? "#eef3ff" : undefined }}>
+                    <tr
+                      key={pmt.id}
+                      data-bill-rowtable
+                      onClick={(e) => handleRowClick(e, pmt.id)}
+                      // Reachable and operable without a mouse: the row takes
+                      // focus and Enter/Space toggles it, matching the
+                      // checkbox it stands in for.
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      aria-label={`Select payment ${pmt.receipt_no}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          lastClickedPaymentId.current = pmt.id;
+                          togglePayment(pmt.id);
+                        }
+                      }}
+                      style={{
+                        borderTop: "1px solid #f1f5f9",
+                        background: isSelected ? "#eef3ff" : undefined,
+                        cursor: "pointer",
+                        userSelect: "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) e.currentTarget.style.background = "#f8fafc";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) e.currentTarget.style.background = "";
+                      }}
+                    >
                       <td style={{ padding: "12px 8px 12px 18px" }}>
                         <input
                           type="checkbox"
+                          // The row handler already covers this click; without
+                          // stopping propagation the two would fire and cancel
+                          // each other out.
+                          onClick={(e) => e.stopPropagation()}
                           aria-label={`Select payment ${pmt.receipt_no}`}
                           checked={isSelected}
-                          onChange={() => togglePayment(pmt.id)}
+                          onChange={() => {
+                            lastClickedPaymentId.current = pmt.id;
+                            togglePayment(pmt.id);
+                          }}
                           style={{ width: 15, height: 15, accentColor: "#1d4ed8" }}
                         />
                       </td>
@@ -418,28 +509,34 @@ export default function BillingStudentDetailPage() {
                       style={inputSxSmall}
                     />
                   </label>
-                  {hasEducationLoanDD && (
-                    <button
-                      type="button"
-                      data-bill-tab
-                      disabled={selectedPaymentIds.length === 0}
-                      onClick={() => setIsEducationLoanReceipt((v) => !v)}
-                      aria-pressed={isEducationLoanReceipt}
-                      style={{
-                        borderRadius: 8,
-                        padding: "8px 14px",
-                        fontSize: 12.5,
-                        fontWeight: 700,
-                        cursor: selectedPaymentIds.length === 0 ? "not-allowed" : "pointer",
-                        opacity: selectedPaymentIds.length === 0 ? 0.5 : 1,
-                        border: isEducationLoanReceipt ? "1px solid #1d4ed8" : "1px solid #e2e8f0",
-                        background: isEducationLoanReceipt ? "#eef3ff" : "#fff",
-                        color: isEducationLoanReceipt ? "#1d4ed8" : "#334155",
-                      }}
-                    >
-                      From Education Loan
-                    </button>
-                  )}
+                  {/* Always offered, for any selected payment: whether this
+                      print is an education-loan (DD) receipt is the billing
+                      staff's call at print time, not something derivable from
+                      whether a prior education_loan_dd row happens to exist
+                      for the student. Toggling it on reveals the DD Reference
+                      Number field below and puts the DD number on the printed
+                      receipt; left off, printing works exactly as before with
+                      no DD text at all. */}
+                  <button
+                    type="button"
+                    data-bill-tab
+                    disabled={selectedPaymentIds.length === 0}
+                    onClick={() => setIsEducationLoanReceipt((v) => !v)}
+                    aria-pressed={isEducationLoanReceipt}
+                    style={{
+                      borderRadius: 8,
+                      padding: "8px 14px",
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      cursor: selectedPaymentIds.length === 0 ? "not-allowed" : "pointer",
+                      opacity: selectedPaymentIds.length === 0 ? 0.5 : 1,
+                      border: isEducationLoanReceipt ? "1px solid #1d4ed8" : "1px solid #e2e8f0",
+                      background: isEducationLoanReceipt ? "#eef3ff" : "#fff",
+                      color: isEducationLoanReceipt ? "#1d4ed8" : "#334155",
+                    }}
+                  >
+                    From Education Loan
+                  </button>
                   <button
                     type="button"
                     data-bill-primary
@@ -490,7 +587,7 @@ export default function BillingStudentDetailPage() {
       {isPrinting &&
         receiptNumber !== null &&
         createPortal(
-          <div id="receipt-print-root" className="hidden print:block">
+          <div id="receipt-print-root" data-print-root className="hidden print:block">
             <ReceiptDocument
               student={receiptStudent}
               payments={receiptPayments}

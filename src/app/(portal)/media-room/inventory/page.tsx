@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Badge, Button, Card, EmptyState, Icon, Input, Select, type BadgeTone } from "@/components/ui";
+import { Badge, Button, Card, ConfirmDialog, EmptyState, Icon, Input, Select, type BadgeTone } from "@/components/ui";
 import {
   useEquipment,
   useEquipmentDetail,
   useCreateEquipment,
   useUpdateEquipment,
+  useDeleteEquipment,
   type Equipment,
   type EquipmentCategory,
+  type EquipmentCondition,
   type EquipmentStatus,
 } from "@/modules/media-room/api/equipment";
 import { formatDisplayDate, formatDayAndTime } from "@/lib/utils/date";
@@ -117,10 +119,152 @@ function AddEquipmentModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/**
+ * Edits the asset record itself — its identity and purchase fields. Status is
+ * deliberately absent: it moves through the Issue / Send to service / Mark
+ * returned actions, which also write a movement note, so editing it here would
+ * leave the movement history lying about where the asset went.
+ */
+function EditEquipmentModal({ item, onClose }: { item: Equipment; onClose: () => void }) {
+  const update = useUpdateEquipment();
+  const [assetTag, setAssetTag] = useState(item.asset_tag ?? "");
+  const [name, setName] = useState(item.name);
+  const [category, setCategory] = useState<EquipmentCategory>(item.category);
+  const [serialNo, setSerialNo] = useState(item.serial_no ?? "");
+  const [condition, setCondition] = useState<EquipmentCondition>(item.condition);
+  const [purchasedOn, setPurchasedOn] = useState(item.purchased_on ? item.purchased_on.slice(0, 10) : "");
+  const [invoiceValue, setInvoiceValue] = useState(item.invoice_value ?? "");
+  const [warrantyTill, setWarrantyTill] = useState(item.warranty_till ? item.warranty_till.slice(0, 10) : "");
+  const [notes, setNotes] = useState(item.notes ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (!name.trim()) {
+      setError("Equipment name is required.");
+      return;
+    }
+    setError(null);
+    try {
+      await update.mutateAsync({
+        id: item.id,
+        name: name.trim(),
+        category,
+        condition,
+        // Cleared fields go as undefined rather than "" so the column stays
+        // null instead of holding an empty string.
+        asset_tag: assetTag.trim() || undefined,
+        serial_no: serialNo.trim() || undefined,
+        purchased_on: purchasedOn || undefined,
+        invoice_value: invoiceValue !== "" ? Number(invoiceValue) : undefined,
+        warranty_till: warrantyTill || undefined,
+        notes: notes.trim() || undefined,
+      });
+      onClose();
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not save this asset.");
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
+      <div className="max-h-[88vh] w-full max-w-[560px] overflow-y-auto rounded-modal bg-surface">
+        <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
+          <div>
+            <div className="text-[19px] font-extrabold text-ink">Edit asset</div>
+            <div className="mt-0.5 text-[12.5px] text-muted">{item.asset_tag ?? item.name}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body"
+          >
+            &#10005;
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4 px-[26px] py-[22px]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Asset tag</label>
+              <Input className="mt-1.5" value={assetTag} onChange={(e) => setAssetTag(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Serial no</label>
+              <Input className="mt-1.5" value={serialNo} onChange={(e) => setSerialNo(e.target.value)} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Name</label>
+            <Input className="mt-1.5" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Category</label>
+              <Select className="mt-1.5" value={category} onChange={(e) => setCategory(e.target.value as EquipmentCategory)}>
+                {(Object.keys(CATEGORY_LABEL) as EquipmentCategory[]).map((c) => (
+                  <option key={c} value={c}>
+                    {CATEGORY_LABEL[c]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Condition</label>
+              <Select className="mt-1.5" value={condition} onChange={(e) => setCondition(e.target.value as EquipmentCondition)}>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+                <option value="needs_repair">Needs repair</option>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Purchased on</label>
+              <Input className="mt-1.5" type="date" value={purchasedOn} onChange={(e) => setPurchasedOn(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Invoice value</label>
+              <Input className="mt-1.5" type="number" min="0" value={invoiceValue} onChange={(e) => setInvoiceValue(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Warranty till</label>
+              <Input className="mt-1.5" type="date" value={warrantyTill} onChange={(e) => setWarrantyTill(e.target.value)} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Notes</label>
+            <Input className="mt-1.5" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+
+          {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
+        </div>
+
+        <div className="flex justify-end gap-2.5 border-t border-divider px-[26px] py-[18px]">
+          <Button variant="secondary" className="w-auto" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primarySmall" className="w-auto" onClick={submit} disabled={update.isPending}>
+            {update.isPending ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function AssetRow({ item }: { item: Equipment }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const detail = useEquipmentDetail(open ? item.id : null);
   const update = useUpdateEquipment();
+  const remove = useDeleteEquipment();
 
   function issue() {
     const holder = window.prompt("Issue to (name):");
@@ -186,7 +330,28 @@ function AssetRow({ item }: { item: Equipment }) {
                     Mark returned
                   </button>
                 )}
+
+                {/* Editing the record and removing the asset sit apart from the
+                    status actions above: they change the asset itself, not
+                    where it currently is. */}
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-[8px] border border-border-default px-3 py-2 text-[13px] font-bold text-body hover:bg-surface"
+                >
+                  <Icon name="edit" size={15} />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="inline-flex items-center gap-1.5 rounded-[8px] border border-border-default px-3 py-2 text-[13px] font-bold text-danger-fg hover:bg-surface"
+                >
+                  <Icon name="delete" size={15} />
+                  Delete
+                </button>
               </div>
+              {error && <div className="mt-2 text-[12.5px] font-semibold text-danger-fg">{error}</div>}
             </div>
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[.05em] text-subtle">Movement history</div>
@@ -208,6 +373,29 @@ function AssetRow({ item }: { item: Equipment }) {
           </div>
         </div>
       )}
+
+      {editing && <EditEquipmentModal item={item} onClose={() => setEditing(false)} />}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        destructive
+        title="Delete this asset?"
+        description={`${item.asset_tag ? item.asset_tag + " · " : ""}${item.name} will be removed from the inventory permanently, along with its movement history.`}
+        confirmLabel={remove.isPending ? "Deleting…" : "Delete asset"}
+        onConfirm={() => {
+          setError(null);
+          remove.mutate(item.id, {
+            onSuccess: () => setConfirmDelete(false),
+            onError: (err: unknown) => {
+              // The API refuses while an asset is still checked out or is
+              // referenced by an indent, and says which, so show it verbatim.
+              setError((err as { message?: string })?.message ?? "Could not delete this asset.");
+              setConfirmDelete(false);
+            },
+          });
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

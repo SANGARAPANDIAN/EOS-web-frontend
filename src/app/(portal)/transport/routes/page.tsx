@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button, DataTable, Input, EmptyState, type DataTableColumn } from "@/components/ui";
 import {
@@ -9,6 +9,8 @@ import {
   useUpdateRoute,
   useUpdateStage,
   useCreateStage,
+  useCreateRoute,
+  useDeleteRoute,
   useRouteStudents,
   useAddRouteStudent,
   useRemoveRouteStudent,
@@ -43,12 +45,14 @@ function RouteStudentsSection({ routeId, stages }: { routeId: number; stages: Ro
   const removeStudent = useRemoveRouteStudent(routeId);
 
   const [studentIdNo, setStudentIdNo] = useState("");
-  const [boardingStageId, setBoardingStageId] = useState<number | "">(stages[0]?.id ?? "");
+  // "" means nothing has been chosen yet; the effective value falls back to the
+  // first stage. Derived during render rather than back-filled by an effect —
+  // the effect version set state on mount and again when `stages` arrived,
+  // which is the cascading render the lint rule flags.
+  const [pickedStageId, setPickedStageId] = useState<number | "">("");
+  const boardingStageId: number | "" =
+    pickedStageId !== "" ? pickedStageId : (stages[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (boardingStageId === "" && stages.length > 0) setBoardingStageId(stages[0].id);
-  }, [stages, boardingStageId]);
 
   async function handleAdd() {
     if (!studentIdNo.trim() || boardingStageId === "") return;
@@ -85,7 +89,7 @@ function RouteStudentsSection({ routeId, stages }: { routeId: number; stages: Ro
         <select
           className="rounded-[9px] border border-border-default bg-surface px-3 text-[13px] text-body"
           value={boardingStageId}
-          onChange={(e) => setBoardingStageId(e.target.value ? Number(e.target.value) : "")}
+          onChange={(e) => setPickedStageId(e.target.value ? Number(e.target.value) : "")}
         >
           {stages.map((s) => (
             <option key={s.id} value={s.id}>
@@ -137,9 +141,17 @@ function RouteEditModal({ routeId, onClose }: { routeId: number; onClose: () => 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!detail.data) return;
+  // Seeds the form from the record the first time it arrives, and again if a
+  // different route is loaded into this modal.
+  //
+  // Adjusting state during render rather than in an effect: React supports this
+  // for deriving state from changed input, it avoids the extra commit an effect
+  // causes (the pattern the set-state-in-effect rule flags), and the inputs
+  // never paint empty before the fetch resolves.
+  const [seededRouteId, setSeededRouteId] = useState<number | null>(null);
+  if (detail.data && seededRouteId !== detail.data.route.id) {
     const r = detail.data.route;
+    setSeededRouteId(detail.data.route.id);
     setRouteForm({
       name: r.name,
       boarding_area: r.boarding_area ?? "",
@@ -147,8 +159,8 @@ function RouteEditModal({ routeId, onClose }: { routeId: number; onClose: () => 
       departure_time: r.departure_time ? r.departure_time.slice(0, 5) : "",
       arrival_time: r.arrival_time ? r.arrival_time.slice(0, 5) : "",
     });
-    setStageForms(Object.fromEntries(detail.data.stages.map((s) => [s.id, toStageForm(s)])));
-  }, [detail.data]);
+    setStageForms(Object.fromEntries(detail.data.stages.map((st) => [st.id, toStageForm(st)])));
+  }
 
   function setStageField(stageId: number, key: keyof StageForm, value: string) {
     setStageForms((f) => ({ ...f, [stageId]: { ...f[stageId], [key]: value } }));
@@ -164,7 +176,7 @@ function RouteEditModal({ routeId, onClose }: { routeId: number; onClose: () => 
       if (routeForm.name !== r.name) routeChanges.name = routeForm.name;
       if (routeForm.boarding_area !== (r.boarding_area ?? "")) routeChanges.boarding_area = routeForm.boarding_area;
       if (routeForm.distance_km !== (r.distance_km != null ? String(r.distance_km) : "") && routeForm.distance_km !== "")
-        routeChanges.distance_km = Number(routeForm.distance_km);
+        routeChanges.distance_km = toOneDecimal(routeForm.distance_km);
       if (routeForm.departure_time && routeForm.departure_time !== (r.departure_time?.slice(0, 5) ?? ""))
         routeChanges.departure_time = routeForm.departure_time;
       if (routeForm.arrival_time && routeForm.arrival_time !== (r.arrival_time?.slice(0, 5) ?? ""))
@@ -346,6 +358,44 @@ export default function TransportRoutesPage() {
   const routes = useRoutes();
   const data = routes.data;
   const [editingRouteId, setEditingRouteId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // The list is ordered by name, so a route added to a 30-plus row table sorts
+  // into the middle and looks as though nothing happened. The new route is
+  // pinned to the top and called out until the next action.
+  const [justCreated, setJustCreated] = useState<{ id: number; name: string } | null>(null);
+  const [search, setSearch] = useState("");
+  const deleteRoute = useDeleteRoute();
+
+  const visibleRoutes = useMemo(() => {
+    // Read inside the memo: `data?.routes ?? []` is a fresh array each render
+    // and would invalidate this on every pass.
+    const allRoutes = data?.routes ?? [];
+    const term = search.trim().toLowerCase();
+    const filtered = term
+      ? allRoutes.filter(
+          (r) =>
+            r.name.toLowerCase().includes(term) ||
+            (r.boarding_area ?? "").toLowerCase().includes(term),
+        )
+      : allRoutes;
+    if (!justCreated) return filtered;
+    // Pin the just-added route first so it is impossible to miss.
+    const isNew = (r: Route) => r.id === justCreated.id;
+    return [...filtered.filter(isNew), ...filtered.filter((r) => !isNew(r))];
+  }, [data?.routes, search, justCreated]);
+
+  async function handleDelete(route: Route) {
+    setError(null);
+    // The route is only removable once nothing points at it; the server
+    // explains what is still attached, so that message is shown as-is.
+    if (!window.confirm(`Delete ${routeLabel(route)}? This cannot be undone.`)) return;
+    try {
+      await deleteRoute.mutateAsync(route.id);
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not delete this route.");
+    }
+  }
 
   const columns: DataTableColumn<Route>[] = [
     {
@@ -447,44 +497,223 @@ export default function TransportRoutesPage() {
     {
       key: "edit",
       header: "",
-      width: "70px",
+      width: "130px",
+      align: "right",
       render: (route) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditingRouteId(route.id);
-          }}
-          className="text-[13px] font-bold text-primary hover:underline"
-        >
-          Edit
-        </button>
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingRouteId(route.id);
+            }}
+            className="text-[13px] font-bold text-primary hover:underline"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleDelete(route);
+            }}
+            disabled={deleteRoute.isPending}
+            className="text-[13px] font-bold text-muted hover:text-danger-fg disabled:opacity-50"
+          >
+            Delete
+          </button>
+        </div>
       ),
     },
   ];
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
-      <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Routes</h1>
-        <p className="mt-1 text-[13px] text-muted">Boarding areas, stops, timings and fares.</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Routes</h1>
+          <p className="mt-1 text-[13px] text-muted">Boarding areas, stops, timings and fares.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Input
+            className="w-auto min-w-[240px]"
+            placeholder="Search routes by name or boarding area"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Button variant="primarySmall" className="w-auto" onClick={() => setCreating(true)}>
+            Add route
+          </Button>
+        </div>
       </div>
 
-      {!data?.extended.specs && data && (
-        <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
-          Distance, boarding area and pickup window aren't tracked yet — those columns show "—" below.
+      {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
+
+      {justCreated && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[11px] border border-border-accent bg-accent-50 px-4 py-2.5">
+          <span className="text-[13px] font-semibold text-primary">
+            {justCreated.name} added — shown first in the list below. Add its stops and fares from Edit.
+          </span>
+          <button
+            type="button"
+            onClick={() => setJustCreated(null)}
+            className="text-[12.5px] font-bold text-primary underline"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
+      {!data?.extended.specs && data && (
+        <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
+          Distance, boarding area and pickup window aren&apos;t tracked yet — those columns show &quot;—&quot; below.
+        </div>
+      )}
+
+      {creating && (
+        <RouteCreateModal
+          onClose={() => setCreating(false)}
+          onCreated={(id, name) => {
+            setJustCreated({ id, name });
+            // A new route can be buried by an active filter, so clear it.
+            setSearch("");
+          }}
+        />
+      )}
       {editingRouteId != null && <RouteEditModal routeId={editingRouteId} onClose={() => setEditingRouteId(null)} />}
 
       <DataTable
         columns={columns}
-        data={data?.routes ?? []}
+        data={visibleRoutes}
         rowKey={(route) => route.id}
         emptyMessage={routes.isLoading ? "Loading…" : "No routes found."}
         hoverableRows
       />
     </div>
+  );
+}
+
+/**
+ * transport_routes.distance_km is numeric(6,1) — the column stores exactly one
+ * decimal place, and the API rejects anything finer with a 400. A number input
+ * will happily accept "12.55" (its `step` only drives the spinner, not what can
+ * be typed), so the value is rounded here before it is sent. Without this a
+ * realistic distance silently failed and the route was never created.
+ */
+function toOneDecimal(value: string): number | undefined {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Creating a route only needs its name; the spec fields are optional because
+ * not every deployment tracks them (the banner above says so when they are
+ * absent). Stops and fares are added afterwards from Edit, which is where the
+ * stage editor already lives.
+ */
+function RouteCreateModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (id: number, name: string) => void;
+}) {
+  const createRoute = useCreateRoute();
+  const [form, setForm] = useState({
+    name: "",
+    boarding_area: "",
+    distance_km: "",
+    departure_time: "",
+    arrival_time: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  function set(key: keyof typeof form, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function submit() {
+    if (!form.name.trim()) {
+      setError("Give the route a name.");
+      return;
+    }
+    setError(null);
+    try {
+      const created = await createRoute.mutateAsync({
+        name: form.name.trim(),
+        boarding_area: form.boarding_area.trim() || undefined,
+        distance_km: form.distance_km ? toOneDecimal(form.distance_km) : undefined,
+        departure_time: form.departure_time || undefined,
+        arrival_time: form.arrival_time || undefined,
+      });
+      onCreated(created.id, form.name.trim());
+      onClose();
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not create this route.");
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
+      <div className="w-full max-w-[460px] rounded-modal bg-surface">
+        <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
+          <div className="text-[19px] font-extrabold text-ink">Add route</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex flex-col gap-4 px-[26px] py-[22px]">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Route name</label>
+            <Input className="mt-1.5" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Route 12 — Gandhipuram" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Boarding area</label>
+            <Input className="mt-1.5" value={form.boarding_area} onChange={(e) => set("boarding_area", e.target.value)} placeholder="Gandhipuram" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">
+              Distance (km)
+            </label>
+            <Input
+              className="mt-1.5"
+              type="number"
+              step="0.1"
+              min="0"
+              value={form.distance_km}
+              onChange={(e) => set("distance_km", e.target.value)}
+              placeholder="12.5"
+            />
+            <p className="mt-1 text-[11.5px] text-subtle">Recorded to one decimal place.</p>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Departure</label>
+              <Input className="mt-1.5" type="time" value={form.departure_time} onChange={(e) => set("departure_time", e.target.value)} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Arrival</label>
+              <Input className="mt-1.5" type="time" value={form.arrival_time} onChange={(e) => set("arrival_time", e.target.value)} />
+            </div>
+          </div>
+          <p className="text-[12px] text-subtle">Add the stops and their fares from Edit once the route exists.</p>
+          {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
+        </div>
+        <div className="flex justify-end gap-2.5 border-t border-divider px-[26px] py-[18px]">
+          <Button variant="secondary" className="w-auto" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primarySmall" className="w-auto" onClick={submit} disabled={createRoute.isPending}>
+            {createRoute.isPending ? "Creating…" : "Create route"}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

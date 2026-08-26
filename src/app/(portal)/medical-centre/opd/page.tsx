@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Badge, Button, EmptyState, Icon, Input, Select, DataTable, type BadgeTone, type DataTableColumn } from "@/components/ui";
-import { useOpdQueue, useAddWalkin, useAdvanceQueue, type QueueRow, type QueueStatus } from "@/modules/medical-centre/api/opd";
+import {
+  useOpdQueue,
+  useAddWalkin,
+  useAdvanceQueue,
+  useOpdPatientSearch,
+  type QueueRow,
+  type QueueStatus,
+  type OpdPatientMatch,
+} from "@/modules/medical-centre/api/opd";
 import { useSickRoomBeds, useAdmitBed } from "@/modules/medical-centre/api/sickroom";
 
 const STATUS_LABEL: Record<QueueStatus, string> = { waiting: "Waiting", consult: "In consultation", done: "Completed" };
@@ -19,9 +27,30 @@ function AddWalkinModal({ onClose }: { onClose: () => void }) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Whoever is at the counter is found by searching, not by typing an exact
+  // id from memory. The search covers students and staff and is
+  // case-insensitive across name, roll no, register no and staff code.
+  const [term, setTerm] = useState("");
+  const [picked, setPicked] = useState<OpdPatientMatch | null>(null);
+  const matches = useOpdPatientSearch(picked ? "" : term, visitorType);
+
+  function pick(match: OpdPatientMatch) {
+    setPicked(match);
+    // The walk-in endpoint identifies a student by roll/register number and a
+    // faculty member by their code, which is exactly what `identifier` holds.
+    setIdentifier(match.identifier ?? "");
+    setError(null);
+  }
+
+  function clearPick() {
+    setPicked(null);
+    setIdentifier("");
+    setTerm("");
+  }
+
   async function submit() {
     if (!identifier.trim()) {
-      setError(visitorType === "student" ? "Student ID / register number is required." : "Faculty email is required.");
+      setError("Search for and select the patient first.");
       return;
     }
     setError(null);
@@ -45,16 +74,74 @@ function AddWalkinModal({ onClose }: { onClose: () => void }) {
         <div className="flex flex-col gap-4 px-[26px] py-[22px]">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Visitor</label>
-            <Select className="mt-1.5" value={visitorType} onChange={(e) => setVisitorType(e.target.value as "student" | "faculty")}>
+            <Select
+              className="mt-1.5"
+              value={visitorType}
+              onChange={(e) => {
+                setVisitorType(e.target.value as "student" | "faculty");
+                // Switching register invalidates whoever was picked from the
+                // other one.
+                clearPick();
+              }}
+            >
               <option value="student">Student</option>
               <option value="faculty">Faculty</option>
             </Select>
           </div>
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">
-              {visitorType === "student" ? "Student ID / register number" : "Faculty email"}
-            </label>
-            <Input className="mt-1.5" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+            <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Patient</label>
+            {picked ? (
+              <div className="mt-1.5 flex items-center gap-3 rounded-[10px] border border-border-default bg-surface-tint px-3.5 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[14.5px] font-extrabold text-ink">{picked.name}</div>
+                  <div className="mt-0.5 truncate text-[12px] text-muted">
+                    {[picked.identifier, picked.department].filter(Boolean).join(" \u00b7 ")}
+                  </div>
+                </div>
+                <Badge tone={picked.kind === "student" ? "accent" : "accentDark"}>{picked.kind}</Badge>
+                <button type="button" onClick={clearPick} className="shrink-0 text-[12.5px] font-bold text-primary">
+                  Change
+                </button>
+              </div>
+            ) : (
+              <>
+                <Input
+                  className="mt-1.5"
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                  placeholder={visitorType === "student" ? "Search name, roll no or register no" : "Search name or staff code"}
+                />
+                {term.trim().length > 0 && term.trim().length < 2 && (
+                  <div className="mt-2 text-[12px] text-subtle">Keep typing to search.</div>
+                )}
+                {term.trim().length >= 2 && (
+                  <div className="mt-2 max-h-[220px] overflow-y-auto rounded-[10px] border border-border-default">
+                    {matches.isLoading ? (
+                      <div className="px-3.5 py-3 text-[12.5px] text-subtle">Searching\u2026</div>
+                    ) : (matches.data ?? []).length === 0 ? (
+                      <div className="px-3.5 py-3 text-[12.5px] text-subtle">Nobody matched that search.</div>
+                    ) : (
+                      (matches.data ?? []).map((m) => (
+                        <button
+                          key={`${m.kind}-${m.student_id ?? m.faculty_id}`}
+                          type="button"
+                          onClick={() => pick(m)}
+                          className="flex w-full items-center gap-3 border-b border-divider px-3.5 py-2.5 text-left last:border-b-0 hover:bg-surface-tint"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[13.5px] font-bold text-ink">{m.name}</div>
+                            <div className="mt-0.5 truncate text-[11.5px] text-muted">
+                              {[m.identifier, m.department].filter(Boolean).join(" \u00b7 ")}
+                            </div>
+                          </div>
+                          <Badge tone={m.kind === "student" ? "accent" : "accentDark"}>{m.kind}</Badge>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Complaint</label>

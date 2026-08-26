@@ -89,7 +89,7 @@ export default function PrincipalMedicalPage() {
             <tbody>
               {equipment.isLoading && <PrincipalTableSkeleton columns={4} />}
               {equipment.data?.map((e) => (
-                <tr key={e.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={e.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {e.name}
                   </td>
@@ -115,7 +115,7 @@ export default function PrincipalMedicalPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+        <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
           <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
             <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
               Medical team
@@ -123,7 +123,7 @@ export default function PrincipalMedicalPage() {
           </div>
           <div className="flex flex-col">
             {team.data?.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
+              <div key={m.id} className="flex items-center gap-3 border-b px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: principalColors.surfaceTint, color: principalColors.primaryDark }}>
                   <Icon name="person" size={18} />
                 </div>
@@ -143,7 +143,7 @@ export default function PrincipalMedicalPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+        <div className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
           <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
             <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
               Recent treatment log
@@ -154,7 +154,7 @@ export default function PrincipalMedicalPage() {
           </div>
           <div className="flex flex-col">
             {treatmentLog.data?.map((t) => (
-              <div key={t.id} className="border-b px-5 py-3.5 last:border-b-0" style={{ borderColor: principalColors.borderMuted }}>
+              <div key={t.id} className="border-b px-5 py-3.5 transition-colors last:border-b-0 hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="font-semibold" style={{ color: principalColors.heading }}>
                     {t.person_name} {t.context ? `· ${t.context}` : ""}

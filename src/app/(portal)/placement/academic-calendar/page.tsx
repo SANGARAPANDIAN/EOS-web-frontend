@@ -4,8 +4,152 @@ import { useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { PageHeader, Select, Card, SectionCard, PendingNotice, Badge } from "@/modules/admin/components/ui";
 import { useBatches } from "@/modules/placement/api/refData";
-import { useAcademicCalendarPeriods, useCalendarEvents } from "@/modules/placement/api/academicCalendar";
+import { useAcademicCalendarPeriods, useCalendarEvents, useCreateCalendarEvent } from "@/modules/placement/api/academicCalendar";
+import { createPortal } from "react-dom";
+import { ApiError } from "@/types/api";
 import type { AcademicCalendarPeriod, CalendarEventItem, CalendarEventType } from "@/modules/placement/api/academicCalendar";
+
+/**
+ * Adds a placement event (drive date, pre-placement talk) to the selected
+ * academic calendar.
+ *
+ * Placement may create events and edit or delete its own; the shared
+ * institution entries — semester boundaries, exam dates — are protected
+ * server-side, so this form cannot touch them.
+ *
+ * The backend requires both a start and an end time, so the form defaults them
+ * to a working-hours slot rather than making the user fill them in for an
+ * all-day entry.
+ */
+function AddCalendarEventModal({
+  academicCalendarId,
+  onClose,
+}: {
+  academicCalendarId: number;
+  onClose: () => void;
+}) {
+  const createEvent = useCreateCalendarEvent();
+  const [title, setTitle] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventType, setEventType] = useState<"event" | "holiday">("event");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("17:00");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (!title.trim() || !eventDate) {
+      setError("Give the event a title and a date.");
+      return;
+    }
+    if (endTime <= startTime) {
+      setError("End time must be after the start time.");
+      return;
+    }
+    setError(null);
+    try {
+      await createEvent.mutateAsync({
+        academic_calendar_id: academicCalendarId,
+        title: title.trim(),
+        event_date: eventDate,
+        event_type: eventType,
+        start_time: startTime,
+        end_time: endTime,
+        description: description.trim() || undefined,
+      });
+      onClose();
+    } catch (err) {
+      // The server rejects a date outside the calendar's own start/end range —
+      // its wording is more useful than a generic failure.
+      setError(err instanceof ApiError ? err.message : "Could not add this event.");
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-8">
+      <div className="w-full max-w-[500px] rounded-xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-admin-border px-6 py-5">
+          <div className="text-lg font-bold text-admin-ink">Add calendar event</div>
+          <button type="button" onClick={onClose} className="flex size-8 items-center justify-center rounded-lg border border-admin-border text-admin-muted">
+            ✕
+          </button>
+        </div>
+        <div className="flex flex-col gap-4 px-6 py-5">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide text-admin-muted">Title</label>
+            <input
+              className="mt-1.5 w-full rounded-lg border border-admin-border px-3 py-2 text-sm"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. TCS pre-placement talk"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-admin-muted">Date</label>
+              <input
+                type="date"
+                className="mt-1.5 w-full rounded-lg border border-admin-border px-3 py-2 text-sm"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-admin-muted">Type</label>
+              <Select value={eventType} onChange={(e) => setEventType(e.target.value as "event" | "holiday")}>
+                <option value="event">Event</option>
+                <option value="holiday">Holiday</option>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-admin-muted">Start time</label>
+              <input
+                type="time"
+                className="mt-1.5 w-full rounded-lg border border-admin-border px-3 py-2 text-sm"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-admin-muted">End time</label>
+              <input
+                type="time"
+                className="mt-1.5 w-full rounded-lg border border-admin-border px-3 py-2 text-sm"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide text-admin-muted">Description</label>
+            <input
+              className="mt-1.5 w-full rounded-lg border border-admin-border px-3 py-2 text-sm"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          {error && <div className="text-sm font-semibold text-red-600">{error}</div>}
+        </div>
+        <div className="flex justify-end gap-2.5 border-t border-admin-border px-6 py-4">
+          <button type="button" onClick={onClose} className="rounded-lg border border-admin-border px-4 py-2 text-sm font-bold text-admin-ink">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={createEvent.isPending}
+            className="rounded-lg bg-admin-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {createEvent.isPending ? "Adding…" : "Add event"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
@@ -123,19 +267,28 @@ function CalendarPeriodView({ period, batchName }: { period: AcademicCalendarPer
             </div>
           ))}
         </div>
-        <div className="mt-2 grid grid-cols-7 gap-2">
-          {cells.map((c, i) => (
-            <div
-              key={i}
-              title={c.events.map((e) => e.title).join(", ")}
-              className={`flex min-h-[46px] flex-col items-center justify-center gap-1 rounded-admin-sm border px-1 py-1.5 text-[12.5px] ${
-                c.inMonth ? "text-admin-ink" : "text-admin-border-hover"
-              } ${c.isToday ? "border-admin-primary bg-admin-tint-strong" : c.events.length > 0 ? "border-transparent bg-admin-tint" : "border-transparent"}`}
-            >
-              <span className={c.isToday ? "font-bold" : "font-medium"}>{c.day ?? ""}</span>
-              {c.events.length > 0 && <span className="size-[5px] rounded-full bg-admin-primary" />}
-            </div>
-          ))}
+        {/* Square cells, event state shown by fill and today by a ring — the
+            same month-grid treatment the other modules use, rather than short
+            rectangles with a marker dot. */}
+        <div className="mt-2 grid grid-cols-7 gap-1.5">
+          {cells.map((c, i) => {
+            const hasEvents = c.events.length > 0;
+            return (
+              <div
+                key={i}
+                title={hasEvents ? c.events.map((e) => e.title).join(", ") : undefined}
+                className={`flex aspect-square items-center justify-center rounded-admin-sm text-[13px] ${
+                  !c.inMonth
+                    ? "text-admin-border-hover"
+                    : hasEvents
+                      ? "bg-admin-tint-strong font-bold text-admin-primary"
+                      : "font-medium text-admin-ink"
+                } ${c.isToday ? "ring-2 ring-admin-primary" : ""}`}
+              >
+                {c.day ?? ""}
+              </div>
+            );
+          })}
         </div>
       </Card>
 
@@ -196,6 +349,8 @@ export default function PlacementAcademicCalendarPage() {
   // Defaults to the most recently-ended period in the filtered set — the
   // current/latest real term — rather than whichever row the backend
   // happens to return first.
+  const [showAddEvent, setShowAddEvent] = useState(false);
+
   const selectedPeriod = useMemo(
     () => (filteredPeriods.length === 0 ? null : filteredPeriods.reduce((latest, p) => (p.endDate > latest.endDate ? p : latest), filteredPeriods[0])),
     [filteredPeriods],
@@ -205,9 +360,18 @@ export default function PlacementAcademicCalendarPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Academic Calendar"
-        description="Published institution events — read-only here; Academic Coordinator and Principal add or edit events."
+        description="Institution events, plus the placement dates this cell adds. Shared entries stay owned by the Academic Coordinator and Principal."
         actions={
           <>
+            {selectedPeriod && (
+              <button
+                type="button"
+                onClick={() => setShowAddEvent(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-admin-primary px-4 py-2 text-sm font-bold text-white"
+              >
+                <Icon name="add" size={16} /> Add event
+              </button>
+            )}
             <Select
               value={batchId === "all" ? "all" : String(batchId)}
               onChange={(e) => {
@@ -242,6 +406,10 @@ export default function PlacementAcademicCalendarPage() {
         </SectionCard>
       ) : (
         <CalendarPeriodView key={selectedPeriod.id} period={selectedPeriod} batchName={batchNameById.get(selectedPeriod.batchId) ?? `Batch #${selectedPeriod.batchId}`} />
+      )}
+
+      {showAddEvent && selectedPeriod && (
+        <AddCalendarEventModal academicCalendarId={selectedPeriod.id} onClose={() => setShowAddEvent(false)} />
       )}
     </div>
   );

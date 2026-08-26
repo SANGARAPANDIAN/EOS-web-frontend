@@ -21,7 +21,6 @@ export function MedicalCentreShell({ children }: { children: React.ReactNode }) 
         programLabel: "Medical officer",
         academicYearLabel: "2026–27",
         semesterParityLabel: "Odd Semester",
-        unreadNotifications: 1,
       }}
       navBadges={{
         mcOpdWaiting: opdWaiting,

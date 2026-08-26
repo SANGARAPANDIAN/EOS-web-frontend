@@ -3,8 +3,14 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Badge, Button, DataTable, EmptyState, Icon, SearchBar, Select, type BadgeTone, type DataTableColumn } from "@/components/ui";
-import { useGateLog, useLogMovement, type GateLogEntry, type EntryType } from "@/modules/hostel-warden/api/gate-log";
-import { useResidents } from "@/modules/hostel-warden/api/residents";
+import {
+  useGateLog,
+  useHostelStudentSearch,
+  useLogMovement,
+  type GateLogEntry,
+  type EntryType,
+  type HostelStudentMatch,
+} from "@/modules/hostel-warden/api/gate-log";
 import { useOutings } from "@/modules/hostel-warden/api/outings";
 import { StudentDetailModal } from "@/modules/hostel-warden/components/StudentDetailModal";
 import { formatDayAndTime } from "@/lib/utils/date";
@@ -12,20 +18,33 @@ import { formatDayAndTime } from "@/lib/utils/date";
 const DIRECTION_TONE: Record<EntryType, BadgeTone> = { in: "accent", out: "accentDark" };
 
 function LogMovementModal({ onClose }: { onClose: () => void }) {
-  const residents = useResidents({ page_size: 100 });
   const outings = useOutings({ page_size: 100 });
   const logMovement = useLogMovement();
 
-  const [studentId, setStudentId] = useState<number | undefined>(undefined);
+  const [student, setStudent] = useState<HostelStudentMatch | null>(null);
+  const [term, setTerm] = useState("");
   const [direction, setDirection] = useState<EntryType>("out");
   const [outingId, setOutingId] = useState<number | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
+  // Only search while nobody is picked, so the match list does not linger
+  // underneath the chosen student.
+  const matches = useHostelStudentSearch(student ? "" : term);
+  const studentId = student?.student_id;
   const studentOutings = (outings.data?.data ?? []).filter((o) => o.student.id === studentId && o.status !== "rejected");
+
+  function pick(match: HostelStudentMatch) {
+    setStudent(match);
+    setOutingId(undefined);
+    setError(null);
+    // Someone already off campus can only be coming back, and vice versa —
+    // default to the only move that makes sense for them.
+    setDirection(match.is_currently_out ? "in" : "out");
+  }
 
   async function submit() {
     if (!studentId) {
-      setError("Select a student.");
+      setError("Search for and select a student.");
       return;
     }
     setError(null);
@@ -68,14 +87,62 @@ function LogMovementModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Student</label>
-            <Select className="mt-1.5" value={studentId ?? ""} onChange={(e) => { setStudentId(e.target.value ? Number(e.target.value) : undefined); setOutingId(undefined); }}>
-              <option value="">Select student</option>
-              {(residents.data?.data ?? []).map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name} · {r.student_id_no} · Room {r.room?.room_number ?? "—"}
-                </option>
-              ))}
-            </Select>
+            {student ? (
+              <div className="mt-1.5 flex items-center gap-3 rounded-[10px] border border-border-default bg-surface-muted px-3.5 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[14.5px] font-extrabold text-ink">{student.name}</div>
+                  <div className="mt-0.5 truncate text-[12px] text-muted">
+                    {[student.roll_no, student.room_number ? "Room " + student.room_number : null, student.class_label].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+                {student.is_currently_out && <Badge tone="accentDark">OUT</Badge>}
+                <button
+                  type="button"
+                  onClick={() => { setStudent(null); setTerm(""); setOutingId(undefined); }}
+                  className="shrink-0 text-[12.5px] font-bold text-primary"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <>
+                <SearchBar
+                  className="mt-1.5 max-w-none"
+                  placeholder="Search by name, roll no, register no or room"
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                />
+                {term.trim().length > 0 && term.trim().length < 2 && (
+                  <div className="mt-2 text-[12px] text-subtle">Keep typing to search.</div>
+                )}
+                {term.trim().length >= 2 && (
+                  <div className="mt-2 max-h-[240px] overflow-y-auto rounded-[10px] border border-border-default">
+                    {matches.isLoading ? (
+                      <div className="px-3.5 py-3 text-[12.5px] text-subtle">Searching…</div>
+                    ) : (matches.data ?? []).length === 0 ? (
+                      <div className="px-3.5 py-3 text-[12.5px] text-subtle">No student matched that search.</div>
+                    ) : (
+                      (matches.data ?? []).map((m) => (
+                        <button
+                          key={m.student_id}
+                          type="button"
+                          onClick={() => pick(m)}
+                          className="flex w-full items-center gap-3 border-b border-divider px-3.5 py-2.5 text-left last:border-b-0 hover:bg-surface-muted"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[13.5px] font-bold text-ink">{m.name}</div>
+                            <div className="mt-0.5 truncate text-[11.5px] text-muted">
+                              {[m.roll_no, m.room_number ? "Room " + m.room_number : null, m.hostel_name].filter(Boolean).join(" · ")}
+                            </div>
+                          </div>
+                          {m.is_currently_out && <Badge tone="accentDark">OUT</Badge>}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
           {studentOutings.length > 0 && (
             <div>
@@ -111,12 +178,16 @@ export default function GateLogPage() {
   const [search, setSearch] = useState("");
   const [showLog, setShowLog] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const log = useGateLog({ entry_type: filter === "all" ? undefined : filter, page_size: 100 });
+  // Searched in the database rather than over the loaded page: the previous
+  // client-side filter only looked at rows already fetched, and did not cover
+  // roll or register numbers at all.
+  const log = useGateLog({
+    entry_type: filter === "all" ? undefined : filter,
+    q: search.trim() || undefined,
+    page_size: 100,
+  });
 
-  const allRows = log.data?.data ?? [];
-  const rows = search.trim()
-    ? allRows.filter((r) => `${r.student.name} ${r.student.student_id_no} ${r.room_number ?? ""}`.toLowerCase().includes(search.trim().toLowerCase()))
-    : allRows;
+  const rows = log.data?.data ?? [];
 
   const columns: DataTableColumn<GateLogEntry>[] = [
     { key: "when", header: "When", width: "1.2fr", render: (row) => <span className="font-mono text-[12.5px] text-body">{formatDayAndTime(row.recorded_at)}</span> },
@@ -165,7 +236,7 @@ export default function GateLogPage() {
       {showLog && <LogMovementModal onClose={() => setShowLog(false)} />}
 
       <div className="flex flex-wrap items-center gap-2.5">
-        <SearchBar className="min-w-[260px] max-w-[360px]" placeholder="Student, register no. or room" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <SearchBar className="min-w-[260px] max-w-[360px]" placeholder="Search name, roll no, register no or room" value={search} onChange={(e) => setSearch(e.target.value)} />
         {(["all", "out", "in"] as const).map((k) => (
           <button
             key={k}

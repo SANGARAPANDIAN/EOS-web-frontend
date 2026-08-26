@@ -20,6 +20,9 @@ export interface HrFaculty {
   first_name: string;
   last_name: string;
   designation: string;
+  /** Faculty roll number. Nullable — not every record has one yet. */
+  staff_code?: string | null;
+  prefix?: string | null;
   department_id: number;
   department?: HrFacultyDepartmentRef;
   date_of_joining?: string | null;
@@ -101,5 +104,40 @@ export function useUpdateHrFaculty() {
       queryClient.invalidateQueries({ queryKey: [...hrKeys.all, "faculty", "list"] });
       queryClient.invalidateQueries({ queryKey: hrKeys.faculty.detail(id) });
     },
+  });
+}
+
+/**
+ * GET /me/faculty?search= — faculty lookup for the HR pickers.
+ *
+ * There are ~500 active faculty and the list endpoint caps `limit` at 100, so a
+ * plain dropdown can neither hold them all nor be asked for more (requesting
+ * 200 returns 400 "limit must not be greater than 100", which is why the HR
+ * pickers were coming up empty).
+ *
+ * Runs with an empty term too, so the picker shows real faculty the moment it
+ * opens instead of an empty box waiting for keystrokes. `search` is matched
+ * case-insensitively server-side against first name, last name, staff code
+ * (roll number), designation and login email.
+ *
+ * Pass `term: null` to hold the query off entirely (e.g. once a selection has
+ * been made and the list is no longer shown).
+ */
+export function useHrFacultySearch(
+  term: string | null,
+  params: { status?: HrFacultyStatus; departmentId?: number } = {},
+) {
+  const search = (term ?? "").trim();
+  const query: HrFacultyListParams = {
+    limit: 100,
+    status: params.status,
+    department_id: params.departmentId,
+    search: search.length > 0 ? search : undefined,
+  };
+  return useQuery({
+    queryKey: hrKeys.faculty.list(query),
+    queryFn: () => apiClient.get<HrFacultyListResponse>(BASE, query),
+    enabled: term !== null,
+    placeholderData: keepPreviousData,
   });
 }

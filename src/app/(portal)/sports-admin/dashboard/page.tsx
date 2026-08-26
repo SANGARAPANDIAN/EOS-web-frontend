@@ -113,7 +113,6 @@ export default function SportsDashboardPage() {
         />
         <StatCard
           href={`${BASE}/equipment`}
-          accent
           label="Equipment"
           value={d?.kpis.equipment.value ?? "—"}
           icon="inventory_2"

@@ -47,13 +47,13 @@ export default function TransportDriversPage() {
 
       {!data?.extended.fleet_status && data && (
         <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
-          Licence number, licence expiry, phone and attendant details aren't tracked yet — only driver names are
-          shown until that's set up.
+          Licence number, licence expiry, phone and attendant details aren&apos;t tracked yet — only driver names are
+          shown until that&apos;s set up.
         </div>
       )}
       {data?.extended.fleet_status && !data.extended.vehicle_specs && (
         <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
-          Experience and blood group aren't tracked yet — those fields show "—" below.
+          Experience and blood group aren&apos;t tracked yet — those fields show &quot;—&quot; below.
         </div>
       )}
 

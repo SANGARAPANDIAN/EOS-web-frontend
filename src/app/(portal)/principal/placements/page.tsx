@@ -24,7 +24,12 @@ function formatDate(iso: string): string {
 
 function DepartmentTile({ dept, onOpen }: { dept: PlacementDepartmentCard; onOpen: () => void }) {
   return (
-    <div className="flex flex-col gap-3.5 rounded-2xl border p-5" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex flex-col gap-3.5 rounded-2xl border p-5 text-left hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+      style={{ background: principalColors.bg, borderColor: principalColors.border }}
+    >
       <div className="flex items-center gap-3">
         <div
           className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-sm font-extrabold"
@@ -79,16 +84,14 @@ function DepartmentTile({ dept, onOpen }: { dept: PlacementDepartmentCard; onOpe
             {dept.highest_package != null ? `₹${dept.highest_package} LPA` : "—"}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="grid h-9 w-9 place-items-center rounded-full border"
+        <span
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border"
           style={{ borderColor: principalColors.border, color: principalColors.primary }}
         >
           <Icon name="arrow_forward" size={18} />
-        </button>
+        </span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -190,7 +193,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
             <tbody>
               {sections.isLoading && <PrincipalTableSkeleton columns={9} />}
               {sections.data?.map((s) => (
-                <tr key={s.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={s.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {s.section} {s.semester != null ? `· Sem ${s.semester}` : ""}
                   </td>
@@ -258,7 +261,7 @@ export default function PrincipalPlacementsPage() {
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1.3fr_1fr]">
         <div
-          className="flex flex-col gap-6 rounded-2xl border p-6"
+          className="flex flex-col gap-6 rounded-2xl border p-6 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
           style={{ background: principalColors.bg, borderColor: principalColors.border }}
         >
           <div className="flex flex-wrap items-start justify-between gap-4">

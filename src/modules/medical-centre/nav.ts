@@ -16,6 +16,16 @@ export const medicalCentreModuleConfig: ModuleConfig = {
       ],
     },
     {
+      // Sits ahead of Clinical on purpose: a booking is what happens *before*
+      // a patient ever reaches the OPD queue. Nothing here enters that queue
+      // until staff approves it on the Bookings page.
+      label: "Appointments",
+      items: [
+        { key: "appointment-slots", label: "Date & time slots", icon: "event_available", href: `${BASE}/appointments/slots` },
+        { key: "appointment-bookings", label: "Bookings", icon: "how_to_reg", href: `${BASE}/appointments/bookings` },
+      ],
+    },
+    {
       label: "Clinical",
       items: [
         { key: "opd", label: "OPD queue", icon: "healing", href: `${BASE}/opd`, badgeKey: "mcOpdWaiting" },

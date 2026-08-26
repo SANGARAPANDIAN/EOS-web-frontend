@@ -61,7 +61,7 @@ function RequestRow({ item }: { item: ApprovalItem }) {
   const decide = useDecideApproval();
 
   return (
-    <div className="flex items-start gap-4 border-t px-5 py-4 transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+    <div className="flex items-start gap-4 border-t px-5 py-4 transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
       <div
         className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
         style={{ background: principalColors.surfaceTint, color: principalColors.primaryDark }}

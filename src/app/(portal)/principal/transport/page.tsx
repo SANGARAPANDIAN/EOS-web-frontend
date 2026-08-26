@@ -147,7 +147,7 @@ function BusDetailView({ busId, onBack }: { busId: number; onBack: () => void })
               </div>
               <div className="grid grid-cols-1 gap-x-8 px-5 py-2 sm:grid-cols-2">
                 {bus.stops.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 border-b py-2.5 text-sm transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                  <div key={s.id} className="flex items-center gap-3 border-b py-2.5 text-sm transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                     <span className="font-mono text-xs" style={{ color: principalColors.textFaint }}>
                       {String(s.sequence_no).padStart(2, "0")}
                     </span>

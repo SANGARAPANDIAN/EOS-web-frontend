@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SECRETARY_NAV } from "./nav";
 import { SecretaryIcon } from "./icons";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
+import { useMyIdentity } from "@/modules/student/api/profile";
+import { usePurchaseRequests, useServiceRequests } from "./api/procurement";
+import { useMediaRequests } from "./api/mediaRequests";
+import { useVenueBookings } from "./api/venues";
+import { useOutpasses } from "./api/outpass";
+import { useDocuments } from "./api/documents";
+import { useMyLeaves, useMyOds } from "./api/selfService";
 import { NotificationPanel } from "@/components/layout/NotificationPanel";
 import { BrandMark } from "@/components/layout/SidebarBrandHeader";
 import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
@@ -35,8 +42,43 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
   const [year, setYear] = useState("2026-27");
   const [semester, setSemester] = useState<"Odd Semester" | "Even Semester">("Odd Semester");
   const { data: unreadCount } = useUnreadNotificationCount();
+  const { data: identity } = useMyIdentity();
 
-  const department = "CSE";
+  // Real, department-scoped login identity (GET /me/my-profile) — mirrors
+  // how HodShell resolves its own department badge, replacing the old
+  // hardcoded "CSE" that predates one-secretary-per-department accounts.
+  const department = identity?.department ?? "—";
+
+  // Real sidebar badge counts — same "shell fetches the live counts"
+  // pattern HodShell already uses for its own 3 badges. Each of these was
+  // previously a static fake number ("3", "2", "1"...) copied verbatim
+  // from the original design mockup with no backend behind it at all; now
+  // every one reads its own real pending count. "Students" had no real
+  // "pending" concept anywhere in the schema, so its badge was dropped
+  // rather than wired to a fabricated number.
+  const { data: popRequests } = usePurchaseRequests();
+  const { data: sopRequests } = useServiceRequests("pending");
+  const { data: mediaRequests } = useMediaRequests("pending");
+  const { data: venueBookings } = useVenueBookings("pending");
+  const { data: outpasses } = useOutpasses("pending");
+  const { data: documents } = useDocuments();
+  const { data: myLeaves } = useMyLeaves();
+  const { data: myOds } = useMyOds();
+
+  const badgeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (popRequests) {
+      counts.pop = popRequests.filter((r) => r.status === "pending_hod" || r.status === "pending_finance").length;
+    }
+    if (sopRequests) counts.sop = sopRequests.length;
+    if (mediaRequests) counts.media = mediaRequests.meta.total;
+    if (venueBookings) counts.venue = venueBookings.meta.total;
+    if (outpasses) counts.outpass = outpasses.meta.total;
+    if (documents) counts.docs = documents.data.filter((d) => d.status === "pending").length;
+    if (myLeaves) counts.empLeave = myLeaves.filter((l) => l.overall_status === "pending").length;
+    if (myOds) counts.empOd = myOds.filter((o) => o.overall_status === "pending").length;
+    return counts;
+  }, [popRequests, sopRequests, mediaRequests, venueBookings, outpasses, documents, myLeaves, myOds]);
 
   const activeId = SECRETARY_NAV.flatMap((g) => g.items).find((item) => pathname?.startsWith(item.href))?.id;
 
@@ -129,6 +171,7 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {g.items.map((it) => {
                     const active = activeId === it.id;
+                    const badgeCount = badgeCounts[it.id];
                     return (
                       <Link key={it.id} href={it.href} style={{ textDecoration: "none" }}>
                         <div
@@ -142,8 +185,8 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
                             <SecretaryIcon name={it.icon} />
                           </span>
                           {!collapsed && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</span>}
-                          {!collapsed && it.badge && (
-                            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.3, fontWeight: 500, color: "#475569", background: active ? "#eef2f7" : "#f1f5f9", borderRadius: 6, padding: "3px 7px" }}>{it.badge}</span>
+                          {!collapsed && !!badgeCount && (
+                            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.3, fontWeight: 500, color: "#475569", background: active ? "#eef2f7" : "#f1f5f9", borderRadius: 6, padding: "3px 7px" }}>{badgeCount}</span>
                           )}
                         </div>
                       </Link>

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { tone } from "@/modules/secretary/helpers";
 import { QuickModal, type QuickFieldSpec } from "@/modules/secretary/QuickModal";
 import { usePurchaseRequests, useCreatePurchaseRequest, type PurchaseRequestRow } from "@/modules/secretary/api/procurement";
-import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 
 // Pixel-exact layout port of the `isPop` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 206-267.
@@ -69,10 +69,8 @@ export default function SecretaryPopPage() {
   }
 
   const { data: rows, isLoading, error } = usePurchaseRequests(filter === "all" ? undefined : filter);
-  const { data: batches } = useBatchesLookup();
-  const currentBatchId = useMemo(() => (batches ?? []).reduce<number | undefined>((best, b) => (best === undefined ? b.id : best), undefined), [batches]);
-  const { data: departments } = useDepartmentsLookup(currentBatchId);
-  const cseDept = useMemo(() => (departments ?? []).find((d) => d.code?.toUpperCase() === "CSE") ?? departments?.[0], [departments]);
+  const { data: identity } = useMyIdentity();
+  const myDept = useMemo(() => (identity?.department_id != null ? { id: identity.department_id } : undefined), [identity]);
 
   const createMutation = useCreatePurchaseRequest();
 
@@ -92,13 +90,13 @@ export default function SecretaryPopPage() {
       flash("Please fill in what is being purchased before saving.");
       return;
     }
-    if (!cseDept) {
+    if (!myDept) {
       flash("Department list isn't loaded yet — try again in a moment.");
       return;
     }
     try {
       await createMutation.mutateAsync({
-        department_id: cseDept.id,
+        department_id: myDept.id,
         item_name: form.item_name,
         quantity: parseInt(form.quantity, 10) || 1,
         purpose: form.purpose || undefined,

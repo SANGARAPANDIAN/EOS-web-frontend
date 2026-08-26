@@ -21,7 +21,7 @@ export function PrincipalAttentionCard({ flags, isLoading }: PrincipalAttentionC
   const router = useRouter();
   return (
     <div
-      className="flex flex-col overflow-hidden rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+      className="flex h-[340px] flex-col overflow-hidden rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
       style={{ background: principalColors.bg, borderColor: principalColors.border }}
     >
       <div

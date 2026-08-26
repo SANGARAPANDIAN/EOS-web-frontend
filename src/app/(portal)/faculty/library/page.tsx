@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMyBorrowRecords, useSearchBooks, useEResources } from "@/modules/advisor/api/library";
+import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // Design-exact 4-tab layout, reordered per instruction: Search / E-resources
 // / Borrowed / History (Search first, so the catalogue is the landing tab).
@@ -65,7 +66,7 @@ export default function AdvisorLibraryPage() {
         Central library · {borrowedRows.length} title{borrowedRows.length === 1 ? "" : "s"} borrowed{overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 8, marginTop: 20, background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 4, marginTop: 20, background: "#EEF1F7", borderRadius: 11, padding: 4 }}>
         {TABS.map((t) => {
           const active = tab === t;
           return (
@@ -73,7 +74,17 @@ export default function AdvisorLibraryPage() {
               key={t}
               data-advisor-lift=""
               onClick={() => setTab(t)}
-              style={{ textAlign: "center", padding: "13px 0", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", background: active ? "#1D4ED8" : "transparent", color: active ? "#fff" : "#0F172A" }}
+              style={{
+                textAlign: "center",
+                padding: "13px 0",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                background: active ? "#fff" : "transparent",
+                color: active ? "#1D4ED8" : "#64748B",
+                boxShadow: active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
+              }}
             >
               {t}
             </div>
@@ -140,7 +151,9 @@ export default function AdvisorLibraryPage() {
             .filter((r) => r.publish_state === "published")
             .map((r) => (
               <div key={r.id} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 20 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, border: "2px solid #1D4ED8" }} />
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <AdvisorIcon kind="library" width={17} height={17} style={{ color: "#1D4ED8" }} />
+                </div>
                 <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em", marginTop: 12 }}>{r.title}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
                   {r.license_type && (
@@ -164,7 +177,9 @@ export default function AdvisorLibraryPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
           {borrowedRows.map((r) => (
             <div key={r.id} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ width: 44, height: 58, borderRadius: 6, background: "#EFF6FF", border: "1px solid #DBEAFE", flex: "0 0 44px" }} />
+              <div style={{ width: 44, height: 58, borderRadius: 6, background: "#EFF6FF", border: "1px solid #DBEAFE", flex: "0 0 44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <AdvisorIcon kind="library" width={18} height={18} style={{ color: "#1D4ED8" }} />
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em" }}>{r.book.title}</div>
                 <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600, marginTop: 4 }}>{r.book.qr_code ?? "—"}</div>

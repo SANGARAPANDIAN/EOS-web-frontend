@@ -12,6 +12,21 @@ const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
+// Sundays and every 2nd/4th Saturday are non-working days institution-wide
+// (same "structural day off, not a specific calendar row" convention as the
+// student Attendance page treating every Sunday as a holiday even without a
+// matching academic_calendar_events row) — shown here even when the office
+// of academics hasn't also published an explicit holiday event for that date.
+function isWeekendOff(date: Date): boolean {
+  const dow = date.getDay();
+  if (dow === 0) return true;
+  if (dow === 6) {
+    const occurrence = Math.ceil(date.getDate() / 7);
+    return occurrence === 2 || occurrence === 4;
+  }
+  return false;
+}
+
 function tagPill(tag: string | null | undefined) {
   const map: Record<string, { bg: string; border: string; color: string }> = {
     event: { bg: "#EFF6FF", border: "#DBEAFE", color: "#1D4ED8" },
@@ -80,6 +95,7 @@ export default function AdvisorAcademicCalendarPage() {
             ))}
             {cells.map((d, i) => {
               const hasEvent = d !== null && eventDaySet.has(d);
+              const weekendOff = d !== null && isWeekendOff(new Date(year, month, d));
               return (
                 <div
                   key={i}
@@ -90,9 +106,9 @@ export default function AdvisorAcademicCalendarPage() {
                     borderRadius: 9,
                     fontSize: 13,
                     fontWeight: hasEvent ? 800 : 600,
-                    color: d === null ? "transparent" : hasEvent ? "#1D4ED8" : "#334155",
-                    background: hasEvent ? "#EFF6FF" : "transparent",
-                    border: hasEvent ? "1px solid #DBEAFE" : "1px solid transparent",
+                    color: d === null ? "transparent" : hasEvent ? "#1D4ED8" : weekendOff ? "#DC2626" : "#334155",
+                    background: hasEvent ? "#EFF6FF" : weekendOff ? "#FEF2F2" : "transparent",
+                    border: hasEvent ? "1px solid #DBEAFE" : weekendOff ? "1px solid #FEE2E2" : "1px solid transparent",
                     cursor: d ? "pointer" : "default",
                   }}
                 >
@@ -100,6 +116,16 @@ export default function AdvisorAcademicCalendarPage() {
                 </div>
               );
             })}
+          </div>
+          <div style={{ display: "flex", gap: 16, marginTop: 16, paddingTop: 14, borderTop: "1px solid #F1F4F9" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#475569" }}>
+              <span style={{ width: 11, height: 11, borderRadius: 3, background: "#EFF6FF", border: "1px solid #DBEAFE" }} />
+              Published event
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#475569" }}>
+              <span style={{ width: 11, height: 11, borderRadius: 3, background: "#FEF2F2", border: "1px solid #FEE2E2" }} />
+              Weekend off (Sun · 2nd/4th Sat)
+            </div>
           </div>
         </div>
 

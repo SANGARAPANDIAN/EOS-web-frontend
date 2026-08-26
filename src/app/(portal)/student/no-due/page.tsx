@@ -45,6 +45,12 @@ export default function NoDuePage() {
   const requests = useMyClearanceRequests();
   const exams = useExamsList();
   const createRequest = useCreateClearanceRequest();
+  const academicCalendar = useMyAcademicCalendar();
+
+  const currentSemesterExams = useMemo(
+    () => exams.data?.filter((e) => e.semester === academicCalendar.data?.semester) ?? [],
+    [exams.data, academicCalendar.data?.semester],
+  );
 
   const [examId, setExamId] = useState<number | "">("");
   const [clearanceType, setClearanceType] = useState<ClearanceType | "">("");
@@ -80,7 +86,6 @@ export default function NoDuePage() {
   ];
 
   // ── Academic clearance (subjects × assignments × attendance × status) ──
-  const academicCalendar = useMyAcademicCalendar();
   const [semesterOverride, setSemesterOverride] = useState<number | null>(null);
   const semester = semesterOverride ?? academicCalendar.data?.semester ?? null;
   const clearance = useMyAcademicClearance(semester);
@@ -144,8 +149,10 @@ export default function NoDuePage() {
             <div className="flex flex-col gap-1.5">
               <label className="text-[11.5px] font-bold text-muted">Exam</label>
               <Select required value={examId} onChange={(e) => setExamId(e.target.value ? Number(e.target.value) : "")}>
-                <option value="">Select an exam</option>
-                {exams.data?.map((e) => (
+                <option value="">
+                  {currentSemesterExams.length === 0 ? "No current-semester exams yet" : "Select an exam"}
+                </option>
+                {currentSemesterExams.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.academic_year} · Semester {e.semester}
                     {e.title ? ` · ${e.title}` : ""}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useStudentOds, useFacultyApproveOd, type StudentOdRow } from "@/modules/advisor/api/requests";
 import { useIsClassAdvisor } from "@/modules/advisor/api/profile";
+import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // Backed by GET /me/student-ods + PATCH /me/student-ods/:id/faculty-approve
 // (StudentOdsController). Real OD requests are TEAM-based (unique_code,
@@ -10,6 +11,10 @@ import { useIsClassAdvisor } from "@/modules/advisor/api/profile";
 // reason — there is no separate "event title"/"venue" field, so this screen
 // shows the real fields (team code, member count, faculty guide, reason)
 // instead of the design's invented event/venue text.
+//
+// `other_members` (added this session) lists every real teammate besides
+// the creator — od_team_members was previously discarded down to a bare
+// count, so a "Team of 3" card had no way to show WHO the other 2 were.
 
 function initialsOf(name: string | null | undefined) {
   const p = (name ?? "").split(" ");
@@ -75,7 +80,7 @@ export default function AdvisorOdPage() {
 
       <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px", marginTop: 20, display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: 42, height: 42, borderRadius: 11, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 14, height: 14, border: "2px solid #1D4ED8", borderRadius: 4 }} />
+          <AdvisorIcon kind="od" width={20} height={20} style={{ color: "#1D4ED8" }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em" }}>{primaryClass?.department.name ?? ""} {primaryClass ? `— ${primaryClass.section}` : ""}</div>
@@ -111,9 +116,14 @@ export default function AdvisorOdPage() {
               <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {initialsOf(r.creator.name)}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 700 }}>
-                  {r.creator.name} {r.member_count > 1 ? `+ ${r.member_count - 1} more` : ""}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 700 }}>{r.creator.name}</div>
+                  {r.member_count > 1 && (
+                    <div style={{ padding: "2px 9px", borderRadius: 20, background: "#F1F5F9", border: "1px solid #E2E8F0", fontSize: 10.5, fontWeight: 800, color: "#475569", letterSpacing: "0.02em" }}>
+                      TEAM OF {r.member_count}
+                    </div>
+                  )}
                 </div>
                 <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{r.creator.student_id_no} · Team {r.unique_code}</div>
               </div>
@@ -133,6 +143,24 @@ export default function AdvisorOdPage() {
                 <div style={{ fontSize: 13.5, fontWeight: 700, marginTop: 5 }}>{r.faculty_guide_name ?? "—"}</div>
               </div>
             </div>
+            {r.other_members.length > 0 && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #F1F4F9" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>
+                  ALSO ON THIS TEAM ({r.other_members.length})
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 9 }}>
+                  {r.other_members.map((m) => (
+                    <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 11px 5px 5px", borderRadius: 20, background: "#F8FAFC", border: "1px solid #EEF1F6" }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 9.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 22px" }}>
+                        {initialsOf(m.name)}
+                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700 }}>{m.name}</div>
+                      <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{m.student_id_no}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {r.reason && <div style={{ fontSize: 13.5, color: "#475569", fontWeight: 500, marginTop: 14, lineHeight: 1.55 }}>{r.reason}</div>}
             {r.statusLabel === "Pending" && (
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -154,7 +182,9 @@ export default function AdvisorOdPage() {
         ))}
         {list.length === 0 && !ods.isLoading && (
           <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 64, textAlign: "center" }}>
-            <div style={{ width: 34, height: 34, border: "2px solid #CBD5E1", borderRadius: "50%", margin: "0 auto" }} />
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <AdvisorIcon kind="od" width={30} height={30} style={{ color: "#CBD5E1" }} />
+            </div>
             <div style={{ fontSize: 14, color: "#94A3B8", fontWeight: 600, marginTop: 14 }}>No requests here</div>
           </div>
         )}

@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useMyRoles } from "@/lib/auth/roles";
-import { getModuleConfig } from "@/modules/registry";
-import { ROLE_LABEL } from "@/lib/config";
 import { IconButton } from "@/components/ui/IconButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BrandMark } from "@/components/layout/SidebarBrandHeader";
@@ -35,38 +32,11 @@ function initialsOf(name: string | undefined) {
 }
 
 export function AdvisorShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { session, logout, switchRole } = useAuth();
+  const { logout } = useAuth();
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [rolesOpen, setRolesOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
-  const rolesRef = useRef<HTMLDivElement>(null);
-
-  const roles = useMyRoles();
-  const otherRoles = (roles.data ?? []).filter((r) => r.name !== session?.user.role);
-
-  useEffect(() => {
-    if (!rolesOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) setRolesOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [rolesOpen]);
-
-  async function handleSwitchRole(roleId: number) {
-    setSwitching(true);
-    try {
-      const newSession = await switchRole(roleId);
-      setRolesOpen(false);
-      const target = getModuleConfig(newSession.user.role);
-      router.push(target ? `${target.basePath}/dashboard` : "/login");
-    } finally {
-      setSwitching(false);
-    }
-  }
+  const [collapsed, setCollapsed] = useState(false);
 
   const myProfile = useMyFacultyProfile();
   const { isAdvisor, isLoading: advisorLoading, classes: menteeClasses } = useIsClassAdvisor();
@@ -123,35 +93,46 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
     >
       <aside
         style={{
-          width: 266,
-          flex: "0 0 266px",
+          width: collapsed ? 76 : 266,
+          flex: collapsed ? "0 0 76px" : "0 0 266px",
           background: "#FFFFFF",
           borderRight: "1px solid #E6EAF0",
           display: "flex",
           flexDirection: "column",
           height: "100vh",
+          transition: "width 0.16s ease, flex-basis 0.16s ease",
         }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            padding: "18px 20px",
+            padding: collapsed ? "18px 12px" : "18px 20px",
             borderBottom: "1px solid #EEF1F6",
           }}
         >
-          <BrandMark subtitle="Faculty Portal" />
+          <BrandMark subtitle="Faculty Portal" collapsed={collapsed} />
         </div>
 
         <nav style={{ flex: 1, overflowY: "auto", padding: "14px 12px 24px" }}>
           {visibleNav.map((group) => (
             <div key={group.label}>
-              <div style={{ display: "flex", alignItems: "center", padding: "16px 12px 8px" }}>
-                <div style={{ flex: 1, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.12em", color: "#94A3B8" }}>
-                  {group.label}
-                </div>
+              <div style={{ display: "flex", alignItems: "center", padding: collapsed ? "16px 4px 8px" : "16px 12px 8px", justifyContent: collapsed ? "center" : "flex-start" }}>
+                {!collapsed && (
+                  <div style={{ flex: 1, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.12em", color: "#94A3B8" }}>
+                    {group.label}
+                  </div>
+                )}
                 {group.chevron && (
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#94A3B8", cursor: "pointer" }}>«</div>
+                  <div
+                    onClick={() => setCollapsed((c) => !c)}
+                    role="button"
+                    aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+                    title={collapsed ? "Expand navigation" : "Collapse navigation"}
+                    style={{ fontSize: 13, fontWeight: 800, color: "#94A3B8", cursor: "pointer" }}
+                  >
+                    {collapsed ? "»" : "«"}
+                  </div>
                 )}
               </div>
               {group.items.map((item) => {
@@ -161,11 +142,13 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
                     key={item.key}
                     href={item.href}
                     data-advisor-lift=""
+                    title={collapsed ? item.label : undefined}
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: collapsed ? "center" : "flex-start",
                       gap: 13,
-                      padding: "10px 12px",
+                      padding: collapsed ? "10px 0" : "10px 12px",
                       borderRadius: 10,
                       cursor: "pointer",
                       marginBottom: 2,
@@ -186,8 +169,8 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
                     >
                       <AdvisorIcon kind={item.icon} />
                     </div>
-                    <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>
-                    {item.badgeKey && badgeValue(item.badgeKey) > 0 && (
+                    {!collapsed && <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>}
+                    {!collapsed && item.badgeKey && badgeValue(item.badgeKey) > 0 && (
                       <div style={{ fontSize: 11, fontWeight: 800, color: "#1D4ED8", background: "#EFF6FF", borderRadius: 6, padding: "2px 7px" }}>
                         {badgeValue(item.badgeKey)}
                       </div>
@@ -202,15 +185,17 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
         <div
           style={{
             borderTop: "1px solid #EEF1F6",
-            padding: "12px 14px",
+            padding: collapsed ? "12px 8px" : "12px 14px",
             display: "flex",
+            flexDirection: collapsed ? "column" : "row",
             alignItems: "center",
             gap: 9,
           }}
         >
           <div
             onClick={() => setProfileOpen(true)}
-            style={{ display: "flex", alignItems: "center", gap: 11, flex: 1, minWidth: 0, cursor: "pointer" }}
+            title={collapsed ? displayName : undefined}
+            style={{ display: "flex", alignItems: "center", gap: 11, flex: collapsed ? "0 0 auto" : 1, minWidth: 0, cursor: "pointer" }}
           >
             <div
               style={{
@@ -229,72 +214,25 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
             >
               {initials}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {displayName}
-              </div>
-              <div style={{ fontSize: 11, color: "#7C8899", fontWeight: 500 }}>
-                {[designation, departmentCode].filter(Boolean).join(" · ")}
-              </div>
-            </div>
-          </div>
-
-          {otherRoles.length > 0 && (
-            <div ref={rolesRef} style={{ position: "relative", flex: "0 0 auto" }}>
-              <IconButton icon="swap_horiz" size={34} iconSize={17} title="Switch role" onClick={() => setRolesOpen((v) => !v)} />
-              {rolesOpen && (
+            {!collapsed && (
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    position: "absolute",
-                    bottom: "calc(100% + 6px)",
-                    right: 0,
-                    minWidth: 200,
-                    background: "#fff",
-                    border: "1px solid #E2E8F0",
-                    borderRadius: 12,
-                    boxShadow: "0 18px 40px rgba(15,23,42,.18)",
-                    padding: 8,
-                    zIndex: 60,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", color: "#94A3B8", padding: "8px 10px 6px" }}>
-                    SWITCH ROLE
-                  </div>
-                  {otherRoles.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      disabled={switching}
-                      onClick={() => handleSwitchRole(r.id)}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "9px 10px",
-                        border: 0,
-                        background: "transparent",
-                        borderRadius: 8,
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        cursor: switching ? "not-allowed" : "pointer",
-                        opacity: switching ? 0.5 : 1,
-                        color: "#0F172A",
-                      }}
-                    >
-                      {ROLE_LABEL[r.name] ?? r.description ?? r.name}
-                    </button>
-                  ))}
+                  {displayName}
                 </div>
-              )}
-            </div>
-          )}
+                <div style={{ fontSize: 11, color: "#7C8899", fontWeight: 500 }}>
+                  {[designation, departmentCode].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+            )}
+          </div>
 
           <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
         </div>
@@ -478,7 +416,7 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
               background: "#F8FAFC",
             }}
           >
-            <div style={{ width: 13, height: 13, border: "2px solid #94A3B8", borderRadius: "50%" }} />
+            <AdvisorIcon kind="search" width={15} height={15} style={{ color: "#94A3B8", flexShrink: 0 }} />
             <input
               placeholder="Search students, classes, assignments…"
               style={{

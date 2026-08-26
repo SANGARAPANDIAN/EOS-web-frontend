@@ -82,6 +82,25 @@ export function useUpcomingDrives() {
   });
 }
 
+export interface PostedDrive {
+  drive_id: number;
+  company_name: string;
+  company_profile_info: string | null;
+  scheduled_date: string;
+  is_disclosed: boolean;
+  disclosed_reveal_date: string | null;
+  job_role: string | null;
+  package_lpa: number | null;
+}
+
+/** GET /drives/student/posted — open drives not yet shortlisted for, informational only (no self-apply). */
+export function usePostedDrives() {
+  return useQuery({
+    queryKey: ["drives", "student", "posted"],
+    queryFn: () => apiClient.get<PostedDrive[]>("/drives/student/posted"),
+  });
+}
+
 export interface DriveHistoryRow {
   drive_id: number;
   company_name: string;

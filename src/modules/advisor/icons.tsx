@@ -20,7 +20,8 @@ export type AdvisorIconKind =
   | "payroll"
   | "payslip"
   | "appraisal"
-  | "library";
+  | "library"
+  | "search";
 
 const PATHS: Record<AdvisorIconKind, React.ReactNode> = {
   dashboard: (
@@ -109,6 +110,12 @@ const PATHS: Record<AdvisorIconKind, React.ReactNode> = {
     <>
       <path d="M4 5.5A2.5 2.5 0 016.5 3H11v18H6.5A2.5 2.5 0 014 18.5v-13z" />
       <path d="M20 5.5A2.5 2.5 0 0017.5 3H13v18h4.5a2.5 2.5 0 002.5-2.5v-13z" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx={10.5} cy={10.5} r={6.5} />
+      <path d="M20 20l-4.5-4.5" />
     </>
   ),
 };

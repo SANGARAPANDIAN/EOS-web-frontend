@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, SegmentedTabs, Button, Input, Textarea, EmptyState, Icon } from "@/components/ui";
+import { Card, Badge, SegmentedTabs, Button, Input, Textarea, EmptyState, Icon, ConfirmDialog } from "@/components/ui";
 import {
   useUpcomingDrives,
+  usePostedDrives,
   useDriveHistory,
   useMyPlacementProfile,
   useUpdatePlacementProfile,
@@ -46,30 +47,75 @@ function ProgressLine({ status, lastClearedRound }: { status: string; lastCleare
   return null;
 }
 
+// Drives the placement cell has posted but hasn't shortlisted this student
+// for yet — read-only ("Not shortlisted yet"), no apply action. Shortlisting
+// stays a placement-cell decision (they add students via the drive's own
+// Applications tab); this just makes a posted drive visible in the meantime
+// instead of it being invisible until that step happens.
+function PostedDriveCard({ d }: { d: import("@/modules/student/api/placements").PostedDrive }) {
+  return (
+    <Card key={d.drive_id}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[16.5px] font-extrabold tracking-[-.02em] text-ink">{d.company_name}</div>
+          <div className="mt-1 text-[13px] text-muted">{driveMeta(d.package_lpa, formatDisplayDate(d.scheduled_date))}</div>
+          {d.company_profile_info && <p className="mt-1.5 text-[13px] text-body">{d.company_profile_info}</p>}
+          {!d.is_disclosed && d.disclosed_reveal_date && (
+            <div className="mt-1.5 text-[12px] text-subtle">Company reveals on {formatDisplayDate(d.disclosed_reveal_date)}</div>
+          )}
+        </div>
+        <Badge tone="neutral">Not shortlisted yet</Badge>
+      </div>
+    </Card>
+  );
+}
+
 function UpcomingTab() {
   const drives = useUpcomingDrives();
+  const posted = usePostedDrives();
+
   if (drives.isLoading) return <Card><EmptyState message="Loading…" /></Card>;
-  if (!drives.data || drives.data.length === 0) return <Card><EmptyState message="No upcoming drives you're part of." /></Card>;
+
+  const hasShortlisted = !!drives.data && drives.data.length > 0;
+  const hasPosted = !!posted.data && posted.data.length > 0;
+
+  if (!hasShortlisted && !hasPosted && !posted.isLoading) {
+    return <Card><EmptyState message="No drives posted right now." /></Card>;
+  }
+
   return (
-    <div className="flex flex-col gap-3">
-      {drives.data.map((d) => (
-        <Card key={d.drive_id}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[16.5px] font-extrabold tracking-[-.02em] text-ink">{d.company_name}</div>
-              <div className="mt-1 text-[13px] text-muted">{driveMeta(d.package_lpa, formatDisplayDate(d.scheduled_date))}</div>
-              {d.company_profile_info && <p className="mt-1.5 text-[13px] text-body">{d.company_profile_info}</p>}
-              {!d.is_disclosed && d.disclosed_reveal_date && (
-                <div className="mt-1.5 text-[12px] text-subtle">Company reveals on {formatDisplayDate(d.disclosed_reveal_date)}</div>
-              )}
-            </div>
-            <Badge tone={d.application_status === "rejected" ? "accentDark" : "accent"}>
-              {APPLICATION_STATUS_LABEL[d.application_status] ?? d.application_status}
-            </Badge>
-          </div>
-          <ProgressLine status={d.application_status} lastClearedRound={d.last_cleared_round} />
-        </Card>
-      ))}
+    <div className="flex flex-col gap-5">
+      {hasShortlisted && (
+        <div className="flex flex-col gap-3">
+          {drives.data!.map((d) => (
+            <Card key={d.drive_id}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[16.5px] font-extrabold tracking-[-.02em] text-ink">{d.company_name}</div>
+                  <div className="mt-1 text-[13px] text-muted">{driveMeta(d.package_lpa, formatDisplayDate(d.scheduled_date))}</div>
+                  {d.company_profile_info && <p className="mt-1.5 text-[13px] text-body">{d.company_profile_info}</p>}
+                  {!d.is_disclosed && d.disclosed_reveal_date && (
+                    <div className="mt-1.5 text-[12px] text-subtle">Company reveals on {formatDisplayDate(d.disclosed_reveal_date)}</div>
+                  )}
+                </div>
+                <Badge tone={d.application_status === "rejected" ? "accentDark" : "accent"}>
+                  {APPLICATION_STATUS_LABEL[d.application_status] ?? d.application_status}
+                </Badge>
+              </div>
+              <ProgressLine status={d.application_status} lastClearedRound={d.last_cleared_round} />
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {hasPosted && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-[14px] font-bold text-ink">Other posted drives</h2>
+          {posted.data!.map((d) => (
+            <PostedDriveCard key={d.drive_id} d={d} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -109,12 +155,27 @@ function ProfileTab() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [linksSaved, setLinksSaved] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<{ id: number; title: string } | null>(null);
 
   if (profile.isLoading) return <Card><EmptyState message="Loading…" /></Card>;
 
-  function fieldValue(key: string) {
-    return form[key] ?? profile.data?.profile?.[key as keyof typeof profile.data.profile] ?? "";
+  function savedValue(key: string) {
+    return profile.data?.profile?.[key as keyof typeof profile.data.profile] ?? "";
   }
+
+  function fieldValue(key: string) {
+    return form[key] ?? savedValue(key);
+  }
+
+  function handleFieldChange(key: string, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setLinksSaved(false);
+  }
+
+  // Only enabled once a field's value actually differs from what's saved —
+  // prevents an accidental click re-submitting unchanged links.
+  const hasUnsavedChanges = PROFILE_FIELDS.some((f) => fieldValue(f.key) !== savedValue(f.key));
 
   return (
     <div className="grid grid-cols-2 gap-4">
@@ -126,19 +187,27 @@ function ProfileTab() {
               <label className="text-[11.5px] font-bold text-muted">{f.label}</label>
               <Input
                 value={fieldValue(f.key)}
-                onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                onChange={(e) => handleFieldChange(f.key, e.target.value)}
                 placeholder="https://…"
               />
             </div>
           ))}
-          <Button
-            variant="primarySmall"
-            className="self-start"
-            disabled={updateProfile.isPending}
-            onClick={() => updateProfile.mutate(form)}
-          >
-            {updateProfile.isPending ? "Saving…" : "Save links"}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="primarySmall"
+              className="self-start"
+              disabled={updateProfile.isPending || !hasUnsavedChanges}
+              onClick={() => updateProfile.mutate(form, { onSuccess: () => setLinksSaved(true) })}
+            >
+              {updateProfile.isPending ? "Saving…" : "Save links"}
+            </Button>
+            {linksSaved && !updateProfile.isPending && (
+              <span className="flex items-center gap-1 text-[12.5px] font-semibold text-primary">
+                <Icon name="check_circle" size={16} />
+                Saved
+              </span>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -153,7 +222,7 @@ function ProfileTab() {
                 {p.description && <div className="text-[12px] text-muted">{p.description}</div>}
                 {p.faculty && <div className="text-[11.5px] text-subtle">Mentor: {p.faculty.first_name} {p.faculty.last_name}</div>}
               </div>
-              <button onClick={() => removeProject.mutate(p.id)} className="text-subtle hover:text-primary">
+              <button onClick={() => setRemoveTarget({ id: p.id, title: p.title })} className="text-subtle hover:text-primary">
                 <Icon name="close" size={16} />
               </button>
             </div>
@@ -176,6 +245,19 @@ function ProfileTab() {
           </Button>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        title="Remove project"
+        description={removeTarget ? `Remove "${removeTarget.title}" from your profile? This can't be undone.` : undefined}
+        confirmLabel="Remove"
+        destructive
+        onConfirm={() => {
+          if (removeTarget) removeProject.mutate(removeTarget.id);
+          setRemoveTarget(null);
+        }}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </div>
   );
 }
@@ -190,7 +272,7 @@ export default function PlacementsPage() {
           <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Placements</h1>
           <p className="mt-1 text-[13.5px] text-muted">
             {tab === "upcoming"
-              ? "Drives from the training and placement cell you're eligible for"
+              ? "Drives you're shortlisted for, plus other drives the placement cell has posted"
               : tab === "history"
                 ? "Drives you have already been through this placement season"
                 : "Links and projects shown to recruiters"}

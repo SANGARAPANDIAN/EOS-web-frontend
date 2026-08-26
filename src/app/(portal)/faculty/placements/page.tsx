@@ -33,13 +33,13 @@ function fmtDate(iso: string) {
 function tabButtonStyle(active: boolean) {
   return {
     padding: "13px 22px",
-    borderRadius: 11,
+    borderRadius: 8,
     fontSize: 13.5,
     fontWeight: 700,
     cursor: "pointer",
-    background: active ? "#1D4ED8" : "#fff",
-    border: `1px solid ${active ? "#1D4ED8" : "#E2E8F0"}`,
-    color: active ? "#fff" : "#0F172A",
+    background: active ? "#fff" : "transparent",
+    color: active ? "#1D4ED8" : "#64748B",
+    boxShadow: active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
     textAlign: "center" as const,
   };
 }
@@ -243,7 +243,7 @@ export default function AdvisorPlacementsPage() {
             Training &amp; placement cell · drives open to your mentoring class
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", background: "#EEF1F7", borderRadius: 11, padding: 4, gap: 4 }}>
           <div data-advisor-lift="" onClick={() => setTab("upcoming")} style={tabButtonStyle(tab === "upcoming")}>
             Upcoming
             <br />

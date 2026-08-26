@@ -7,6 +7,7 @@ import { useTodayClasses, useMenteeRoster } from "@/modules/advisor/api/dashboar
 import { useStudentLeaves, useStudentOds } from "@/modules/advisor/api/requests";
 import { useAnnouncements } from "@/modules/advisor/api/announcements";
 import { useMentoredStudents, useAllMenteesPlacementHistory } from "@/modules/advisor/api/placements";
+import { AdvisorIcon, type AdvisorIconKind } from "@/modules/advisor/icons";
 
 // Structural port of the `isDashboard` block in
 // "Advisor (Final) - Web/Faculty Portal.dc.html", now driven end-to-end by
@@ -35,7 +36,7 @@ export default function AdvisorDashboardPage() {
   const today = useTodayClasses();
   const leaves = useStudentLeaves();
   const ods = useStudentOds();
-  const roster = useMenteeRoster(primaryMentee?.class_id);
+  const roster = useMenteeRoster(primaryMentee?.class_id, scope === "today" ? "today" : undefined);
   const announcements = useAnnouncements();
 
   // "Class placements" KPI — real, computed from GET /me/mentored-students +
@@ -50,6 +51,14 @@ export default function AdvisorDashboardPage() {
 
   const firstName = (myProfile.data?.name ?? "").replace(/^Dr\.?\s+/i, "").split(" ")[0];
 
+  // Deliberately NOT scoped by Today/This term — a pending request is
+  // equally actionable regardless of when it was raised, and the sidebar's
+  // own pending badge (AdvisorShell, usePendingStudentLeaveCount/OdCount)
+  // is never scoped either. Filtering this to "raised today" previously
+  // made the KPI show "0 · nothing waiting" on the default Today tab while
+  // the sidebar badge and the Leave/OD pages themselves showed a real
+  // pending count one glance away — a same-screen inconsistency, and worse,
+  // it actively hid actionable items behind the default tab.
   const pendingLeaves = useMemo(() => (leaves.data?.data ?? []).filter((r) => r.status === "pending"), [leaves.data]);
   const pendingOds = useMemo(() => (ods.data?.data ?? []).filter((r) => r.mentor_approval_status === "pending"), [ods.data]);
   const totalPending = pendingLeaves.length + pendingOds.length;
@@ -62,8 +71,13 @@ export default function AdvisorDashboardPage() {
   const doneCount = todayClasses.length - upcoming.length;
 
   const rosterRows = roster.data?.students ?? [];
-  const meanAttendance = rosterRows.length
-    ? Math.round((rosterRows.reduce((s, r) => s + (r.attendance_percent ?? 0), 0) / rosterRows.length) * 10) / 10
+  // null attendance_percent means "no attendance record yet" (most students,
+  // every day, before their periods are marked) — excluded from the average
+  // rather than counted as a 0%, which would otherwise read as "everyone
+  // absent" the moment nothing has been marked yet.
+  const rosterWithAttendance = rosterRows.filter((r) => r.attendance_percent !== null);
+  const meanAttendance = rosterWithAttendance.length
+    ? Math.round((rosterWithAttendance.reduce((s, r) => s + (r.attendance_percent ?? 0), 0) / rosterWithAttendance.length) * 10) / 10
     : null;
   const meanCgpa = rosterRows.length
     ? Math.round((rosterRows.reduce((s, r) => s + (r.cgpa ?? 0), 0) / rosterRows.length) * 10) / 10
@@ -73,6 +87,7 @@ export default function AdvisorDashboardPage() {
   const kpis = [
     {
       label: "Classes today",
+      icon: "subject",
       value: String(todayClasses.length || 0),
       sub: `${doneCount} taken · ${upcoming.length} remaining`,
       bar: todayClasses.length ? Math.round((doneCount / todayClasses.length) * 100) : 0,
@@ -81,14 +96,23 @@ export default function AdvisorDashboardPage() {
     },
     {
       label: "My class attendance",
+      icon: "attendance",
       value: meanAttendance !== null ? `${meanAttendance}%` : "—",
-      sub: `${primaryMentee?.label ?? ""} · ${rosterRows.length - arrearCount} of ${rosterRows.length || 0} present`,
+      sub: `${primaryMentee?.label ?? ""} · ${rosterRows.length} students${scope === "today" ? " · today" : " · this term"}`,
       bar: meanAttendance !== null ? Math.round(meanAttendance) : 0,
-      foot: arrearCount > 0 ? `${arrearCount} student(s) with arrears` : "No arrears flagged",
+      foot:
+        scope === "today"
+          ? rosterWithAttendance.length === 0
+            ? "No attendance marked yet today"
+            : `${rosterWithAttendance.filter((r) => r.attendance_percent === 0).length} of ${rosterWithAttendance.length} marked absent today`
+          : arrearCount > 0
+            ? `${arrearCount} student(s) with arrears`
+            : "No arrears flagged",
       href: "/faculty/attendance",
     },
     {
       label: "Pending approvals",
+      icon: "leave",
       value: String(totalPending),
       sub: `${pendingLeaves.length} leave · ${pendingOds.length} OD`,
       bar: Math.min(100, Math.round((totalPending / Math.max(rosterRows.length, 1)) * 100)),
@@ -99,13 +123,14 @@ export default function AdvisorDashboardPage() {
     },
     {
       label: "Class placements",
+      icon: "results",
       value: menteeIds.length ? `${placedStudentCount} / ${menteeIds.length}` : "—",
       sub: placementsLoaded && menteeIds.length ? `${Math.round((placedStudentCount / menteeIds.length) * 100)}% of the class` : "—",
       bar: menteeIds.length ? Math.round((placedStudentCount / menteeIds.length) * 100) : 0,
       foot: menteeIds.length ? `${menteeIds.length - placedStudentCount} yet to be placed` : "not the mentor of any class",
       href: "/faculty/placements",
     },
-  ] as { label: string; value: string; sub: string; bar: number; foot: string; href: string }[];
+  ] as { label: string; icon: AdvisorIconKind; value: string; sub: string; bar: number; foot: string; href: string }[];
 
   const needsAttention = [
     ...pendingLeaves.map((r) => ({ title: `Leave request unattended`, sub: `${r.student.name} · ${daysAgo(r.created_at) ?? "recently"}` })),
@@ -125,24 +150,39 @@ export default function AdvisorDashboardPage() {
       </div>
 
       <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", background: "#fff", border: "1px solid #E2E8F0", borderRadius: 10, padding: 4, gap: 2 }}>
-          {[
-            { key: "today" as const, label: "Today" },
-            { key: "term" as const, label: "This term" },
-          ].map((t) => {
-            const active = scope === t.key;
-            return (
-              <div
-                key={t.key}
-                data-advisor-lift=""
-                onClick={() => setScope(t.key)}
-                style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: "pointer", background: active ? "#1D4ED8" : "transparent", color: active ? "#fff" : "#475569" }}
-              >
-                {t.label}
-              </div>
-            );
-          })}
-        </div>
+        {/* Only "My class attendance" below responds to this scope, and that
+            card only exists for a class mentor — for any other faculty
+            there is nothing on this page the toggle would change, so it's
+            hidden rather than shown inert. */}
+        {isAdvisor && primaryMentee && (
+          <div style={{ display: "flex", background: "#EEF1F7", borderRadius: 11, padding: 4, gap: 4 }}>
+            {[
+              { key: "today" as const, label: "Today" },
+              { key: "term" as const, label: "This term" },
+            ].map((t) => {
+              const active = scope === t.key;
+              return (
+                <div
+                  key={t.key}
+                  data-advisor-lift=""
+                  onClick={() => setScope(t.key)}
+                  style={{
+                    padding: "8px 18px",
+                    borderRadius: 8,
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: active ? "#fff" : "transparent",
+                    color: active ? "#1D4ED8" : "#64748B",
+                    boxShadow: active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
+                  }}
+                >
+                  {t.label}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <Link
           href="/faculty/attendance"
           style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 18px", height: 44, background: "#1D4ED8", borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: "#fff", cursor: "pointer", textDecoration: "none" }}
@@ -171,7 +211,7 @@ export default function AdvisorDashboardPage() {
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: "#475569" }}>{k.label}</div>
               <div style={{ width: 32, height: 32, borderRadius: 9, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ width: 12, height: 12, border: "2px solid #1D4ED8", borderRadius: 3 }} />
+                <AdvisorIcon kind={k.icon} width={17} height={17} style={{ color: "#1D4ED8" }} />
               </div>
             </div>
             <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: "-0.035em", marginTop: 10 }}>{k.value}</div>
@@ -292,7 +332,7 @@ export default function AdvisorDashboardPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 14, marginTop: 18 }}>
             {[
               { label: "Students", value: String(rosterRows.length), sub: primaryMentee.label },
-              meanAttendance !== null && { label: "Mean attendance", value: `${meanAttendance}%`, sub: "this term" },
+              meanAttendance !== null && { label: "Mean attendance", value: `${meanAttendance}%`, sub: scope === "today" ? "today" : "this term" },
               meanCgpa !== null && { label: "Mean CGPA", value: String(meanCgpa), sub: "across the class" },
               { label: "Pending requests", value: String(totalPending), sub: "leave + OD" },
             ]

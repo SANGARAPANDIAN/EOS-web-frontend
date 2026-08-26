@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { useInitialQueryParam } from "@/lib/utils/useInitialQueryParam";
@@ -14,16 +15,15 @@ import {
   type StudentRow,
 } from "@/modules/principal/api/students";
 
+const PAGE_SIZE = 15;
+
 const FILTER_PILLS: { key: StudentsFilterPreset; label: string }[] = [
   { key: "all", label: "All students" },
   { key: "attendance_below_75", label: "Attendance < 75%" },
   { key: "fees_pending", label: "Fees pending" },
-];
-
-const DISABLED_PILLS = [
-  { label: "CGPA 8.5+", reason: "CGPA isn't tracked in this system" },
-  { label: "CGPA below 7", reason: "CGPA isn't tracked in this system" },
-  { label: "Arrears", reason: "Arrears aren't tracked as a separate concept in this system" },
+  { key: "cgpa_above_85", label: "CGPA 8.5+" },
+  { key: "cgpa_below_7", label: "CGPA below 7" },
+  { key: "has_arrears", label: "Arrears" },
 ];
 
 function feesBadge(status: StudentRow["fees_status"]): { label: string; fg: string; bg: string; bd: string } {
@@ -67,12 +67,29 @@ export default function PrincipalStudentsPage() {
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
   const [section, setSection] = useState<string | undefined>(undefined);
   const [filter, setFilter] = useState<StudentsFilterPreset>("all");
+  const [page, setPage] = useState(1);
+
+  // Any change to search/filters invalidates the current page — go back to
+  // page 1 rather than showing an out-of-range, possibly-empty page.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [q, batchId, departmentId, section, filter]);
 
   const filters = useStudentFilters();
   const summary = useStudentsSummary();
-  const list = useStudentsList({ q: q || undefined, batch_id: batchId, department_id: departmentId, section, filter });
+  const list = useStudentsList({
+    q: q || undefined,
+    batch_id: batchId,
+    department_id: departmentId,
+    section,
+    filter,
+    page,
+    limit: PAGE_SIZE,
+  });
 
   const students = list.data?.students ?? [];
+  const totalPages = list.data?.total_pages ?? 1;
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -195,18 +212,6 @@ export default function PrincipalStudentsPage() {
               {pill.label}
             </button>
           ))}
-          {DISABLED_PILLS.map((pill) => (
-            <button
-              key={pill.label}
-              type="button"
-              disabled
-              title={pill.reason}
-              className="h-9 cursor-not-allowed rounded-lg border px-3.5 text-sm font-semibold opacity-50"
-              style={{ background: principalColors.surfaceMuted, borderColor: principalColors.borderLight, color: principalColors.textFaint }}
-            >
-              {pill.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -228,7 +233,7 @@ export default function PrincipalStudentsPage() {
                   <th
                     key={h}
                     className={`px-3 py-2.5 text-[11px] font-bold tracking-wider first:pl-5 last:pr-5 ${
-                      h === "ATTENDANCE" || h === "CGPA" ? "text-right" : "text-left"
+                      h === "ATTENDANCE" || h === "CGPA" || h === "FEES" ? "text-right" : "text-left"
                     }`}
                     style={{ color: principalColors.textFaint }}
                   >
@@ -250,8 +255,14 @@ export default function PrincipalStudentsPage() {
                       : principalColors.heading;
                 return (
                   <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
-                    <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
-                      {s.name}
+                    <td className="whitespace-nowrap px-5 py-3.5 font-semibold">
+                      <Link
+                        href={`/principal/students/${s.id}`}
+                        className="hover:underline"
+                        style={{ color: principalColors.heading }}
+                      >
+                        {s.name}
+                      </Link>
                     </td>
                     <td className="px-3 py-3.5" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
                       {s.register_no ?? "—"}
@@ -274,8 +285,11 @@ export default function PrincipalStudentsPage() {
                     >
                       {s.attendance_percentage != null ? `${s.attendance_percentage}%` : "—"}
                     </td>
-                    <td className="px-3 py-3.5 text-right tabular-nums" style={{ color: principalColors.textFaint }}>
-                      —
+                    <td
+                      className="px-3 py-3.5 text-right tabular-nums"
+                      style={{ fontFamily: "var(--font-jetbrains-mono)", color: s.cgpa != null ? principalColors.heading : principalColors.textFaint }}
+                    >
+                      {s.cgpa != null ? s.cgpa.toFixed(2) : "—"}
                     </td>
                     <td className="px-3 py-3.5 text-right">
                       <span
@@ -312,10 +326,43 @@ export default function PrincipalStudentsPage() {
           </div>
         )}
 
+        {!list.isLoading && students.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3.5" style={{ borderColor: principalColors.borderLight }}>
+            <span className="text-xs" style={{ color: principalColors.textSubtle }}>
+              Page {list.data?.page ?? page} of {totalPages} · batch-wise, 1st year first
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="h-9 rounded-lg border px-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: principalColors.bg, borderColor: principalColors.border, color: principalColors.body }}
+              >
+                Previous
+              </button>
+              <span
+                className="flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm font-bold"
+                style={{ background: principalColors.primary, color: "#FFFFFF" }}
+              >
+                {page}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="h-9 rounded-lg border px-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: principalColors.bg, borderColor: principalColors.border, color: principalColors.body }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="border-t px-5 py-3.5 text-xs" style={{ borderColor: principalColors.borderLight, color: principalColors.textSubtle }}>
-          CGPA isn&apos;t shown above: no table in this system stores it, and it can&apos;t be honestly derived from exam marks
-          (internal/external marks aren&apos;t split, so a composite score can&apos;t be recovered). Arrears aren&apos;t tracked as a
-          separate concept either — only fee dues, shown under Fees.
+          CGPA and arrears are computed live from published exam results (credit-weighted grade points) — a student with no
+          graded results yet shows &ldquo;—&rdquo; rather than a guessed value.
         </div>
       </div>
     </div>

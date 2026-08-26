@@ -604,3 +604,33 @@ body {
     display: block !important;
   }
 }
+
+/* Principal module "Print profile" — same real-bug fix as the Billing
+   receipt above (a print output that looked blank), different cause: the
+   Principal shell (PrincipalShell.tsx) is a fixed-viewport layout
+   (h-screen + overflow-hidden, with only <main> scrolling) so the print
+   engine has no natural document flow to paginate past the current
+   viewport. Reset both back to normal flow for print only, and hide the
+   chrome/action buttons — none of this touches on-screen behavior. */
+@media print {
+  [data-no-print] {
+    display: none !important;
+  }
+  [data-shell-root] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  [data-shell-main] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  [data-print-card] {
+    box-shadow: none !important;
+    transform: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

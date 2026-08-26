@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
 import { PrincipalAnnouncementComposer } from "@/modules/principal/components/PrincipalAnnouncementComposer";
 import { principalColors } from "@/modules/principal/theme";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { formatDayAndTime } from "@/lib/utils/date";
+import { useInitialQueryParam } from "@/lib/utils/useInitialQueryParam";
 
 function audienceLine(a: { class_labels?: string[]; role_labels?: string[]; target_audience: string }): string {
   if (a.class_labels && a.class_labels.length > 0) return a.class_labels.join(", ");
@@ -24,6 +25,17 @@ function posterLine(a: { posted_by?: { role: string; designation: string | null;
 export default function PrincipalAnnouncementsPage() {
   const announcements = useAnnouncements();
   const [composerOpen, setComposerOpen] = useState(false);
+  const initialAction = useInitialQueryParam("action");
+
+  // Header "+" quick action lands here as /principal/announcements?action=new
+  // — open the same real composer the page's own "New announcement" button
+  // uses, rather than a second create flow.
+  useEffect(() => {
+    if (initialAction === "new") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setComposerOpen(true);
+    }
+  }, [initialAction]);
 
   return (
     <div className="flex flex-1 flex-col gap-5">

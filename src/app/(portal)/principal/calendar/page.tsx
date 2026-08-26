@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { principalColors } from "@/modules/principal/theme";
+import { useInitialQueryParam } from "@/lib/utils/useInitialQueryParam";
 import {
   useCalendarEvents,
   usePersonalCalendarEntries,
@@ -59,6 +60,17 @@ export default function PrincipalCalendarPage() {
   const [day, setDay] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<PersonalCalendarEntry["category"]>("meeting");
+  const initialAction = useInitialQueryParam("action");
+
+  // Header "+" quick action lands here as /principal/calendar?action=add-event
+  // — open the same real "Add to your calendar" form the page's own "Add
+  // event" button uses, rather than a second create flow.
+  useEffect(() => {
+    if (initialAction === "add-event") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setComposerOpen(true);
+    }
+  }, [initialAction]);
 
   const institutionEvents = useCalendarEvents(year, month);
   const personalEntries = usePersonalCalendarEntries(year, month);

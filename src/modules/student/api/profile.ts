@@ -7,6 +7,8 @@ export interface MyIdentity {
   id_no: string;
   designation: string;
   department: string | null;
+  /** Only populated for Secretary today (her department's numeric id) — undefined for every other role. */
+  department_id?: number | null;
   photo_url: string | null;
   resume_url: string | null;
   work_email: string;

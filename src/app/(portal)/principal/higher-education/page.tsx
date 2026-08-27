@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
@@ -18,10 +19,10 @@ function countryList(countries: string[]): string {
 }
 
 export default function PrincipalHigherEducationPage() {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const [batchId, setBatchId] = useState<number | undefined>(undefined);
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const filters = useHigherEducationFilters();
   const summary = useHigherEducationSummary();
@@ -142,10 +143,10 @@ export default function PrincipalHigherEducationPage() {
             <tbody>
               {list.isLoading && <PrincipalTableSkeleton columns={6} />}
               {records.map((r) => (
-                <Fragment key={r.id}>
                   <tr
-                    onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    className="cursor-pointer border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]"
+                    key={r.id}
+                    onClick={() => router.push(`/principal/higher-education/${r.id}`)}
+                    className="cursor-pointer border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]"
                     style={{ borderColor: principalColors.borderMuted }}
                   >
                     <td className="px-5 py-3.5">
@@ -186,27 +187,6 @@ export default function PrincipalHigherEducationPage() {
                       )}
                     </td>
                   </tr>
-                  {expandedId === r.id && (
-                    <tr style={{ borderColor: principalColors.borderMuted }} className="border-t">
-                      <td colSpan={6} className="px-5 py-3 text-sm" style={{ background: principalColors.surfaceMuted, color: principalColors.body }}>
-                        {r.admission_status && (
-                          <div className="mb-1">
-                            <span className="font-semibold">Admission status: </span>
-                            <span className="capitalize">{r.admission_status}</span>
-                          </div>
-                        )}
-                        {r.remarks ? (
-                          <>
-                            <span className="font-semibold">Note: </span>
-                            {r.remarks}
-                          </>
-                        ) : (
-                          <span style={{ color: principalColors.textFaint }}>No additional notes on file.</span>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
               ))}
             </tbody>
           </table>

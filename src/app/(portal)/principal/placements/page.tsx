@@ -22,6 +22,54 @@ function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
+function PlacementMiniCard({
+  icon,
+  label,
+  value,
+  sub,
+  loading,
+}: {
+  icon: string;
+  label: string;
+  value: string | number;
+  sub?: string;
+  loading?: boolean;
+}) {
+  return (
+    <div
+      className="flex h-full flex-col justify-between rounded-2xl border p-5 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+      style={{ background: principalColors.bg, borderColor: principalColors.border }}
+    >
+      <div className="flex items-center gap-2">
+        <Icon name={icon} size={16} style={{ color: principalColors.primary }} />
+        <span className="text-[13px] font-semibold" style={{ color: principalColors.body }}>
+          {label}
+        </span>
+      </div>
+      {loading ? (
+        <div>
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="mt-2 h-3.5 w-32" />
+        </div>
+      ) : (
+        <div>
+          <div
+            className="text-[28px] font-extrabold leading-none"
+            style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
+          >
+            {value}
+          </div>
+          {sub && (
+            <div className="mt-1.5 truncate text-[12.5px]" style={{ color: principalColors.textFaint }}>
+              {sub}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DepartmentTile({ dept, onOpen }: { dept: PlacementDepartmentCard; onOpen: () => void }) {
   return (
     <button
@@ -193,7 +241,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
             <tbody>
               {sections.isLoading && <PrincipalTableSkeleton columns={9} />}
               {sections.data?.map((s) => (
-                <tr key={s.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {s.section} {s.semester != null ? `· Sem ${s.semester}` : ""}
                   </td>
@@ -259,7 +307,7 @@ export default function PrincipalPlacementsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1.3fr_1fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr]">
         <div
           className="flex flex-col gap-6 rounded-2xl border p-6 hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
           style={{ background: principalColors.bg, borderColor: principalColors.border }}
@@ -278,7 +326,7 @@ export default function PrincipalPlacementsPage() {
                 <>
                   <div className="mt-2 flex items-end gap-3">
                     <div
-                      className="text-[52px] font-extrabold leading-none"
+                      className="text-[64px] font-extrabold leading-none"
                       style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
                     >
                       {summary.data?.overall.percentage != null ? `${summary.data.overall.percentage}%` : "—"}
@@ -311,29 +359,29 @@ export default function PrincipalPlacementsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3.5">
-          <PrincipalStatCard
+        <div className="grid grid-cols-2 grid-rows-2 gap-3.5">
+          <PlacementMiniCard
             label="Highest package"
             icon="military_tech"
             loading={summary.isLoading}
             value={summary.data?.highest_package ? `₹${summary.data.highest_package.value} LPA` : "—"}
             sub={summary.data?.highest_package ? [summary.data.highest_package.company_name, summary.data.highest_package.job_role].filter(Boolean).join(" · ") : undefined}
           />
-          <PrincipalStatCard
+          <PlacementMiniCard
             label="Average package"
             icon="request_quote"
             loading={summary.isLoading}
             value={summary.data?.average_package != null ? `₹${summary.data.average_package} LPA` : "—"}
             sub={summary.data ? `across ${summary.data.offers_released} offers` : undefined}
           />
-          <PrincipalStatCard
+          <PlacementMiniCard
             label="Multiple offers"
             icon="groups"
             loading={summary.isLoading}
             value={summary.data?.multiple_offers_count ?? "—"}
             sub="students with 2+ offers"
           />
-          <PrincipalStatCard
+          <PlacementMiniCard
             label="Drives this month"
             icon="event_repeat"
             loading={summary.isLoading}

@@ -76,6 +76,16 @@ export function PrincipalShell({ children }: { children: React.ReactNode }) {
         results,
         isLoading: search.isLoading,
       }}
+      // Ported from the old bespoke PrincipalTopbar's "+" quick-actions
+      // dropdown (real, working links — not a fabricated addition) onto the
+      // shared Topbar's quickCreate slot, so the action survives the switch
+      // to AppShell instead of being silently dropped.
+      quickCreate={{
+        items: [
+          { label: "Add event", onSelect: () => router.push("/principal/calendar?action=add-event") },
+          { label: "New announcement", onSelect: () => router.push("/principal/announcements?action=new") },
+        ],
+      }}
       navBadges={{
         principalStudentsTotal: summary.data?.students.total_active,
         principalFacultyTotal: summary.data?.faculty.total_active,

@@ -96,9 +96,10 @@ function DepartmentTile({ dept, onOpen }: { dept: DepartmentCard; onOpen: () => 
   );
 }
 
-function AssignHodPanel({ departmentId, currentFacultyId }: { departmentId: number; currentFacultyId: number | null }) {
+/** Only offered while a department has no HoD — once one is assigned, the register (not this UI) is the source of truth for changing it, so there is no "Change HoD" trigger. */
+function AssignHodPanel({ departmentId }: { departmentId: number }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<string>(currentFacultyId ? String(currentFacultyId) : "");
+  const [selected, setSelected] = useState<string>("");
   const facultyOptions = useFacultyList({ department_id: departmentId });
   const assignHod = useAssignHod(departmentId);
 
@@ -110,7 +111,7 @@ function AssignHodPanel({ departmentId, currentFacultyId }: { departmentId: numb
         className="h-9 rounded-lg border px-3.5 text-sm font-semibold"
         style={{ borderColor: principalColors.border, color: principalColors.primary }}
       >
-        {currentFacultyId ? "Change HoD" : "Assign HoD"}
+        Assign HoD
       </button>
     );
   }
@@ -139,17 +140,6 @@ function AssignHodPanel({ departmentId, currentFacultyId }: { departmentId: numb
       >
         Save
       </button>
-      {currentFacultyId != null && (
-        <button
-          type="button"
-          disabled={assignHod.isPending}
-          onClick={() => assignHod.mutate(null, { onSuccess: () => setOpen(false) })}
-          className="h-9 rounded-lg border px-3 text-sm font-semibold"
-          style={{ borderColor: principalColors.border, color: "#B42318" }}
-        >
-          Clear
-        </button>
-      )}
       <button
         type="button"
         onClick={() => setOpen(false)}
@@ -206,7 +196,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
                 </p>
               </div>
             </div>
-            <AssignHodPanel departmentId={departmentId} currentFacultyId={detail.data.hod?.faculty_id ?? null} />
+            {!detail.data.hod && <AssignHodPanel departmentId={departmentId} />}
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -287,7 +277,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
             <tbody>
               {sections.isLoading && <PrincipalTableSkeleton columns={8} />}
               {sections.data?.map((s) => (
-                <tr key={s.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {s.section} {s.semester != null ? `· Sem ${s.semester}` : ""}
                   </td>

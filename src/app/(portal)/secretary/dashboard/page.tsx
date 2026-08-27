@@ -6,6 +6,7 @@ import { SegmentedTabs } from "@/components/ui";
 import { SecretaryIcon } from "@/modules/secretary/icons";
 import { tone as noticeTone } from "@/modules/secretary/helpers";
 import { useAnnouncements } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 import {
   useStudentAttendanceOverview,
   useRollCount,
@@ -18,7 +19,8 @@ import {
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 112-204.
 //
 // REAL BACKEND WIRING — ZERO fake data. Every number on this screen comes
-// from EOSbackend1's institution-wide `/principal-*` aggregate endpoints
+// from EOSbackend1's `/principal-*` aggregate endpoints, now department-
+// scoped server-side for Secretary (own department only, mirroring HOD)
 // (originally Principal-only, granted to Secretary — see
 // `src/modules/secretary/api/overview.ts` for the exact routes/shapes) and
 // the real `/announcements` module. Honest substitutions made where the
@@ -62,6 +64,8 @@ export default function SecretaryDashboardPage() {
   const { data: examsOverview } = useExamsOverview();
   const { data: placementsOverview } = usePlacementsOverview();
   const { data: announcements } = useAnnouncements();
+  const { data: identity } = useMyIdentity();
+  const deptName = identity?.department ?? "your department";
 
   const facAttendancePct = useMemo(() => {
     if (!facOverview || facOverview.total_employees === 0) return null;
@@ -69,7 +73,12 @@ export default function SecretaryDashboardPage() {
   }, [facOverview]);
 
   const stats = useMemo(() => {
-    const deptsAbove90 = attOverview?.departments.filter((d) => d.attendance_pct !== null && d.attendance_pct >= 90).length ?? 0;
+    // attOverview.departments now contains just this secretary's own
+    // department (the backend scopes /principal-students/attendance-overview
+    // to her department) — a "X of Y departments" framing no longer makes
+    // sense with Y always ≤1, so this reports her own department's status
+    // against the 90% mark instead.
+    const ownDeptPct = attOverview?.departments[0]?.attendance_pct ?? null;
     return [
       {
         label: "Student attendance today",
@@ -78,7 +87,7 @@ export default function SecretaryDashboardPage() {
         hi: attOverview ? String(attOverview.present_today) : "—",
         sub: `present of ${rollCount?.count ?? "—"} on roll`,
         pct: attOverview?.mean_attendance_pct !== null && attOverview?.mean_attendance_pct !== undefined ? `${Math.round(attOverview.mean_attendance_pct)}%` : "0%",
-        foot: attOverview ? `${deptsAbove90} of ${attOverview.departments.length} departments above 90%` : "—",
+        foot: attOverview ? (ownDeptPct !== null && ownDeptPct >= 90 ? `${deptName} is above the 90% mark` : `${deptName} is below the 90% mark`) : "—",
         href: "/secretary/attendance",
       },
       {
@@ -114,12 +123,12 @@ export default function SecretaryDashboardPage() {
         href: "/secretary/reports",
       },
     ];
-  }, [attOverview, rollCount, facOverview, facAttendancePct, examsOverview, placementsOverview]);
+  }, [attOverview, rollCount, facOverview, facAttendancePct, examsOverview, placementsOverview, deptName]);
 
   const queue = useMemo(() => {
     const items: { title: string; meta: string; status: string; chipBg: string; chipFg: string; href: string }[] = [];
     if (attOverview && attOverview.below_75_count > 0) {
-      items.push({ title: `${attOverview.below_75_count} students below 75% attendance`, meta: "Institution-wide attendance overview · today", status: "Due today", chipBg: "#fffbeb", chipFg: "#b45309", href: "/secretary/reports" });
+      items.push({ title: `${attOverview.below_75_count} students below 75% attendance`, meta: `${deptName} attendance overview · today`, status: "Due today", chipBg: "#fffbeb", chipFg: "#b45309", href: "/secretary/reports" });
     }
     if (examsOverview && examsOverview.students_with_arrears > 0) {
       items.push({ title: `${examsOverview.students_with_arrears} students with pending arrears`, meta: `${examsOverview.arrear_papers} papers pending clearance`, status: "Pending", chipBg: "#eff6ff", chipFg: "#1d4ed8", href: "/secretary/reports" });
@@ -131,7 +140,7 @@ export default function SecretaryDashboardPage() {
       items.push({ title: `${facOverview.appraisals_total - facOverview.appraisals_closed} faculty appraisals pending`, meta: `Academic year ${facOverview.appraisal_academic_year ?? "—"}`, status: "Due today", chipBg: "#fffbeb", chipFg: "#b45309", href: "/secretary/reports" });
     }
     return items;
-  }, [attOverview, examsOverview, facOverview]);
+  }, [attOverview, examsOverview, facOverview, deptName]);
 
   const flags = useMemo(() => {
     const items: { title: string; meta: string }[] = [];
@@ -151,9 +160,9 @@ export default function SecretaryDashboardPage() {
   return (
     <div>
       <div>
-        <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Good morning, Kavitha</h1>
+        <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Good morning{identity?.name ? `, ${identity.name}` : ""}</h1>
         <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>
-          {queue.length} items on your desk · institution-wide overview, live from EOSbackend1
+          {queue.length} items on your desk · your department's overview, live from EOSbackend1
         </p>
       </div>
 

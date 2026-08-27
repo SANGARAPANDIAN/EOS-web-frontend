@@ -58,7 +58,15 @@ export type NavBadgeKey =
   | "edcStudents"
   | "edcStartups"
   | "edcIdeas"
-  | "edcIncubations";
+  | "edcIncubations"
+  | "secretaryPop"
+  | "secretarySop"
+  | "secretaryMedia"
+  | "secretaryVenue"
+  | "secretaryOutpass"
+  | "secretaryDocs"
+  | "secretaryEmpLeave"
+  | "secretaryEmpOd";
 
 export interface NavItem {
   key: string;

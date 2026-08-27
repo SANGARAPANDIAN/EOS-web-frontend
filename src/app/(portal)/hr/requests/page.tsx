@@ -184,12 +184,18 @@ function RecordEntryForm({ onClose }: { onClose: () => void }) {
 }
 
 export default function HrRequestsPage() {
+  // Inbox = still moving through the HOD → HR chain; History = a request HR
+  // (or the HOD, by rejecting) has already finished deciding on — a
+  // permanent record, same split the stat cards already implied but not
+  // previously surfaced as its own view.
+  const [view, setView] = useState<"inbox" | "history">("inbox");
   const [departmentId, setDepartmentId] = useState("all");
   const [kind, setKind] = useState<"all" | "leave" | "od">("all");
   const [status, setStatus] = useState<"all" | ApprovalStatus>("all");
   // "Awaiting HR" is the queue HR can actually act on: HoD has approved and HR
   // has not decided yet. Without it, the list mixes in requests still sitting
-  // with the HoD, whose Approve button can only ever fail.
+  // with the HoD, whose Approve button can only ever fail. Only meaningful in
+  // the Inbox view — every History row is already fully decided.
   const [stage, setStage] = useState<"all" | "awaiting_hr" | "awaiting_hod">("all");
   const [page, setPage] = useState(1);
   const [showRecordModal, setShowRecordModal] = useState(false);
@@ -208,12 +214,13 @@ export default function HrRequestsPage() {
   const deleteEntry = useDeleteHrVacationEntry();
 
   const allRows = requests.data?.data ?? [];
+  const viewRows = allRows.filter((r) => (view === "history" ? r.overall_status !== "pending" : r.overall_status === "pending"));
   const rows =
     stage === "awaiting_hr"
-      ? allRows.filter((r) => r.hod_approval_status === "approved" && r.hr_approval_status === "pending")
+      ? viewRows.filter((r) => r.hod_approval_status === "approved" && r.hr_approval_status === "pending")
       : stage === "awaiting_hod"
-        ? allRows.filter((r) => r.hod_approval_status === "pending")
-        : allRows;
+        ? viewRows.filter((r) => r.hod_approval_status === "pending")
+        : viewRows;
 
   const awaitingHrCount = allRows.filter(
     (r) => r.hod_approval_status === "approved" && r.hr_approval_status === "pending",
@@ -224,6 +231,13 @@ export default function HrRequestsPage() {
   const meta = requests.data?.meta;
 
   const filtersActive = departmentId !== "all" || kind !== "all" || status !== "all" || stage !== "all";
+
+  function changeView(next: "inbox" | "history") {
+    setView(next);
+    setStage("all");
+    setStatus("all");
+    setPage(1);
+  }
 
   function resetFilters() {
     setDepartmentId("all");
@@ -373,17 +387,29 @@ export default function HrRequestsPage() {
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Requests</h1>
           <p className="mt-1 text-[13px] text-muted">
-            Unified leave and on-duty inbox · HR can only decide once the Head of Department has approved
+            {view === "history"
+              ? "Every leave and on-duty request already decided — a permanent record."
+              : "Unified leave and on-duty inbox · HR can only decide once the Head of Department has approved"}
           </p>
         </div>
-        <Button
-          variant="primarySmall"
-          className="inline-flex w-auto shrink-0 items-center gap-1.5 px-5 py-3"
-          onClick={() => setShowRecordModal(true)}
-        >
-          <Icon name="add" size={16} />
-          Record entry
-        </Button>
+        <div className="flex items-center gap-3">
+          <SegmentedTabs
+            value={view}
+            onChange={changeView}
+            options={[
+              { key: "inbox", label: "Inbox" },
+              { key: "history", label: "History" },
+            ]}
+          />
+          <Button
+            variant="primarySmall"
+            className="inline-flex w-auto shrink-0 items-center gap-1.5 px-5 py-3"
+            onClick={() => setShowRecordModal(true)}
+          >
+            <Icon name="add" size={16} />
+            Record entry
+          </Button>
+        </div>
       </div>
 
       {actionError && <Banner>{actionError}</Banner>}
@@ -415,7 +441,7 @@ export default function HrRequestsPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${view === "inbox" ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
           <Field label="Department">
             <Select
               value={departmentId}
@@ -434,51 +460,69 @@ export default function HrRequestsPage() {
           </Field>
 
           <Field label="Kind">
-            <Select
+            <SegmentedTabs
               value={kind}
-              onChange={(e) => {
-                setKind(e.target.value as typeof kind);
+              onChange={(k) => {
+                setKind(k);
                 setPage(1);
               }}
-            >
-              <option value="all">Leave + OD</option>
-              <option value="leave">Leave only</option>
-              <option value="od">OD only</option>
-            </Select>
+              options={[
+                { key: "all", label: "All" },
+                { key: "leave", label: "Leave" },
+                { key: "od", label: "OD" },
+              ]}
+            />
           </Field>
 
           <Field label="Status">
-            <Select
+            <SegmentedTabs
               value={status}
-              onChange={(e) => {
-                setStatus(e.target.value as typeof status);
+              onChange={(s) => {
+                setStatus(s);
                 setPage(1);
               }}
-            >
-              <option value="all">Any status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </Select>
+              options={
+                // Each view can only ever contain one side of this split
+                // (Inbox = pending, History = approved/rejected), so the
+                // options offered here only ever include values that can
+                // actually return a row — never a combination guaranteed to
+                // come back empty.
+                view === "history"
+                  ? [
+                      { key: "all", label: "Any" },
+                      { key: "approved", label: "Approved" },
+                      { key: "rejected", label: "Rejected" },
+                    ]
+                  : [
+                      { key: "all", label: "Any" },
+                      { key: "pending", label: "Pending" },
+                    ]
+              }
+            />
           </Field>
 
-          <Field label="Stage">
-            <Select value={stage} onChange={(e) => setStage(e.target.value as typeof stage)}>
-              <option value="all">Any stage</option>
-              <option value="awaiting_hr">
-                Awaiting HR{awaitingHrCount > 0 ? ` (${awaitingHrCount})` : ""}
-              </option>
-              <option value="awaiting_hod">
-                Awaiting HOD{awaitingHodCount > 0 ? ` (${awaitingHodCount})` : ""}
-              </option>
-            </Select>
-          </Field>
+          {/* Stage (still-in-progress vs which side it's sitting with) only
+              means something for the Inbox — every History row is already
+              fully decided by both HOD and HR. */}
+          {view === "inbox" && (
+            <Field label="Stage">
+              <SegmentedTabs
+                value={stage}
+                onChange={setStage}
+                options={[
+                  { key: "all", label: "Any" },
+                  { key: "awaiting_hr", label: `Awaiting HR${awaitingHrCount > 0 ? ` (${awaitingHrCount})` : ""}` },
+                  { key: "awaiting_hod", label: `Awaiting HOD${awaitingHodCount > 0 ? ` (${awaitingHodCount})` : ""}` },
+                ]}
+              />
+            </Field>
+          )}
         </div>
       </Card>
 
       <Card className="flex flex-col gap-3 p-[18px_20px]">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-[15px] font-extrabold text-ink">Request inbox</h2>
+          <h2 className="text-[15px] font-extrabold text-ink">{view === "history" ? "Decided requests" : "Request inbox"}</h2>
           <span className="text-[12px] text-subtle">
             {rows.length} shown{meta ? ` · ${meta.total} total` : ""}
           </span>

@@ -162,7 +162,7 @@ export default function SecretaryDashboardPage() {
       <div>
         <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Good morning{identity?.name ? `, ${identity.name}` : ""}</h1>
         <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>
-          {queue.length} items on your desk · your department's overview, live from EOSbackend1
+          {queue.length} items on your desk · your department&apos;s overview, live from EOSbackend1
         </p>
       </div>
 

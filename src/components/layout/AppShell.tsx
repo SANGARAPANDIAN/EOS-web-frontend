@@ -50,30 +50,43 @@ interface AppShellProps {
  */
 export function AppShell({ moduleConfig, header, navBadges, search, programIcon, quickCreate, customTopbar, onIdentityClick, children }: AppShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-surface font-sans text-ink">
-      <Sidebar
-        moduleConfig={moduleConfig}
-        studentName={header?.studentName}
-        registerNumber={header?.registerNumber}
-        navBadges={navBadges}
-        onIdentityClick={onIdentityClick}
-      />
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        {customTopbar ?? (
-          <Topbar
-            moduleConfig={moduleConfig}
-            searchPlaceholder={header?.searchPlaceholder}
-            programLabel={header?.programLabel}
-            programIcon={programIcon}
-            roleDeptLabel={header?.roleDeptLabel}
-            academicYearLabel={header?.academicYearLabel}
-            semesterParityLabel={header?.semesterParityLabel}
-            unreadNotifications={header?.unreadNotifications}
-            showNotifications={header?.showNotifications}
-            search={search}
-            quickCreate={quickCreate}
-          />
-        )}
+    // data-shell-root/data-shell-main/data-no-print: this shell uses a
+    // fixed-viewport (h-screen + overflow-hidden/overflow-y-auto) layout so
+    // only <main> scrolls on screen — which is exactly what produces a
+    // print-blank page, since a fixed-height, overflow-clipped ancestor
+    // doesn't let the print engine paginate content beyond the current
+    // viewport. globals.css resets these back to natural document flow
+    // under @media print (and hides the chrome) without touching on-screen
+    // behavior at all. Every module renders through this one shell, so
+    // fixing it here fixes print for all of them at once.
+    <div data-shell-root="" className="flex h-screen overflow-hidden bg-surface font-sans text-ink">
+      <div data-no-print="" style={{ display: "contents" }}>
+        <Sidebar
+          moduleConfig={moduleConfig}
+          studentName={header?.studentName}
+          registerNumber={header?.registerNumber}
+          navBadges={navBadges}
+          onIdentityClick={onIdentityClick}
+        />
+      </div>
+      <main data-shell-main="" className="flex flex-1 flex-col overflow-y-auto">
+        <div data-no-print="" style={{ display: "contents" }}>
+          {customTopbar ?? (
+            <Topbar
+              moduleConfig={moduleConfig}
+              searchPlaceholder={header?.searchPlaceholder}
+              programLabel={header?.programLabel}
+              programIcon={programIcon}
+              roleDeptLabel={header?.roleDeptLabel}
+              academicYearLabel={header?.academicYearLabel}
+              semesterParityLabel={header?.semesterParityLabel}
+              unreadNotifications={header?.unreadNotifications}
+              showNotifications={header?.showNotifications}
+              search={search}
+              quickCreate={quickCreate}
+            />
+          )}
+        </div>
         <div className={cn("flex flex-1 flex-col gap-5 px-7 pb-14", customTopbar ? "pt-5" : "pt-9")}>{children}</div>
       </main>
     </div>

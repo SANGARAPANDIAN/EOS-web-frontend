@@ -18,7 +18,7 @@ export function PrincipalPlacementCard({ data, isLoading }: PrincipalPlacementCa
 
   return (
     <div
-      className="hover-lift flex flex-col overflow-hidden rounded-2xl border transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+      className="hover-lift flex h-[340px] flex-col overflow-hidden rounded-2xl border transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
       style={{ background: principalColors.bg, borderColor: principalColors.border }}
     >
       <div className="flex items-center gap-3 border-b px-5 py-[18px]" style={{ borderColor: principalColors.borderLight }}>

@@ -87,7 +87,7 @@ export default function PrincipalHostelPage() {
             <tbody>
               {blocks.isLoading && <PrincipalTableSkeleton columns={6} />}
               {blocks.data?.map((b) => (
-                <tr key={b.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={b.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {b.hostel.name} · Block {b.name}
                   </td>
@@ -160,7 +160,7 @@ export default function PrincipalHostelPage() {
             <tbody>
               {roomTypeFees.isLoading && <PrincipalTableSkeleton columns={2} />}
               {roomTypeFees.data?.map((rt) => (
-                <tr key={rt.room_type_id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={rt.room_type_id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {rt.room_type}
                   </td>

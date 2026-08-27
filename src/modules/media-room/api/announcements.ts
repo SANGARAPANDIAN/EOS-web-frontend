@@ -74,6 +74,14 @@ export interface CreateAnnouncementInput {
   is_pinned?: boolean;
   allow_comments?: boolean;
   first_comment?: string;
+  /** Ordered carousel items. Array order becomes sequence_no server-side. */
+  media?: {
+    storage_key: string;
+    media_type: "photo" | "video";
+    width?: number;
+    height?: number;
+    duration_seconds?: number;
+  }[];
 }
 
 /** POST /announcements — target_audience is always 'students' (the "College App" audience) for Media Room. */

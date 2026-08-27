@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 import { useStudentsSearch, useClassMentors, type StudentRow } from "@/modules/secretary/api/overview";
 
 // Pixel-exact layout port of the `isStudents` screen from
@@ -43,14 +43,12 @@ export default function SecretaryStudentsPage() {
     setTimeout(() => setToast(""), 2600);
   }
 
-  const { data: batches } = useBatchesLookup();
-  const currentBatchId = useMemo(() => (batches ?? []).reduce<number | undefined>((best, b) => (best === undefined ? b.id : best), undefined), [batches]);
-  const { data: departments } = useDepartmentsLookup(currentBatchId);
-  const cseDept = useMemo(() => (departments ?? []).find((d) => d.code?.toUpperCase() === "CSE") ?? departments?.[0], [departments]);
+  const { data: identity } = useMyIdentity();
+  const myDept = useMemo(() => (identity?.department_id != null ? { id: identity.department_id } : undefined), [identity]);
 
-  const { data: roster, isLoading, error } = useStudentsSearch({ department_id: cseDept?.id, below_75: lens === "Attendance below 75%" ? true : undefined, limit: 100 });
+  const { data: roster, isLoading, error } = useStudentsSearch({ department_id: myDept?.id, below_75: lens === "Attendance below 75%" ? true : undefined, limit: 100 });
   const allStudents = roster?.students ?? [];
-  const { data: classMentors } = useClassMentors(cseDept?.id);
+  const { data: classMentors } = useClassMentors(myDept?.id);
   const mentorBySection = useMemo(() => new Map((classMentors ?? []).map((m) => [m.section, m.mentor])), [classMentors]);
 
   const sectionOptions = useMemo(() => ["All sections", ...Array.from(new Set(allStudents.map((r) => r.section).filter((s): s is string => !!s))).sort()], [allStudents]);

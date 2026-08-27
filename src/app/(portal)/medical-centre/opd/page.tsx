@@ -209,6 +209,41 @@ function HistoryModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/**
+ * The Call in / Complete / Reopen action. A plain `advance.mutate(row.id)`
+ * with no error handling used to fail completely silently on a rejected
+ * request — the button looked broken because nothing ever told the operator
+ * it didn't work. Mirrors the try/catch + inline error pattern the booking
+ * approve/reject buttons already use.
+ */
+function AdvanceButton({ row }: { row: QueueRow }) {
+  const advance = useAdvanceQueue();
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleClick() {
+    setError(null);
+    try {
+      await advance.mutateAsync(row.id);
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not update this visit.");
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={advance.isPending}
+        onClick={handleClick}
+        className="rounded-[7px] bg-primary px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-primary-dark disabled:opacity-50"
+      >
+        {advance.isPending ? "Updating…" : NEXT_ACTION[row.status]}
+      </button>
+      {error && <div className="text-[11.5px] font-semibold text-danger-fg">{error}</div>}
+    </div>
+  );
+}
+
 function ToSickRoomModal({ row, onClose }: { row: QueueRow; onClose: () => void }) {
   const beds = useSickRoomBeds();
   const admit = useAdmitBed();
@@ -266,7 +301,6 @@ function ToSickRoomModal({ row, onClose }: { row: QueueRow; onClose: () => void 
 
 export default function OpdQueuePage() {
   const queue = useOpdQueue();
-  const advance = useAdvanceQueue();
   const [filter, setFilter] = useState<FilterKey>("all");
   const [showAdd, setShowAdd] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -303,14 +337,8 @@ export default function OpdQueuePage() {
       width: "1.7fr",
       align: "right",
       render: (row) => (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => advance.mutate(row.id)}
-            className="rounded-[7px] bg-primary px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-primary-dark"
-          >
-            {NEXT_ACTION[row.status]}
-          </button>
+        <div className="flex items-start justify-end gap-2">
+          <AdvanceButton row={row} />
           <button
             type="button"
             onClick={() => setToSickRoom(row)}

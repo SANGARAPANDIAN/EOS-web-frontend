@@ -13,6 +13,7 @@ import {
   useFacultyList,
   useFacultyAttendanceOverview,
 } from "@/modules/secretary/api/overview";
+import { useMyIdentity } from "@/modules/student/api/profile";
 
 // Pixel-exact port of the `isReports` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1333-1473
@@ -50,7 +51,7 @@ const STUDENT_LENSES = ["Attendance below 75%", "CGPA above 8.5", "CGPA below 7"
 const FACULTY_LENSES = ["All faculty", "Attendance below 95%"] as const;
 
 const REPORT_DESCRIPTORS = [
-  { name: "Monthly attendance summary", desc: "Present/absent counts, institution-wide." },
+  { name: "Monthly attendance summary", desc: "Present/absent counts for your department." },
   { name: "Faculty workload report", desc: "Duties and attendance per faculty member." },
   { name: "Pass percentage snapshot", desc: "Department-wise pass rate and arrears." },
   { name: "Placement summary", desc: "Season stats and department-wise placement %." },
@@ -78,6 +79,8 @@ export default function SecretaryReportsPage() {
   const { data: below75 } = useStudentsSearch({ below_75: true, limit: 100 });
   const { data: facultyList } = useFacultyList({ limit: 100 });
   const { data: facAttendance } = useFacultyAttendanceOverview();
+  const { data: identity } = useMyIdentity();
+  const deptName = identity?.department ?? "your department";
 
   const kpis = useMemo(
     () => [
@@ -144,7 +147,7 @@ export default function SecretaryReportsPage() {
       if (name === "Monthly attendance summary") {
         await exportToPdf({
           title: "Monthly Attendance Summary",
-          subtitle: "Institution-wide, live from EOSbackend1",
+          subtitle: `${deptName}, live from EOSbackend1`,
           meta: [["Mean attendance", kpis[2].value], ["Below 75%", String(attOverview?.below_75_count ?? "—")]],
           sections: [
             {
@@ -179,7 +182,7 @@ export default function SecretaryReportsPage() {
       } else if (name === "Pass percentage snapshot") {
         await exportToPdf({
           title: "Pass Percentage Snapshot",
-          subtitle: "Institution-wide, live from EOSbackend1",
+          subtitle: `${deptName}, live from EOSbackend1`,
           meta: [["Pass percentage", kpis[3].value], ["Students with arrears", String(examsOverview?.students_with_arrears ?? "—")], ["Arrear papers", String(examsOverview?.arrear_papers ?? "—")]],
           sections: [
             {
@@ -224,7 +227,7 @@ export default function SecretaryReportsPage() {
   async function onExportFullReport() {
     try {
       await exportToPdf({
-        title: "Institution Report — Full Summary",
+        title: `${deptName} Report — Full Summary`,
         subtitle: "Students, faculty, results and placements — live from EOSbackend1",
         meta: kpis.map((k) => [k.label, k.value] as [string, string]),
         sections: [
@@ -260,7 +263,7 @@ export default function SecretaryReportsPage() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24, marginBottom: 26 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Reports &amp; Analytics</h1>
-          <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>Institution-wide picture — students, faculty, results and placements, live from EOSbackend1</p>
+          <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>{deptName} picture — students, faculty, results and placements, live from EOSbackend1</p>
         </div>
         <button onClick={onExportFullReport} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 13.5, fontWeight: 600, borderRadius: 12, padding: "16px 28px", cursor: "pointer" }}>Export full report</button>
       </div>
@@ -316,11 +319,11 @@ export default function SecretaryReportsPage() {
               <button key={l} data-sec-nav-item="" onClick={() => setLens(l)} style={{ border: lens === l ? "1px solid #c7d7fe" : "1px solid #e5e9f2", background: lens === l ? "#eef4ff" : "#ffffff", color: lens === l ? "#1e3a8a" : "#475569", fontSize: 11.7, fontWeight: lens === l ? 600 : 500, borderRadius: 999, padding: "8px 16px", cursor: "pointer" }}>{l}</button>
             ))}
           </div>
-          <span style={{ marginLeft: "auto", fontSize: 11.7, color: "#64748b" }}>{lens === "With arrears" ? `${examsOverview?.students_with_arrears ?? 0} students (institution-wide total)` : `${lensRows.length} students listed`}</span>
+          <span style={{ marginLeft: "auto", fontSize: 11.7, color: "#64748b" }}>{lens === "With arrears" ? `${examsOverview?.students_with_arrears ?? 0} students (${deptName} total)` : `${lensRows.length} students listed`}</span>
         </div>
         {lens === "With arrears" ? (
           <div style={{ padding: 40, textAlign: "center", fontSize: 12.6, color: "#64748b", lineHeight: 1.6 }}>
-            No per-student arrears field exists in the backend — only an institution-wide total is available:<br />
+            No per-student arrears field exists in the backend — only a {deptName} total is available:<br />
             <strong>{examsOverview?.students_with_arrears ?? "—"} students</strong> with <strong>{examsOverview?.arrear_papers ?? "—"} arrear papers</strong> combined.
           </div>
         ) : (

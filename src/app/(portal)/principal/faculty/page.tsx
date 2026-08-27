@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
@@ -12,6 +13,8 @@ import {
   useFacultyDepartmentStrength,
   useFacultyList,
 } from "@/modules/principal/api/faculty";
+
+const PAGE_SIZE = 15;
 
 function formatRupees(amount: number): string {
   if (amount >= 1e7) return `₹${(amount / 1e7).toFixed(2)} Cr`;
@@ -27,13 +30,22 @@ export default function PrincipalFacultyPage() {
     if (initialQ) setQ(initialQ);
   }, [initialQ]);
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
+  const [page, setPage] = useState(1);
+
+  // Any change to search/filters invalidates the current page — go back to
+  // page 1 rather than showing an out-of-range, possibly-empty page.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [q, departmentId]);
 
   const filters = useFacultyFilters();
   const summary = useFacultySummary();
   const deptStrength = useFacultyDepartmentStrength();
-  const list = useFacultyList({ q: q || undefined, department_id: departmentId });
+  const list = useFacultyList({ q: q || undefined, department_id: departmentId, page, limit: PAGE_SIZE });
 
   const faculty = list.data?.faculty ?? [];
+  const totalPages = list.data?.total_pages ?? 1;
   const onDutyPct =
     summary.data && summary.data.on_duty.total_active > 0
       ? Math.round((summary.data.on_duty.reported_today / summary.data.on_duty.total_active) * 1000) / 10
@@ -159,15 +171,21 @@ export default function PrincipalFacultyPage() {
                       ? "#B42318"
                       : principalColors.heading;
                 return (
-                  <tr key={f.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={f.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                     <td
                       className="whitespace-nowrap px-5 py-3.5 font-semibold"
                       style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.primary }}
                     >
                       #{f.id}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
-                      {f.name}
+                    <td className="whitespace-nowrap px-3 py-3.5 font-semibold">
+                      <Link
+                        href={`/principal/faculty/${f.id}`}
+                        className="hover:underline"
+                        style={{ color: principalColors.heading }}
+                      >
+                        {f.name}
+                      </Link>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3.5" style={{ color: principalColors.body }}>
                       {f.designation}
@@ -212,6 +230,40 @@ export default function PrincipalFacultyPage() {
           </div>
         )}
 
+        {!list.isLoading && faculty.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3.5" style={{ borderColor: principalColors.borderLight }}>
+            <span className="text-xs" style={{ color: principalColors.textSubtle }}>
+              Page {list.data?.page ?? page} of {totalPages} · department-wise order
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="h-9 rounded-lg border px-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: principalColors.bg, borderColor: principalColors.border, color: principalColors.body }}
+              >
+                Previous
+              </button>
+              <span
+                className="flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm font-bold"
+                style={{ background: principalColors.primary, color: "#FFFFFF" }}
+              >
+                {page}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="h-9 rounded-lg border px-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: principalColors.bg, borderColor: principalColors.border, color: principalColors.body }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="border-t px-5 py-3.5 text-xs" style={{ borderColor: principalColors.borderLight, color: principalColors.textSubtle }}>
           FACULTY ID is this system&apos;s internal record number, not an institution-issued employee code — no such
           code exists in this database. EXP is tenure at this institution computed from date of joining, plus any
@@ -245,7 +297,7 @@ export default function PrincipalFacultyPage() {
             <tbody>
               {deptStrength.isLoading && <PrincipalTableSkeleton columns={5} />}
               {deptStrength.data?.departments.map((d) => (
-                <tr key={d.department.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={d.department.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {d.department.code}
                   </td>

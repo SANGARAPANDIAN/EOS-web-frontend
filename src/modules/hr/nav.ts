@@ -23,7 +23,7 @@ export const hrModuleConfig: ModuleConfig = {
         { key: "criteria-library", label: "Criteria library", icon: "layers", href: `${BASE}/criteria-library` },
         {
           key: "employee-reviews",
-          label: "Employee reviews",
+          label: "Appraisal requests",
           icon: "military_tech",
           href: `${BASE}/employee-reviews`,
           badgeKey: "hrPendingAppraisals",

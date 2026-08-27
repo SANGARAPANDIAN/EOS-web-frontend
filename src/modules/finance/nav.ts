@@ -6,6 +6,14 @@
 // order kind has one destination, and the page itself carries a Tracking /
 // History switch. Two sidebar rows per kind (four in total) made the list long
 // and pushed the real sections down for no benefit.
+//
+// FINANCE_NAV below is the semantic source of truth (used to derive
+// navGroups for the shared AppShell/Sidebar); its `icon` tokens map to real
+// Material Symbols Rounded ligature names via ICON_MAP, and its badgeKey
+// tokens map to the shared NavBadgeKey union via BADGE_KEY_MAP — same
+// pattern as the Billing module's nav.ts.
+
+import type { ModuleConfig, NavBadgeKey } from "@/modules/types";
 
 export interface FinanceNavItem {
   id: string;
@@ -56,12 +64,40 @@ export const FINANCE_NAV: FinanceNavGroup[] = [
   },
 ];
 
-// Compat-shim registration, same pattern as the other module configs —
-// navGroups is intentionally empty because FinanceShell renders FINANCE_NAV
-// above rather than the generic AppShell/Sidebar.
-export const financeModuleConfig = {
+// Semantic FINANCE_NAV icon token -> real Material Symbols Rounded ligature
+// name, for the shared Icon component. Cosmetic picks, not load-bearing.
+const ICON_MAP: Record<string, string> = {
+  dashboard: "dashboard",
+  overview: "grid_view",
+  megaphone: "campaign",
+  approve: "fact_check",
+  service: "build",
+  truck: "local_shipping",
+  wrench: "handyman",
+  wallet: "account_balance_wallet",
+  faculty: "group",
+};
+
+// Local FINANCE_NAV badgeKey -> shared NavBadgeKey union member.
+const BADGE_KEY_MAP: Record<NonNullable<FinanceNavItem["badgeKey"]>, NavBadgeKey> = {
+  popPending: "financePopPending",
+  sopPending: "financeSopPending",
+  awaitingAllotment: "financeAwaitingAllotment",
+  feeOutstanding: "financeFeeOutstanding",
+};
+
+export const financeModuleConfig: ModuleConfig = {
   role: "finance",
   basePath: "/finance",
   moduleLabel: "Finance Portal",
-  navGroups: [],
+  navGroups: FINANCE_NAV.map((group) => ({
+    label: group.label,
+    items: group.items.map((item) => ({
+      key: item.id,
+      label: item.label,
+      icon: ICON_MAP[item.icon] ?? item.icon,
+      href: item.href,
+      badgeKey: item.badgeKey ? BADGE_KEY_MAP[item.badgeKey] : undefined,
+    })),
+  })),
 };

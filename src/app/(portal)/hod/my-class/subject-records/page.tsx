@@ -225,6 +225,10 @@ function EnterMarksTab() {
   }
 
   const active = inSemester.find((r) => r.exam_subject_mapping_id === mappingId);
+  // Only internal (CIA1/2/3) exams are entered here — University End
+  // Semester marks come from COE's own pipeline and are read-only. The
+  // backend enforces this too (see subject-records/exam-marks services).
+  const isInternalExam = active?.exam.category === "internal";
   const detail = useSubjectRecordDetail(mappingId ?? undefined);
   const publish = usePublishSubjectRecord();
 
@@ -241,7 +245,7 @@ function EnterMarksTab() {
   const mean = entered.length ? Math.round((entered.reduce((a, b) => a + b, 0) / entered.length) * 10) / 10 : null;
 
   function saveMarks() {
-    if (!mappingId) return;
+    if (!mappingId || !isInternalExam) return;
     setSaveError(null);
     const effectiveMaxMarks = roster.data?.max_marks || Number(maxMarksInput) || 100;
     const newEntries = students
@@ -376,7 +380,8 @@ function EnterMarksTab() {
             <Badge tone={active.is_published ? "accentDark" : "neutral"}>
               {active.is_published ? "Published" : "Draft · not published"}
             </Badge>
-            {!roster.data?.max_marks && !active.is_published && (
+            {!isInternalExam && <Badge tone="neutral">University exam · published by COE, view only</Badge>}
+            {!roster.data?.max_marks && !active.is_published && isInternalExam && (
               <div className="flex items-center gap-2">
                 <div className="text-[12.5px] font-bold text-body">Max marks</div>
                 <Input
@@ -387,7 +392,7 @@ function EnterMarksTab() {
               </div>
             )}
             <div className="flex-1" />
-            {!active.is_published && (
+            {!active.is_published && isInternalExam && (
               <>
                 <Button
                   variant="secondary"
@@ -441,7 +446,7 @@ function EnterMarksTab() {
                       <Input
                         value={value}
                         onChange={(e) => setDrafts((prev) => ({ ...prev, [s.student_id]: e.target.value }))}
-                        disabled={active.is_published || (roster.data?.locked && s.mark_id === null)}
+                        disabled={!isInternalExam || active.is_published || (roster.data?.locked && s.mark_id === null)}
                         className="w-20 py-2 text-center font-bold"
                       />
                       <span className="text-[11.5px] font-semibold text-subtle"> / {maxM ?? "—"}</span>

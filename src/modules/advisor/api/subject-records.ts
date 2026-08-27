@@ -7,7 +7,7 @@ export interface SubjectRecordSummary {
   exam_subject_mapping_id: number;
   class: { id: number; label: string };
   subject: { id: number; name: string; subject_code: string };
-  exam: { id: number; type: string; academic_year: string; semester: number };
+  exam: { id: number; type: string; category: "internal" | "external"; academic_year: string; semester: number };
   is_published: boolean;
   published_at: string | null;
   entered_count: number;

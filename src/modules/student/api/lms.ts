@@ -55,44 +55,6 @@ export function useFolderResources(folderId: number, enabled: boolean) {
   });
 }
 
-export interface LmsMaterialItem extends LmsResource {
-  folder_title: string;
-}
-
-/**
- * Folders are a real, faculty-authored grouping (not incidental), but the
- * design reference shows one flat "Course material" list with no folder
- * separation — this fetches every folder's resources in parallel and
- * flattens them, keeping folder_title on each item so the page can still
- * surface it (e.g. in the meta line) without a folder-by-folder accordion.
- */
-export function useLmsMaterials(subjectId: number) {
-  const folders = useLmsFolders(subjectId);
-  const folderList = useMemo(() => folders.data ?? [], [folders.data]);
-
-  const results = useQueries({
-    queries: folderList.map((f) => ({
-      queryKey: ["me", "lms", "folders", f.id, "resources"],
-      queryFn: () => apiClient.get<LmsResource[]>(`/me/lms/folders/${f.id}/resources`),
-    })),
-  });
-
-  const isLoading = folders.isLoading || results.some((r) => r.isLoading);
-
-  const items = useMemo(() => {
-    const all: LmsMaterialItem[] = [];
-    results.forEach((r, i) => {
-      const folder = folderList[i];
-      for (const resource of r.data ?? []) {
-        all.push({ ...resource, folder_title: folder.title });
-      }
-    });
-    return all.sort((a, b) => a.created_at.localeCompare(b.created_at));
-  }, [results, folderList]);
-
-  return { items, isLoading, folderCount: folderList.length };
-}
-
 export interface LmsTask {
   id: number;
   title: string;

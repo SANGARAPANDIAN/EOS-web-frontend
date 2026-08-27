@@ -1,52 +1,57 @@
 "use client";
 
-import { useState } from "react";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { AccessDenied } from "@/components/shared/AccessDenied";
-import { LibrarySidebar } from "@/modules/library/components/LibrarySidebar";
-import { LibraryTopbar } from "@/modules/library/components/LibraryTopbar";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AppShell } from "@/components/layout/AppShell";
+import type { TopbarSearchResult } from "@/components/layout/Topbar";
+import { libraryModuleConfig } from "@/modules/library/nav";
 import { useDashboardSummary } from "@/modules/library/api/dashboard";
 
-const COLLAPSE_STORAGE_KEY = "eos.library.sidebar.collapsed";
-
 export function LibraryShell({ children }: { children: React.ReactNode }) {
-  const { session } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== "undefined" && window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1",
-  );
+  const router = useRouter();
 
   // Live catalogue size, not a static number — a nav badge that disagreed
   // with the page it links to would erode trust in every other figure here.
   const dashboard = useDashboardSummary();
 
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
-      return next;
-    });
-  }
+  const [query, setQuery] = useState("");
 
-  if (!session) return null;
-
-  if (session.user.role !== "library") {
-    return <AccessDenied role={session.user.role} />;
-  }
+  // Doubles as a lightweight "jump to page" — filters the nav's flat item
+  // list by label, entirely client-side, so there's no loading state.
+  const results: TopbarSearchResult[] = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return libraryModuleConfig.navGroups
+      .flatMap((group) => group.items)
+      .filter((item) => item.label.toLowerCase().includes(q))
+      .map((item) => ({
+        section: "Page",
+        title: item.label,
+        sub: item.href,
+        onSelect: () => router.push(item.href),
+      }));
+  }, [query, router]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-admin-tint font-sans text-admin-ink">
-      <LibrarySidebar
-        collapsed={collapsed}
-        onToggleCollapsed={toggleCollapsed}
-        mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
-        badges={{ totalBooks: dashboard.data?.total_books }}
-      />
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        <LibraryTopbar onOpenMobileNav={() => setMobileOpen(true)} />
-        <div className="flex flex-1 flex-col gap-5 px-7 pt-[26px] pb-14">{children}</div>
-      </main>
-    </div>
+    <AppShell
+      moduleConfig={libraryModuleConfig}
+      programIcon="local_library"
+      header={{
+        programLabel: "Library · Institution",
+        showNotifications: true,
+      }}
+      search={{
+        placeholder: "Jump to a page — books, issue, reports…",
+        query,
+        onQueryChange: setQuery,
+        results,
+        isLoading: false,
+      }}
+      navBadges={{
+        totalBooks: dashboard.data?.total_books,
+      }}
+    >
+      {children}
+    </AppShell>
   );
 }

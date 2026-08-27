@@ -41,8 +41,8 @@ function monthLabel(month: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 }
 
-function facultyName(f: { first_name: string; last_name: string }): string {
-  return `${f.first_name} ${f.last_name}`.trim();
+function facultyName(f: { first_name: string; last_name: string } | null | undefined): string {
+  return f ? `${f.first_name} ${f.last_name}`.trim() : "Non-faculty staff";
 }
 
 function ProcessPayslipModal({ request, onClose }: { request: PayslipRequest; onClose: () => void }) {
@@ -124,7 +124,9 @@ export default function HrPayslipRequestsPage() {
       render: (row) => (
         <div className="min-w-0">
           <div className="truncate font-bold text-ink">{facultyName(row.faculty)}</div>
-          <div className="truncate text-[12px] text-muted">{row.faculty.department.name}</div>
+          <div className="truncate text-[12px] text-muted">
+            {row.faculty ? row.faculty.department.name : `Requested via Secretary portal (user #${row.staff_user_id})`}
+          </div>
         </div>
       ),
     },

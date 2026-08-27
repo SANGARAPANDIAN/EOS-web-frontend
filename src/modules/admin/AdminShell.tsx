@@ -1,21 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { AccessDenied } from "@/components/shared/AccessDenied";
-import { AdminSidebar } from "@/modules/admin/components/AdminSidebar";
-import { AdminTopbar } from "@/modules/admin/components/AdminTopbar";
+import { AppShell } from "@/components/layout/AppShell";
+import type { TopbarSearchResult } from "@/components/layout/Topbar";
+import { adminModuleConfig } from "@/modules/admin/nav";
 import { useStudentCount } from "@/modules/admin/api/students";
 import { useFacultyCount } from "@/modules/admin/api/faculty";
 
-const COLLAPSE_STORAGE_KEY = "eos.admin.sidebar.collapsed";
-
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== "undefined" && window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1",
-  );
+  const router = useRouter();
+  const [query, setQuery] = useState("");
 
   // Live roll count, not a static number — a nav badge that disagreed with
   // the page it links to would be the first thing to erode trust in every
@@ -23,13 +21,22 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const studentCount = useStudentCount({});
   const facultyCount = useFacultyCount();
 
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
-      return next;
-    });
-  }
+  // "Jump to a page" search — filters the nav's flat item list by label,
+  // same behavior AdminTopbar had, just rendered through the shared results
+  // dropdown instead of a bare input that only reacted to Enter.
+  const results: TopbarSearchResult[] = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return adminModuleConfig.navGroups
+      .flatMap((group) => group.items)
+      .filter((item) => item.label.toLowerCase().includes(q))
+      .map((item) => ({
+        section: "Page",
+        title: item.label,
+        sub: item.href,
+        onSelect: () => router.push(item.href),
+      }));
+  }, [query, router]);
 
   if (!session) return null;
 
@@ -38,19 +45,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-admin-tint font-sans text-admin-ink">
-      <AdminSidebar
-        collapsed={collapsed}
-        onToggleCollapsed={toggleCollapsed}
-        mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
-        badges={{ studentCount: studentCount.data, facultyCount: facultyCount.data }}
-        userEmail={session.user.email}
-      />
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        <AdminTopbar onOpenMobileNav={() => setMobileOpen(true)} />
-        <div className="flex flex-1 flex-col gap-5 px-7 pt-[26px] pb-14">{children}</div>
-      </main>
-    </div>
+    <AppShell
+      moduleConfig={adminModuleConfig}
+      programIcon="verified_user"
+      header={{
+        programLabel: "Admin · Institution",
+        showNotifications: true,
+      }}
+      search={{
+        placeholder: "Jump to a page — students, reports, admissions…",
+        query,
+        onQueryChange: setQuery,
+        results,
+        isLoading: false,
+      }}
+      navBadges={{
+        studentCount: studentCount.data,
+        facultyCount: facultyCount.data,
+      }}
+    >
+      {children}
+    </AppShell>
   );
 }

@@ -47,7 +47,7 @@ export default function HodAppraisalDetailPage() {
             </p>
           </div>
           {d.status === "pending" && <Badge tone="accentDark">Pending review</Badge>}
-          {d.status === "sent_to_principal" && <Badge tone="accent">Sent to Principal</Badge>}
+          {d.status === "sent_to_hr" && <Badge tone="accent">Sent to HR</Badge>}
           {d.status === "sent_back" && <Badge tone="danger">Sent back</Badge>}
         </div>
         {d.status === "sent_back" && d.hod_remarks && (

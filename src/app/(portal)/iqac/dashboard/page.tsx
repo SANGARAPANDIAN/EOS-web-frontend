@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SegmentedTabs } from "@/components/ui";
 import { useIqacDashboard } from "@/modules/iqac/api/dashboard";
 import { QUALITY_DOMAINS } from "@/modules/iqac/qualityDomains";
 
 const PERIODS = ["Today", "This term", "This year"] as const;
+const PERIOD_TABS = PERIODS.map((p) => ({ key: p, label: p }));
 
 /** Where each real attention-flag type is actually shown in the IQAC module — 'fees'/'course_completion' route to the closest topically-relevant page since neither has its own dedicated IQAC view yet. */
 const FLAG_DESTINATIONS: Record<string, string> = {
@@ -109,20 +111,7 @@ export default function IqacDashboardPage() {
       </div>
 
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex gap-1 rounded-[10px] border border-border-default bg-surface p-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPeriod(p)}
-              className={`rounded-[8px] px-5 py-2.5 text-[14px] font-bold ${
-                period === p ? "bg-white text-ink shadow-[0_1px_3px_rgba(15,23,42,.12)]" : "text-muted"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs options={PERIOD_TABS} value={period} onChange={setPeriod} />
         <div className="ml-auto flex items-center gap-2.5 rounded-full border border-primary-border bg-surface px-4.5 py-2.5 text-[14px] font-bold text-primary">
           <span className="size-2 rounded-full bg-primary" />
           {flagCount} {flagCount === 1 ? "item" : "items"} flagged for review

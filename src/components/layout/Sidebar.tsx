@@ -14,9 +14,11 @@ interface SidebarProps {
   studentName?: string;
   registerNumber?: string;
   navBadges?: Partial<Record<NavBadgeKey, ReactNode>>;
+  /** Opt-in: makes the footer's avatar/name area clickable — see `SidebarUserFooter`. */
+  onIdentityClick?: () => void;
 }
 
-export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges }: SidebarProps) {
+export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges, onIdentityClick }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -101,6 +103,7 @@ export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges }
         subLabel={registerNumber ?? moduleConfig.moduleLabel}
         portalName={moduleConfig.moduleLabel}
         collapsed={collapsed}
+        onIdentityClick={onIdentityClick}
       />
     </aside>
   );

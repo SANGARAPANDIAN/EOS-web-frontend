@@ -13,6 +13,10 @@ export interface PayslipRequest {
   file_url: string | null;
   requested_at: string;
   purpose: string | null;
+  // null for a request submitted by non-faculty staff through the
+  // Secretary self-service branch (POST /payslip-requests keys those by
+  // staff_user_id instead of faculty_id) — HR still sees every request
+  // regardless of who filed it, so this has to render, not just type-check.
   faculty: {
     id: number;
     first_name: string;
@@ -20,7 +24,8 @@ export interface PayslipRequest {
     designation: string;
     profile_url?: string | null;
     department: { id: number; name: string };
-  };
+  } | null;
+  staff_user_id: number | null;
 }
 
 export interface PayslipRequestsListParams {

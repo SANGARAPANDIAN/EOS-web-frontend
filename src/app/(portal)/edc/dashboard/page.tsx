@@ -7,6 +7,8 @@ import { useEdcEntrepreneurship, isBeyondIdeaStage, type EdcEntrepreneurshipRow 
 import { useIncubations } from "@/modules/edc/api/incubations";
 import { useStartupIdeas } from "@/modules/edc/api/startupIdeas";
 import { useEdcAnnouncements, type EdcAnnouncementRow } from "@/modules/edc/api/announcements";
+import { useEdcEvents } from "@/modules/edc/api/events";
+import { useEdcDocuments } from "@/modules/edc/api/documents";
 import { barSx, pillSx } from "@/modules/edc/genericPage";
 
 // Rebuilt from real EOSbackend1 data — the design's DASHBOARD fake-data
@@ -39,6 +41,16 @@ const LEGAL_LABELS: Record<string, string> = {
   unregistered: "Unregistered",
 };
 
+// Relocated from the old EdcShell's bespoke topbar bell (client-computed,
+// not backed by the generic notifications table — see EdcShell.tsx) to this
+// page's own "Needs attention" card, now real page content instead of
+// global chrome. Every item is a real row from a real endpoint.
+interface EdcAlert {
+  title: string;
+  meta: string;
+  href: string;
+}
+
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const days = Math.floor(ms / 86_400_000);
@@ -55,6 +67,8 @@ export default function EdcDashboardPage() {
   const incubations = useIncubations();
   const ideas = useStartupIdeas();
   const announcements = useEdcAnnouncements();
+  const events = useEdcEvents();
+  const documents = useEdcDocuments();
 
   const loading = ventures.isLoading;
   const rows = ventures.data ?? [];
@@ -96,16 +110,39 @@ export default function EdcDashboardPage() {
   const recent = [...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6);
 
   const now = useNow();
-  const needsAttention = [
-    ...rows
-      .filter((v) => !v.mentor_faculty_id && !v.external_mentor_name)
-      .slice(0, 3)
-      .map((v) => ({ title: v.business_name, note: "No mentor assigned yet" })),
-    ...(incubations.data ?? [])
-      .filter((i) => i.next_review_date && new Date(i.next_review_date).getTime() < now)
-      .slice(0, 3)
-      .map((i) => ({ title: i.business_name ?? "Incubated venture", note: "Review is overdue" })),
-  ].slice(0, 5);
+
+  // Real alerts: the no-mentor-assigned check this card already had, plus
+  // the 4 alert types relocated here from the old EdcShell topbar bell (see
+  // the EdcAlert comment above). Kept unbounded, same as the old bell —
+  // every item is a real, actionable row.
+  const alerts: EdcAlert[] = [];
+  for (const v of rows) {
+    if (!v.mentor_faculty_id && !v.external_mentor_name) {
+      alerts.push({ title: v.business_name, meta: "No mentor assigned yet", href: `/edc/entrepreneurs/${v.id}` });
+    }
+  }
+  for (const i of incubations.data ?? []) {
+    if (i.next_review_date && new Date(i.next_review_date).getTime() < now) {
+      alerts.push({ title: "Incubation review overdue", meta: `${i.business_name ?? "A venture"} — was due ${new Date(i.next_review_date).toLocaleDateString()}`, href: `/edc/incubation/${i.id}` });
+    }
+  }
+  for (const d of documents.data ?? []) {
+    if (d.verification_status === "Pending") {
+      alerts.push({ title: "Document awaiting verification", meta: `${d.file_name}${d.venture_name ? ` — ${d.venture_name}` : ""}`, href: "/edc/documents" });
+    }
+  }
+  for (const idea of ideas.data ?? []) {
+    if (idea.review_status === "Under Review") {
+      alerts.push({ title: "Startup idea awaiting review", meta: `${idea.title} — ${idea.student.name}`, href: `/edc/ideas/${idea.id}` });
+    }
+  }
+  const soon = now + 7 * 86_400_000;
+  for (const e of events.data ?? []) {
+    const t = new Date(e.event_date).getTime();
+    if (t >= now && t <= soon) {
+      alerts.push({ title: "Upcoming event", meta: `${e.title} — ${new Date(e.event_date).toLocaleDateString()}`, href: "/edc/events" });
+    }
+  }
 
   const recentAnnouncements = (announcements.data ?? []).slice(0, 4);
 
@@ -231,18 +268,18 @@ export default function EdcDashboardPage() {
           <div data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Needs attention</h3>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: "#475569", background: "#E9EEF6", borderRadius: 99, padding: "3px 10px" }}>{needsAttention.length} flags</span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: "#475569", background: "#E9EEF6", borderRadius: 99, padding: "3px 10px" }}>{alerts.length} flags</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {needsAttention.length === 0 && <div style={{ fontSize: 13, color: "#94A3B8" }}>Nothing needs attention right now.</div>}
-              {needsAttention.map((f, i) => (
-                <div key={`${f.title}-${i}`} style={{ display: "flex", gap: 10 }}>
+              {alerts.length === 0 && <div style={{ fontSize: 13, color: "#94A3B8" }}>Nothing needs attention right now.</div>}
+              {alerts.map((a, i) => (
+                <Link key={`${a.title}-${i}`} href={a.href} style={{ display: "flex", gap: 10, textDecoration: "none", color: "inherit" }}>
                   <span style={{ width: 7, height: 7, borderRadius: 99, background: "#1D4ED8", marginTop: 6, flex: "none" }} />
                   <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{f.title}</div>
-                    <div style={{ fontSize: 12.5, color: "#7B8AA0" }}>{f.note}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{a.title}</div>
+                    <div style={{ fontSize: 12.5, color: "#7B8AA0" }}>{a.meta}</div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

@@ -1,77 +1,64 @@
-// Ported verbatim from the `NAV` array in
-// "EDC Module - Web/EDC Portal.dc.html" (design reference). Icon names are
-// literal Material Symbols Outlined ligatures, exactly as in the source —
-// do not swap for a different icon set. Counts are the design's own literal
-// badge values, not yet backed by real data (this module is being built
-// skeleton-first per instruction; a later pass replaces these with real
-// counts once connected to EOSbackend1).
+import type { ModuleConfig, NavGroup } from "@/modules/types";
 
-export interface EdcNavItem {
-  id: string;
-  label: string;
-  icon: string;
-  count?: number;
-  href: string;
-}
-
-export interface EdcNavGroup {
-  label: string;
-  items: EdcNavItem[];
-}
-
-export const EDC_NAV: EdcNavGroup[] = [
+// Nav data for the shared AppShell/Sidebar (see EdcShell.tsx). Icon names
+// are literal Material Symbols ligature names, unchanged from the design
+// reference the module was originally pixel-ported from — the shared
+// Icon component renders them via the Rounded variant instead of this
+// module's own Outlined font, which is a font-style change only (every
+// ligature name below exists in both variants).
+//
+// badgeKey is set only where a real live count exists (announcementsCount/
+// entrepreneursCount/startupsCount/ideasCount/incubationCount, all wired
+// in EdcShell.tsx via navBadges) — Mentors/Funding/Events/Documents/Reports
+// have no backing count source, so no badge is fabricated for them.
+const EDC_NAV_GROUPS: NavGroup[] = [
   {
-    label: "OVERVIEW",
+    label: "Overview",
     items: [
-      { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/edc/dashboard" },
-      { id: "announcements", label: "Announcements", icon: "campaign", count: 3, href: "/edc/announcements" },
-      { id: "calendar", label: "Academic Calendar", icon: "calendar_month", href: "/edc/calendar" },
+      { key: "dashboard", label: "Dashboard", icon: "dashboard", href: "/edc/dashboard" },
+      { key: "announcements", label: "Announcements", icon: "campaign", href: "/edc/announcements", badgeKey: "edcAnnouncements" },
+      { key: "calendar", label: "Academic Calendar", icon: "calendar_month", href: "/edc/calendar" },
     ],
   },
   {
-    label: "ENTREPRENEURS",
+    label: "Entrepreneurs",
     items: [
-      { id: "entrepreneurs", label: "EDC Students", icon: "groups", count: 12, href: "/edc/entrepreneurs" },
-      { id: "add-student", label: "Add Student", icon: "person_add", href: "/edc/add-student" },
-      { id: "startups", label: "Startups", icon: "rocket_launch", count: 9, href: "/edc/startups" },
-      { id: "ideas", label: "Startup Ideas", icon: "lightbulb", count: 14, href: "/edc/ideas" },
+      { key: "entrepreneurs", label: "EDC Students", icon: "groups", href: "/edc/entrepreneurs", badgeKey: "edcStudents" },
+      { key: "add-student", label: "Add Student", icon: "person_add", href: "/edc/add-student" },
+      { key: "startups", label: "Startups", icon: "rocket_launch", href: "/edc/startups", badgeKey: "edcStartups" },
+      { key: "ideas", label: "Startup Ideas", icon: "lightbulb", href: "/edc/ideas", badgeKey: "edcIdeas" },
     ],
   },
   {
-    label: "SUPPORT",
+    label: "Support",
     items: [
-      { id: "incubation", label: "Incubation", icon: "psychiatry", href: "/edc/incubation" },
-      { id: "mentors", label: "Mentors", icon: "person_search", href: "/edc/mentors" },
-      { id: "funding", label: "Funding", icon: "payments", href: "/edc/funding" },
+      { key: "incubation", label: "Incubation", icon: "psychiatry", href: "/edc/incubation", badgeKey: "edcIncubations" },
+      { key: "mentors", label: "Mentors", icon: "person_search", href: "/edc/mentors" },
+      { key: "funding", label: "Funding", icon: "payments", href: "/edc/funding" },
     ],
   },
   {
-    label: "ACTIVITY",
+    label: "Activity",
     items: [
-      { id: "events", label: "Events", icon: "event", href: "/edc/events" },
-      { id: "documents", label: "Documents", icon: "description", href: "/edc/documents" },
+      { key: "events", label: "Events", icon: "event", href: "/edc/events" },
+      { key: "documents", label: "Documents", icon: "description", href: "/edc/documents" },
     ],
   },
   {
-    label: "ADMINISTRATION",
+    label: "Administration",
     items: [
-      { id: "reports", label: "Reports", icon: "monitoring", href: "/edc/reports" },
+      { key: "reports", label: "Reports", icon: "monitoring", href: "/edc/reports" },
     ],
   },
 ];
 
-/** Flat id → item lookup, mirrors the design's NAV_INDEX. */
-export const EDC_NAV_INDEX: Record<string, EdcNavItem> = Object.fromEntries(
-  EDC_NAV.flatMap((g) => g.items).map((item) => [item.id, item]),
-);
-
 // Registers the edc_coordinator role with MODULE_REGISTRY (login redirect +
-// route guard) — same compat-shim pattern as advisorModuleConfig in
-// modules/advisor/nav.ts. navGroups is intentionally empty: EdcShell renders
-// from EDC_NAV above, not the generic AppShell/Sidebar.
-export const edcModuleConfig = {
+// route guard) — same pattern every other module's nav.ts follows.
+// navGroups now feeds the shared Sidebar directly (EdcShell composes
+// AppShell), replacing the old EDC_NAV/EdcShell-only aside markup.
+export const edcModuleConfig: ModuleConfig = {
   role: "edc_coordinator",
   basePath: "/edc",
   moduleLabel: "EDC Portal",
-  navGroups: [],
+  navGroups: EDC_NAV_GROUPS,
 };

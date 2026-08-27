@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useHandledClasses } from "@/modules/advisor/api/classes";
+import { useTodaySlots } from "@/modules/advisor/api/employee";
 import {
   useClassRoster,
   useMarkClassAttendance,
@@ -12,8 +12,10 @@ import {
 import { ApiError } from "@/types/api";
 import { AdvisorIcon } from "@/modules/advisor/icons";
 
-// Backed by GET /me/handled-classes (class+subject dropdown — every subject
-// this faculty actually teaches, exactly like Subject Records),
+// Backed by GET /me/classes/today (class+subject dropdown — only the
+// periods this faculty is actually timetabled for TODAY, not every subject
+// they've ever taught; a faculty with no period today sees an empty
+// dropdown rather than a stale full list),
 // POST /me/classes/:class_id/attendance/recognize (roster, no images sent),
 // POST /me/classes/:class_id/attendance (Save — persists as a draft,
 // is_published stays false), GET .../attendance/draft (re-hydrates a saved
@@ -21,6 +23,13 @@ import { AdvisorIcon } from "@/modules/advisor/icons";
 // exact moment it becomes visible to students/parents/advisors in real
 // time). This mirrors the Subject Records save/publish pattern exactly, per
 // the explicit instruction to make attendance work "same like marks."
+
+const ROMAN_YEAR = ["I", "II", "III", "IV", "V", "VI"];
+function yearLabelForSemester(semester: number | null): string {
+  if (semester == null) return "";
+  const yearIndex = Math.ceil(semester / 2) - 1;
+  return ROMAN_YEAR[yearIndex] ?? String(yearIndex + 1);
+}
 
 function initialsOf(name: string | null | undefined) {
   const p = (name ?? "").split(" ");
@@ -70,8 +79,19 @@ function mutationErrorMessage(error: unknown): string {
 }
 
 export default function AdvisorAttendancePage() {
-  const handled = useHandledClasses();
-  const classes = handled.data ?? [];
+  const today = useTodaySlots();
+  // One dropdown entry per distinct class+subject — a lab spanning two
+  // consecutive periods today would otherwise produce two identical rows.
+  const classes = useMemo(() => {
+    const rows = today.data ?? [];
+    const seen = new Set<string>();
+    return rows.filter((r) => {
+      const key = `${r.class_id}:${r.subject_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [today.data]);
 
   const [selectedKeyOverride, setSelectedKeyOverride] = useState<string | null>(null);
   const selectedKey = selectedKeyOverride ?? (classes.length ? `${classes[0].class_id}:${classes[0].subject_id}` : null);
@@ -158,9 +178,10 @@ export default function AdvisorAttendancePage() {
               }}
               style={{ width: "100%", marginTop: 9, height: 46, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 14px", fontFamily: "inherit", fontSize: 14, fontWeight: 600, color: "#0F172A", background: "#F8FAFC" }}
             >
+              {classes.length === 0 && <option value="">No class scheduled for you today</option>}
               {classes.map((c) => (
                 <option key={`${c.class_id}:${c.subject_id}`} value={`${c.class_id}:${c.subject_id}`}>
-                  {c.section} · {c.subject_code} {c.subject_name}
+                  {yearLabelForSemester(c.semester)} Year · {c.department_name} · Section {c.class_section} · {c.subject_code} {c.subject_name}
                 </option>
               ))}
             </select>
@@ -292,7 +313,9 @@ export default function AdvisorAttendancePage() {
       <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, marginTop: 16, overflow: "hidden" }}>
         <div style={{ padding: "16px 22px", borderBottom: "1px solid #EEF1F6", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.015em" }}>
-            {activeClass ? `${activeClass.section} · ${activeClass.subject_code} ${activeClass.subject_name}` : ""}
+            {activeClass
+              ? `${yearLabelForSemester(activeClass.semester)} Year · ${activeClass.department_name} · Section ${activeClass.class_section} · ${activeClass.subject_code} ${activeClass.subject_name}`
+              : ""}
           </div>
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10, height: 38, padding: "0 12px", border: "1px solid #E2E8F0", borderRadius: 9, background: "#F8FAFC", minWidth: 200 }}>

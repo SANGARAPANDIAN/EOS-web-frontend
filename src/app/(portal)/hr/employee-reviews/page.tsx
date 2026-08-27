@@ -255,9 +255,9 @@ export default function HrEmployeeReviewsPage() {
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Employee reviews</h1>
+        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Appraisal requests</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Appraisal workflow · score once the HOD has reviewed, then approve or reject
+          Appraisal requests approved by an HoD · score once reviewed, then approve or reject
         </p>
       </div>
 

@@ -43,7 +43,30 @@ export type NavBadgeKey =
   | "coeInvigilation"
   | "coeQuestionPapers"
   | "coeMalpractice"
-  | "iqacPendingApprovals";
+  | "iqacPendingApprovals"
+  | "placementStudents"
+  | "placementCompanies"
+  | "placementDrives"
+  | "billingStudents"
+  | "billingConcessions"
+  | "billingDD"
+  | "financePopPending"
+  | "financeSopPending"
+  | "financeAwaitingAllotment"
+  | "financeFeeOutstanding"
+  | "edcAnnouncements"
+  | "edcStudents"
+  | "edcStartups"
+  | "edcIdeas"
+  | "edcIncubations"
+  | "secretaryPop"
+  | "secretarySop"
+  | "secretaryMedia"
+  | "secretaryVenue"
+  | "secretaryOutpass"
+  | "secretaryDocs"
+  | "secretaryEmpLeave"
+  | "secretaryEmpOd";
 
 export interface NavItem {
   key: string;

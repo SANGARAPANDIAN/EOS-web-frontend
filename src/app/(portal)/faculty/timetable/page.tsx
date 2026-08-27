@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SegmentedTabs } from "@/components/ui";
 import { useTodaySlots, useFacultyTimetable } from "@/modules/advisor/api/employee";
 import { useMyFacultyProfile } from "@/modules/advisor/api/profile";
 
@@ -114,33 +115,14 @@ export default function AdvisorTimetablePage() {
             {myProfile.data?.name ?? ""} · {myProfile.data?.department?.name ?? ""}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 4, background: "#EEF1F7", borderRadius: 11, padding: 4 }}>
-          {[
-            { key: "today" as const, label: "Today" },
-            { key: "week" as const, label: "Full week" },
-          ].map((t) => {
-            const active = tab === t.key;
-            return (
-              <div
-                key={t.key}
-                data-advisor-lift=""
-                onClick={() => setTab(t.key)}
-                style={{
-                  padding: "13px 20px",
-                  borderRadius: 8,
-                  fontSize: 13.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  background: active ? "#fff" : "transparent",
-                  color: active ? "#1D4ED8" : "#64748B",
-                  boxShadow: active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
-                }}
-              >
-                {t.label}
-              </div>
-            );
-          })}
-        </div>
+        <SegmentedTabs
+          options={[
+            { key: "today", label: "Today" },
+            { key: "week", label: "Full week" },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       {tab === "today" && (

@@ -11,7 +11,7 @@ import {
 } from "@/modules/hod/api/appraisalRequests";
 import { formatDisplayDate } from "@/lib/utils/date";
 
-type Tab = "pending" | "sent_to_principal" | "sent_back" | "all";
+type Tab = "pending" | "sent_to_hr" | "sent_back" | "all";
 
 export default function HodAppraisalRequestsPage() {
   const [tab, setTab] = useState<Tab>("pending");
@@ -70,7 +70,7 @@ export default function HodAppraisalRequestsPage() {
       render: (r) => (
         <div className="flex items-center justify-end gap-2.5">
           {r.status === "pending" && <Badge tone="accentDark">Pending review</Badge>}
-          {r.status === "sent_to_principal" && <Badge tone="accent">Sent to Principal</Badge>}
+          {r.status === "sent_to_hr" && <Badge tone="accent">Sent to HR</Badge>}
           {r.status === "sent_back" && <Badge tone="danger">Sent back</Badge>}
           <Link href={`/hod/appraisal-requests/${r.id}`}>
             <Button variant="text">View</Button>
@@ -90,7 +90,7 @@ export default function HodAppraisalRequestsPage() {
                 disabled={decide.isPending}
                 loading={decide.isPending && decide.variables?.id === r.id}
               >
-                To Principal
+                To HR
               </Button>
             </>
           )}
@@ -119,7 +119,7 @@ export default function HodAppraisalRequestsPage() {
         onChange={(k) => setTab(k as Tab)}
         options={[
           { key: "pending", label: `Pending (${c?.pending ?? 0})` },
-          { key: "sent_to_principal", label: `Sent to Principal (${c?.sent_to_principal ?? 0})` },
+          { key: "sent_to_hr", label: `Sent to HR (${c?.sent_to_hr ?? 0})` },
           { key: "sent_back", label: `Sent back (${c?.sent_back ?? 0})` },
           { key: "all", label: `All (${c?.all ?? 0})` },
         ]}

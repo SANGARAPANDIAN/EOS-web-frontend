@@ -1,7 +1,11 @@
-// Ported verbatim from the sidebar in
-// "Billing Module - Web/Billing Admin.dc.html" (lines 94-187). Fake-data
-// skeleton pass — pixel-exact frontend first, real EOSbackend1 wiring is a
-// later pass, same process used for the Secretary/EDC modules.
+// Ported from the sidebar in "Billing Module - Web/Billing Admin.dc.html"
+// (lines 94-187). BILLING_NAV below is the semantic source of truth (used
+// to derive navGroups for the shared AppShell/Sidebar); its `icon` tokens
+// map to real Material Symbols Rounded ligature names via ICON_MAP since
+// the shared Sidebar renders through the shared `Icon` component now, not
+// the old hand-drawn BillingIcon SVGs.
+
+import type { ModuleConfig, NavBadgeKey } from "@/modules/types";
 
 export interface BillingNavItem {
   id: string;
@@ -63,13 +67,44 @@ export const BILLING_NAV: BillingNavGroup[] = [
   },
 ];
 
-// Compat-shim registration (same pattern as edcModuleConfig/
-// secretaryModuleConfig in their own nav.ts) — navGroups intentionally
-// empty since BillingShell renders from BILLING_NAV above, not the
-// generic AppShell/Sidebar.
-export const billingModuleConfig = {
+// Semantic BILLING_NAV icon token -> real Material Symbols Rounded ligature
+// name, for the shared Icon component. Cosmetic picks, not load-bearing.
+const ICON_MAP: Record<string, string> = {
+  dashboard: "dashboard",
+  megaphone: "campaign",
+  students: "group",
+  overview: "grid_view",
+  payments: "payments",
+  demand: "receipt_long",
+  receipts: "receipt_long",
+  quota: "pie_chart",
+  structures: "account_tree",
+  items: "inventory_2",
+  concessions: "percent",
+  loans: "account_balance",
+  reports: "bar_chart",
+  audit: "fact_check",
+};
+
+// Local BILLING_NAV badgeKey -> shared NavBadgeKey union member.
+const BADGE_KEY_MAP: Record<NonNullable<BillingNavItem["badgeKey"]>, NavBadgeKey> = {
+  students: "billingStudents",
+  concessions: "billingConcessions",
+  dd: "billingDD",
+};
+
+export const billingModuleConfig: ModuleConfig = {
   role: "billing",
   basePath: "/billing",
   moduleLabel: "Billing Portal",
-  navGroups: [],
+  navGroups: BILLING_NAV.map((group) => ({
+    label: group.label,
+    items: group.items.map((item) => ({
+      key: item.id,
+      label: item.label,
+      icon: ICON_MAP[item.icon] ?? item.icon,
+      href: item.href,
+      badgeKey: item.badgeKey ? BADGE_KEY_MAP[item.badgeKey] : undefined,
+    })),
+  })),
 };

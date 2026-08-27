@@ -17,7 +17,7 @@ interface CoePageHeaderProps {
  * COE's own title row — title/subtitle on the left, optional action buttons
  * on the right, flush on the page background (no card/tint box) — matching
  * every other page's header treatment. Search and the notification bell
- * live once in CoeTopbar (see CoeShell), not repeated per page.
+ * live once in the shared Topbar (see CoeShell), not repeated per page.
  */
 export function CoePageHeader({ title, subtitle, actions, backHref }: CoePageHeaderProps) {
   return (

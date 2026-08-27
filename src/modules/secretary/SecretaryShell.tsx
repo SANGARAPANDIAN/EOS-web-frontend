@@ -1,163 +1,50 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { SECRETARY_NAV } from "./nav";
-import { SecretaryIcon } from "./icons";
-import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
-import { NotificationPanel } from "@/components/layout/NotificationPanel";
-import { BrandMark } from "@/components/layout/SidebarBrandHeader";
-import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
+import { AppShell } from "@/components/layout/AppShell";
+import { secretaryModuleConfig } from "./nav";
+import { useMyIdentity } from "@/modules/student/api/profile";
+import { viewedAcademicYearLabel, currentInstitutionSemesterParity } from "@/lib/utils/date";
 
-// Pixel-exact port of the shell (header + aside) from
-// "Secretary Module - Web/Secretary Dashboard.dc.html", lines 27-108. Every
-// color/size/spacing value below is copied directly from that file's
-// inline styles.
+// Migrated off the fully inline-styled, hand-rolled shell (header + aside)
+// onto the shared AppShell/Sidebar/Topbar used by every other role module.
 //
-// Icons are hand-drawn stroke SVGs (see icons.tsx's `SecretaryIcon`, ported
-// from the design's own `ic()` method) — NOT a ligature font, unlike EDC's
-// Material Symbols Outlined.
-//
-// REAL BACKEND WIRING — the bell used to render a hardcoded 4-row fake
-// array (`topFlags` from the design source) with a static blue dot.
-// Replaced with the same real, already-built `NotificationPanel`
-// (GET /me/notifications/panel, backed by the real `notifications` table)
-// used by the Advisor portal — it's generic, not advisor-specific, so it's
-// reused as-is rather than rebuilt. The dot is now conditional on a real
-// unread count (GET /me/notifications/unread-count) instead of always-on.
-
+// - Notifications: the old local NotificationPanel + useUnreadNotificationCount
+//   wiring is gone — the shared Topbar now fetches its own live unread count
+//   and renders the same NotificationPanel internally via showNotifications.
+// - The year-cycle pill (`cycleYear()`) and click-to-flip semester toggle were
+//   fake/manual state that never reflected real dates — replaced with real
+//   computed values via viewedAcademicYearLabel/currentInstitutionSemesterParity
+//   (same helpers CoeTopbar uses), matching every other migrated module.
+// - The "New request" `+` icon-link and the settings gear had no shared
+//   Topbar equivalent and were single-purpose extras — dropped, same call
+//   already made for Principal's inert icons and Billing's help popover.
+// - The hardcoded `department = "CSE"` literal is replaced with the real
+//   department off GET /me/my-profile (useMyIdentity — the same generic
+//   identity hook HoD/Principal shells already use), which also gives us a
+//   real display name for the sidebar footer instead of nothing.
 export function SecretaryShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [year, setYear] = useState("2026-27");
-  const [semester, setSemester] = useState<"Odd Semester" | "Even Semester">("Odd Semester");
-  const { data: unreadCount } = useUnreadNotificationCount();
+  const identity = useMyIdentity();
 
-  const department = "CSE";
-
-  const activeId = SECRETARY_NAV.flatMap((g) => g.items).find((item) => pathname?.startsWith(item.href))?.id;
-
-  function cycleYear() {
-    const ys = ["2024-25", "2025-26", "2026-27"];
-    setYear((y) => ys[(ys.indexOf(y) + 1) % ys.length]);
-  }
+  const now = new Date();
+  const academicYear = viewedAcademicYearLabel(now.getFullYear(), now.getMonth());
+  const semesterParity = currentInstitutionSemesterParity(now);
+  const department = identity.data?.department ?? "—";
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#ffffff" }}>
-      {/* NOTE: no overflowX here — CSS computes an unset overflow-y as
-          "auto" whenever overflow-x is anything but "visible", which
-          clipped the notification-bell popup to this 80px-tall header
-          (it rendered, just invisible). Real bug, not a styling nit. */}
-      <header data-no-print="" style={{ height: 80, flex: "0 0 80px", background: "#ffffff", borderBottom: "1px solid #e5e9f2", display: "flex", alignItems: "center", gap: 20, padding: "0 28px", position: "sticky", top: 0, zIndex: 40 }}>
-        <div style={{ width: 292, flex: "0 1 auto", minWidth: 168, overflow: "hidden" }}>
-          <BrandMark />
-        </div>
-        <div style={{ flex: "1 1 220px", minWidth: 220, maxWidth: 660, position: "relative", display: "flex", alignItems: "center" }}>
-          <span style={{ position: "absolute", left: 16, display: "flex", color: "#94a3b8" }}>
-            <SecretaryIcon name="search" size={17} />
-          </span>
-          <input
-            data-sec-lift=""
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search students, requests, faculty, documents..."
-            style={{ width: "100%", minWidth: 0, textOverflow: "ellipsis", height: 48, border: "1px solid #e5e9f2", borderRadius: 12, padding: "0 78px 0 46px", fontSize: 13.1, color: "#0f172a", background: "#ffffff" }}
-          />
-          <span style={{ position: "absolute", right: 12, fontFamily: "'JetBrains Mono',monospace", fontSize: 10.8, color: "#64748b", background: "#f1f5f9", borderRadius: 6, padding: "4px 7px" }}>Ctrl K</span>
-        </div>
-        <div style={{ marginLeft: "auto", flex: "0 0 auto", display: "flex", alignItems: "center", gap: 14 }}>
-          <div data-sec-lift="" style={{ display: "flex", alignItems: "center", gap: 9, height: 48, padding: "0 20px", border: "1px solid #e5e9f2", borderRadius: 12, background: "#ffffff", color: "#1d4ed8", fontSize: 13.1, fontWeight: 600, whiteSpace: "nowrap" }}>
-            <span style={{ display: "flex" }}><SecretaryIcon name="shield" size={16} /></span>
-            Secretary · {department}
-          </div>
-          <div data-sec-lift="" style={{ display: "flex", height: 48, borderRadius: 12, overflow: "hidden", border: "1px solid #e5e9f2" }}>
-            <button onClick={cycleYear} style={{ border: 0, background: "#ffffff", padding: "0 18px", fontSize: 13.1, fontWeight: 500, color: "#0f172a", whiteSpace: "nowrap", cursor: "pointer" }}>{year}</button>
-            <button onClick={() => setSemester((v) => (v === "Odd Semester" ? "Even Semester" : "Odd Semester"))} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", padding: "0 22px", fontSize: 13.1, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer" }}>{semester}</button>
-          </div>
-          <Link href="/secretary/sop">
-            <div data-sec-lift="" title="New request" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <SecretaryIcon name="plus" size={20} />
-            </div>
-          </Link>
-          <div data-sec-lift="" onClick={() => setNotifOpen((v) => !v)} title="Notifications" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <SecretaryIcon name="bell" size={18} />
-            {!!unreadCount?.count && unreadCount.count > 0 && (
-              <span style={{ position: "absolute", top: 11, right: 12, width: 8, height: 8, borderRadius: 999, background: "#2563eb" }} />
-            )}
-            {notifOpen && (
-              // stopPropagation — without it, any click inside the panel
-              // (marking a row read, pinning) bubbles up to this div's own
-              // onClick toggle and closes the panel mid-interaction.
-              <div onClick={(e) => e.stopPropagation()}>
-                <NotificationPanel onClose={() => setNotifOpen(false)} />
-              </div>
-            )}
-          </div>
-          <Link href="/secretary/settings">
-            <div data-sec-lift="" title="Settings" style={{ width: 48, height: 48, borderRadius: 12, border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <SecretaryIcon name="gear" size={18} />
-            </div>
-          </Link>
-        </div>
-      </header>
-
-      <div style={{ display: "flex", alignItems: "stretch", flex: 1, minHeight: 0 }}>
-        <aside data-no-print="" style={{ width: collapsed ? 88 : 292, flex: "0 0 auto", background: "#ffffff", borderRight: "1px solid #e5e9f2", display: "flex", flexDirection: "column", position: "sticky", top: 80, height: "calc(100vh - 80px)", overflow: "hidden" }}>
-          <div style={{ flex: 1, overflowY: "auto", padding: "22px 16px 10px" }}>
-            {SECRETARY_NAV.map((g, gi) => (
-              <div key={g.label} style={{ marginBottom: 22 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px 10px" }}>
-                  {!collapsed && <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, color: "#94a3b8", textTransform: "uppercase" }}>{g.label}</span>}
-                  {gi === 0 && (
-                    <button
-                      type="button"
-                      data-sec-collapse=""
-                      onClick={() => setCollapsed((v) => !v)}
-                      title={collapsed ? "Expand navigation" : "Collapse navigation"}
-                      aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-                      style={{ width: 26, height: 26, flexShrink: 0, border: 0, borderRadius: 7, background: "transparent", color: "#64748b", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      {collapsed ? "»" : "«"}
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {g.items.map((it) => {
-                    const active = activeId === it.id;
-                    return (
-                      <Link key={it.id} href={it.href} style={{ textDecoration: "none" }}>
-                        <div
-                          data-sec-nav-item={active ? undefined : ""}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 12, width: "100%", background: active ? "#eef4ff" : "transparent",
-                            color: active ? "#1e3a8a" : "#334155", padding: "12px 12px", borderRadius: 10, fontSize: 13.1, fontWeight: active ? 600 : 500, cursor: "pointer", textAlign: "left",
-                          }}
-                        >
-                          <span style={{ width: 20, display: "flex", alignItems: "center", justifyContent: "center", color: active ? "#1e3a8a" : "#64748b" }}>
-                            <SecretaryIcon name={it.icon} />
-                          </span>
-                          {!collapsed && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</span>}
-                          {!collapsed && it.badge && (
-                            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.3, fontWeight: 500, color: "#475569", background: active ? "#eef2f7" : "#f1f5f9", borderRadius: 6, padding: "3px 7px" }}>{it.badge}</span>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-          <SidebarUserFooter subLabel={`Department Secretary · ${department}`} portalName="Secretary" collapsed={collapsed} />
-        </aside>
-
-        <main style={{ flex: 1, minWidth: 0, padding: "34px 40px 60px" }}>{children}</main>
-      </div>
-    </div>
+    <AppShell
+      moduleConfig={secretaryModuleConfig}
+      programIcon="shield"
+      header={{
+        studentName: identity.data?.name,
+        registerNumber: `Department Secretary · ${department}`,
+        searchPlaceholder: "Search students, requests, faculty, documents...",
+        programLabel: `Secretary · ${department}`,
+        academicYearLabel: academicYear,
+        semesterParityLabel: semesterParity,
+        showNotifications: true,
+      }}
+    >
+      {children}
+    </AppShell>
   );
 }

@@ -1,74 +1,66 @@
-// Ported verbatim from the `navGroups` array in
-// "Secretary Module - Web/Secretary Dashboard.dc.html" (line 3158). Badge
-// counts are the design's own literal computed values (e.g.
-// `pendingPop`/`pendingSop`/open-issue counts) — this is the skeleton pass
-// with the design's own fake data (see fakeData.ts), matching the same
-// process used for the EDC module: fake data first, backend wiring later.
+import type { ModuleConfig } from "@/modules/types";
 
-export interface SecretaryNavItem {
-  id: string;
-  label: string;
-  icon: string;
-  badge?: string;
-  href: string;
-}
+// Real nav data for the shared AppShell/Sidebar (see SecretaryShell.tsx).
+// Icons are Material Symbols Rounded ligature names (matching every other
+// migrated module's nav.ts), NOT the hand-drawn SecretaryIcon strokes used
+// elsewhere in this module's own pages (icons.tsx) — those are unrelated to
+// this chrome and left untouched since other Secretary pages still use them.
+//
+// Badge counts: the previous badge literals (`badge: "3"`, etc.) were fake
+// numbers baked into this file with no backing data — no secretary/api/*
+// hook exposes a real pending-count endpoint for any of these items (only
+// full paginated list-fetch hooks like useOutpasses/useMediaRequests exist,
+// each requiring its own network call), so badges are omitted entirely
+// rather than fabricated or wired at the cost of firing 7+ extra requests
+// on every page just to populate the sidebar.
 
-export interface SecretaryNavGroup {
-  label: string;
-  items: SecretaryNavItem[];
-}
+const BASE = "/secretary";
 
-export const SECRETARY_NAV: SecretaryNavGroup[] = [
-  {
-    label: "Overview",
-    items: [
-      { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/secretary/dashboard" },
-      { id: "notices", label: "Announcements", icon: "megaphone", href: "/secretary/announcements" },
-      { id: "reports", label: "Reports", icon: "trending", href: "/secretary/reports" },
-      { id: "calendar", label: "Academic Calendar", icon: "calendarPage", href: "/secretary/calendar" },
-    ],
-  },
-  {
-    label: "Requests",
-    items: [
-      { id: "pop", label: "POP Requests", icon: "receipt", badge: "3", href: "/secretary/pop" },
-      { id: "sop", label: "SOP Requests", icon: "clipboard", badge: "3", href: "/secretary/sop" },
-      { id: "media", label: "Media Request", icon: "camera", badge: "2", href: "/secretary/media" },
-      { id: "venue", label: "Venue Booking", icon: "pin", badge: "1", href: "/secretary/venue" },
-      { id: "outpass", label: "Student Outpass", icon: "exit", badge: "2", href: "/secretary/outpass" },
-    ],
-  },
-  {
-    label: "Department",
-    items: [
-      { id: "attendance", label: "Bulk Attendance", icon: "calcheck", href: "/secretary/attendance" },
-      { id: "faculty", label: "Faculty", icon: "faculty", href: "/secretary/faculty" },
-      { id: "students", label: "Students", icon: "students", badge: "3", href: "/secretary/students" },
-      { id: "docs", label: "Documents", icon: "folder", badge: "3", href: "/secretary/docs" },
-      { id: "dept", label: "Department Details", icon: "building", href: "/secretary/dept" },
-    ],
-  },
-  {
-    label: "Employee",
-    items: [
-      { id: "empAtt", label: "Attendance", icon: "calcheck", href: "/secretary/emp-attendance" },
-      { id: "empLeave", label: "Leave", icon: "clipboard", badge: "2", href: "/secretary/emp-leave" },
-      { id: "empOd", label: "OD", icon: "faculty", badge: "3", href: "/secretary/emp-od" },
-      { id: "empPayroll", label: "HR Payroll", icon: "rupee", href: "/secretary/emp-payroll" },
-      { id: "empPayslip", label: "Payslip", icon: "receipt", href: "/secretary/emp-payslip" },
-      { id: "empAppraisal", label: "Appraisal", icon: "star", href: "/secretary/emp-appraisal" },
-      { id: "empLibrary", label: "Library", icon: "library", href: "/secretary/emp-library" },
-    ],
-  },
-];
-
-// Registers the secretary role with MODULE_REGISTRY (login redirect + route
-// guard) — same compat-shim pattern as edcModuleConfig in modules/edc/nav.ts.
-// navGroups is intentionally empty: SecretaryShell renders from SECRETARY_NAV
-// above, not the generic AppShell/Sidebar.
-export const secretaryModuleConfig = {
+export const secretaryModuleConfig: ModuleConfig = {
   role: "secretary",
-  basePath: "/secretary",
+  basePath: BASE,
   moduleLabel: "Secretary Portal",
-  navGroups: [],
+  navGroups: [
+    {
+      label: "Overview",
+      items: [
+        { key: "dashboard", label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard` },
+        { key: "notices", label: "Announcements", icon: "campaign", href: `${BASE}/announcements` },
+        { key: "reports", label: "Reports", icon: "monitoring", href: `${BASE}/reports` },
+        { key: "calendar", label: "Academic Calendar", icon: "calendar_month", href: `${BASE}/calendar` },
+      ],
+    },
+    {
+      label: "Requests",
+      items: [
+        { key: "pop", label: "POP Requests", icon: "receipt_long", href: `${BASE}/pop` },
+        { key: "sop", label: "SOP Requests", icon: "assignment", href: `${BASE}/sop` },
+        { key: "media", label: "Media Request", icon: "photo_camera", href: `${BASE}/media` },
+        { key: "venue", label: "Venue Booking", icon: "location_on", href: `${BASE}/venue` },
+        { key: "outpass", label: "Student Outpass", icon: "logout", href: `${BASE}/outpass` },
+      ],
+    },
+    {
+      label: "Department",
+      items: [
+        { key: "attendance", label: "Bulk Attendance", icon: "fact_check", href: `${BASE}/attendance` },
+        { key: "faculty", label: "Faculty", icon: "groups", href: `${BASE}/faculty` },
+        { key: "students", label: "Students", icon: "groups_2", href: `${BASE}/students` },
+        { key: "docs", label: "Documents", icon: "folder", href: `${BASE}/docs` },
+        { key: "dept", label: "Department Details", icon: "apartment", href: `${BASE}/dept` },
+      ],
+    },
+    {
+      label: "Employee",
+      items: [
+        { key: "empAtt", label: "Attendance", icon: "checklist", href: `${BASE}/emp-attendance` },
+        { key: "empLeave", label: "Leave", icon: "beach_access", href: `${BASE}/emp-leave` },
+        { key: "empOd", label: "OD", icon: "directions_walk", href: `${BASE}/emp-od` },
+        { key: "empPayroll", label: "HR Payroll", icon: "payments", href: `${BASE}/emp-payroll` },
+        { key: "empPayslip", label: "Payslip", icon: "receipt_long", href: `${BASE}/emp-payslip` },
+        { key: "empAppraisal", label: "Appraisal", icon: "trending_up", href: `${BASE}/emp-appraisal` },
+        { key: "empLibrary", label: "Library", icon: "local_library", href: `${BASE}/emp-library` },
+      ],
+    },
+  ],
 };

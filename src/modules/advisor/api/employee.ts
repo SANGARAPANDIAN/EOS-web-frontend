@@ -29,6 +29,7 @@ export interface TodaySlot {
   end_time: string;
   subject_id: number;
   subject_name: string;
+  subject_code: string;
   // Real column (subjects.course_type) — the subjects join already existed
   // server-side for subject_name, this just also selects course_type so
   // "today" can detect labs the same way the full-week grid already does,
@@ -36,6 +37,9 @@ export interface TodaySlot {
   course_type: string | null;
   class_id: number;
   class_section: string;
+  // classes.current_semester — null for a class with no semester set yet,
+  // same nullability as everywhere else this column is surfaced.
+  semester: number | null;
   department_name: string;
 }
 

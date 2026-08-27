@@ -17,11 +17,14 @@ function facultyLabel(f: HrFaculty): string {
  * empty every time — and with ~500 active faculty even a valid 100-row list
  * could not have held everyone.
  *
- * The list is populated *before* anyone types: it opens on the first page of
- * faculty so the common case (scroll and pick) needs no search at all, and
- * typing narrows it server-side. The search matches name, staff code (the
- * faculty roll number), designation and login email, all case-insensitively,
- * and can be further narrowed by department.
+ * The results list is fetched before anyone types (opens on the first page
+ * of faculty so scroll-and-pick needs no search at all) but only ever
+ * RENDERS while the input is focused — otherwise every page embedding this
+ * picker showed a full faculty list sitting open under an empty, untouched
+ * search box, reading as a rendering bug rather than a picker. Typing
+ * narrows the list server-side once open. Blur closes it after a short
+ * delay so a click on a result (which blurs the input first) still
+ * registers before the list unmounts.
  */
 export function HrFacultyPicker({
   value,
@@ -41,11 +44,14 @@ export function HrFacultyPicker({
 }) {
   const [term, setTerm] = useState("");
   const [departmentId, setDepartmentId] = useState("all");
+  const [open, setOpen] = useState(false);
   const departments = useHrDepartments();
 
-  // Stop querying once someone is chosen, so the result list does not linger
-  // underneath the selection.
-  const matches = useHrFacultySearch(value ? null : term, {
+  // Stop querying once someone is chosen (so the result list does not linger
+  // underneath the selection) and before the input is ever focused (so
+  // opening a page with several of these pickers doesn't fire a search for
+  // every one of them up front).
+  const matches = useHrFacultySearch(value || !open ? null : term, {
     status,
     departmentId: departmentId === "all" ? undefined : Number(departmentId),
   });
@@ -78,9 +84,20 @@ export function HrFacultyPicker({
   }
 
   return (
-    <div className="mt-1.5 flex flex-col gap-2">
+    <div className="relative mt-1.5">
       <div className={showDepartmentFilter ? "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]" : ""}>
-        <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={placeholder} disabled={disabled} />
+        <Input
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          onFocus={() => setOpen(true)}
+          // A click on a result button blurs the input first — closing
+          // immediately would unmount the list before that click's onClick
+          // fires. The short delay lets the click register; onMouseDown
+          // below (which fires before blur) additionally guards it.
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder={placeholder}
+          disabled={disabled}
+        />
         {showDepartmentFilter && (
           <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={disabled}>
             <option value="all">All departments</option>
@@ -93,38 +110,46 @@ export function HrFacultyPicker({
         )}
       </div>
 
-      <div className="max-h-[260px] overflow-y-auto rounded-[10px] border border-border-default bg-surface">
-        {matches.isLoading ? (
-          <div className="px-3.5 py-3 text-[12.5px] text-subtle">Loading faculty…</div>
-        ) : rows.length === 0 ? (
-          <div className="px-3.5 py-3 text-[12.5px] text-subtle">
-            {term.trim() ? "No faculty matched that search." : "No faculty on record."}
-          </div>
-        ) : (
-          rows.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => onChange(f)}
-              className="flex w-full items-center gap-3 border-b border-divider px-3.5 py-2.5 text-left last:border-b-0 hover:bg-surface-tint"
-            >
-              <Avatar name={facultyLabel(f)} imageUrl={f.profile_url} size={30} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13.5px] font-bold text-ink">{facultyLabel(f)}</div>
-                <div className="mt-0.5 truncate text-[11.5px] text-muted">
-                  {[f.staff_code, f.designation, f.department?.name].filter(Boolean).join(" · ")}
-                </div>
+      {/* Floats over whatever sits below the picker instead of pushing it
+          down the page — a page embedding several of these (or a table
+          right underneath) shouldn't reflow every time this opens. */}
+      {open && (
+        <div className="absolute top-full right-0 left-0 z-20 mt-2 overflow-hidden rounded-[10px] border border-border-default bg-surface shadow-modal">
+          <div className="max-h-[260px] overflow-y-auto">
+            {matches.isLoading ? (
+              <div className="px-3.5 py-3 text-[12.5px] text-subtle">Loading faculty…</div>
+            ) : rows.length === 0 ? (
+              <div className="px-3.5 py-3 text-[12.5px] text-subtle">
+                {term.trim() ? "No faculty matched that search." : "No faculty on record."}
               </div>
-            </button>
-          ))
-        )}
-      </div>
+            ) : (
+              rows.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onChange(f)}
+                  className="flex w-full items-center gap-3 border-b border-divider bg-surface px-3.5 py-2.5 text-left last:border-b-0 hover:bg-surface-tint"
+                >
+                  <Avatar name={facultyLabel(f)} imageUrl={f.profile_url} size={30} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13.5px] font-bold text-ink">{facultyLabel(f)}</div>
+                    <div className="mt-0.5 truncate text-[11.5px] text-muted">
+                      {[f.staff_code, f.designation, f.department?.name].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
 
-      {/* The API caps a page at 100 rows, so say so rather than implying the
-          visible list is everyone who matched. */}
-      {total > rows.length && (
-        <div className="text-[11.5px] text-subtle">
-          Showing {rows.length} of {total} — type to narrow the list.
+          {/* The API caps a page at 100 rows, so say so rather than implying the
+              visible list is everyone who matched. */}
+          {total > rows.length && (
+            <div className="border-t border-divider bg-surface-tint px-3.5 py-1.5 text-[11.5px] text-subtle">
+              Showing {rows.length} of {total} — type to narrow the list.
+            </div>
+          )}
         </div>
       )}
     </div>

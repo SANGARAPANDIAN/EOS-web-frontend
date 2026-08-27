@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Card, Button } from "@/components/ui";
+import { Card, Button, SegmentedTabs } from "@/components/ui";
 import { Icon } from "@/components/ui/Icon";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonRows } from "@/components/ui/Skeleton";
@@ -96,7 +96,7 @@ export default function CoeDashboardPage() {
     return (
       <div className="flex flex-col gap-5 animate-pop-in">
         <CoePageHeader title="Dashboard" subtitle="Error" />
-        <Card className="p-5 text-red-500">Failed to load dashboard data. Ensure backend is running.</Card>
+        <Card className="p-5 text-danger-fg">Failed to load dashboard data. Ensure backend is running.</Card>
       </div>
     );
   }
@@ -112,20 +112,7 @@ export default function CoeDashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg bg-surface border border-border-default p-1 text-[13px] font-semibold">
-            {PERIOD_TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setPeriod(t.key)}
-                className={cn(
-                  "px-3 py-1.5 rounded-md transition-colors",
-                  period === t.key ? "bg-primary text-white shadow-sm" : "text-muted hover:text-ink",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs options={PERIOD_TABS} value={period} onChange={setPeriod} />
           <Button variant="secondary" className="w-auto bg-white border-border-default text-ink" disabled={exporting} onClick={handleExport}>
             {exporting ? "Exporting…" : "Export"}
           </Button>
@@ -156,10 +143,10 @@ export default function CoeDashboardPage() {
         {/* Card 1 */}
         <StatCard href="/coe/exam-management" title="Total exams" icon={<Icon name="description" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.exams.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-blue-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {data.exams.scheduledInCycle} scheduled in this cycle
           </div>
-          <ProgressBar color="bg-blue-600" percentage={(data.exams.scheduledInCycle / (data.exams.total || 1)) * 100} />
+          <ProgressBar color="bg-primary" percentage={(data.exams.scheduledInCycle / (data.exams.total || 1)) * 100} />
           <div className="mt-3 text-[12.5px] text-muted">
             {data.exams.completed} completed · {data.exams.inDraft} in draft
           </div>
@@ -168,7 +155,7 @@ export default function CoeDashboardPage() {
         {/* Card 2 */}
         <StatCard href="/coe/timetables" title="Upcoming exams" icon={<Icon name="calendar_month" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.upcomingExams.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-blue-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {data.upcomingExams.daysToFirstSitting} days to the first sitting
           </div>
           <div className="mt-5 pt-0.5 text-[12.5px] text-muted">
@@ -179,10 +166,10 @@ export default function CoeDashboardPage() {
         {/* Card 3 */}
         <StatCard href="/coe/exam-registration" title="Registered students" icon={<Icon name="group" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.registeredStudents.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-green-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {formatNumber(data.registeredStudents.confirmed)} confirmed of {formatNumber(data.registeredStudents.total)} applied
           </div>
-          <ProgressBar color="bg-green-500" percentage={(data.registeredStudents.confirmed / (data.registeredStudents.total || 1)) * 100} />
+          <ProgressBar color="bg-primary" percentage={(data.registeredStudents.confirmed / (data.registeredStudents.total || 1)) * 100} />
           <div className="mt-3 text-[12.5px] text-muted">
             {formatNumber(data.registeredStudents.awaitingFee)} awaiting fee confirmation
           </div>
@@ -191,10 +178,10 @@ export default function CoeDashboardPage() {
         {/* Card 4 */}
         <StatCard href="/coe/attendance-eligibility" title="Eligible students" icon={<Icon name="how_to_reg" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.eligibleStudents.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-green-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {data.eligibleStudents.percentage.toFixed(1)}% of registered candidates
           </div>
-          <ProgressBar color="bg-green-500" percentage={data.eligibleStudents.percentage} />
+          <ProgressBar color="bg-primary" percentage={data.eligibleStudents.percentage} />
           <div className="mt-3 text-[12.5px] text-muted">
             {formatNumber(data.eligibleStudents.detained)} detained · {formatNumber(data.eligibleStudents.condonation)} on condonation
           </div>
@@ -203,7 +190,7 @@ export default function CoeDashboardPage() {
         {/* Card 5 */}
         <StatCard href="/coe/exam-registration" title="Pending registrations" icon={<Icon name="hourglass_empty" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.pendingRegistrations.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-orange-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary-dark">
             {formatNumber(data.pendingRegistrations.closeIn3Days)} close in the next 3 days
           </div>
           <div className="mt-5 pt-0.5 text-[12.5px] text-muted">
@@ -214,10 +201,10 @@ export default function CoeDashboardPage() {
         {/* Card 6 */}
         <StatCard href="/coe/halls-seating" title="Hall allocation" icon={<Icon name="map" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{data.hallAllocation.allocated} / {data.hallAllocation.total}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-blue-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {formatNumber(data.hallAllocation.seatsAllotted)} seats allotted of {formatNumber(data.hallAllocation.seatsTotal)}
           </div>
-          <ProgressBar color="bg-green-500" percentage={(data.hallAllocation.seatsAllotted / (data.hallAllocation.seatsTotal || 1)) * 100} />
+          <ProgressBar color="bg-primary" percentage={(data.hallAllocation.seatsAllotted / (data.hallAllocation.seatsTotal || 1)) * 100} />
           <div className="mt-3 text-[12.5px] text-muted">
             {data.hallAllocation.pendingPlans} seating plans still pending
           </div>
@@ -226,10 +213,10 @@ export default function CoeDashboardPage() {
         {/* Card 7 */}
         <StatCard href="/coe/invigilators" title="Invigilation duties" icon={<Icon name="shield" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.invigilation.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-blue-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {formatNumber(data.invigilation.acknowledged)} acknowledged of {formatNumber(data.invigilation.total)} assigned
           </div>
-          <ProgressBar color="bg-green-500" percentage={(data.invigilation.acknowledged / (data.invigilation.total || 1)) * 100} />
+          <ProgressBar color="bg-primary" percentage={(data.invigilation.acknowledged / (data.invigilation.total || 1)) * 100} />
           <div className="mt-3 text-[12.5px] text-muted">
             {data.invigilation.slotsOpen} slots open · {data.invigilation.conflicts} conflicts flagged
           </div>
@@ -238,7 +225,7 @@ export default function CoeDashboardPage() {
         {/* Card 8 */}
         <StatCard href="/coe/exam-valuation" title="Pending valuation" icon={<Icon name="edit" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.pendingValuation.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-orange-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary-dark">
             {formatNumber(data.pendingValuation.valued)} scripts valued of {formatNumber(data.pendingValuation.total)}
           </div>
           <div className="mt-5 pt-0.5 text-[12.5px] text-muted">
@@ -249,7 +236,7 @@ export default function CoeDashboardPage() {
         {/* Card 9 */}
         <StatCard href="/coe/results-management" title="Pending results" icon={<Icon name="checklist" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.pendingResults.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-blue-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {formatNumber(data.pendingResults.computedCourses)} courses computed of {formatNumber(data.pendingResults.totalCourses)}
           </div>
           <div className="mt-5 pt-0.5 text-[12.5px] text-muted">
@@ -260,10 +247,10 @@ export default function CoeDashboardPage() {
         {/* Card 10 */}
         <StatCard href="/coe/revaluation-retotaling" title="Revaluation requests" icon={<Icon name="autorenew" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.revaluation.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-green-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {formatNumber(data.revaluation.feePaid)} fee paid of {formatNumber(data.revaluation.total)} applied
           </div>
-          <ProgressBar color="bg-blue-600" percentage={(data.revaluation.feePaid / (data.revaluation.total || 1)) * 100} />
+          <ProgressBar color="bg-primary" percentage={(data.revaluation.feePaid / (data.revaluation.total || 1)) * 100} />
           <div className="mt-3 text-[12.5px] text-muted">
             {formatNumber(data.revaluation.unpaid)} unpaid · {formatNumber(data.revaluation.revised)} revised so far
           </div>
@@ -272,10 +259,10 @@ export default function CoeDashboardPage() {
         {/* Card 11 */}
         <StatCard href="/coe/supplementary-arrear" title="Arrear students" icon={<Icon name="person_off" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">{formatNumber(data.arrearStudents.total)}</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-orange-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary-dark">
             {formatNumber(data.arrearStudents.registered)} registered for the arrear sitting
           </div>
-          <ProgressBar color="bg-blue-600" percentage={(data.arrearStudents.registered / (data.arrearStudents.total || 1)) * 100} />
+          <ProgressBar color="bg-primary" percentage={(data.arrearStudents.registered / (data.arrearStudents.total || 1)) * 100} />
           <div className="mt-3 text-[12.5px] text-muted">
             {formatNumber(data.arrearStudents.notRegistered)} not yet registered · closes {data.arrearStudents.closesOn}
           </div>
@@ -284,10 +271,10 @@ export default function CoeDashboardPage() {
         {/* Card 12 */}
         <StatCard href="/coe/exam-finance" title="Exam fee collected" icon={<Icon name="payments" size={16} className="text-primary" />}>
           <div className="text-[32px] font-extrabold text-ink leading-tight">₹{(data.examFeeCollected.total / 10000000).toFixed(2)} Cr</div>
-          <div className="mt-2 text-[13.5px] font-semibold text-green-600">
+          <div className="mt-2 text-[13.5px] font-semibold text-primary">
             {data.examFeeCollected.percentage.toFixed(1)}% of ₹{( (data.examFeeCollected.total + data.examFeeCollected.outstanding) / 10000000).toFixed(2)} Cr demand raised
           </div>
-          <ProgressBar color="bg-green-500" percentage={data.examFeeCollected.percentage} />
+          <ProgressBar color="bg-primary" percentage={data.examFeeCollected.percentage} />
           <div className="mt-3 text-[12.5px] text-muted">
             ₹{(data.examFeeCollected.outstanding / 100000).toFixed(1)} L outstanding from {formatNumber(data.examFeeCollected.outstandingStudents)} students
           </div>
@@ -305,7 +292,7 @@ export default function CoeDashboardPage() {
               <div
                 className={cn(
                   "h-[6px] rounded-full",
-                  s.status === "complete" ? "bg-primary" : s.status === "current" ? "bg-blue-300" : "bg-surface-tint",
+                  s.status === "complete" ? "bg-primary" : s.status === "current" ? "bg-accent-300" : "bg-surface-tint",
                 )}
               />
               <span className={cn("text-[11px] font-semibold leading-tight", s.status === "pending" ? "text-subtle" : "text-ink-soft")}>{s.label}</span>
@@ -345,7 +332,7 @@ export default function CoeDashboardPage() {
                     <span
                       className={cn(
                         "rounded-[6px] px-2 py-0.5 text-[10.5px] font-bold uppercase",
-                        row.status === "published" ? "bg-green-50 text-green-700" : row.status === "scheduled" ? "bg-blue-50 text-blue-700" : "bg-surface-tint text-subtle",
+                        row.status === "published" ? "bg-accent-100 text-primary-dark" : row.status === "scheduled" ? "bg-accent-50 text-primary" : "bg-surface-tint text-subtle",
                       )}
                     >
                       {row.status}
@@ -453,7 +440,7 @@ function StatCard({ href, title, icon, children }: { href: string; title: string
       <Card className="p-5 flex flex-col justify-between shadow-sm border border-border-default bg-white rounded-xl h-full transition-shadow hover:shadow-md hover:border-border-accent cursor-pointer">
         <div className="flex items-center justify-between mb-4 text-muted">
           <h3 className="text-[13.5px] font-medium text-ink-soft">{title}</h3>
-          <div className="p-1.5 bg-blue-50 rounded-md">
+          <div className="p-1.5 bg-accent-50 rounded-md">
             {icon}
           </div>
         </div>

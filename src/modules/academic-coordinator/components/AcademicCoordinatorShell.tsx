@@ -1,29 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AcademicCoordinatorSidebar } from "./AcademicCoordinatorSidebar";
-import { AcademicCoordinatorTopbar } from "./AcademicCoordinatorTopbar";
+import { AppShell } from "@/components/layout/AppShell";
+import { academicCoordinatorModuleConfig } from "@/modules/academic-coordinator/nav";
+import { useMyIdentity } from "@/modules/student/api/profile";
+import { viewedAcademicYearLabel, currentInstitutionSemesterParity } from "@/lib/utils/date";
 import { AcademicYearProvider } from "../context/AcademicYearContext";
 
 const ALLOWED_ROLES = new Set(["academic_coordinator", "admin"]);
-const COLLAPSE_STORAGE_KEY = "eos.academic-coordinator.sidebar.collapsed";
 
+// Migrated off the bespoke AcademicCoordinatorSidebar + AcademicCoordinatorTopbar
+// onto the shared AppShell/Sidebar/Topbar used by every other role module.
+//
+// - The logo, previously drawn inline in the topbar, now comes from the
+//   shared Sidebar's own SidebarBrandHeader — nothing to wire up here.
+// - The June-cutoff `currentSemesterLabel()` helper is replaced with the
+//   shared `currentInstitutionSemesterParity` (same Odd/Even Semester
+//   labels, same convention used by Secretary/SportsAdmin/EDC/Billing/COE),
+//   paired with `viewedAcademicYearLabel` for the AY pill the same way those
+//   modules do — this module has no real per-coordinator academic-calendar
+//   endpoint (unlike HoD), so the institution-wide computed values are the
+//   honest choice rather than fabricating a per-user one.
+// - The inert "Settings — coming soon" button had no shared Topbar
+//   equivalent and did nothing — dropped, same call already made for
+//   Principal's inert icons.
+// - The batch-cohort <Select> is NOT here — the shared Topbar has no slot
+//   for a module-specific scoping control, so it now renders as
+//   AcademicCoordinatorBatchBar from the page layout instead (still reading
+//   the same AcademicYearContext, which still wraps this shell below).
+// - The role gate (only academic_coordinator/admin may view this portal) is
+//   real authorization logic, not chrome — kept exactly as it was.
 export function AcademicCoordinatorShell({ children }: { children: React.ReactNode }) {
   const { session, status } = useAuth();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== "undefined" && window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1",
-  );
-
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
-      return next;
-    });
-  }
+  const identity = useMyIdentity();
 
   const allowed = session != null && ALLOWED_ROLES.has(session.user.role);
 
@@ -50,15 +62,23 @@ export function AcademicCoordinatorShell({ children }: { children: React.ReactNo
     return null;
   }
 
+  const now = new Date();
+
   return (
     <AcademicYearProvider>
-      <div className="flex h-screen w-full flex-col overflow-hidden bg-surface">
-        <AcademicCoordinatorTopbar />
-        <div className="flex min-h-0 flex-1">
-          <AcademicCoordinatorSidebar collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
-          <main className="min-w-0 flex-1 overflow-y-auto px-[26px] pt-6 pb-12">{children}</main>
-        </div>
-      </div>
+      <AppShell
+        moduleConfig={academicCoordinatorModuleConfig}
+        header={{
+          studentName: identity.data?.name,
+          registerNumber: identity.data?.designation ?? "Academic Coordinator",
+          searchPlaceholder: "Search courses, faculty, timetables...",
+          academicYearLabel: viewedAcademicYearLabel(now.getFullYear(), now.getMonth()),
+          semesterParityLabel: currentInstitutionSemesterParity(now),
+          showNotifications: true,
+        }}
+      >
+        {children}
+      </AppShell>
     </AcademicYearProvider>
   );
 }

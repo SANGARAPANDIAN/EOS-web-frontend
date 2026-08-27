@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
-export type AppraisalStatus = "pending" | "sent_to_principal" | "sent_back";
+export type AppraisalStatus = "pending" | "sent_to_hr" | "sent_back";
 
 export interface HodAppraisalRow {
   id: number;
@@ -17,7 +17,7 @@ export interface HodAppraisalRow {
 
 export interface HodAppraisalRequests {
   department: { name: string; code: string };
-  counts: { pending: number; sent_to_principal: number; sent_back: number; all: number };
+  counts: { pending: number; sent_to_hr: number; sent_back: number; all: number };
   rows: HodAppraisalRow[];
 }
 

@@ -2,8 +2,8 @@
 
 import { AppShell } from "@/components/layout/AppShell";
 import { coeModuleConfig } from "@/modules/coe/nav";
-import { CoeTopbar } from "@/modules/coe/CoeTopbar";
 import { useMe } from "@/modules/coe/api/identity";
+import { viewedAcademicYearLabel, currentInstitutionSemesterParity } from "@/lib/utils/date";
 import { useRevaluationRequests } from "@/modules/coe/api/revaluation";
 import { useExamRegistrations } from "@/modules/coe/api/examRegistrations";
 import { useHallPlans } from "@/modules/coe/api/hallPlans";
@@ -14,17 +14,16 @@ import { useMalpracticeIncidents } from "@/modules/coe/api/malpractice";
 import { ROLE_LABEL } from "@/lib/config";
 
 /**
- * The design reference puts the search bar and notification bell inline
- * with each page's own title row (not in a separate global strip), so the
- * shared Topbar is hidden here (`hideTopbar`) and each COE page renders
- * that row itself via `CoePageHeader` — see modules/coe/PageHeader.tsx.
- * Every other module still gets the normal Topbar; this is opt-in.
+ * Renders through the shared AppShell/Topbar — same chrome as every other
+ * module (HoD, Principal, etc.), no bespoke topbar. Each COE page still
+ * carries its own title/actions row via CoePageHeader (see
+ * modules/coe/PageHeader.tsx) below the shared Topbar, same as HoD's pages
+ * render their own headings below theirs.
  *
- * studentName/registerNumber still feed the Sidebar's own footer identity
- * block (unrelated to the now-hidden Topbar) — /auth/me doesn't join
- * coe_profiles (nothing in the backend does), so there's no real display
- * name beyond the account email; the role label falls back to the same
- * static ROLE_LABEL every other module uses.
+ * studentName/registerNumber feed the Sidebar's own footer identity block —
+ * /auth/me doesn't join coe_profiles (nothing in the backend does), so
+ * there's no real display name beyond the account email; the role label
+ * falls back to the same static ROLE_LABEL every other module uses.
  *
  * The revaluation nav badge is a real count of status: "requested" rows.
  * The Exam Cycle/Conduct group badges (design shows a count chip next to
@@ -34,6 +33,7 @@ import { ROLE_LABEL } from "@/lib/config";
  */
 export function CoeShell({ children }: { children: React.ReactNode }) {
   const me = useMe();
+  const now = new Date();
   const revaluation = useRevaluationRequests();
   const registrations = useExamRegistrations({});
   const hallPlans = useHallPlans();
@@ -47,10 +47,13 @@ export function CoeShell({ children }: { children: React.ReactNode }) {
   return (
     <AppShell
       moduleConfig={coeModuleConfig}
-      customTopbar={<CoeTopbar />}
       header={{
         studentName: me.data?.email,
         registerNumber: ROLE_LABEL.coe,
+        searchPlaceholder: "Search exams, students, halls, courses…",
+        academicYearLabel: viewedAcademicYearLabel(now.getFullYear(), now.getMonth()),
+        semesterParityLabel: currentInstitutionSemesterParity(now),
+        showNotifications: true,
       }}
       navBadges={{
         coeRevaluationPending: pendingRevaluation || undefined,

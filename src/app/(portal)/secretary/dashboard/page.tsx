@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SegmentedTabs } from "@/components/ui";
 import { SecretaryIcon } from "@/modules/secretary/icons";
 import { tone as noticeTone } from "@/modules/secretary/helpers";
 import { useAnnouncements } from "@/modules/secretary/api/announcements";
@@ -38,6 +39,7 @@ import {
 //     `useAnnouncements()` hook (wired in a prior pass).
 
 const RANGES = ["Today", "This term"] as const;
+const RANGE_TABS = RANGES.map((r) => ({ key: r, label: r }));
 
 function noticeChip(category: string | null) {
   const key = category === "emergency" ? "overdue" : category === "academic" ? "in progress" : "pending";
@@ -156,18 +158,11 @@ export default function SecretaryDashboardPage() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "26px 0 28px" }}>
-        <div data-sec-lift="" style={{ display: "flex", flex: "0 0 auto", border: "1px solid #e5e9f2", borderRadius: 12, overflow: "hidden", background: "#ffffff" }}>
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              data-sec-nav-item=""
-              onClick={() => { setRange(r); flash(`Showing figures for ${r.toLowerCase()}.`); }}
-              style={{ border: 0, background: range === r ? "#1e3a8a" : "#ffffff", color: range === r ? "#ffffff" : "#334155", fontSize: 13.1, fontWeight: range === r ? 600 : 500, padding: "14px 30px", whiteSpace: "nowrap", cursor: "pointer" }}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          options={RANGE_TABS}
+          value={range}
+          onChange={(r) => { setRange(r); flash(`Showing figures for ${r.toLowerCase()}.`); }}
+        />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 22 }}>

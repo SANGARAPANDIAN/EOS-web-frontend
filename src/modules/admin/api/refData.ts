@@ -82,3 +82,16 @@ export function useQuotas() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+export interface BonafideReasonRef {
+  id: number;
+  reason_text: string;
+}
+
+export function useBonafideReasons() {
+  return useQuery({
+    queryKey: ["bonafide-reasons", "list"],
+    queryFn: () => apiClient.get<BonafideReasonRef[]>("/bonafide-reasons"),
+    staleTime: 5 * 60 * 1000,
+  });
+}

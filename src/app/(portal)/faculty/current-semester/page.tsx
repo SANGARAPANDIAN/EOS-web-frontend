@@ -116,6 +116,7 @@ export default function AdvisorCurrentSemesterPage() {
   const createSession = useCreateLessonSession();
   const [showAddSession, setShowAddSession] = useState(false);
   const [sessionDate, setSessionDate] = useState("");
+  const [sessionUnit, setSessionUnit] = useState("");
   const [sessionTopic, setSessionTopic] = useState("");
 
   if (!subject) {
@@ -216,8 +217,14 @@ export default function AdvisorCurrentSemesterPage() {
   function submitAddSession() {
     if (!sessionDate || !sessionTopic.trim() || !subject) return;
     createSession.mutate(
-      { subject_id: subject.subject_id, class_id: subject.class_id, session_date: sessionDate, topic: sessionTopic.trim() },
-      { onSuccess: () => { setSessionDate(""); setSessionTopic(""); setShowAddSession(false); } },
+      {
+        subject_id: subject.subject_id,
+        class_id: subject.class_id,
+        session_date: sessionDate,
+        topic: sessionTopic.trim(),
+        unit_title: sessionUnit.trim() || undefined,
+      },
+      { onSuccess: () => { setSessionDate(""); setSessionUnit(""); setSessionTopic(""); setShowAddSession(false); } },
     );
   }
 
@@ -550,6 +557,7 @@ export default function AdvisorCurrentSemesterPage() {
           {showAddSession && (
             <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
               <input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} style={{ height: 42, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 12px", fontFamily: "inherit", fontSize: 13.5 }} />
+              <input value={sessionUnit} onChange={(e) => setSessionUnit(e.target.value)} placeholder="Unit (e.g. Unit 4)" style={{ width: 150, height: 42, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 12px", fontFamily: "inherit", fontSize: 13.5 }} />
               <input value={sessionTopic} onChange={(e) => setSessionTopic(e.target.value)} placeholder="Topic" style={{ flex: 1, minWidth: 200, height: 42, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 12px", fontFamily: "inherit", fontSize: 13.5 }} />
               <div onClick={submitAddSession} style={{ padding: "10px 20px", background: "#1D4ED8", color: "#fff", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 {createSession.isPending ? "Adding…" : "Add"}

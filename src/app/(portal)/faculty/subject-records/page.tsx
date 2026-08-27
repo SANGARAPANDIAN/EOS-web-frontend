@@ -63,6 +63,12 @@ export default function AdvisorSubjectRecordsPage() {
   const setMappingId = setMappingIdOverride;
 
   const active = inSemester.find((r) => r.exam_subject_mapping_id === mappingId);
+  // Only internal (CIA1/2/3) exams are entered by faculty here — a
+  // University End Semester exam is external, published by COE through
+  // its own pipeline, and shown here read-only. The backend enforces this
+  // too (POST /me/exams/:id/marks and PATCH /me/exam-marks/:id both 403
+  // for a non-internal mapping), this is just the matching UI gate.
+  const isInternalExam = active?.exam.category === "internal";
   const detail = useSubjectRecordDetail(mappingId ?? undefined);
   const publish = usePublishSubjectRecord();
 
@@ -101,7 +107,7 @@ export default function AdvisorSubjectRecordsPage() {
   }
 
   function saveMarks() {
-    if (!mappingId || hasOutOfRangeDraft) return;
+    if (!mappingId || hasOutOfRangeDraft || !isInternalExam) return;
     setSaveError(null);
     const effectiveMaxMarks = roster.data?.max_marks || Number(maxMarksInput) || 100;
     const newEntries = students
@@ -233,7 +239,22 @@ export default function AdvisorSubjectRecordsPage() {
             >
               {active.is_published ? "Published" : "Draft · not published"}
             </div>
-            {!roster.data?.max_marks && !active.is_published && (
+            {!isInternalExam && (
+              <div
+                style={{
+                  padding: "9px 16px",
+                  borderRadius: 9,
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  color: "#64748B",
+                }}
+              >
+                University exam · published by COE, view only
+              </div>
+            )}
+            {!roster.data?.max_marks && !active.is_published && isInternalExam && (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: "#475569" }}>Max marks</div>
                 <input
@@ -244,7 +265,7 @@ export default function AdvisorSubjectRecordsPage() {
               </div>
             )}
             <div style={{ flex: 1 }} />
-            {!active.is_published && (
+            {!active.is_published && isInternalExam && (
               <>
                 <div
                   onClick={() => !hasOutOfRangeDraft && saveMarks()}
@@ -316,7 +337,7 @@ export default function AdvisorSubjectRecordsPage() {
                     <input
                       value={value}
                       onChange={(e) => setDrafts((prev) => ({ ...prev, [s.student_id]: e.target.value }))}
-                      disabled={active.is_published || (roster.data?.locked && s.mark_id === null)}
+                      disabled={!isInternalExam || active.is_published || (roster.data?.locked && s.mark_id === null)}
                       style={{
                         width: 80,
                         height: 36,
@@ -326,7 +347,7 @@ export default function AdvisorSubjectRecordsPage() {
                         fontFamily: "inherit",
                         fontSize: 14,
                         fontWeight: 700,
-                        background: active.is_published ? "#F8FAFC" : invalid ? "#FEF2F2" : "#fff",
+                        background: !isInternalExam || active.is_published ? "#F8FAFC" : invalid ? "#FEF2F2" : "#fff",
                         color: invalid ? "#DC2626" : "#0F172A",
                       }}
                     />

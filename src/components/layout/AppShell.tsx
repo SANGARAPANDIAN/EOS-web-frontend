@@ -36,6 +36,8 @@ interface AppShellProps {
    * sidebar — e.g. COE's search/AY chips row replaces Topbar entirely.
    */
   customTopbar?: ReactNode;
+  /** Opt-in: makes the sidebar footer's avatar/name area clickable — see `SidebarUserFooter`. */
+  onIdentityClick?: () => void;
   children: ReactNode;
 }
 
@@ -46,7 +48,7 @@ interface AppShellProps {
  * data and passes it in as `header` — this component never fetches data
  * itself, which is what keeps it reusable for future modules like faculty.
  */
-export function AppShell({ moduleConfig, header, navBadges, search, programIcon, quickCreate, customTopbar, children }: AppShellProps) {
+export function AppShell({ moduleConfig, header, navBadges, search, programIcon, quickCreate, customTopbar, onIdentityClick, children }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-surface font-sans text-ink">
       <Sidebar
@@ -54,6 +56,7 @@ export function AppShell({ moduleConfig, header, navBadges, search, programIcon,
         studentName={header?.studentName}
         registerNumber={header?.registerNumber}
         navBadges={navBadges}
+        onIdentityClick={onIdentityClick}
       />
       <main className="flex flex-1 flex-col overflow-y-auto">
         {customTopbar ?? (

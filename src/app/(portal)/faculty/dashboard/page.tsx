@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { SegmentedTabs } from "@/components/ui";
 import { useMyFacultyProfile, useIsClassAdvisor } from "@/modules/advisor/api/profile";
 import { useTodayClasses, useMenteeRoster } from "@/modules/advisor/api/dashboard";
 import { useStudentLeaves, useStudentOds } from "@/modules/advisor/api/requests";
@@ -155,33 +156,14 @@ export default function AdvisorDashboardPage() {
             there is nothing on this page the toggle would change, so it's
             hidden rather than shown inert. */}
         {isAdvisor && primaryMentee && (
-          <div style={{ display: "flex", background: "#EEF1F7", borderRadius: 11, padding: 4, gap: 4 }}>
-            {[
-              { key: "today" as const, label: "Today" },
-              { key: "term" as const, label: "This term" },
-            ].map((t) => {
-              const active = scope === t.key;
-              return (
-                <div
-                  key={t.key}
-                  data-advisor-lift=""
-                  onClick={() => setScope(t.key)}
-                  style={{
-                    padding: "8px 18px",
-                    borderRadius: 8,
-                    fontSize: 13.5,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    background: active ? "#fff" : "transparent",
-                    color: active ? "#1D4ED8" : "#64748B",
-                    boxShadow: active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
-                  }}
-                >
-                  {t.label}
-                </div>
-              );
-            })}
-          </div>
+          <SegmentedTabs
+            options={[
+              { key: "today", label: "Today" },
+              { key: "term", label: "This term" },
+            ]}
+            value={scope}
+            onChange={setScope}
+          />
         )}
         <Link
           href="/faculty/attendance"

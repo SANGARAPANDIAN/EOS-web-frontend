@@ -334,7 +334,7 @@ export default function HrVacationManagementPage() {
           </Field>
           <Field label="Kind">
             <Select value={kind} onChange={(e) => setKind(e.target.value as "" | "leave" | "od")}>
-              <option value="">Leave + OD</option>
+              <option value="">All</option>
               <option value="leave">Leave only</option>
               <option value="od">OD only</option>
             </Select>

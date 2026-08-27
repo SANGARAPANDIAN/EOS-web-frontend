@@ -24,17 +24,73 @@ const cardSx = {
   transition: "transform .16s ease,border-color .16s ease,box-shadow .16s ease",
   background: "#fff",
   border: "1px solid #e6e9ef",
-  borderRadius: 12,
-  padding: "16px 18px",
+  borderRadius: 14,
+  padding: "20px",
   textAlign: "left" as const,
   cursor: "pointer",
   font: "inherit",
+  display: "flex",
+  flexDirection: "column" as const,
 } as const;
+
+const cardGridSx = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))", gap: 14 } as const;
+
+const clampNameSx = {
+  fontSize: 13.5,
+  fontWeight: 700,
+  lineHeight: 1.35,
+  color: "#0f172a",
+  marginTop: 14,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical" as const,
+  overflow: "hidden",
+  minHeight: "2.7em",
+} as const;
+
+function IconChip({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ width: 34, height: 34, borderRadius: 9, background: "#eef3ff", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
+      {children}
+    </div>
+  );
+}
+
+function BuildingIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 21V7l7-4 7 4v14M3 21h18M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
+function StatLine({ value, label }: { value: number; label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 14 }}>
+      <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 24, fontWeight: 700, color: "#0f172a" }}>{value}</span>
+      <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{label}</span>
+    </div>
+  );
+}
 
 function ProgressBar({ pct }: { pct: number }) {
   return (
-    <div style={{ height: 5, background: "#eef2f7", borderRadius: 4, marginTop: 10, overflow: "hidden" }}>
-      <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, pct))}%`, background: "#1d4ed8", borderRadius: 4 }} />
+    <div style={{ marginTop: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+        <span style={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>Collected</span>
+        <span style={{ fontSize: 12.5, color: "#1d4ed8", fontWeight: 800 }}>{pct.toFixed(1)}%</span>
+      </div>
+      <div style={{ height: 8, background: "#eef2f7", borderRadius: 5, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, pct))}%`, background: "#1d4ed8", borderRadius: 5, transition: "width .3s ease" }} />
+      </div>
     </div>
   );
 }
@@ -162,14 +218,13 @@ export default function BillingStudentsPage() {
       <PageHeader title="Students" sub="Fee details for every student on the roll." />
 
       {!deptPicked && (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, deptSummary.length)},1fr)`, gap: 12 }}>
+        <div style={cardGridSx}>
           {deptSummary.map((d) => (
-            <button key={d.dept} data-bill-lift onClick={() => pickDept(d.dept)} style={cardSx}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.35 }}>{d.dept}</div>
-              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 19, fontWeight: 600, marginTop: 8 }}>{d.students}</div>
-              <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 4 }}>students</div>
+            <button key={d.dept} data-bill-lift onClick={() => pickDept(d.dept)} style={cardSx} title={d.dept}>
+              <IconChip><BuildingIcon /></IconChip>
+              <div style={clampNameSx}>{d.dept}</div>
+              <StatLine value={d.students} label="students" />
               <ProgressBar pct={d.pct} />
-              <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 7 }}>{d.pct.toFixed(1)}% collected</div>
             </button>
           ))}
         </div>
@@ -191,15 +246,16 @@ export default function BillingStudentsPage() {
               <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>{deptTotalRoll} students on the roll</div>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, yearBoxes.length)},1fr)`, gap: 12 }}>
+          <div style={cardGridSx}>
             {yearBoxes.map((y) => (
               <button key={y.batch} data-bill-lift onClick={() => pickYear(y.batch)} style={cardSx}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{y.label}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#94a3b8", marginTop: 3 }}>{y.batch}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 22, fontWeight: 600, marginTop: 10 }}>{y.students}</div>
-                <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 4 }}>students fully paid</div>
+                <IconChip><CalendarIcon /></IconChip>
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{y.label}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{y.batch}</div>
+                </div>
+                <StatLine value={y.students} label="fully paid" />
                 <ProgressBar pct={y.pct} />
-                <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 7 }}>{y.pct.toFixed(1)}% collected</div>
               </button>
             ))}
           </div>

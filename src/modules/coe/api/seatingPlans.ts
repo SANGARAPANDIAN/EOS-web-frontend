@@ -184,6 +184,42 @@ export function usePublishSeatingVersion() {
   });
 }
 
+export function useDeleteSeatingVersion() {
+  const invalidate = useInvalidateSeating();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/seating-plans/versions/${id}`),
+    onSuccess: invalidate,
+  });
+}
+
+export interface SeatingVersionDetail {
+  id: number;
+  exam_id: number;
+  exam_date: string;
+  session: ExamSessionCode;
+  version_number: number;
+  status: SeatingVersionStatus;
+  exam: { academic_year: string; semester: number; exam_type_name: string };
+  venues: {
+    venue_id: number;
+    name: string;
+    location: string | null;
+    capacity: number;
+    allocation_mode: SeatingAllocationMode;
+    pattern: SeatingPattern | null;
+    departments: { id: number; code: string; name: string }[];
+    seated: number;
+  }[];
+}
+
+export function useSeatingVersionDetail(id: number | null) {
+  return useQuery({
+    queryKey: ["coe", "seating-version-detail", id],
+    queryFn: () => apiClient.get<SeatingVersionDetail>(`/seating-plans/versions/${id}`),
+    enabled: id != null,
+  });
+}
+
 export interface CoeProfile {
   id: number;
   user_id: number;

@@ -16,6 +16,8 @@ export interface ExamRegistration {
   approved_by_user_id: number | null;
   approved_at: string | null;
   registered_at: string;
+  /** Column added via query.md ALTER — undefined/null until that migration is applied. */
+  reason?: string | null;
   students: {
     id: number;
     student_id_no: string;
@@ -86,16 +88,17 @@ function invalidate(queryClient: ReturnType<typeof useQueryClient>) {
 export function useCreateExamRegistration() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { exam_id: number; student_id: number; fee_status?: ExamRegistrationFeeStatus }) =>
+    mutationFn: (input: { exam_id: number; student_id: number; fee_status?: ExamRegistrationFeeStatus; reason?: string }) =>
       apiClient.post<ExamRegistration>("/exam-registrations", input),
     onSuccess: () => invalidate(queryClient),
   });
 }
 
+/** status "pending" reopens a previously rejected registration. */
 export function useReviewExamRegistration() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: "approved" | "rejected" }) =>
+    mutationFn: ({ id, status }: { id: number; status: "approved" | "rejected" | "pending" }) =>
       apiClient.patch<ExamRegistration>(`/exam-registrations/${id}/review`, { status }),
     onSuccess: () => invalidate(queryClient),
   });

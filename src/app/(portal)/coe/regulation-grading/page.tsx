@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, StatCard, PillTabs, SearchBar, Select, Input, Button, Badge, Modal, type BadgeTone } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
@@ -217,46 +217,39 @@ function SubmitButton({ regulation }: { regulation: Regulation }) {
 function RegulationModal({ target, onClose }: { target: Regulation | "new" | null; onClose: () => void }) {
   const isNew = target === "new";
   const existing = target && target !== "new" ? target : null;
+  const open = target !== null;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isNew ? "New regulation" : `Edit ${existing?.code}`}
+      subtitle="Credit rules, pass criteria, attendance threshold and moderation ceiling."
+      className="max-w-[640px]"
+    >
+      {/* Keyed by the record being edited so switching targets remounts this
+          with fresh initial state, instead of an effect resyncing state and
+          triggering a cascading render on every open. */}
+      {target && <RegulationModalBody key={target === "new" ? "new" : target.id} target={target} onClose={onClose} />}
+    </Modal>
+  );
+}
+
+function RegulationModalBody({ target, onClose }: { target: Regulation | "new"; onClose: () => void }) {
+  const existing = target !== "new" ? target : null;
   const create = useCreateRegulation();
   const update = useUpdateRegulation();
 
-  const [code, setCode] = useState("");
-  const [level, setLevel] = useState<RegulationLevel>("UG");
-  const [description, setDescription] = useState("");
-  const [startYear, setStartYear] = useState("");
-  const [endYear, setEndYear] = useState("");
-  const [passAggregate, setPassAggregate] = useState("");
-  const [passExternal, setPassExternal] = useState("");
-  const [attendance, setAttendance] = useState("75");
-  const [moderationMarks, setModerationMarks] = useState("3");
-  const [moderationPct, setModerationPct] = useState("5");
-
-  useEffect(() => {
-    if (existing) {
-      setCode(existing.code);
-      setLevel(existing.applies_to_level);
-      setDescription(existing.applies_to_description);
-      setStartYear(String(existing.intake_start_year));
-      setEndYear(existing.intake_end_year != null ? String(existing.intake_end_year) : "");
-      setPassAggregate(existing.pass_aggregate_pct != null ? String(Number(existing.pass_aggregate_pct)) : "");
-      setPassExternal(existing.pass_external_pct != null ? String(Number(existing.pass_external_pct)) : "");
-      setAttendance(String(Number(existing.attendance_threshold_pct)));
-      setModerationMarks(String(existing.moderation_ceiling_marks));
-      setModerationPct(String(Number(existing.moderation_ceiling_candidate_pct)));
-    } else {
-      setCode("");
-      setLevel("UG");
-      setDescription("");
-      setStartYear("");
-      setEndYear("");
-      setPassAggregate("");
-      setPassExternal("");
-      setAttendance("75");
-      setModerationMarks("3");
-      setModerationPct("5");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target]);
+  const [code, setCode] = useState(existing?.code ?? "");
+  const [level, setLevel] = useState<RegulationLevel>(existing?.applies_to_level ?? "UG");
+  const [description, setDescription] = useState(existing?.applies_to_description ?? "");
+  const [startYear, setStartYear] = useState(existing ? String(existing.intake_start_year) : "");
+  const [endYear, setEndYear] = useState(existing?.intake_end_year != null ? String(existing.intake_end_year) : "");
+  const [passAggregate, setPassAggregate] = useState(existing?.pass_aggregate_pct != null ? String(Number(existing.pass_aggregate_pct)) : "");
+  const [passExternal, setPassExternal] = useState(existing?.pass_external_pct != null ? String(Number(existing.pass_external_pct)) : "");
+  const [attendance, setAttendance] = useState(existing ? String(Number(existing.attendance_threshold_pct)) : "75");
+  const [moderationMarks, setModerationMarks] = useState(existing ? String(existing.moderation_ceiling_marks) : "3");
+  const [moderationPct, setModerationPct] = useState(existing ? String(Number(existing.moderation_ceiling_candidate_pct)) : "5");
 
   function handleClose() {
     create.reset();
@@ -285,41 +278,32 @@ function RegulationModal({ target, onClose }: { target: Regulation | "new" | nul
   }
 
   const mutation = existing ? update : create;
-  const open = target !== null;
   const canSave = code.trim() !== "" && description.trim() !== "" && startYear !== "";
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      title={isNew ? "New regulation" : `Edit ${existing?.code}`}
-      subtitle="Credit rules, pass criteria, attendance threshold and moderation ceiling."
-      className="max-w-[640px]"
-    >
-      {open && (
-        <RegulationForm
-          code={code}
-          setCode={setCode}
-          level={level}
-          setLevel={setLevel}
-          description={description}
-          setDescription={setDescription}
-          startYear={startYear}
-          setStartYear={setStartYear}
-          endYear={endYear}
-          setEndYear={setEndYear}
-          passAggregate={passAggregate}
-          setPassAggregate={setPassAggregate}
-          passExternal={passExternal}
-          setPassExternal={setPassExternal}
-          attendance={attendance}
-          setAttendance={setAttendance}
-          moderationMarks={moderationMarks}
-          setModerationMarks={setModerationMarks}
-          moderationPct={moderationPct}
-          setModerationPct={setModerationPct}
-        />
-      )}
+    <>
+      <RegulationForm
+        code={code}
+        setCode={setCode}
+        level={level}
+        setLevel={setLevel}
+        description={description}
+        setDescription={setDescription}
+        startYear={startYear}
+        setStartYear={setStartYear}
+        endYear={endYear}
+        setEndYear={setEndYear}
+        passAggregate={passAggregate}
+        setPassAggregate={setPassAggregate}
+        passExternal={passExternal}
+        setPassExternal={setPassExternal}
+        attendance={attendance}
+        setAttendance={setAttendance}
+        moderationMarks={moderationMarks}
+        setModerationMarks={setModerationMarks}
+        moderationPct={moderationPct}
+        setModerationPct={setModerationPct}
+      />
       {mutation.isError && <p className="mt-2 text-[12px] text-danger-fg">{(mutation.error as Error).message}</p>}
       <div className="mt-4 flex justify-end gap-3">
         <Button variant="secondary" className="w-auto" onClick={handleClose}>
@@ -329,7 +313,7 @@ function RegulationModal({ target, onClose }: { target: Regulation | "new" | nul
           {mutation.isPending ? "Saving…" : "Save"}
         </Button>
       </div>
-    </Modal>
+    </>
   );
 }
 

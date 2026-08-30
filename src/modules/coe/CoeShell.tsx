@@ -42,7 +42,10 @@ export function CoeShell({ children }: { children: React.ReactNode }) {
   const questionPapers = useQuestionPapersTotalCount();
   const malpractice = useMalpracticeIncidents();
 
-  const pendingRevaluation = revaluation.data?.filter((r) => r.status === "requested").length;
+  // Matches revaluation-retotaling/page.tsx's own "Payment pending" rule
+  // exactly (fee_paid gates everything, regardless of the raw status column)
+  // so the sidebar count never disagrees with what that page's own tab shows.
+  const pendingRevaluation = revaluation.data?.filter((r) => !r.fee_paid).length;
 
   return (
     <AppShell

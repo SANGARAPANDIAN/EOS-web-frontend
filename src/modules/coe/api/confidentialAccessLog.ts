@@ -8,6 +8,11 @@ import { apiClient } from "@/lib/api/client";
 
 export type ConfidentialEventType = "strong_room_entry" | "file_access" | "print_run" | "seal_break" | "exception";
 
+export interface ConfidentialActor {
+  name: string;
+  role: string | null;
+}
+
 export interface ConfidentialEvent {
   id: number;
   event_type: ConfidentialEventType;
@@ -16,8 +21,11 @@ export interface ConfidentialEvent {
   verification_method: string;
   occurred_at: string;
   question_paper_id: number | null;
-  users_confidential_access_events_person_user_idTousers: { id: number; email: string };
-  users_confidential_access_events_witness_user_idTousers: { id: number; email: string } | null;
+  person_user_id: number;
+  witness_user_id: number | null;
+  /** Best-effort real name + role (from a linked faculty profile) — falls back to the account email when no such profile exists. */
+  person: ConfidentialActor;
+  witness: ConfidentialActor | null;
 }
 
 export interface ConfidentialEventStats {
@@ -27,10 +35,15 @@ export interface ConfidentialEventStats {
   exceptions_raised: number;
 }
 
-export function useConfidentialEvents(filters: { event_type?: ConfidentialEventType | null; search?: string }) {
+export function useConfidentialEvents(filters: { event_type?: ConfidentialEventType | null; person_user_id?: number | null; search?: string }) {
   return useQuery({
-    queryKey: ["coe", "confidential-events", filters.event_type ?? null, filters.search ?? ""],
-    queryFn: () => apiClient.get<ConfidentialEvent[]>("/confidential-access-log", { event_type: filters.event_type ?? undefined, search: filters.search || undefined }),
+    queryKey: ["coe", "confidential-events", filters.event_type ?? null, filters.person_user_id ?? null, filters.search ?? ""],
+    queryFn: () =>
+      apiClient.get<ConfidentialEvent[]>("/confidential-access-log", {
+        event_type: filters.event_type ?? undefined,
+        person_user_id: filters.person_user_id ?? undefined,
+        search: filters.search || undefined,
+      }),
   });
 }
 

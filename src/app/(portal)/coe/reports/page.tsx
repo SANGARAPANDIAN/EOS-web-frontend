@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, StatCard, Select, Button } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonBlock, SkeletonFilterBar } from "@/components/ui/Skeleton";
@@ -20,10 +21,11 @@ import { cn } from "@/lib/utils/cn";
 const PREVIOUS_COLOR = "#dbe6ff";
 const CURRENT_COLOR = "#1d4ed8";
 
-function DeltaText({ value, suffix = " points vs previous cycle" }: { value: number | null; suffix?: string }) {
+function DeltaText({ value, previousLabel, unit = " points" }: { value: number | null; previousLabel: string | null; unit?: string }) {
   if (value == null) return <span className="text-subtle">No previous cycle to compare</span>;
   const up = value > 0;
   const flat = value === 0;
+  const suffix = ` ${unit.trim()} vs ${previousLabel ?? "previous cycle"}`;
   return (
     <span className={cn("font-semibold", flat ? "text-subtle" : up ? "text-[#15803d]" : "text-danger-fg")}>
       {flat ? "No change" : `${up ? "+" : ""}${value}${suffix}`}
@@ -174,6 +176,12 @@ export default function CoeReportsAnalyticsPage() {
   const exams = useExams();
   const examTypes = useExamTypes();
   const allBundles = useAllScriptBundles();
+  const searchParams = useSearchParams();
+  const urlExamId = useMemo(() => {
+    const raw = searchParams.get("exam_id");
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [searchParams]);
   const [examId, setExamId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -193,7 +201,10 @@ export default function CoeReportsAnalyticsPage() {
     return best;
   }, [allBundles.data]);
   const sortedExams = useMemo(() => [...(exams.data ?? [])].sort((a, b) => b.id - a.id), [exams.data]);
-  const effectiveExamId = examId ?? busiestExamId ?? sortedExams[0]?.id ?? null;
+  // A "Report" link from Exam Management (?exam_id=) always wins over the
+  // busiest-exam guess, but a manual change to the dropdown here (examId)
+  // still overrides it.
+  const effectiveExamId = examId ?? urlExamId ?? busiestExamId ?? sortedExams[0]?.id ?? null;
 
   const summary = useReportsAnalyticsSummary(effectiveExamId);
 
@@ -251,7 +262,7 @@ export default function CoeReportsAnalyticsPage() {
             <Select value={effectiveExamId ?? ""} onChange={(e) => setExamId(Number(e.target.value))} className="w-64">
               {sortedExams.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {examTypesById.get(e.exam_type_id)?.name ?? "Exam"} · Semester {e.semester} · {e.academic_year}
+                  {e.title ?? `${examTypesById.get(e.exam_type_id)?.name ?? "Exam"} · Semester ${e.semester} · ${e.academic_year}`}
                 </option>
               ))}
             </Select>
@@ -280,7 +291,7 @@ export default function CoeReportsAnalyticsPage() {
             <StatCard
               label="Overall pass percentage"
               value={summary.data.overallPassPercentage != null ? `${summary.data.overallPassPercentage}%` : "—"}
-              sub={<DeltaText value={summary.data.overallPassPercentageDelta} />}
+              sub={<DeltaText value={summary.data.overallPassPercentageDelta} previousLabel={summary.data.previousExamLabel} />}
             />
             <StatCard
               label="Students with distinction"
@@ -295,7 +306,7 @@ export default function CoeReportsAnalyticsPage() {
             <StatCard
               label="Arrear rate"
               value={summary.data.arrearRate != null ? `${summary.data.arrearRate}%` : "—"}
-              sub={<DeltaText value={summary.data.arrearRateDelta} />}
+              sub={<DeltaText value={summary.data.arrearRateDelta} previousLabel={summary.data.previousExamLabel} />}
             />
           </div>
 
@@ -368,7 +379,7 @@ export default function CoeReportsAnalyticsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted">Result comparison vs previous cycle</span>
-                  <DeltaText value={summary.data.arrearAnalysis.resultComparisonDelta} suffix=" pts" />
+                  <DeltaText value={summary.data.arrearAnalysis.resultComparisonDelta} previousLabel={summary.data.previousExamLabel} unit=" pts" />
                 </div>
               </div>
             </Card>

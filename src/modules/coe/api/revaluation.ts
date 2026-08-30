@@ -33,6 +33,7 @@ export interface RevaluationRequest {
       id: number;
       exams: { id: number; academic_year: string; semester: number };
       subjects: { id: number; name: string; subject_code: string };
+      classes: { department_id: number; departments: { code: string; name: string } } | null;
     };
   };
   students: {
@@ -65,5 +66,22 @@ export function useUpdateRevaluationRequest() {
       evaluator_faculty_id?: number;
     }) => apiClient.patch<RevaluationRequest>(`/revaluation-requests/${id}`, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coe", "revaluation-requests"] }),
+  });
+}
+
+/** POST /revaluation-requests — student-only originally; COE can now also file a counter (offline) application through the same endpoint. */
+export function useCreateRevaluationRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { exam_marks_id: number; student_id: number; request_kind: RevaluationRequestKind; remarks?: string; fee_paid?: boolean }) =>
+      apiClient.post<RevaluationRequest>("/revaluation-requests", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coe", "revaluation-requests"] }),
+  });
+}
+
+/** POST /revaluation-requests/:id/remind — nudges the applicant about a pending fee; 409s if the fee is already marked paid. */
+export function useRemindRevaluationRequest() {
+  return useMutation({
+    mutationFn: (id: number) => apiClient.post(`/revaluation-requests/${id}/remind`),
   });
 }

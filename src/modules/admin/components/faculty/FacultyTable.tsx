@@ -15,6 +15,7 @@ interface FacultyTableProps {
   error?: string | null;
   onView: (faculty: Faculty) => void;
   onEdit: (faculty: Faculty) => void;
+  onRowClick?: (faculty: Faculty) => void;
   selectedIds: Set<number>;
   onToggleAll: () => void;
   onToggleOne: (id: number) => void;
@@ -29,6 +30,7 @@ export function FacultyTable({
   error,
   onView,
   onEdit,
+  onRowClick,
   selectedIds,
   onToggleAll,
   onToggleOne,
@@ -106,6 +108,7 @@ export function FacultyTable({
       columns={columns}
       rows={rows}
       rowKey={(row) => row.id}
+      onRowClick={onRowClick}
       isLoading={isLoading}
       error={error}
       emptyTitle="No faculty found"

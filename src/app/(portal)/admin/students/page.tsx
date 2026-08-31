@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError } from "@/types/api";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
@@ -82,6 +83,7 @@ function KvRow({ label, value, muted, reason }: { label: string; value: string; 
 }
 
 export default function AdminStudentsPage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query);
   const [filters, setFilters] = useState<Partial<ListStudentsParams>>({});
@@ -369,7 +371,7 @@ export default function AdminStudentsPage() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden text-xs text-admin-subtle sm:inline">Click the eye icon for a quick view</span>
+          <span className="hidden text-xs text-admin-subtle sm:inline">Click a row for the full profile · the eye icon for a quick view</span>
           {selectedIds.size > 0 && <span className="text-xs font-semibold text-admin-muted">{selectedIds.size} selected</span>}
           <ColumnsMenu columns={COLUMN_OPTIONS} visible={visibleColumns} onToggle={toggleColumn} />
           <Button variant="secondary" disabled title="Export — no CSV export endpoint yet">
@@ -386,6 +388,7 @@ export default function AdminStudentsPage() {
         columns={columns.filter((col) => visibleColumns.has(col.key))}
         rows={pageRows}
         rowKey={(row) => row.id}
+        onRowClick={(row) => router.push(`/admin/students/${row.id}`)}
         isLoading={isLoading}
         error={error instanceof ApiError ? error.message : error ? "Failed to load students." : null}
         emptyTitle="No students match this view"

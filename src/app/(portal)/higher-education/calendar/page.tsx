@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Badge, Button, Input, Select, EmptyState } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 import { useInstitutionAcademicCalendar, useCreateCalendarEvent } from "@/modules/higher-education/api/calendar";
-import { getMonthGrid, monthLabel, toIsoDateString } from "@/lib/utils/date";
+import { AcademicCalendarView } from "@/modules/shared/academic-calendar-view/AcademicCalendarView";
 
 const EVENT_TYPE_LABEL: Record<string, string> = {
   holiday: "Holiday",
@@ -89,126 +89,40 @@ function AddCalendarEventModal({ onClose }: { onClose: () => void }) {
 
 export default function HigherEducationCalendarPage() {
   const calendar = useInstitutionAcademicCalendar();
-  const [cursor, setCursor] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
-  });
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [showAdd, setShowAdd] = useState(false);
 
-  const events = calendar.data?.events ?? [];
-  const eventsByDate = useMemo(() => {
-    const map = new Map<string, typeof events>();
-    for (const ev of events) {
-      const iso = ev.event_date.slice(0, 10);
-      const list = map.get(iso) ?? [];
-      list.push(ev);
-      map.set(iso, list);
-    }
-    return map;
-  }, [events]);
-
-  const weeks = getMonthGrid(cursor.year, cursor.month, "monday");
-  const monthEvents = events
-    .filter((ev) => {
-      const d = new Date(ev.event_date);
-      return d.getFullYear() === cursor.year && d.getMonth() === cursor.month;
-    })
-    .sort((a, b) => a.event_date.localeCompare(b.event_date));
-
-  function shiftMonth(delta: number) {
-    setCursor(({ year, month }) => {
-      const next = new Date(year, month + delta, 1);
-      return { year: next.getFullYear(), month: next.getMonth() };
-    });
-  }
-
-  const todayIso = toIsoDateString(new Date());
-
   return (
-    <div className="flex flex-col gap-5 animate-pop-in">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Academic Calendar</h1>
-          <p className="mt-1 text-[13px] text-muted">Every batch&apos;s calendar merged with the cell&apos;s own events · you can add new events.</p>
-        </div>
-        <Button variant="primarySmall" className="w-auto" onClick={() => setShowAdd(true)}>
-          Add event
-        </Button>
-      </div>
+    <div className="animate-pop-in">
+      <AcademicCalendarView
+        subtitle="Every batch's calendar merged with the cell's own events · you can add new events."
+        events={calendar.data?.events ?? []}
+        isLoading={calendar.isLoading}
+        isError={calendar.isError}
+        viewYear={viewYear}
+        viewMonth={viewMonth}
+        onPrevMonth={() => {
+          const d = new Date(viewYear, viewMonth - 1, 1);
+          setViewYear(d.getFullYear());
+          setViewMonth(d.getMonth());
+        }}
+        onNextMonth={() => {
+          const d = new Date(viewYear, viewMonth + 1, 1);
+          setViewYear(d.getFullYear());
+          setViewMonth(d.getMonth());
+        }}
+        weekStart="monday"
+        eventTypeLabel={(t) => EVENT_TYPE_LABEL[t] ?? t}
+        headerAction={
+          <Button variant="primarySmall" className="w-auto" onClick={() => setShowAdd(true)}>
+            Add event
+          </Button>
+        }
+      />
 
       {showAdd && <AddCalendarEventModal onClose={() => setShowAdd(false)} />}
-
-      <div className="grid grid-cols-[1fr_1fr] gap-4 items-start">
-        <div className="rounded-card border border-border-default bg-surface p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <button type="button" onClick={() => shiftMonth(-1)} className="flex size-8 items-center justify-center rounded-[9px] bg-surface-tint text-primary">
-              ‹
-            </button>
-            <div className="text-center">
-              <div className="text-[19px] font-extrabold text-ink">{monthLabel(cursor.year, cursor.month)}</div>
-              <div className="text-[12px] text-subtle">{monthEvents.length} calendar events</div>
-            </div>
-            <button type="button" onClick={() => shiftMonth(1)} className="flex size-8 items-center justify-center rounded-[9px] bg-surface-tint text-primary">
-              ›
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-subtle">
-            {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-              <div key={i}>{d}</div>
-            ))}
-          </div>
-          <div className="mt-1.5 flex flex-col gap-1.5">
-            {weeks.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-1.5">
-                {week.map((cell, ci) => {
-                  if (!cell.iso) return <div key={ci} />;
-                  const hasEvents = eventsByDate.has(cell.iso);
-                  const isToday = cell.iso === todayIso;
-                  return (
-                    <div
-                      key={ci}
-                      className={`flex aspect-square items-center justify-center rounded-[9px] text-[13px] font-bold ${
-                        hasEvents ? "bg-accent-50 text-primary" : "text-ink"
-                      } ${isToday ? "ring-2 ring-primary" : ""}`}
-                    >
-                      {cell.day}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-card border border-border-default bg-surface p-5">
-          <h2 className="mb-3 text-[17px] font-extrabold text-ink">Events in {monthLabel(cursor.year, cursor.month).split(" ")[0]}</h2>
-          {calendar.isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : monthEvents.length === 0 ? (
-            <EmptyState message="No events recorded this month." />
-          ) : (
-            <div className="flex flex-col gap-3">
-              {monthEvents.map((ev) => {
-                const date = new Date(ev.event_date);
-                return (
-                  <div key={ev.id} className="flex items-center gap-3.5 border-t border-divider pt-3 first:border-0 first:pt-0">
-                    <div className="flex w-[52px] shrink-0 flex-col items-center rounded-[9px] border border-border-default bg-surface-muted py-1.5">
-                      <span className="text-[16px] font-extrabold text-ink">{date.getDate()}</span>
-                      <span className="text-[9.5px] font-bold uppercase text-subtle">{date.toLocaleDateString("en-IN", { weekday: "short" })}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[14.5px] font-bold text-ink">{ev.title}</div>
-                      {ev.description && <div className="text-[12.5px] text-subtle">{ev.description}</div>}
-                    </div>
-                    <Badge tone="accent">{EVENT_TYPE_LABEL[ev.event_type] ?? ev.event_type}</Badge>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

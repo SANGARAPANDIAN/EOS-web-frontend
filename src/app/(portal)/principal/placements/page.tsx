@@ -13,6 +13,7 @@ import {
   usePlacementSections,
   type PlacementDepartmentCard,
 } from "@/modules/principal/api/placements";
+import { sectionLabel } from "@/lib/utils/academic";
 
 function abbrev(code: string): string {
   return code.slice(0, 2).toUpperCase();
@@ -146,6 +147,14 @@ function DepartmentTile({ dept, onOpen }: { dept: PlacementDepartmentCard; onOpe
 function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; onBack: () => void }) {
   const detail = usePlacementDepartmentDetail(departmentId);
   const sections = usePlacementSections(departmentId);
+  const [sectionFilter, setSectionFilter] = useState("");
+
+  const sectionOptions = Array.from(
+    new Map((sections.data ?? []).map((s) => [sectionLabel(s.semester, s.section), s.id])).keys(),
+  ).sort();
+  const visibleSections = sectionFilter
+    ? (sections.data ?? []).filter((s) => sectionLabel(s.semester, s.section) === sectionFilter)
+    : (sections.data ?? []);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -213,13 +222,28 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
       )}
 
       <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
-        <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
-          <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
-            Section-wise placement
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
+          <div>
+            <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
+              Section-wise placement
+            </div>
+            <p className="mt-0.5 text-[13px]" style={{ color: principalColors.textFaint }}>
+              Class advisor, eligibility and offers for every section
+            </p>
           </div>
-          <p className="mt-0.5 text-[13px]" style={{ color: principalColors.textFaint }}>
-            Class advisor, eligibility and offers for every section
-          </p>
+          <select
+            value={sectionFilter}
+            onChange={(e) => setSectionFilter(e.target.value)}
+            className="h-9 rounded-lg border px-3 text-sm"
+            style={{ borderColor: principalColors.border, color: principalColors.heading }}
+          >
+            <option value="">All sections</option>
+            {sectionOptions.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1080px] text-sm">
@@ -240,10 +264,10 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
             </thead>
             <tbody>
               {sections.isLoading && <PrincipalTableSkeleton columns={9} />}
-              {sections.data?.map((s) => (
+              {visibleSections.map((s) => (
                 <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
-                    {s.section} {s.semester != null ? `· Sem ${s.semester}` : ""}
+                    {sectionLabel(s.semester, s.section)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3.5" style={{ color: principalColors.body }}>
                     {s.advisor?.name ?? "—"}
@@ -274,9 +298,9 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
             </tbody>
           </table>
         </div>
-        {!sections.isLoading && (sections.data?.length ?? 0) === 0 && (
+        {!sections.isLoading && visibleSections.length === 0 && (
           <div className="px-5 py-8 text-center text-sm" style={{ color: principalColors.textFaint }}>
-            No sections found for this department.
+            {sectionFilter ? "No section matches this filter." : "No sections found for this department."}
           </div>
         )}
       </div>

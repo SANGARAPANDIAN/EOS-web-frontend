@@ -1,15 +1,47 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, StatCard, PillTabs, SearchBar, Select, Input, Button, Badge, Modal, type BadgeTone } from "@/components/ui";
+import Link from "next/link";
+import { Card, StatCard, PillTabs, SearchBar, Select, Input, Button, Badge, Modal, Pagination, DEFAULT_PAGE_SIZE, type BadgeTone } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { useExams, useCreateExam, useUpdateExam, useExamSubjectMappings, type Exam, type ExamCategory } from "@/modules/coe/api/exams";
-import { useExamTypes, useBatches } from "@/modules/coe/api/reference";
+import { useExamTypes, useBatches, useClasses, type ExamType } from "@/modules/coe/api/reference";
 import { useExamRegistrations } from "@/modules/coe/api/examRegistrations";
 import { downloadCsv } from "@/lib/utils/csv";
 import { currencyShort } from "@/modules/admin/lib/format";
 import { formatDate } from "@/lib/utils/format";
+
+/**
+ * Display-only reference code (never stored) — real academic_year/semester
+ * parity/exam_category/exam_types.code, shaped like "EXM-2026-ODD-UNIV".
+ * Supplementary sittings count sequentially within their academic year
+ * instead of by parity, since they aren't tied to one semester.
+ */
+function examCode(e: Exam, examTypesById: Map<number, ExamType>, allExams: Exam[]): string {
+  const year = e.academic_year.match(/\d{4}/)?.[0] ?? e.academic_year;
+  if (e.exam_category === "supplementary") {
+    const siblingIds = allExams
+      .filter((x) => x.exam_category === "supplementary" && x.academic_year === e.academic_year)
+      .map((x) => x.id)
+      .sort((a, b) => a - b);
+    const idx = siblingIds.indexOf(e.id) + 1;
+    return `EXM-${year}-SUP-${idx || 1}`;
+  }
+  const parity = e.semester % 2 === 1 ? "ODD" : "EVEN";
+  const abbrev = e.exam_category === "arrear" ? "AR" : (examTypesById.get(e.exam_type_id)?.code ?? `T${e.exam_type_id}`);
+  return `EXM-${year}-${parity}-${abbrev}`;
+}
+
+/** Internal-assessment exams skip a manual registration window entirely (every enrolled student sits it); a window that has already closed reads as "Closed" rather than repeating a stale date range. */
+function registrationWindowLabel(e: Exam, examType: ExamType | undefined): string {
+  if (e.registration_opens_at && e.registration_closes_at) {
+    if (new Date(e.registration_closes_at) < new Date()) return "Closed";
+    return `${formatDate(e.registration_opens_at)} – ${formatDate(e.registration_closes_at)}`;
+  }
+  if (examType?.category === "internal") return "Auto-registered";
+  return "Not scheduled";
+}
 
 const CATEGORY_TABS: { key: "all" | ExamCategory; label: string }[] = [
   { key: "all", label: "All exams" },
@@ -51,6 +83,12 @@ export default function CoeExamManagementPage() {
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState<Exam | null>(null);
   const [viewing, setViewing] = useState<Exam | null>(null);
+  const [page, setPage] = useState(1);
+
+  function changeFilter<T>(setter: (v: T) => void, value: T) {
+    setter(value);
+    setPage(1);
+  }
 
   const examTypesById = useMemo(() => new Map((examTypes.data ?? []).map((t) => [t.id, t])), [examTypes.data]);
   const batchesById = useMemo(() => new Map((batches.data ?? []).map((b) => [b.id, b])), [batches.data]);
@@ -91,6 +129,12 @@ export default function CoeExamManagementPage() {
     return list;
   }, [exams.data, category, examTypeId, batchId, status, search, examTypesById]);
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / DEFAULT_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = rows.slice((safePage - 1) * DEFAULT_PAGE_SIZE, safePage * DEFAULT_PAGE_SIZE);
+
+  const academicYearOptions = useMemo(() => [...new Set((exams.data ?? []).map((e) => e.academic_year))].sort().reverse(), [exams.data]);
+
   const counts = useMemo(() => {
     const all = exams.data ?? [];
     const byYear = new Map<string, number>();
@@ -102,9 +146,10 @@ export default function CoeExamManagementPage() {
 
     const conductWindow = all.filter((e) => e.status === "completed").length;
 
-    const openExams = all.filter((e) => e.registration_opens_at && e.registration_closes_at && new Date(e.registration_closes_at) > new Date());
+    const now = new Date();
+    const openExams = all.filter((e) => e.registration_opens_at && e.registration_closes_at && new Date(e.registration_closes_at) > now);
     const nearestClose = openExams
-      .map((e) => Math.ceil((new Date(e.registration_closes_at!).getTime() - Date.now()) / 86_400_000))
+      .map((e) => Math.ceil((new Date(e.registration_closes_at!).getTime() - now.getTime()) / 86_400_000))
       .sort((a, b) => a - b)[0];
 
     let feeRaised = 0;
@@ -203,11 +248,11 @@ export default function CoeExamManagementPage() {
               label: t.key === "all" ? `${t.label} (${counts.total})` : `${t.label} (${counts[t.key]})`,
             }))}
             value={category}
-            onChange={(k) => setCategory(k as typeof category)}
+            onChange={(k) => changeFilter(setCategory, k as typeof category)}
           />
           <div className="flex flex-wrap items-center gap-3">
-            <SearchBar placeholder="Search by exam name or code…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-[280px]" />
-            <Select value={examTypeId} onChange={(e) => setExamTypeId(e.target.value)} className="w-auto min-w-[140px]">
+            <SearchBar placeholder="Search by exam name or code…" value={search} onChange={(e) => changeFilter(setSearch, e.target.value)} className="max-w-[280px]" />
+            <Select value={examTypeId} onChange={(e) => changeFilter(setExamTypeId, e.target.value)} className="w-auto min-w-[140px]">
               <option value="all">All types</option>
               {(examTypes.data ?? []).map((t) => (
                 <option key={t.id} value={t.id}>
@@ -215,7 +260,7 @@ export default function CoeExamManagementPage() {
                 </option>
               ))}
             </Select>
-            <Select value={batchId} onChange={(e) => setBatchId(e.target.value)} className="w-auto min-w-[150px]">
+            <Select value={batchId} onChange={(e) => changeFilter(setBatchId, e.target.value)} className="w-auto min-w-[150px]">
               <option value="all">All programmes</option>
               {(batches.data ?? []).map((b) => (
                 <option key={b.id} value={b.id}>
@@ -223,7 +268,7 @@ export default function CoeExamManagementPage() {
                 </option>
               ))}
             </Select>
-            <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="w-auto min-w-[130px]">
+            <Select value={status} onChange={(e) => changeFilter(setStatus, e.target.value as typeof status)} className="w-auto min-w-[130px]">
               <option value="all">All status</option>
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
@@ -246,6 +291,7 @@ export default function CoeExamManagementPage() {
           {rows.length === 0 ? (
             <p className="px-5 py-6 text-[13px] text-subtle">No exams match the current filters.</p>
           ) : (
+            <>
             <div className="flex flex-col">
               <div className="flex items-center gap-4 border-b border-divider bg-surface-subtle px-5 py-2.5 text-[11px] font-bold uppercase tracking-wide text-muted">
                 <div className="flex-1">Exam</div>
@@ -257,29 +303,22 @@ export default function CoeExamManagementPage() {
                 <div className="w-[110px]">Status</div>
                 <div className="w-[110px] text-right">Actions</div>
               </div>
-              {rows.map((e) => {
+              {pageRows.map((e) => {
                 const courses = mappingsByExam.get(e.id)?.size ?? 0;
                 const reg = registrationsByExam.get(e.id);
                 const candidates = reg?.total ?? 0;
-                const batch = batchesById.get(e.batch_id);
                 const examType = examTypesById.get(e.exam_type_id);
                 const feeTotal = e.fee_amount != null && candidates > 0 ? e.fee_amount * candidates : null;
                 return (
                   <div key={e.id} className="flex items-center gap-4 border-b border-divider px-5 py-4 last:border-0">
                     <div className="flex-1">
-                      <div className="text-[13.5px] font-bold text-ink">
-                        {examType?.name || `Exam #${e.id}`} · {e.academic_year} · Sem {e.semester}
-                      </div>
-                      <div className="text-[11.5px] text-muted">{examType?.code ?? batch?.name ?? `Batch #${e.batch_id}`}</div>
+                      <div className="text-[13.5px] font-bold text-ink">{e.title ?? examType?.name ?? `Exam #${e.id}`}</div>
+                      <div className="text-[11.5px] text-muted">{examCode(e, examTypesById, rows)}</div>
                     </div>
                     <div className="w-[100px]">
                       <Badge tone="neutral">{(e.exam_category ?? "regular").toUpperCase()}</Badge>
                     </div>
-                    <div className="w-[170px] text-[12px] text-ink">
-                      {e.registration_opens_at && e.registration_closes_at
-                        ? `${formatDate(e.registration_opens_at)} – ${formatDate(e.registration_closes_at)}`
-                        : "Not scheduled"}
-                    </div>
+                    <div className="w-[170px] text-[12px] text-ink">{registrationWindowLabel(e, examType)}</div>
                     <div className="w-[80px] text-[12.5px] text-ink">{courses}</div>
                     <div className="w-[90px] text-[12.5px] text-ink">{candidates}</div>
                     <div className="w-[90px] text-[12.5px] text-ink">{feeTotal != null ? currencyShort(feeTotal) : "—"}</div>
@@ -290,20 +329,28 @@ export default function CoeExamManagementPage() {
                       <button type="button" className="cursor-pointer hover:underline" onClick={() => setViewing(e)}>
                         View
                       </button>
-                      <button type="button" className="cursor-pointer hover:underline" onClick={() => setEditing(e)}>
-                        Edit
-                      </button>
+                      {e.status === "results_published" ? (
+                        <Link href={`/coe/reports?exam_id=${e.id}`} className="cursor-pointer hover:underline">
+                          Report
+                        </Link>
+                      ) : (
+                        <button type="button" className="cursor-pointer hover:underline" onClick={() => setEditing(e)}>
+                          Edit
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
+            <Pagination page={safePage} pageSize={DEFAULT_PAGE_SIZE} total={rows.length} onPageChange={setPage} />
+            </>
           )}
         </Card>
       )}
 
       <NewExamModal open={showNew} onClose={() => setShowNew(false)} createExam={createExam} />
-      {editing && <EditExamModal exam={editing} onClose={() => setEditing(null)} updateExam={updateExam} />}
+      {editing && <EditExamModal exam={editing} onClose={() => setEditing(null)} updateExam={updateExam} academicYearOptions={academicYearOptions} />}
       {viewing && (
         <ViewExamModal
           exam={viewing}
@@ -318,15 +365,57 @@ export default function CoeExamManagementPage() {
   );
 }
 
+const SEMESTER_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
+
+/** Real "AY 2026-27 · Odd" academic year → the actual batch/semester it resolves to, derived from currently-enrolled classes — batches.start_year plus how many years into the programme this semester falls. */
+function academicYearForBatchSemester(batchStartYear: number, semester: number): string {
+  const start = batchStartYear + Math.floor((semester - 1) / 2);
+  return `${start}-${start + 1}`;
+}
+
+interface YearSemesterOption {
+  key: string;
+  label: string;
+  academicYear: string;
+  batchId: number;
+  semester: number;
+}
+
+/** One option per real (academic year, odd/even) combination actually in use by currently-enrolled classes, each carrying the most common real batch/semester pair for that combination — "courses are mapped in the next step" already happens automatically from this batch+semester (see exams.service.ts's create()), so it has to resolve to a real one, just without asking the user to pick it directly. */
+function useYearSemesterOptions(): YearSemesterOption[] {
+  const classes = useClasses();
+  const batches = useBatches();
+  return useMemo(() => {
+    const batchesById = new Map((batches.data ?? []).map((b) => [b.id, b]));
+    const groups = new Map<string, { academicYear: string; parity: "Odd" | "Even"; entries: Map<string, number> }>();
+    for (const c of classes.data ?? []) {
+      const batch = batchesById.get(c.batch_id);
+      if (!batch || c.current_semester == null) continue;
+      const academicYear = academicYearForBatchSemester(batch.start_year, c.current_semester);
+      const parity: "Odd" | "Even" = c.current_semester % 2 === 1 ? "Odd" : "Even";
+      const key = `${academicYear}|${parity}`;
+      const g = groups.get(key) ?? { academicYear, parity, entries: new Map<string, number>() };
+      const entryKey = `${c.batch_id}|${c.current_semester}`;
+      g.entries.set(entryKey, (g.entries.get(entryKey) ?? 0) + 1);
+      groups.set(key, g);
+    }
+    return [...groups.values()]
+      .map((g) => {
+        const [modeKey] = [...g.entries.entries()].sort((a, b) => b[1] - a[1])[0];
+        const [batchId, semester] = modeKey.split("|").map(Number);
+        const shortYear = `${g.academicYear.slice(0, 4)}-${g.academicYear.slice(7, 9)}`;
+        return { key: `${g.academicYear}|${g.parity}`, label: `AY ${shortYear} · ${g.parity}`, academicYear: g.academicYear, batchId, semester };
+      })
+      .sort((a, b) => b.academicYear.localeCompare(a.academicYear) || (a.label < b.label ? -1 : 1));
+  }, [classes.data, batches.data]);
+}
+
 function NewExamModal({ open, onClose, createExam }: { open: boolean; onClose: () => void; createExam: ReturnType<typeof useCreateExam> }) {
   const examTypes = useExamTypes();
-  const batches = useBatches();
+  const yearSemesterOptions = useYearSemesterOptions();
   const [title, setTitle] = useState("");
-  const [examTypeId, setExamTypeId] = useState("");
   const [category, setCategory] = useState<ExamCategory>("regular");
-  const [batchId, setBatchId] = useState("");
-  const [academicYear, setAcademicYear] = useState("");
-  const [semester, setSemester] = useState("1");
+  const [yearSemesterKey, setYearSemesterKey] = useState("");
   const [opensAt, setOpensAt] = useState("");
   const [closesAt, setClosesAt] = useState("");
   const [feeAmount, setFeeAmount] = useState("");
@@ -338,13 +427,16 @@ function NewExamModal({ open, onClose, createExam }: { open: boolean; onClose: (
   }
 
   function handleCreate() {
+    const opt = yearSemesterOptions.find((o) => o.key === yearSemesterKey);
+    const resolvedExamTypeId = examTypes.data?.find((t) => t.is_university)?.id ?? examTypes.data?.[0]?.id;
+    if (!opt || !resolvedExamTypeId || !title.trim()) return;
     createExam.mutate(
       {
-        title: title.trim() || undefined,
-        exam_type_id: Number(examTypeId),
-        batch_id: Number(batchId),
-        academic_year: academicYear,
-        semester: Number(semester),
+        title: title.trim(),
+        exam_type_id: resolvedExamTypeId,
+        batch_id: opt.batchId,
+        academic_year: opt.academicYear,
+        semester: opt.semester,
         exam_category: category,
         registration_opens_at: opensAt || undefined,
         registration_closes_at: closesAt || undefined,
@@ -355,58 +447,39 @@ function NewExamModal({ open, onClose, createExam }: { open: boolean; onClose: (
     );
   }
 
-  const canCreate = examTypeId !== "" && batchId !== "" && /^\d{4}-\d{4}$/.test(academicYear);
+  const resolvedExamTypeId = examTypes.data?.find((t) => t.is_university)?.id ?? examTypes.data?.[0]?.id;
+  const canCreate = title.trim() !== "" && yearSemesterKey !== "" && resolvedExamTypeId != null;
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
       title="Create examination"
-      subtitle="Set the exam identity, window and fee rule. Every subject already assigned for this batch/semester is mapped automatically."
+      subtitle="Set the exam identity, window and fee rule. Courses are mapped in the next step."
     >
       <div className="flex flex-col gap-4">
         <div>
-          <label className="mb-1.5 block text-[13px] font-bold text-ink">Exam name</label>
+          <label className="mb-1.5 block text-[13px] font-bold text-ink">Exam name *</label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. End Semester Nov 2026" />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1.5 block text-[13px] font-bold text-ink">Exam type</label>
-            <Select value={examTypeId} onChange={(e) => setExamTypeId(e.target.value)}>
-              <option value="">Select…</option>
-              {(examTypes.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[13px] font-bold text-ink">Category</label>
-            <Select value={category} onChange={(e) => setCategory(e.target.value as ExamCategory)}>
-              <option value="regular">Regular</option>
-              <option value="arrear">Arrear</option>
-              <option value="supplementary">Supplementary</option>
-            </Select>
-          </div>
-        </div>
         <div>
-          <label className="mb-1.5 block text-[13px] font-bold text-ink">Batch</label>
-          <Select value={batchId} onChange={(e) => setBatchId(e.target.value)}>
-            <option value="">Select…</option>
-            {(batches.data ?? []).map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
+          <label className="mb-1.5 block text-[13px] font-bold text-ink">Exam type</label>
+          <Select value={category} onChange={(e) => setCategory(e.target.value as ExamCategory)}>
+            <option value="regular">Regular</option>
+            <option value="arrear">Arrear</option>
+            <option value="supplementary">Supplementary</option>
           </Select>
         </div>
         <div>
           <label className="mb-1.5 block text-[13px] font-bold text-ink">Academic year / semester</label>
-          <div className="grid grid-cols-2 gap-4">
-            <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2026-2027" />
-            <Input type="number" value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="Semester" />
-          </div>
+          <Select value={yearSemesterKey} onChange={(e) => setYearSemesterKey(e.target.value)}>
+            <option value="">Select…</option>
+            {yearSemesterOptions.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -419,19 +492,21 @@ function NewExamModal({ open, onClose, createExam }: { open: boolean; onClose: (
           </div>
         </div>
         <div>
-          <label className="mb-1.5 block text-[13px] font-bold text-ink">Fee per candidate (₹)</label>
-          <Input type="number" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} placeholder="e.g. 4700" />
+          <label className="mb-1.5 block text-[13px] font-bold text-ink">Fee per course (₹)</label>
+          <Input type="number" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} placeholder="e.g. 450" />
+          <p className="mt-1.5 text-[11.5px] text-subtle">A late fee applies to registrations submitted after the closing date.</p>
         </div>
         <div>
           <label className="mb-1.5 block text-[13px] font-bold text-ink">Notes to students</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Shown on this exam's detail view"
-            rows={2}
+            placeholder="Shown on the registration screen"
+            rows={3}
             className="w-full rounded-input border border-border-default bg-surface px-[13px] py-[11px] text-sm text-ink focus:border-border-accent focus:outline-none"
           />
         </div>
+        {examTypes.isError && <p className="text-[12px] text-danger-fg">{(examTypes.error as Error).message}</p>}
         {createExam.isError && <p className="text-[12px] text-danger-fg">{(createExam.error as Error).message}</p>}
         <div className="flex justify-end gap-3">
           <Button variant="secondary" className="w-auto" onClick={handleClose}>
@@ -446,7 +521,17 @@ function NewExamModal({ open, onClose, createExam }: { open: boolean; onClose: (
   );
 }
 
-function EditExamModal({ exam, onClose, updateExam }: { exam: Exam; onClose: () => void; updateExam: ReturnType<typeof useUpdateExam> }) {
+function EditExamModal({
+  exam,
+  onClose,
+  updateExam,
+  academicYearOptions,
+}: {
+  exam: Exam;
+  onClose: () => void;
+  updateExam: ReturnType<typeof useUpdateExam>;
+  academicYearOptions: string[];
+}) {
   const [title, setTitle] = useState(exam.title ?? "");
   const [academicYear, setAcademicYear] = useState(exam.academic_year);
   const [semester, setSemester] = useState(String(exam.semester));
@@ -500,8 +585,18 @@ function EditExamModal({ exam, onClose, updateExam }: { exam: Exam; onClose: () 
         <div>
           <label className="mb-1.5 block text-[13px] font-bold text-ink">Academic year / semester</label>
           <div className="grid grid-cols-2 gap-4">
-            <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2026-2027" />
-            <Input type="number" value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="Semester" />
+            <Input list="edit-academic-year-options" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2026-2027" />
+            <Input list="edit-semester-options" type="number" min={1} value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="Semester" />
+            <datalist id="edit-academic-year-options">
+              {academicYearOptions.map((y) => (
+                <option key={y} value={y} />
+              ))}
+            </datalist>
+            <datalist id="edit-semester-options">
+              {SEMESTER_OPTIONS.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">

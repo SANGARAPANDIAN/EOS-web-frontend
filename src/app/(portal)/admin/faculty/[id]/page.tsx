@@ -5,14 +5,17 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { Badge, Button, Modal, useToast } from "@/modules/admin/components/ui";
-import { useFacultyActivity, useFacultyAttendance, useFacultyById } from "@/modules/admin/api/faculty";
+import { fetchFacultyById, useFacultyActivity, useFacultyAttendance, useFacultyById, useNotifyFaculty } from "@/modules/admin/api/faculty";
+import { useFacultyIdCardBulkStatus, useIssueFacultyIdCard } from "@/modules/admin/api/facultyIdCard";
 import { useFacultyMappings } from "@/modules/admin/api/facultyMapping";
 import { useDeleteFacultyDocument, useFacultyDocuments, useUploadFacultyDocument } from "@/modules/admin/api/facultyFiles";
 import { FacultyAvatar } from "@/modules/admin/components/faculty/FacultyAvatar";
-import { FacultyIdCardModal } from "@/modules/admin/components/faculty/FacultyIdCardModal";
+import { IdCardModal } from "@/modules/admin/components/shared/IdCardModal";
+import { NotifyModal } from "@/modules/admin/components/shared/NotifyModal";
 import { friendlyError } from "@/lib/utils/errors";
 import { generateFacultyProfileReport } from "@/modules/admin/lib/faculty-profile-report";
 import { experienceYears, formatDate, formatFacultyCode, fullName, profileCompleteness } from "@/modules/admin/lib/faculty-format";
+import { facultyToIdCardData } from "@/modules/admin/lib/id-card-data";
 import { OverviewSection } from "@/modules/admin/components/faculty/detail/OverviewSection";
 import { PersonalSection } from "@/modules/admin/components/faculty/detail/PersonalSection";
 import { ContactSection } from "@/modules/admin/components/faculty/detail/ContactSection";
@@ -136,7 +139,13 @@ function FacultyDetailPageInner() {
   );
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [idCardModalOpen, setIdCardModalOpen] = useState(false);
+  const { data: idCardStatusMap, isLoading: idCardStatusLoading } = useFacultyIdCardBulkStatus(
+    idCardModalOpen && validFacultyId ? [validFacultyId] : [],
+  );
+  const issueFacultyIdCard = useIssueFacultyIdCard();
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
+  const notifyFaculty = useNotifyFaculty();
 
   const completeness = useMemo(() => (faculty ? profileCompleteness(faculty) : 0), [faculty]);
   const mappings = useMemo(() => mappingsData?.data ?? [], [mappingsData]);
@@ -180,6 +189,17 @@ function FacultyDetailPageInner() {
       show(friendlyError(err), "error");
     } finally {
       setIsGeneratingReport(false);
+    }
+  }
+
+  async function handleSendNotification(input: { title: string; message: string }) {
+    if (!validFacultyId) return;
+    try {
+      await notifyFaculty.mutateAsync({ id: validFacultyId, input });
+      show("Notification sent.", "success");
+      setNotifyModalOpen(false);
+    } catch (err: unknown) {
+      show(friendlyError(err), "error");
     }
   }
 
@@ -267,7 +287,7 @@ function FacultyDetailPageInner() {
           <Button variant="secondary" onClick={() => setActiveSection("academic-assignments")}>
             <Icon name="assignment" size={16} /> Assignments
           </Button>
-          <Button variant="secondary" onClick={() => show("Notifications are coming soon.", "info")}>
+          <Button variant="secondary" onClick={() => setNotifyModalOpen(true)}>
             <Icon name="send" size={16} /> Notify
           </Button>
           <Button variant="secondary" onClick={() => setIdCardModalOpen(true)}>
@@ -373,7 +393,33 @@ function FacultyDetailPageInner() {
         </Modal>
       )}
 
-      <FacultyIdCardModal open={idCardModalOpen} onClose={() => setIdCardModalOpen(false)} faculty={[faculty]} />
+      <IdCardModal
+        open={idCardModalOpen}
+        onClose={() => setIdCardModalOpen(false)}
+        entities={[
+          {
+            id: faculty.id,
+            avatar: <FacultyAvatar faculty={faculty} className="size-11 shrink-0 rounded-admin-md text-sm" />,
+            pickerAvatar: <FacultyAvatar faculty={faculty} className="size-7 rounded-admin-pill text-[10px]" />,
+            title: name,
+            subtitle: `${formatFacultyCode(faculty.id)} · ${faculty.designation} · ${faculty.department?.code ?? "—"}`,
+            data: facultyToIdCardData(faculty),
+          },
+        ]}
+        statusMap={idCardStatusMap}
+        statusLoading={idCardStatusLoading}
+        issueCard={(id) => issueFacultyIdCard.mutateAsync(id)}
+        fetchFullData={(id) => fetchFacultyById(id).then(facultyToIdCardData)}
+        onIssued={() => {}}
+      />
+
+      <NotifyModal
+        open={notifyModalOpen}
+        onClose={() => setNotifyModalOpen(false)}
+        recipientName={name}
+        onSend={handleSendNotification}
+        isSending={notifyFaculty.isPending}
+      />
     </div>
   );
 }

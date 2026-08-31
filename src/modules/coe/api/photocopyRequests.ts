@@ -32,6 +32,7 @@ export interface PhotocopyRequest {
       id: number;
       exam_id: number;
       subjects: { id: number; name: string; subject_code: string };
+      classes: { department_id: number; departments: { code: string; name: string } } | null;
     };
   };
 }
@@ -40,6 +41,15 @@ export function usePhotocopyRequests(status?: PhotocopyStatus) {
   return useQuery({
     queryKey: ["coe", "photocopy-requests", status],
     queryFn: () => apiClient.get<Paginated<PhotocopyRequest>>("/photocopy-requests", { status, limit: 100 }),
+  });
+}
+
+/** POST /photocopy-requests — counter entry; the whole controller is COE-only already, no student-side path exists to widen. */
+export function useCreatePhotocopyRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { exam_marks_id: number; student_id: number; fee_amount: number }) => apiClient.post<PhotocopyRequest>("/photocopy-requests", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coe", "photocopy-requests"] }),
   });
 }
 

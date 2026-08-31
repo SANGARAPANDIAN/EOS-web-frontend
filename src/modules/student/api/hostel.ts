@@ -6,6 +6,8 @@ export interface MyHostelRoom {
   student_name: string;
   register_no: string | null;
   hostel_name: string | null;
+  block_name: string | null;
+  floor_name: string | null;
   room_number: string | null;
   room_type_name: string | null;
   mess_type: string | null;

@@ -22,7 +22,8 @@ import {
 } from "@/modules/admin/components/ui";
 import { useStudentReport, useStudentReportDownload, useUpdatePlacementStatus, type StudentReportRow } from "@/modules/placement/api/studentReport";
 import { useBatches } from "@/modules/placement/api/refData";
-import { rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
+import { eligibilityLabel as sharedEligibilityLabel, rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
+import { generateStudentReportPdf } from "@/modules/placement/lib/student-report-pdf";
 import {
   StudentFilters,
   DEFAULT_STUDENT_FILTERS,
@@ -38,13 +39,7 @@ function statusTone(label: string): BadgeTone {
   return "neutral";
 }
 
-/** Opt-out overrides eligibility in display — a student who opted out isn't meaningfully "eligible" or "not eligible" for this cycle anymore. */
-function eligibilityLabel(r: StudentReportRow): string {
-  if (r.placementOptedOut) return "Opted out";
-  if (r.placementEligible === true) return "Eligible";
-  if (r.placementEligible === false) return "Not eligible";
-  return "Not assessed";
-}
+const eligibilityLabel = sharedEligibilityLabel;
 
 function eligibilityTone(label: string): BadgeTone {
   if (label === "Eligible") return "success";
@@ -63,7 +58,7 @@ export default function StudentsPage() {
   const { data: batches } = useBatches();
   const { data, isLoading, error } = useStudentReport(filters.batchId === "all" ? undefined : filters.batchId);
   const { show } = useToast();
-  const pdfDownload = useStudentReportDownload();
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const excelDownload = useStudentReportDownload();
   const updatePlacementStatus = useUpdatePlacementStatus();
 
@@ -131,12 +126,29 @@ export default function StudentsPage() {
     );
   }
 
-  function handleDownload(format: "pdf" | "excel") {
-    const mutation = format === "pdf" ? pdfDownload : excelDownload;
-    mutation.mutate(
-      { format, batchId: filters.batchId === "all" ? undefined : filters.batchId, classLabel: filters.classLabel === "All classes" ? undefined : filters.classLabel },
+  function handleDownloadExcel() {
+    excelDownload.mutate(
+      { format: "excel", batchId: filters.batchId === "all" ? undefined : filters.batchId, classLabel: filters.classLabel === "All classes" ? undefined : filters.classLabel },
       { onError: (err: unknown) => show(friendlyError(err), "error") },
     );
+  }
+
+  // Built entirely client-side from `filtered` (the exact rows the table is
+  // showing) instead of a round trip to the backend's PDFKit renderer —
+  // that renderer drew every row at a fixed height with no wrap-aware
+  // sizing, so a long department name overlapped into the next row.
+  async function handleDownloadPdf() {
+    setIsGeneratingPdf(true);
+    try {
+      await generateStudentReportPdf(filtered, {
+        batchLabel: filters.batchId === "all" ? undefined : batches?.find((b) => b.id === filters.batchId)?.name,
+        classLabel: filters.classLabel === "All classes" ? undefined : filters.classLabel,
+      });
+    } catch (err: unknown) {
+      show(friendlyError(err), "error");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   }
 
   function handleExportCsv() {
@@ -220,10 +232,10 @@ export default function StudentsPage() {
             <Button variant="secondary" onClick={handleExportCsv}>
               <Icon name="csv" size={16} /> CSV
             </Button>
-            <Button variant="secondary" onClick={() => handleDownload("pdf")} disabled={pdfDownload.isPending}>
-              <Icon name="picture_as_pdf" size={16} /> {pdfDownload.isPending ? "Exporting…" : "Export PDF"}
+            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+              <Icon name="picture_as_pdf" size={16} /> {isGeneratingPdf ? "Exporting…" : "Export PDF"}
             </Button>
-            <Button variant="secondary" onClick={() => handleDownload("excel")} disabled={excelDownload.isPending}>
+            <Button variant="secondary" onClick={handleDownloadExcel} disabled={excelDownload.isPending}>
               <Icon name="table" size={16} /> {excelDownload.isPending ? "Exporting…" : "Export Excel"}
             </Button>
           </>

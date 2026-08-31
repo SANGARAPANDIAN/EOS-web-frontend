@@ -10,7 +10,7 @@ export interface RosterEntry {
   register_no: string | null;
   roll_no: string | null;
   name: string | null;
-  internal: { marks_obtained: number | null; max_marks: number; is_absent: boolean } | null;
+  internal: { id: number; marks_obtained: number | null; max_marks: number; is_absent: boolean } | null;
   external: { id: number; marks_obtained: number | null; max_marks: number; is_absent: boolean } | null;
   total: number | null;
   grade: string | null;
@@ -116,5 +116,47 @@ export function useDepartmentCompletion() {
   return useQuery({
     queryKey: ["coe", "department-completion"],
     queryFn: () => apiClient.get<DepartmentCompletionResponse>("/marks-roster/department-completion"),
+  });
+}
+
+export type CourseMarkType = "internal" | "external" | "practical";
+export type CourseMarkRowStatus = "not_started" | "in_progress" | "submitted" | "verified" | "locked";
+
+export interface CourseMarkStatusRow {
+  exam_subject_mapping_id: number;
+  main_exam_subject_mapping_id: number;
+  exam_id: number;
+  mark_type: CourseMarkType;
+  entered_count: number;
+  total_students: number;
+  entered_by: string | null;
+  verified_by: string | null;
+  is_locked: boolean;
+  status: CourseMarkRowStatus;
+  subject: { id: number; name: string; subject_code: string; course_type: string | null };
+  department: { id: number; code: string; name: string };
+  semester: number | null;
+}
+
+export interface CourseMarkStatusResponse {
+  exam_id: number | null;
+  rows: CourseMarkStatusRow[];
+}
+
+/** GET /marks-roster/course-status — one row per (course, mark type: Internal/External/Practical) for the Marks Management page. No exam_id = the busiest real exam. */
+export function useCourseMarkStatus(examId?: number | null) {
+  return useQuery({
+    queryKey: ["coe", "course-mark-status", examId ?? null],
+    queryFn: () => apiClient.get<CourseMarkStatusResponse>("/marks-roster/course-status", { exam_id: examId ?? undefined }),
+  });
+}
+
+/** POST /marks-roster/verify — bulk-verifies every currently-entered mark for one course's mark-type mapping. */
+export function useVerifyMapping() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { exam_subject_mapping_id: number; verified_by_faculty_id?: number }) =>
+      apiClient.post<{ exam_subject_mapping_id: number; verified_count: number }>("/marks-roster/verify", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coe", "course-mark-status"] }),
   });
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { useStudentProfile, downloadStudentProfile, type StudentProfile } from "@/modules/principal/api/students";
+import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
 
 // Every section below is backed by a real table — GET /principal-students/:id/profile
 // (EOSbackend1/src/modules/principal-students/principal-students.service.ts),
@@ -487,30 +488,15 @@ function ProfileBody({ p }: { p: StudentProfile }) {
         </div>
       </div>
 
-      {/* Current semester subjects */}
+      {/* Subject-wise exam marks — shared SubjectMarksTable (same component and
+          data source, GET /exam-marks?student_id=, as Admin/HoD/Faculty use)
+          so this reflects real per-exam-type marks instead of a pre-summed
+          internal total. */}
       <div className={cardClass} data-print-card="" style={{ ...cardSx, padding: 0, overflow: "hidden" }}>
-        <h2 className="px-6 pt-5 text-[15.5px] font-bold" style={{ color: principalColors.heading }}>Current semester subjects</h2>
-        {p.current_semester_subjects.length === 0 ? (
-          <div className="p-6 text-[12.6px]" style={{ color: principalColors.textFaint }}>No exam marks recorded for the current semester yet.</div>
-        ) : (
-          <div className="mt-4">
-            <div className="grid gap-3 border-t px-6 py-3.5 text-[10.8px] font-bold uppercase tracking-wide" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 0.8fr", borderColor: principalColors.borderLight, color: principalColors.textFaint }}>
-              <span>Subject</span><span>Internal</span><span>End sem</span><span>Total</span><span>Grade</span>
-            </div>
-            {p.current_semester_subjects.map((s) => (
-              <div key={s.code} className="grid items-center gap-3 border-t px-6 py-3.5" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 0.8fr", borderColor: principalColors.borderMuted }}>
-                <div>
-                  <div className="text-[13.1px] font-semibold" style={{ color: principalColors.heading }}>{s.name}</div>
-                  <div className="text-[10.8px]" style={{ color: principalColors.textFaint }}>{s.code}</div>
-                </div>
-                <span className="text-[12.6px]" style={{ color: principalColors.body }}>{s.internal ?? "—"}/50</span>
-                <span className="text-[12.6px]" style={{ color: principalColors.body }}>{s.external ?? "—"}/100</span>
-                <span className="text-[12.6px] font-bold" style={{ color: principalColors.heading }}>{s.total}</span>
-                <span className="text-[11.7px] font-bold" style={{ color: s.grade === "RA" ? "#B42318" : principalColors.heading }}>{s.grade}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <h2 className="px-6 pt-5 text-[15.5px] font-bold" style={{ color: principalColors.heading }}>Examinations & results</h2>
+        <div className="p-6">
+          <SubjectMarksTable studentId={p.id} />
+        </div>
       </div>
 
       {/* Fee ledger + College/ERP record — two cards in a row */}

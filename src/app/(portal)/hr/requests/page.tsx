@@ -11,17 +11,14 @@ import {
   DataTable,
   Icon,
   IconButton,
-  Input,
   Modal,
   SegmentedTabs,
   Select,
   StatCard,
-  Textarea,
 } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import {
-  useCreateHrVacationEntry,
   useDeleteHrVacationEntry,
   useHrRequestDecision,
   useHrRequests,
@@ -29,10 +26,8 @@ import {
   type HrUnifiedRequest,
 } from "@/modules/hr/api/requests";
 import { useHrDepartments } from "@/modules/hr/api/departments";
-import { HrFacultyPicker } from "@/modules/hr/components/HrFacultyPicker";
-import type { HrFaculty } from "@/modules/hr/api/facultyDirectory";
-import { useLeaveTypes } from "@/modules/hr/api/leaveTypes";
-import { formatDisplayDate, todayDateOnly } from "@/lib/utils/date";
+import { RecordVacationEntryForm } from "@/modules/hr/components/RecordVacationEntryForm";
+import { formatDisplayDate } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
 const LIMIT = 20;
@@ -85,101 +80,10 @@ function RecordEntryModal({ open, onClose }: RecordEntryModalProps) {
       open={open}
       onClose={onClose}
       title="Record an entry"
-      subtitle="Directly records a single-day leave or OD entry, e.g. from Vacation Management."
+      subtitle="Directly records a leave or OD entry (a single day or a date range), e.g. from Vacation Management."
     >
-      <RecordEntryForm onClose={onClose} />
+      <RecordVacationEntryForm onClose={onClose} />
     </Modal>
-  );
-}
-
-function RecordEntryForm({ onClose }: { onClose: () => void }) {
-  const leaveTypes = useLeaveTypes();
-  const createEntry = useCreateHrVacationEntry();
-
-  const [faculty, setFaculty] = useState<HrFaculty | null>(null);
-  const [kind, setKind] = useState<"leave" | "od">("leave");
-  const [date, setDate] = useState(todayDateOnly());
-  const [reason, setReason] = useState("");
-  const [leaveTypeId, setLeaveTypeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const canSubmit = faculty !== null && date !== "" && (kind !== "leave" || leaveTypeId !== "");
-
-  async function submit() {
-    if (faculty === null || !canSubmit) {
-      setError(kind === "leave" && !leaveTypeId ? "Pick a leave type." : "Faculty and date are required.");
-      return;
-    }
-    setError(null);
-    try {
-      await createEntry.mutateAsync({
-        faculty_id: faculty.id,
-        kind,
-        date,
-        reason: reason.trim() || undefined,
-        leave_type_id: kind === "leave" ? Number(leaveTypeId) : undefined,
-      });
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save this entry.");
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <Field label="Faculty">
-        <HrFacultyPicker value={faculty} onChange={setFaculty} />
-      </Field>
-
-      <Field label="Kind">
-        <SegmentedTabs
-          value={kind}
-          onChange={(k) => setKind(k as "leave" | "od")}
-          options={[
-            { key: "leave", label: "Leave" },
-            { key: "od", label: "On duty" },
-          ]}
-        />
-      </Field>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Date">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        {kind === "leave" && (
-          <Field label="Leave type">
-            <Select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}>
-              <option value="">Select type</option>
-              {leaveTypes.data?.map((lt) => (
-                <option key={lt.id} value={lt.id}>
-                  {lt.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-      </div>
-
-      <Field label="Reason">
-        <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional note" />
-      </Field>
-
-      {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
-
-      <div className="mt-2 flex justify-end gap-2.5 border-t border-divider pt-5">
-        <Button variant="secondary" className="w-auto" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          variant="primarySmall"
-          className="w-auto px-6"
-          onClick={submit}
-          disabled={createEntry.isPending || !canSubmit}
-        >
-          {createEntry.isPending ? "Saving…" : "Save entry"}
-        </Button>
-      </div>
-    </div>
   );
 }
 
@@ -460,45 +364,45 @@ export default function HrRequestsPage() {
           </Field>
 
           <Field label="Kind">
-            <SegmentedTabs
+            <Select
               value={kind}
-              onChange={(k) => {
-                setKind(k);
+              onChange={(e) => {
+                setKind(e.target.value as "all" | "leave" | "od");
                 setPage(1);
               }}
-              options={[
-                { key: "all", label: "All" },
-                { key: "leave", label: "Leave" },
-                { key: "od", label: "OD" },
-              ]}
-            />
+            >
+              <option value="all">All</option>
+              <option value="leave">Leave</option>
+              <option value="od">OD</option>
+            </Select>
           </Field>
 
           <Field label="Status">
-            <SegmentedTabs
+            <Select
               value={status}
-              onChange={(s) => {
-                setStatus(s);
+              onChange={(e) => {
+                setStatus(e.target.value as "all" | ApprovalStatus);
                 setPage(1);
               }}
-              options={
-                // Each view can only ever contain one side of this split
-                // (Inbox = pending, History = approved/rejected), so the
-                // options offered here only ever include values that can
-                // actually return a row — never a combination guaranteed to
-                // come back empty.
-                view === "history"
-                  ? [
-                      { key: "all", label: "Any" },
-                      { key: "approved", label: "Approved" },
-                      { key: "rejected", label: "Rejected" },
-                    ]
-                  : [
-                      { key: "all", label: "Any" },
-                      { key: "pending", label: "Pending" },
-                    ]
-              }
-            />
+            >
+              {/* Each view can only ever contain one side of this split
+                  (Inbox = pending, History = approved/rejected), so the
+                  options offered here only ever include values that can
+                  actually return a row — never a combination guaranteed to
+                  come back empty. */}
+              {view === "history" ? (
+                <>
+                  <option value="all">Any</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </>
+              ) : (
+                <>
+                  <option value="all">Any</option>
+                  <option value="pending">Pending</option>
+                </>
+              )}
+            </Select>
           </Field>
 
           {/* Stage (still-in-progress vs which side it's sitting with) only
@@ -506,15 +410,11 @@ export default function HrRequestsPage() {
               fully decided by both HOD and HR. */}
           {view === "inbox" && (
             <Field label="Stage">
-              <SegmentedTabs
-                value={stage}
-                onChange={setStage}
-                options={[
-                  { key: "all", label: "Any" },
-                  { key: "awaiting_hr", label: `Awaiting HR${awaitingHrCount > 0 ? ` (${awaitingHrCount})` : ""}` },
-                  { key: "awaiting_hod", label: `Awaiting HOD${awaitingHodCount > 0 ? ` (${awaitingHodCount})` : ""}` },
-                ]}
-              />
+              <Select value={stage} onChange={(e) => setStage(e.target.value as "all" | "awaiting_hr" | "awaiting_hod")}>
+                <option value="all">Any</option>
+                <option value="awaiting_hr">{`Awaiting HR${awaitingHrCount > 0 ? ` (${awaitingHrCount})` : ""}`}</option>
+                <option value="awaiting_hod">{`Awaiting HOD${awaitingHodCount > 0 ? ` (${awaitingHodCount})` : ""}`}</option>
+              </Select>
             </Field>
           )}
         </div>

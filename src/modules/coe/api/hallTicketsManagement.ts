@@ -11,10 +11,14 @@ export interface HallTicketRosterRow {
     student_id_no: string;
     roll_no: string | null;
     register_no: string | null;
+    photo_url: string | null;
     soa_applications: { first_name: string; last_name: string | null } | null;
-    classes: { current_semester: number | null; departments: { id: number; code: string; name: string } } | null;
+    classes: { current_semester: number | null; departments: { id: number; code: string; name: string }; courses: { name: string } | null } | null;
   };
   fee_status: "paid" | "unpaid" | "partial";
+  /** Real attendance eligibility for this exam's batch — same source as the Attendance & Eligibility page. */
+  attendance_eligibility: "eligible" | "pending" | "detained";
+  regulation_code: string | null;
   hall_ticket: {
     id: number;
     file_url: string;

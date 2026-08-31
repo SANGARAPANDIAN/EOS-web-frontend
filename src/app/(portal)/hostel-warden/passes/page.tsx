@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, DataTable, EmptyState, SearchBar, type BadgeTone, type DataTableColumn } from "@/components/ui";
+import { Badge, DataTable, EmptyState, PillTabs, SearchBar, type BadgeTone, type DataTableColumn } from "@/components/ui";
 import { useOutings, useDecideOuting, isMultiDayOuting, type Outing } from "@/modules/hostel-warden/api/outings";
 import { StudentDetailModal } from "@/modules/hostel-warden/components/StudentDetailModal";
 import { formatTime12h, toIsoDateString } from "@/lib/utils/date";
@@ -118,7 +118,7 @@ export default function GatePassesPage() {
     { key: "pending", label: "Pending", count: counts.pending },
     { key: "currently_out", label: "Currently out", count: counts.currently_out },
     { key: "late", label: "Late returns", count: counts.late },
-    { key: "all", label: "All", count: counts.all },
+    { key: "all", label: "History", count: counts.all },
   ];
 
   return (
@@ -129,18 +129,11 @@ export default function GatePassesPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`rounded-pill border px-4 py-2 text-[13px] font-bold transition-colors ${
-              tab === t.key ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-ink-soft hover:bg-surface-tint"
-            }`}
-          >
-            {t.label} ({t.count})
-          </button>
-        ))}
+        <PillTabs
+          options={TABS.map((t) => ({ key: t.key, label: `${t.label} (${t.count})` }))}
+          value={tab}
+          onChange={(k) => setTab(k as Tab)}
+        />
         <div className="flex-1" />
         <SearchBar className="w-[280px]" placeholder="Student, register number or room" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>

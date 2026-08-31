@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui";
-import { useAddPublicationEntry } from "@/modules/iqac/api/facultyDevelopment";
+import { useAddPublicationEntry, useUpdatePublicationEntry, type VenuePublicationRow } from "@/modules/iqac/api/facultyDevelopment";
 import { useDepartmentsList } from "@/modules/iqac/api/departments";
 import type { FacultyRow } from "@/modules/iqac/api/faculty";
 import { FacultyPicker } from "./FacultyPicker";
@@ -34,12 +34,25 @@ function todayDateInput(): string {
  * IQAC Departments page already shows — informational only, since there's
  * nowhere honest to persist "who was HOD at publication time".
  */
-export function AddPublicationEntryModal({ onClose, onCreated, venue: lockedVenue }: { onClose: () => void; onCreated: () => void; venue?: string }) {
-  const addEntry = useAddPublicationEntry();
+export function AddPublicationEntryModal({
+  onClose,
+  onCreated,
+  venue: lockedVenue,
+  editing,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  venue?: string;
+  /** Editing an existing paper — the author can't be reassigned here (delete + re-add for that). */
+  editing?: VenuePublicationRow;
+}) {
+  const isEditing = editing != null;
+  const create = useAddPublicationEntry();
+  const update = useUpdatePublicationEntry();
   const departments = useDepartmentsList();
 
   const [faculty, setFaculty] = useState<FacultyRow | null>(null);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(editing?.title ?? "");
   const [venue, setVenue] = useState(lockedVenue ?? "");
   const [authorRole, setAuthorRole] = useState<(typeof AUTHOR_ROLE_OPTIONS)[number]["value"]>("first_author");
   const [indexing, setIndexing] = useState("");
@@ -53,13 +66,27 @@ export function AddPublicationEntryModal({ onClose, onCreated, venue: lockedVenu
   }, [faculty, departments.data]);
 
   async function submit() {
+    if (isEditing) {
+      setError(null);
+      try {
+        await update.mutateAsync({
+          id: editing.id,
+          input: { title: title.trim(), venue: venue.trim() || undefined, author_role: authorRole, indexing: indexing.trim() || undefined, published_date: publishedOn || undefined, status },
+        });
+        onCreated();
+        onClose();
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message ?? "Could not save this publication.");
+      }
+      return;
+    }
     if (!faculty || !title.trim()) {
       setError("Faculty and title are both required.");
       return;
     }
     setError(null);
     try {
-      await addEntry.mutateAsync({
+      await create.mutateAsync({
         faculty_id: faculty.id,
         title: title.trim(),
         venue: venue.trim() || undefined,
@@ -76,9 +103,16 @@ export function AddPublicationEntryModal({ onClose, onCreated, venue: lockedVenu
   }
 
   return (
-    <Modal open onClose={onClose} title="Add faculty entry" subtitle={`Contributing authors · ${lockedVenue ?? (venue || "Publications")}`}>
+    <Modal open onClose={onClose} title={isEditing ? "Edit faculty entry" : "Add faculty entry"} subtitle={`Contributing authors · ${lockedVenue ?? (venue || "Publications")}`}>
       <div className="flex flex-col gap-4">
-        <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        {isEditing ? (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Author</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.author.name}</div>
+          </div>
+        ) : (
+          <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        )}
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Title</div>
@@ -141,10 +175,12 @@ export function AddPublicationEntryModal({ onClose, onCreated, venue: lockedVenu
           </div>
         </div>
 
-        <div>
-          <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Head of department</div>
-          <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{hod?.name ?? "Not assigned"}</div>
-        </div>
+        {!isEditing && (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Head of department</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{hod?.name ?? "Not assigned"}</div>
+          </div>
+        )}
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Status</div>
@@ -170,10 +206,10 @@ export function AddPublicationEntryModal({ onClose, onCreated, venue: lockedVenu
           <button
             type="button"
             onClick={submit}
-            disabled={addEntry.isPending}
+            disabled={create.isPending || update.isPending}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {addEntry.isPending ? "Saving…" : "Save"}
+            {create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

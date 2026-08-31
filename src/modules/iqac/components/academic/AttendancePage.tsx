@@ -1,16 +1,33 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/ui";
+import { ConfirmDialog, DataTable, type DataTableColumn } from "@/components/ui";
 import { MonthlyBars } from "@/modules/iqac/components/PageControls";
-import { MetricBackNav, MetricHeader, MetricCards, DepartmentRollup, MetricFilterBar, AddClassRowForm } from "./MetricPageChrome";
-import { useAcademicAttendance, type AttendanceRegisterRow } from "@/modules/iqac/api/academicQuality";
+import { MetricBackNav, MetricHeader, MetricCards, DepartmentRollup, MetricFilterBar, AddClassRowForm, EditClassRowForm } from "./MetricPageChrome";
+import { useAcademicAttendance, useDeleteClassRow, type AttendanceRegisterRow } from "@/modules/iqac/api/academicQuality";
+import { friendlyError } from "@/lib/utils/errors";
 
 const BAND_OPTIONS = ["All", "On track", "Below 75%"];
 
 export function AttendancePage() {
   const attendance = useAcademicAttendance();
+  const deleteClassRow = useDeleteClassRow();
   const [addingClass, setAddingClass] = useState(false);
+  const [editingClass, setEditingClass] = useState<AttendanceRegisterRow | null>(null);
+  const [deletingClass, setDeletingClass] = useState<AttendanceRegisterRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function confirmDelete() {
+    if (!deletingClass) return;
+    setDeleteError(null);
+    try {
+      await deleteClassRow.mutateAsync(deletingClass.class_id);
+      setDeletingClass(null);
+    } catch (err: unknown) {
+      setDeleteError(friendlyError(err));
+      setDeletingClass(null);
+    }
+  }
 
   const [search, setSearch] = useState("");
   const [dept, setDept] = useState<string | null>(null);
@@ -66,6 +83,21 @@ export function AttendancePage() {
       { key: "last_year", header: "Last year", align: "right", render: (r) => (r.last_year != null ? `${r.last_year}%` : "—") },
       { key: "target", header: "Target", align: "right", render: (r) => (r.target != null ? `${r.target}%` : "—") },
       { key: "attainment", header: "Attainment", align: "right", render: (r) => (r.attainment != null ? `${r.attainment}%` : "—") },
+      {
+        key: "actions",
+        header: "",
+        align: "right",
+        render: (r) => (
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditingClass(r)} className="text-[12.5px] font-bold text-primary hover:underline">
+              Edit
+            </button>
+            <button type="button" onClick={() => setDeletingClass(r)} className="text-[12.5px] font-bold text-danger-fg hover:underline">
+              Delete
+            </button>
+          </div>
+        ),
+      },
     ],
     [],
   );
@@ -87,6 +119,25 @@ export function AttendancePage() {
       {addingClass && (
         <AddClassRowForm crumb="Academic Quality · Attendance" onClose={() => setAddingClass(false)} onCreated={() => attendance.refetch()} />
       )}
+      {editingClass && (
+        <EditClassRowForm
+          crumb="Academic Quality · Attendance"
+          classId={editingClass.class_id}
+          currentSection={editingClass.section}
+          onClose={() => setEditingClass(null)}
+          onSaved={() => attendance.refetch()}
+        />
+      )}
+      <ConfirmDialog
+        open={deletingClass != null}
+        title={`Delete ${deletingClass?.department_code} ${deletingClass?.section}?`}
+        description="Only works while no student is currently enrolled in this class."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setDeletingClass(null)}
+      />
+      {deleteError && <div className="text-[13px] font-semibold text-danger-fg">{deleteError}</div>}
 
       <MetricCards
         cards={[

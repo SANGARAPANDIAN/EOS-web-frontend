@@ -13,6 +13,14 @@ export interface AppraisalEntry {
   criteria: { id: number; name: string; max_score: number; division: AppraisalDivision };
 }
 
+export interface AppraisalAttachment {
+  id: number;
+  division_id: number;
+  file_url: string;
+  file_name: string;
+  uploaded_at: string;
+}
+
 export interface AppraisalRequest {
   id: number;
   academic_year: string;
@@ -31,6 +39,7 @@ export interface AppraisalRequest {
   management_approved_at: string | null;
   created_at: string;
   entries: AppraisalEntry[];
+  attachments: AppraisalAttachment[];
 }
 
 export interface AppraisalRequestsListParams {

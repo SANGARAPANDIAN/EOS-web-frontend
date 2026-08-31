@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, Badge, Button, EmptyState, SkeletonBlock } from "@/components/ui";
 import { useHodAppraisalDetail } from "@/modules/hod/api/appraisalRequests";
 import { formatDisplayDate } from "@/lib/utils/date";
+import { AppraisalAttachmentsList } from "@/components/shared/AppraisalAttachmentsList";
 
 export default function HodAppraisalDetailPage() {
   const params = useParams<{ id: string }>();
@@ -56,6 +57,13 @@ export default function HodAppraisalDetailPage() {
             <p className="mt-1 text-[13.5px] text-body">{d.hod_remarks}</p>
           </div>
         )}
+      </Card>
+
+      <Card>
+        <h3 className="text-[16px] font-extrabold text-ink">Supporting documents</h3>
+        <div className="mt-3">
+          <AppraisalAttachmentsList attachments={d.attachments} />
+        </div>
       </Card>
 
       {divisions.map((division) => (

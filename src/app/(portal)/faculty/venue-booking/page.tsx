@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useVenues, useMyVenueBookings, useCreateVenueBooking } from "@/modules/advisor/api/employee";
-import { AdvisorIcon } from "@/modules/advisor/icons";
+import { VenueThumbnail } from "@/components/shared/VenueThumbnail";
 
 // Backed by GET /venues, POST/GET /venue-bookings (VenuesController). Real
 // CreateVenueBookingDto uses a single from_datetime/to_datetime ISO pair
@@ -94,7 +94,8 @@ export default function AdvisorVenueBookingPage() {
                 <option value="">Select a venue</option>
                 {venueList.map((v) => (
                   <option key={v.id} value={v.id} disabled={!v.is_available}>
-                    {v.name}{v.location ? ` · ${v.location}` : ""}{!v.is_available ? " (booked)" : ""}
+                    {v.name}{v.location ? ` · ${v.location}` : ""}
+                    {v.exam_usage ? " (exam scheduled)" : !v.is_available ? " (booked)" : ""}
                   </option>
                 ))}
               </select>
@@ -150,27 +151,31 @@ export default function AdvisorVenueBookingPage() {
           <div style={{ marginTop: 22 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>CURRENTLY BOOKED VENUES</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 14, marginTop: 12 }}>
-              {venueList.filter((v) => v.booking).map((v) => (
+              {venueList.filter((v) => v.booking || v.exam_usage).map((v) => (
                 <div key={v.id} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 18 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 38px" }}>
-                      <AdvisorIcon kind="venue" width={19} height={19} style={{ color: "#1D4ED8" }} />
-                    </div>
+                    <VenueThumbnail photoUrl={v.photo_url} name={v.name} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.015em" }}>{v.name}</div>
-                      <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600, marginTop: 4 }}>{v.booking?.booked_by}</div>
+                      <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600, marginTop: 4 }}>
+                        {v.exam_usage ? v.exam_usage.exam_label : v.booking?.booked_by}
+                      </div>
                     </div>
                   </div>
                   <div style={{ marginTop: 14, paddingTop: 13, borderTop: "1px solid #F1F4F9", display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1D4ED8" }}>
-                      {v.booking && new Date(v.booking.from_datetime).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      {v.exam_usage
+                        ? new Date(v.exam_usage.exam_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                        : v.booking && new Date(v.booking.from_datetime).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </div>
                     <div style={{ flex: 1 }} />
-                    <div style={{ padding: "5px 11px", borderRadius: 20, background: "#EFF6FF", border: "1px solid #DBEAFE", color: "#1D4ED8", fontSize: 11, fontWeight: 800 }}>BOOKED</div>
+                    <div style={{ padding: "5px 11px", borderRadius: 20, background: "#EFF6FF", border: "1px solid #DBEAFE", color: "#1D4ED8", fontSize: 11, fontWeight: 800 }}>
+                      {v.exam_usage ? "EXAM SCHEDULED" : "BOOKED"}
+                    </div>
                   </div>
                 </div>
               ))}
-              {venueList.filter((v) => v.booking).length === 0 && !venues.isLoading && (
+              {venueList.filter((v) => v.booking || v.exam_usage).length === 0 && !venues.isLoading && (
                 <div style={{ fontSize: 13.5, color: "#94A3B8", fontWeight: 600 }}>No venues currently booked.</div>
               )}
             </div>

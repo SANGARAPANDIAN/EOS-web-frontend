@@ -25,6 +25,9 @@ export type MalpracticeAction =
   | "debarred_one_year"
   | "case_under_enquiry";
 
+export type EnquiryStage = "reported" | "under_enquiry" | "decided";
+export type AppealStatus = "pending" | "upheld" | "dismissed";
+
 export interface MalpracticeIncident {
   id: number;
   student_id: number;
@@ -40,8 +43,20 @@ export interface MalpracticeIncident {
   reported_by_faculty_id: number | null;
   recorded_by_user_id: number | null;
   created_at: string;
-  students: { id: number; student_id_no: string; roll_no: string | null; register_no: string | null };
+  enquiry_stage: EnquiryStage;
+  committee_sitting_at: string | null;
+  appeal_status: AppealStatus | null;
+  students: {
+    id: number;
+    student_id_no: string;
+    roll_no: string | null;
+    register_no: string | null;
+    user_id: number;
+    soa_applications: { first_name: string; last_name: string } | null;
+  };
   faculty: { id: number; first_name: string; last_name: string; designation: string | null } | null;
+  /** Best-effort real name for whoever recorded the case, resolved server-side — used when there's no `faculty` reporter on file. */
+  recorded_by?: { name: string; role: string | null } | null;
   venues: { id: number; name: string; location: string | null } | null;
   exam_subject_mapping: {
     id: number;
@@ -94,6 +109,7 @@ export interface StudentLookupResult {
   name: string | null;
   department_code: string | null;
   semester: number | null;
+  regulation_code: string | null;
 }
 
 export function useLookupStudentByRegisterNo() {
@@ -104,6 +120,29 @@ export function useLookupStudentByRegisterNo() {
 
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.statusCode === 404;
+}
+
+export interface UpdateMalpracticeInput {
+  id: number;
+  action_taken?: MalpracticeAction;
+  enquiry_stage?: EnquiryStage;
+  committee_sitting_at?: string;
+  appeal_status?: AppealStatus;
+}
+
+export function useUpdateMalpracticeIncident() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: UpdateMalpracticeInput) => apiClient.patch<MalpracticeIncident>(`/malpractice-incidents/${id}`, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coe", "malpractice-incidents"] }),
+  });
+}
+
+/** POST /malpractice-incidents/:id/notice — only valid while the case is under_enquiry. */
+export function useSendMalpracticeNotice() {
+  return useMutation({
+    mutationFn: (id: number) => apiClient.post(`/malpractice-incidents/${id}/notice`),
+  });
 }
 
 export const MALPRACTICE_NATURE_OPTIONS: { value: MalpracticeNature; label: string }[] = [

@@ -25,7 +25,13 @@ export interface InvigilationDuty {
     designation: string | null;
     departments: { id: number; code: string; name: string } | null;
   };
-  hall_plans: { id: number; exam_id: number; exam_date: string; venues: { id: number; name: string; location: string | null } };
+  hall_plans: {
+    id: number;
+    exam_id: number;
+    exam_date: string;
+    capacity: number | null;
+    venues: { id: number; name: string; location: string | null; capacity: number | null };
+  };
 }
 
 export function useInvigilationDuties(examId?: number | null) {
@@ -69,6 +75,7 @@ export interface InvigilationStats {
   required: number;
   unfilled_slots: number;
   next_unfilled_date: string | null;
+  next_unfilled_session: ExamSessionCode | null;
   acknowledged: number;
   acknowledged_pct: number;
   relief_invigilators: number;
@@ -114,6 +121,7 @@ export interface CreateInvigilationInput {
   duty_date: string;
   session: ExamSessionCode;
   role?: InvigilationRole;
+  duty_type?: InvigilationDutyType;
 }
 
 export function useCreateInvigilationDuty() {
@@ -233,5 +241,41 @@ export function useSetInvigilationRole() {
       queryClient.invalidateQueries({ queryKey: ["coe", "invigilation-venues-overview"] });
       queryClient.invalidateQueries({ queryKey: ["coe", "invigilation"] });
     },
+  });
+}
+
+// --- Available faculty (Assign duty modal) ------------------------------
+// GET /invigilation/available-faculty — faculty eligible for one (date,
+// session): active, not already on a duty that slot, not on approved
+// leave, and no class-timetable clash. Excludes ineligible faculty
+// server-side rather than filtering a full directory client-side.
+
+export interface AvailableFacultyEntry {
+  id: number;
+  name: string;
+  staff_code: string | null;
+  designation: string | null;
+  department_code: string | null;
+}
+
+export function useAvailableFaculty(params: {
+  date: string | null;
+  session: ExamSessionCode | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  search?: string;
+}) {
+  return useQuery({
+    queryKey: ["coe", "invigilation-available-faculty", params.date, params.session, params.start_time ?? null, params.end_time ?? null, params.search ?? ""],
+    queryFn: () =>
+      apiClient.get<AvailableFacultyEntry[]>("/invigilation/available-faculty", {
+        date: params.date,
+        session: params.session,
+        start_time: params.start_time ?? undefined,
+        end_time: params.end_time ?? undefined,
+        search: params.search || undefined,
+      }),
+    enabled: params.date != null && params.session != null,
+    staleTime: 15 * 1000,
   });
 }

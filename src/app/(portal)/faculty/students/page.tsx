@@ -6,6 +6,7 @@ import { useMenteeRoster, type MenteeRosterStudent } from "@/modules/advisor/api
 import { useMenteeProfile, useMenteeReport, useMenteeDocuments, useMenteeAcademicRecord, useMenteePlacements } from "@/modules/advisor/api/mentees";
 import { useMenteeNoDueStudents } from "@/modules/advisor/api/no-due";
 import { AdvisorIcon } from "@/modules/advisor/icons";
+import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
 
 // Design-exact layout preserved in full (every card/section/chart below
 // matches the reference pixel-for-pixel). GET /me/mentees/:id/academic-record
@@ -434,39 +435,16 @@ export default function AdvisorStudentsPage() {
               </div>
             </div>
 
-            {/* Real GET /me/mentees/:id/academic-record, current (highest)
-                semester — internal is the real CIA average, end-sem the real
-                University End Semester Exam result; no combined "total"
-                formula exists anywhere in this schema so that column is
-                intentionally omitted here (see the endpoint's doc comment). */}
+            {/* Shared SubjectMarksTable — same component and data source
+                (GET /exam-marks?student_id=) as Admin/HoD/Principal/Secretary,
+                replacing the old per-semester internal/end-sem average pulled
+                from /me/mentees/:id/academic-record. */}
             <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22, marginTop: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Semester subjects</div>
-              <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 500, marginTop: 5 }}>Internal assessment, end-semester mark, grade and subject attendance</div>
-              <div style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr 1fr 1fr 1fr 1fr", padding: "14px 0", borderBottom: "1px solid #EEF1F6", marginTop: 12, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>
-                <div>SUBJECT</div>
-                <div>CODE</div>
-                <div>INTERNAL</div>
-                <div>END SEM</div>
-                <div>GRADE</div>
-                <div>ATTENDANCE</div>
+              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Examinations & results</div>
+              <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 500, marginTop: 5 }}>CIA1, CIA2, Quiz and Internal marks per subject; End Sem shows a grade once published</div>
+              <div style={{ marginTop: 16 }}>
+                <SubjectMarksTable studentId={student.id} />
               </div>
-              {(() => {
-                const semesters = academicRecord.data?.semesters ?? [];
-                const current = semesters[semesters.length - 1];
-                if (!current || current.subjects.length === 0) {
-                  return <div style={{ padding: "24px 0", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>—</div>;
-                }
-                return current.subjects.map((s) => (
-                  <div key={s.subject_id} style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr 1fr 1fr 1fr 1fr", padding: "12px 0", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{s.name}</div>
-                    <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{s.code}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{s.internal_percent !== null ? `${s.internal_percent}%` : "—"}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{s.end_sem_percent !== null ? `${s.end_sem_percent}%` : "—"}</div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: s.grade === "RA" ? "#DC2626" : "#1D4ED8" }}>{s.grade ?? "—"}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>{s.attendance_percent !== null ? `${s.attendance_percent}%` : "—"}</div>
-                  </div>
-                ));
-              })()}
             </div>
 
             {/* Fee ledger now real — GET /me/mentee-no-due/students (same

@@ -11,6 +11,7 @@ import {
   type HodVenueBookingRow,
 } from "@/modules/hod/api/employeeVenue";
 import { formatDisplayDate, toIsoDateString } from "@/lib/utils/date";
+import { VenueThumbnail } from "@/components/shared/VenueThumbnail";
 
 function statusTone(status: string): "accent" | "danger" | "neutral" {
   if (status === "approved") return "accent";
@@ -160,8 +161,13 @@ function ApplyForm() {
                 key={v.id}
                 className="hod-hover-card rounded-[11px] border border-border-default bg-surface p-4"
               >
-                <div className="text-[13.5px] font-extrabold text-ink">{v.name}</div>
-                <div className="mt-0.5 truncate text-[12px] text-muted">{v.booking?.booked_by} · {v.booking?.purpose}</div>
+                <div className="flex items-start gap-3">
+                  <VenueThumbnail photoUrl={v.photo_url} name={v.name} />
+                  <div className="min-w-0">
+                    <div className="text-[13.5px] font-extrabold text-ink">{v.name}</div>
+                    <div className="mt-0.5 truncate text-[12px] text-muted">{v.booking?.booked_by} · {v.booking?.purpose}</div>
+                  </div>
+                </div>
                 <div className="mt-2 text-[11.5px] text-subtle">
                   {v.booking && formatTimeRange(v.booking.from_datetime, v.booking.to_datetime)}
                 </div>

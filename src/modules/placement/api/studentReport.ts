@@ -79,14 +79,17 @@ function toRow(r: BackendStudentReportRow): StudentReportRow {
 
 // One request — the backend joins the full roster with every application in
 // memory (DrivesService.getStudentReport) rather than one request per
-// student.
+// student. Exported as a plain function too, for on-demand use (e.g.
+// building a client-side PDF) outside a component's query lifecycle.
+export async function fetchStudentReport(batchId?: number): Promise<StudentReportRow[]> {
+  const rows = await apiClient.get<BackendStudentReportRow[]>("/drives/student-report", { batch_id: batchId });
+  return rows.map(toRow);
+}
+
 export function useStudentReport(batchId?: number) {
   return useQuery({
     queryKey: placementKeys.studentReport(batchId),
-    queryFn: async () => {
-      const rows = await apiClient.get<BackendStudentReportRow[]>("/drives/student-report", { batch_id: batchId });
-      return rows.map(toRow);
-    },
+    queryFn: () => fetchStudentReport(batchId),
   });
 }
 

@@ -16,15 +16,29 @@ import {
 } from "@/modules/coe/api/hallTicketsManagement";
 import { downloadCsv } from "@/lib/utils/csv";
 
-type RowStatus = "issued" | "generated" | "withheld" | "pending";
+type RowStatus = "issued" | "generated" | "withheld" | "not_eligible" | "pending";
+
+const SEMESTER_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"] as const;
+function yearOfSemester(semester: number | null | undefined): number | null {
+  return semester ? Math.ceil(semester / 2) : null;
+}
+const YEAR_ROMAN = ["I", "II", "III", "IV", "V", "VI"] as const;
+function yearLabel(year: number | null): string {
+  if (year == null) return "—";
+  return `${YEAR_ROMAN[year - 1] ?? year} Year`;
+}
 
 function studentName(s: HallTicketRosterRow["student"]): string {
   if (s.soa_applications) return [s.soa_applications.first_name, s.soa_applications.last_name].filter(Boolean).join(" ");
   return s.register_no ?? s.student_id_no;
 }
 
+// Once a ticket exists, generation already refused it for a detained student
+// (see hall-tickets.service.ts#generate), so a ticket's presence trumps the
+// current eligibility snapshot — no need to re-check attendance for it.
 function rowStatus(r: HallTicketRosterRow): RowStatus {
   if (r.hall_ticket) return r.hall_ticket.downloaded_at ? "issued" : "generated";
+  if (r.attendance_eligibility === "detained") return "not_eligible";
   return r.fee_status !== "paid" ? "withheld" : "pending";
 }
 
@@ -37,8 +51,11 @@ function DetailField({ label, value }: { label: string; value: string }) {
   );
 }
 
-const STATUS_LABEL: Record<RowStatus, string> = { issued: "Issued", generated: "Generated", withheld: "Withheld", pending: "Pending" };
-const STATUS_TONE: Record<RowStatus, BadgeTone> = { issued: "accentDark", generated: "accent", withheld: "danger", pending: "neutral" };
+const STATUS_LABEL: Record<RowStatus, string> = { issued: "Issued", generated: "Generated", withheld: "Withheld", not_eligible: "Not eligible", pending: "Pending" };
+const STATUS_TONE: Record<RowStatus, BadgeTone> = { issued: "accentDark", generated: "accent", withheld: "danger", not_eligible: "danger", pending: "neutral" };
+function examLabel(e: { title: string | null; exam_category: string | null; academic_year: string; semester: number }): string {
+  return e.title ?? `${e.exam_category} · ${e.academic_year} · Sem ${e.semester}`;
+}
 
 export default function CoeHallTicketsPage() {
   const exams = useExams();
@@ -71,7 +88,7 @@ export default function CoeHallTicketsPage() {
   const generate = useGenerateHallTicket();
   const markDownloaded = useMarkHallTicketDownloaded();
 
-  const allRows = roster.data ?? [];
+  const allRows = useMemo(() => roster.data ?? [], [roster.data]);
   const rows = useMemo(() => {
     let list = allRows;
     if (statusFilter !== "all") list = list.filter((r) => rowStatus(r) === statusFilter);
@@ -84,12 +101,15 @@ export default function CoeHallTicketsPage() {
 
   const ticketed = allRows.filter((r) => r.hall_ticket).length;
   const downloaded = allRows.filter((r) => r.hall_ticket?.downloaded_at).length;
-  const withheld = allRows.filter((r) => rowStatus(r) === "withheld").length;
+  // "Withheld" is the one tile for every reason a ticket hasn't issued yet —
+  // fee dues or an attendance detention — even though the row list keeps the
+  // two reasons labeled separately so COE staff know which to chase.
+  const withheld = allRows.filter((r) => rowStatus(r) === "withheld" || rowStatus(r) === "not_eligible").length;
   const mismatches = allRows.filter((r) => r.hall_ticket?.mismatch_reported).length;
 
   const activeRow = selected ?? rows[0] ?? null;
   const schedule = useHallTicketSchedule(effectiveExamId, activeRow?.student.id ?? null);
-  const notGenerated = allRows.filter((r) => !r.hall_ticket && r.fee_status === "paid");
+  const notGenerated = allRows.filter((r) => !r.hall_ticket && r.fee_status === "paid" && r.attendance_eligibility !== "detained");
   const [bulkGenerating, setBulkGenerating] = useState(false);
 
   function handleBulkDownload() {
@@ -113,7 +133,11 @@ export default function CoeHallTicketsPage() {
     setBulkGenerating(true);
     try {
       for (const row of notGenerated) {
-        await generate.mutateAsync({ examId: effectiveExamId, studentId: row.student.id });
+        try {
+          await generate.mutateAsync({ examId: effectiveExamId, studentId: row.student.id });
+        } catch {
+          // A real per-student failure (e.g. a concurrent generation) shouldn't stop the rest of the batch.
+        }
       }
     } finally {
       setBulkGenerating(false);
@@ -124,13 +148,13 @@ export default function CoeHallTicketsPage() {
     <div className="flex flex-col gap-5 animate-pop-in">
       <CoePageHeader
         title="Hall Ticket Management"
-        subtitle="Generation, eligibility check, preview and mismatch tracking for the selected exam."
+        subtitle={`Generation, eligibility check, preview, download and print${currentExam ? ` for ${examLabel(currentExam)}` : ""}.`}
         actions={
           <>
             <Select value={effectiveExamId ?? ""} onChange={(e) => setExamId(Number(e.target.value))} className="w-56">
               {[...(exams.data ?? [])].sort((a, b) => b.id - a.id).map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.exam_category} · {e.academic_year} · Sem {e.semester}
+                  {examLabel(e)}
                 </option>
               ))}
             </Select>
@@ -151,7 +175,7 @@ export default function CoeHallTicketsPage() {
           icon="badge"
           sub={allRows.length > 0 ? `${Math.round((ticketed / allRows.length) * 100)}% of registered` : undefined}
         />
-        <StatCard label="Withheld" value={withheld} icon="block" sub="fee not fully paid" />
+        <StatCard label="Withheld" value={withheld} icon="block" sub="fee dues and attendance" />
         <StatCard label="Downloaded" value={downloaded} icon="download" sub={ticketed > 0 ? `${Math.round((downloaded / ticketed) * 100)}% of issued` : undefined} />
         <StatCard label="Mismatch reports" value={mismatches} icon="report" sub="photo and name errors" />
       </div>
@@ -190,7 +214,8 @@ export default function CoeHallTicketsPage() {
                   <div className="flex-1">
                     <div className="text-[13px] font-bold text-ink">{studentName(r.student)}</div>
                     <div className="text-[11.5px] text-muted">
-                      {r.student.register_no ?? r.student.student_id_no} · {r.student.classes?.departments.code ?? "—"}
+                      {r.student.register_no ?? r.student.student_id_no} · {r.student.classes?.departments.code ?? "—"} ·{" "}
+                      {yearLabel(yearOfSemester(r.student.classes?.current_semester))}
                     </div>
                   </div>
                   <div className="w-[100px] text-right">
@@ -263,9 +288,7 @@ export default function CoeHallTicketsPage() {
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-50 text-[13px] font-extrabold text-primary">SE</div>
                         <div>
                           <div className="text-[14px] font-extrabold text-ink">Sri Eshwar College of Engineering</div>
-                          <div className="text-[11.5px] text-muted">
-                            Autonomous · Hall ticket · {currentExam ? `${currentExam.exam_category} · ${currentExam.academic_year} · Sem ${currentExam.semester}` : "—"}
-                          </div>
+                          <div className="text-[11.5px] text-muted">Autonomous · Hall ticket · {currentExam ? examLabel(currentExam) : "—"}</div>
                         </div>
                       </div>
                       <Badge tone={activeRow.hall_ticket.mismatch_reported ? "danger" : STATUS_TONE[rowStatus(activeRow)]}>
@@ -274,17 +297,40 @@ export default function CoeHallTicketsPage() {
                     </div>
 
                     <div className="mt-4 flex gap-4">
-                      <div className="flex h-[112px] w-[92px] shrink-0 items-center justify-center rounded-input border border-dashed border-border-default bg-surface-subtle text-[30px] font-extrabold text-primary">
-                        {studentName(activeRow.student).slice(0, 1).toUpperCase()}
+                      <div className="flex h-[112px] w-[92px] shrink-0 items-center justify-center overflow-hidden rounded-input border border-dashed border-border-default bg-surface-subtle text-center text-[11.5px] text-subtle">
+                        {activeRow.student.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={activeRow.student.photo_url} alt={studentName(activeRow.student)} className="size-full object-cover" />
+                        ) : (
+                          "Student photograph"
+                        )}
                       </div>
                       <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-3">
                         <DetailField label="Candidate" value={studentName(activeRow.student)} />
                         <DetailField label="Register number" value={activeRow.student.register_no ?? activeRow.student.student_id_no} />
-                        <DetailField label="Programme" value={activeRow.student.classes?.departments.name ?? "—"} />
-                        <DetailField label="Semester" value={activeRow.student.classes?.current_semester ? `Semester ${activeRow.student.classes.current_semester}` : "—"} />
-                        <DetailField label="Examination" value={currentExam ? `${currentExam.exam_category} · ${currentExam.academic_year}` : "—"} />
+                        <DetailField label="Programme" value={activeRow.student.classes?.courses?.name ?? activeRow.student.classes?.departments.name ?? "—"} />
+                        <DetailField
+                          label="Semester"
+                          value={
+                            activeRow.student.classes?.current_semester
+                              ? `Semester ${SEMESTER_ROMAN[activeRow.student.classes.current_semester - 1] ?? activeRow.student.classes.current_semester}${activeRow.regulation_code ? ` · ${activeRow.regulation_code}` : ""}`
+                              : "—"
+                          }
+                        />
+                        <DetailField label="Examination" value={currentExam ? examLabel(currentExam) : "—"} />
                         <DetailField label="Courses registered" value={schedule.data ? String(schedule.data.length) : "…"} />
-                        <DetailField label="Eligibility" value={activeRow.fee_status === "paid" ? "Cleared" : "Fee pending"} />
+                        <DetailField
+                          label="Eligibility"
+                          value={
+                            activeRow.attendance_eligibility === "detained"
+                              ? "Detained (attendance)"
+                              : activeRow.fee_status !== "paid"
+                                ? "Fee pending"
+                                : activeRow.attendance_eligibility === "pending"
+                                  ? "Condonation pending"
+                                  : "Cleared"
+                          }
+                        />
                         <DetailField
                           label="Ticket number"
                           value={`HT-${currentExam?.academic_year.slice(0, 4) ?? "----"}-${activeRow.student.register_no ?? activeRow.student.student_id_no}`}
@@ -318,6 +364,13 @@ export default function CoeHallTicketsPage() {
                         ))
                       )}
                     </div>
+
+                    <div className="mt-4 flex items-end justify-between gap-6">
+                      <p className="max-w-[420px] text-[11.5px] leading-relaxed text-subtle">
+                        Candidates must carry this hall ticket and the college identity card to every session. Entry closes 30 minutes after the start of the examination.
+                      </p>
+                      <div className="w-[160px] shrink-0 border-t border-divider pt-1.5 text-center text-[11px] text-subtle">Controller of Examinations</div>
+                    </div>
                   </div>
                   {activeRow.hall_ticket.mismatch_reported && (
                     <p className="text-[12px] text-danger-fg">Not eligible — reason: {activeRow.hall_ticket.mismatch_note}</p>
@@ -331,12 +384,16 @@ export default function CoeHallTicketsPage() {
               ) : (
                 <>
                   <p className="text-[12.5px] text-subtle">
-                    {activeRow.fee_status !== "paid" ? "Withheld — fee not fully paid." : "Registered and eligible, ticket not generated yet."}
+                    {activeRow.attendance_eligibility === "detained"
+                      ? "Not eligible — detained for attendance shortfall."
+                      : activeRow.fee_status !== "paid"
+                        ? "Withheld — fee not fully paid."
+                        : "Registered and eligible, ticket not generated yet."}
                   </p>
                   <Button
                     variant="primarySmall"
                     className="w-auto"
-                    disabled={generate.isPending || !effectiveExamId}
+                    disabled={generate.isPending || !effectiveExamId || activeRow.attendance_eligibility === "detained"}
                     onClick={() => effectiveExamId && generate.mutate({ examId: effectiveExamId, studentId: activeRow.student.id })}
                   >
                     {generate.isPending ? "Generating…" : "Generate hall ticket"}

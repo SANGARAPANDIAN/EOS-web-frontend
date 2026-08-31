@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui";
-import { useDrivesList, useAddPlacementEntry } from "@/modules/iqac/api/studentDevelopment";
+import { useDrivesList, useAddPlacementEntry, useUpdatePlacementApplication, type RecruiterStudentRow } from "@/modules/iqac/api/studentDevelopment";
 import type { StudentRow } from "@/modules/iqac/api/students";
 import { StudentPicker } from "./StudentPicker";
 
@@ -10,6 +10,15 @@ const OFFER_STATUS_OPTIONS: { value: "accepted" | "pending" | "declined"; label:
   { value: "accepted", label: "Offer accepted" },
   { value: "pending", label: "Pending" },
   { value: "declined", label: "Declined" },
+];
+
+const STAGE_OPTIONS: { value: "applied" | "r1_cleared" | "r2_cleared" | "r3_cleared" | "rejected" | "placed"; label: string }[] = [
+  { value: "applied", label: "Applied" },
+  { value: "r1_cleared", label: "Round 1 cleared" },
+  { value: "r2_cleared", label: "Round 2 cleared" },
+  { value: "r3_cleared", label: "Round 3 cleared" },
+  { value: "rejected", label: "Rejected" },
+  { value: "placed", label: "Placed" },
 ];
 
 function todayDateInput(): string {
@@ -31,25 +40,31 @@ export function AddPlacementEntryModal({
   onCreated,
   companyId,
   companyName,
+  editing,
 }: {
   onClose: () => void;
   onCreated: () => void;
   companyId?: number;
   companyName?: string;
+  /** Editing an existing placed application — student/drive/recruiter can't be changed here (delete + re-add for that). */
+  editing?: RecruiterStudentRow;
 }) {
+  const isEditing = editing != null;
   const drives = useDrivesList({ limit: 50, company_id: companyId });
-  const addEntry = useAddPlacementEntry();
+  const create = useAddPlacementEntry();
+  const update = useUpdatePlacementApplication();
 
   const [student, setStudent] = useState<StudentRow | null>(null);
   const [driveId, setDriveId] = useState("");
-  const [packageLpa, setPackageLpa] = useState("");
+  const [packageLpa, setPackageLpa] = useState(editing?.package != null ? String(editing.package) : "");
   const [offerDate, setOfferDate] = useState(todayDateInput());
-  const [offerStatus, setOfferStatus] = useState<"accepted" | "pending" | "declined">("accepted");
+  const [offerStatus, setOfferStatus] = useState<"accepted" | "pending" | "declined">((editing?.offer_response as "accepted" | "pending" | "declined") ?? "accepted");
+  const [stage, setStage] = useState<(typeof STAGE_OPTIONS)[number]["value"]>((editing?.status as (typeof STAGE_OPTIONS)[number]["value"]) ?? "placed");
   const [error, setError] = useState<string | null>(null);
 
   const selectedDrive = useMemo(() => (drives.data?.data ?? []).find((d) => String(d.id) === driveId), [drives.data, driveId]);
   const recruiterName = companyName ?? selectedDrive?.companies?.name ?? "—";
-  const role = selectedDrive?.job_role ?? "—";
+  const role = editing?.job_role ?? selectedDrive?.job_role ?? "—";
 
   function pickDrive(id: string) {
     setDriveId(id);
@@ -58,13 +73,28 @@ export function AddPlacementEntryModal({
   }
 
   async function submit() {
+    if (isEditing) {
+      setError(null);
+      try {
+        await update.mutateAsync({
+          driveId: editing.drive_id,
+          studentId: editing.student_id,
+          input: { offer_response: offerStatus, offered_package_lpa: packageLpa.trim() ? Number(packageLpa) : undefined, status: stage },
+        });
+        onCreated();
+        onClose();
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message ?? "Could not save this entry.");
+      }
+      return;
+    }
     if (!student || !driveId) {
       setError("Student and drive are both required.");
       return;
     }
     setError(null);
     try {
-      await addEntry.mutateAsync({
+      await create.mutateAsync({
         driveId: Number(driveId),
         student_id: student.id,
         offer_response: offerStatus,
@@ -82,28 +112,37 @@ export function AddPlacementEntryModal({
     <Modal
       open
       onClose={onClose}
-      title="Add student entry"
+      title={isEditing ? "Edit student entry" : "Add student entry"}
       subtitle={`Placed students · ${companyName ?? "Placements"}`}
     >
       <div className="flex flex-col gap-4">
-        <StudentPicker selected={student} onSelect={setStudent} />
+        {isEditing ? (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Student</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.name}</div>
+          </div>
+        ) : (
+          <>
+            <StudentPicker selected={student} onSelect={setStudent} />
 
-        <div>
-          <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Drive</div>
-          <select
-            value={driveId}
-            onChange={(e) => pickDrive(e.target.value)}
-            className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default bg-surface px-3 text-[13.5px] outline-none focus:border-primary"
-          >
-            <option value="">Select drive</option>
-            {(drives.data?.data ?? []).map((d) => (
-              <option key={d.id} value={d.id}>
-                {companyId ? "" : `${d.companies?.name ?? "Unknown company"} · `}
-                {d.job_role ?? "—"} · {d.scheduled_date ?? "—"}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Drive</div>
+              <select
+                value={driveId}
+                onChange={(e) => pickDrive(e.target.value)}
+                className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default bg-surface px-3 text-[13.5px] outline-none focus:border-primary"
+              >
+                <option value="">Select drive</option>
+                {(drives.data?.data ?? []).map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {companyId ? "" : `${d.companies?.name ?? "Unknown company"} · `}
+                    {d.job_role ?? "—"} · {d.scheduled_date ?? "—"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -129,23 +168,42 @@ export function AddPlacementEntryModal({
               className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
             />
           </div>
-          <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Offer date</div>
-            <input
-              type="date"
-              value={offerDate}
-              onChange={(e) => setOfferDate(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
-            />
-          </div>
+          {isEditing ? (
+            <div>
+              <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Stage</div>
+              <select
+                value={stage}
+                onChange={(e) => setStage(e.target.value as typeof stage)}
+                className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default bg-surface px-3 text-[13.5px] outline-none focus:border-primary"
+              >
+                {STAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Offer date</div>
+              <input
+                type="date"
+                value={offerDate}
+                onChange={(e) => setOfferDate(e.target.value)}
+                className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
+              />
+            </div>
+          )}
         </div>
 
-        <div>
-          <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Faculty mentor</div>
-          <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">
-            {student?.mentor?.name ?? "Not assigned"}
+        {!isEditing && (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Faculty mentor</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">
+              {student?.mentor?.name ?? "Not assigned"}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Offer status</div>
@@ -171,10 +229,10 @@ export function AddPlacementEntryModal({
           <button
             type="button"
             onClick={submit}
-            disabled={addEntry.isPending}
+            disabled={create.isPending || update.isPending}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {addEntry.isPending ? "Saving…" : "Save"}
+            {create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

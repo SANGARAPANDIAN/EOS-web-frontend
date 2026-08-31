@@ -272,6 +272,19 @@ export function useUpdateFaculty() {
   });
 }
 
+export interface NotifyFacultyInput {
+  title: string;
+  message: string;
+}
+
+/** POST /me/faculty/:id/notify — sends straight to this faculty member's own notification inbox (bell icon), real push included. */
+export function useNotifyFaculty() {
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: NotifyFacultyInput }) =>
+      apiClient.post<{ sent: boolean }>(`${BASE}/${id}/notify`, input),
+  });
+}
+
 export function useMarkFacultyAttendance() {
   const queryClient = useQueryClient();
   return useMutation({

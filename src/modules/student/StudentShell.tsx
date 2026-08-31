@@ -52,9 +52,26 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   const totalFeeDue = useMemo(() => fees.data?.demands.reduce((sum, d) => sum + d.due, 0) ?? 0, [fees.data]);
   const pendingFeedbackCount = useMemo(() => feedbackForms.data?.filter((f) => !f.completed).length ?? 0, [feedbackForms.data]);
 
+  // "Hostel" / "In / out request" only make sense for an actual resident —
+  // hidden for a day scholar rather than left pointing at a feature that
+  // isn't theirs. Held back (not shown) until student_type has actually
+  // loaded, so a hosteller never sees a one-frame flash of these items
+  // disappearing.
+  const isHosteller = academicProfile.data?.student_type === "hosteller";
+  const moduleConfig = useMemo(
+    () => ({
+      ...studentModuleConfig,
+      navGroups: studentModuleConfig.navGroups.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !item.hostellerOnly || isHosteller),
+      })),
+    }),
+    [isHosteller],
+  );
+
   return (
     <AppShell
-      moduleConfig={studentModuleConfig}
+      moduleConfig={moduleConfig}
       header={{
         studentName: identity.data?.name,
         registerNumber: academicProfile.data?.register_no ?? undefined,

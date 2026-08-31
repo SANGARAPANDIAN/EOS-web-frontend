@@ -85,8 +85,14 @@ export function useBundleStats(examId: number | null) {
 export function useAllocateBundle() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { bundle_code: string; exam_subject_mapping_id: number; valuator_faculty_id?: number; dummy_range_start: number; dummy_range_end: number }) =>
-      apiClient.post<ScriptBundle>("/script-bundles", input),
+    mutationFn: (input: {
+      bundle_code: string;
+      exam_subject_mapping_id: number;
+      valuator_faculty_id?: number;
+      dummy_range_start: number;
+      dummy_range_end: number;
+      expected_return_at?: string;
+    }) => apiClient.post<ScriptBundle>("/script-bundles", input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["coe", "script-bundles"] });
       queryClient.invalidateQueries({ queryKey: ["coe", "script-bundle-stats"] });

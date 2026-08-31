@@ -186,6 +186,9 @@ export interface ListSoaApplicationsParams {
   q?: string;
   status?: SoaStatus;
   has_draft?: boolean;
+  /** Filters on created_at, independent of status — see backend DTO doc-comment. */
+  from?: string;
+  to?: string;
   page?: number;
   limit?: number;
 }

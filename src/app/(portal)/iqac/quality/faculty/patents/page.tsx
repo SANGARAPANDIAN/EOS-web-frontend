@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/ui";
+import { DataTable, ConfirmDialog, type DataTableColumn } from "@/components/ui";
 import { MetricBackNav, MetricHeader, MetricCards, DepartmentRollup, MetricFilterBar } from "@/modules/iqac/components/academic/MetricPageChrome";
 import { AddPatentEntryModal } from "@/modules/iqac/components/facultyDevelopment/AddPatentEntryModal";
-import { usePatents, usePatentsQuality, type PatentRow } from "@/modules/iqac/api/facultyDevelopment";
+import { usePatents, usePatentsQuality, useDeletePatentEntry, type PatentRow } from "@/modules/iqac/api/facultyDevelopment";
 
 const STAGE_OPTIONS = [
   { value: "all", label: "All stages" },
@@ -15,6 +15,9 @@ const STAGE_OPTIONS = [
 
 export default function PatentsPage() {
   const [addingEntry, setAddingEntry] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<PatentRow | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<PatentRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [dept, setDept] = useState<string | null>(null);
@@ -23,6 +26,18 @@ export default function PatentsPage() {
 
   const patents = usePatents();
   const quality = usePatentsQuality();
+  const deleteEntry = useDeletePatentEntry();
+
+  async function confirmDelete() {
+    if (!deletingEntry) return;
+    setDeleteError(null);
+    try {
+      await deleteEntry.mutateAsync(deletingEntry.id);
+      setDeletingEntry(null);
+    } catch (err: unknown) {
+      setDeleteError((err as { message?: string })?.message ?? "Could not delete this entry.");
+    }
+  }
 
   const allRows = useMemo(() => patents.data ?? [], [patents.data]);
 
@@ -76,6 +91,21 @@ export default function PatentsPage() {
       { key: "stage", header: "Stage", sortValue: (r) => r.stage, render: (r) => r.stage },
       { key: "filed_year", header: "Filed year", align: "right", sortValue: (r) => r.filed_year ?? -1, render: (r) => r.filed_year ?? "—" },
       { key: "stage_date", header: "Stage date", align: "right", sortValue: (r) => r.stage_date ?? "", render: (r) => (r.stage_date ? r.stage_date.slice(0, 10) : "—") },
+      {
+        key: "actions",
+        header: "",
+        width: "0.9fr",
+        render: (r) => (
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditingEntry(r)} className="text-[12.5px] font-bold text-primary hover:underline">
+              Edit
+            </button>
+            <button type="button" onClick={() => setDeletingEntry(r)} className="text-[12.5px] font-bold text-danger-fg hover:underline">
+              Delete
+            </button>
+          </div>
+        ),
+      },
     ],
     [],
   );
@@ -91,6 +121,21 @@ export default function PatentsPage() {
       />
 
       {addingEntry && <AddPatentEntryModal onClose={() => setAddingEntry(false)} onCreated={() => patents.refetch()} />}
+      {editingEntry && (
+        <AddPatentEntryModal editing={editingEntry} onClose={() => setEditingEntry(null)} onCreated={() => patents.refetch()} />
+      )}
+      <ConfirmDialog
+        open={deletingEntry != null}
+        title="Delete this patent inventorship?"
+        description={deleteError ?? "This can't be undone. The shared patent itself isn't affected."}
+        confirmLabel={deleteEntry.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeletingEntry(null);
+          setDeleteError(null);
+        }}
+      />
 
       <MetricCards
         cards={[

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Avatar, Input, Select } from "@/components/ui";
+import { PersonPicker, Select } from "@/components/ui";
 import { useHrFacultySearch, type HrFaculty } from "@/modules/hr/api/facultyDirectory";
 import { useHrDepartments } from "@/modules/hr/api/departments";
 
@@ -10,7 +10,9 @@ function facultyLabel(f: HrFaculty): string {
 }
 
 /**
- * Searchable faculty selector for the HR screens.
+ * Searchable faculty selector for the HR screens — a thin adapter over the
+ * shared PersonPicker (search/select/hover list logic lives there once,
+ * not re-implemented per module).
  *
  * Replaces the plain dropdown those pages used. That dropdown asked for
  * `limit: 200`, which the API rejects outright (its cap is 100), so it rendered
@@ -22,9 +24,7 @@ function facultyLabel(f: HrFaculty): string {
  * RENDERS while the input is focused — otherwise every page embedding this
  * picker showed a full faculty list sitting open under an empty, untouched
  * search box, reading as a rendering bug rather than a picker. Typing
- * narrows the list server-side once open. Blur closes it after a short
- * delay so a click on a result (which blurs the input first) still
- * registers before the list unmounts.
+ * narrows the list server-side once open.
  */
 export function HrFacultyPicker({
   value,
@@ -55,50 +55,33 @@ export function HrFacultyPicker({
     status,
     departmentId: departmentId === "all" ? undefined : Number(departmentId),
   });
-  const rows = matches.data?.data ?? [];
-  const total = matches.data?.meta?.total ?? 0;
-
-  if (value) {
-    return (
-      <div className="mt-1.5 flex items-center gap-3 rounded-[10px] border border-border-default bg-surface-tint px-3.5 py-2.5">
-        <Avatar name={facultyLabel(value)} imageUrl={value.profile_url} size={34} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-extrabold text-ink">{facultyLabel(value)}</div>
-          <div className="mt-0.5 truncate text-[11.5px] text-muted">
-            {[value.staff_code, value.designation, value.department?.name].filter(Boolean).join(" · ")}
-          </div>
-        </div>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => {
-            onChange(null);
-            setTerm("");
-          }}
-          className="shrink-0 text-[12.5px] font-bold text-primary disabled:opacity-40"
-        >
-          Change
-        </button>
-      </div>
-    );
-  }
 
   return (
-    <div className="relative mt-1.5">
-      <div className={showDepartmentFilter ? "grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]" : ""}>
-        <Input
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          onFocus={() => setOpen(true)}
-          // A click on a result button blurs the input first — closing
-          // immediately would unmount the list before that click's onClick
-          // fires. The short delay lets the click register; onMouseDown
-          // below (which fires before blur) additionally guards it.
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={placeholder}
-          disabled={disabled}
-        />
-        {showDepartmentFilter && (
+    <PersonPicker
+      value={value}
+      onChange={(f) => {
+        onChange(f);
+        if (!f) setTerm("");
+      }}
+      getId={(f) => f.id}
+      toRow={(f) => ({
+        name: facultyLabel(f),
+        subtitle: [f.staff_code, f.designation, f.department?.name].filter(Boolean).join(" · "),
+        avatarUrl: f.profile_url,
+      })}
+      results={matches.data?.data ?? []}
+      total={matches.data?.meta?.total}
+      isLoading={matches.isLoading}
+      term={term}
+      onTermChange={setTerm}
+      open={open}
+      onOpenChange={setOpen}
+      placeholder={placeholder}
+      disabled={disabled}
+      emptyMessage="No faculty on record."
+      noMatchMessage="No faculty matched that search."
+      filters={
+        showDepartmentFilter ? (
           <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={disabled}>
             <option value="all">All departments</option>
             {(departments.data ?? []).map((d) => (
@@ -107,51 +90,8 @@ export function HrFacultyPicker({
               </option>
             ))}
           </Select>
-        )}
-      </div>
-
-      {/* Floats over whatever sits below the picker instead of pushing it
-          down the page — a page embedding several of these (or a table
-          right underneath) shouldn't reflow every time this opens. */}
-      {open && (
-        <div className="absolute top-full right-0 left-0 z-20 mt-2 overflow-hidden rounded-[10px] border border-border-default bg-surface shadow-modal">
-          <div className="max-h-[260px] overflow-y-auto">
-            {matches.isLoading ? (
-              <div className="px-3.5 py-3 text-[12.5px] text-subtle">Loading faculty…</div>
-            ) : rows.length === 0 ? (
-              <div className="px-3.5 py-3 text-[12.5px] text-subtle">
-                {term.trim() ? "No faculty matched that search." : "No faculty on record."}
-              </div>
-            ) : (
-              rows.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onChange(f)}
-                  className="flex w-full items-center gap-3 border-b border-divider bg-surface px-3.5 py-2.5 text-left last:border-b-0 hover:bg-surface-tint"
-                >
-                  <Avatar name={facultyLabel(f)} imageUrl={f.profile_url} size={30} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13.5px] font-bold text-ink">{facultyLabel(f)}</div>
-                    <div className="mt-0.5 truncate text-[11.5px] text-muted">
-                      {[f.staff_code, f.designation, f.department?.name].filter(Boolean).join(" · ")}
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-
-          {/* The API caps a page at 100 rows, so say so rather than implying the
-              visible list is everyone who matched. */}
-          {total > rows.length && (
-            <div className="border-t border-divider bg-surface-tint px-3.5 py-1.5 text-[11.5px] text-subtle">
-              Showing {rows.length} of {total} — type to narrow the list.
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        ) : undefined
+      }
+    />
   );
 }

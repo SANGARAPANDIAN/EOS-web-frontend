@@ -1,32 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { ApiError } from "@/types/api";
-import { Button, PageHeader, KpiCard, SectionCard, PendingNotice, SegmentedPillToggle } from "@/modules/admin/components/ui";
+import { Button, Dropdown, PageHeader, KpiCard, SectionCard, PendingNotice, SegmentedPillToggle } from "@/modules/admin/components/ui";
 import { DonutChart, VerticalBarChart, HorizontalBarChart } from "@/modules/admin/components/ui/charts";
-import { QuickActionsCard } from "@/modules/admin/components/dashboard/QuickActionsCard";
+import { Icon } from "@/components/ui/Icon";
 import {
   useActiveStudentCount,
   useAdmissionsPipeline,
   useFacultyCount,
   useFacultyWorkforceComposition,
   useFinanceOverview,
+  useNewApplicationsInRange,
   useStudentsByBatch,
   useStudentsByDepartment,
   useStudentStatusDistribution,
 } from "@/modules/admin/api/dashboard";
 import { useAdmittedCutoffSummary } from "@/modules/admin/api/admissions";
 import { useHostelDashboardSummary, usePlacementStats } from "@/modules/admin/api/analytics";
+import { usePendingServiceRequestCount } from "@/modules/admin/api/serviceRequests";
 import { currencyShort, monthShortLabel, percent1 } from "@/modules/admin/lib/format";
-
-const QUICK_ACTIONS = [
-  { icon: "person_add", label: "Admit student", note: "Start a new admission" },
-  { icon: "currency_rupee", label: "Collect fee", note: "Record a payment" },
-  { icon: "workspace_premium", label: "Issue certificate", note: "Bonafide, conduct, transcript" },
-  { icon: "send", label: "Send notice", note: "Email / SMS / push" },
-];
 
 const ATTENDANCE_RISK_PENDING =
   "Needs a bulk attendance-summary endpoint — the only attendance aggregate today is per-student (GET /students/:id/attendance-summary), and calling it once per enrolled student to find who's below 75% isn't a real institution-wide figure, it's N+1 requests wearing a chart.";
@@ -39,23 +35,69 @@ const TIME_RANGES = [
 ] as const;
 type TimeRange = (typeof TIME_RANGES)[number]["value"];
 
+/**
+ * Real institution-calendar boundaries for each toggle value, reusing the
+ * same Jun-start academic-year / Jul-Dec odd-semester convention every
+ * other module's date helpers already use (see lib/utils/date.ts) rather
+ * than inventing a second convention just for this page.
+ */
+function rangeBounds(range: TimeRange, now: Date): { from: string; to: string; label: string } {
+  const to = now.toISOString();
+  if (range === "today") {
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { from: from.toISOString(), to, label: "today" };
+  }
+  if (range === "term") {
+    const isOddSemester = now.getMonth() >= 6; // Jul(6)-Dec
+    const from = isOddSemester ? new Date(now.getFullYear(), 6, 1) : new Date(now.getFullYear(), 0, 1);
+    return { from: from.toISOString(), to, label: "this term" };
+  }
+  const startYear = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1; // academic year starts June
+  const from = new Date(startYear, 5, 1);
+  return { from: from.toISOString(), to, label: "this year" };
+}
+
+function csvCell(value: string | number): string {
+  const s = String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const content = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function AdminDashboardPage() {
   const { session } = useAuth();
+  const router = useRouter();
   const [timeRange, setTimeRange] = useState<TimeRange>("term");
-  const finance = useFinanceOverview();
+  const now = useMemo(() => new Date(), []);
+  const range = useMemo(() => rangeBounds(timeRange, now), [timeRange, now]);
+
+  const finance = useFinanceOverview({ from: range.from, to: range.to });
   const facultyCount = useFacultyCount();
   const activeStudents = useActiveStudentCount();
   const statusDistribution = useStudentStatusDistribution();
   const studentsByDept = useStudentsByDepartment();
   const studentsByBatch = useStudentsByBatch();
   const admissions = useAdmissionsPipeline();
+  const newApplications = useNewApplicationsInRange(range.from, range.to);
   const admittedCutoff = useAdmittedCutoffSummary();
   const placement = usePlacementStats();
   const hostel = useHostelDashboardSummary();
   const workforce = useFacultyWorkforceComposition();
+  const pendingSop = usePendingServiceRequestCount();
 
   const greetingName = session?.user.email ? session.user.email.split("@")[0] : "there";
-  const hour = new Date().getHours();
+  const hour = now.getHours();
   const timeOfDay = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
 
   const kpis = finance.data?.executiveKPIs;
@@ -69,6 +111,31 @@ export default function AdminDashboardPage() {
   const pipeline = admissions.data;
   const cutoffSummary = admittedCutoff.data;
 
+  function handleExport() {
+    downloadCsv(`admin-dashboard-${timeRange}-${now.toISOString().slice(0, 10)}.csv`, [
+      ["Metric", "Value", "Detail"],
+      ["Active students", activeStudents.data ?? "", ""],
+      [`Fee collected (${range.label})`, kpis?.collectedInRange ? currencyShort(kpis.collectedInRange) : "", kpis?.paymentCountInRange !== undefined ? `${kpis.paymentCountInRange} payments` : ""],
+      ["Fee outstanding (current)", kpis ? currencyShort(kpis.totalOutstanding) : "", kpis ? `${kpis.pendingEducationLoanDD} loan DDs pending` : ""],
+      ["Faculty on roll", facultyCount.data ? facultyCount.data.meta.total : "", ""],
+      ["Admissions this cycle (current)", pipeline ? pipeline.total : "", pipeline ? `${pipeline.admissionConfirmed} confirmed` : ""],
+      [`New applications (${range.label})`, newApplications.data ?? "", ""],
+      ["Average cutoff (current)", cutoffSummary?.average_cutoff ?? "", cutoffSummary ? `${cutoffSummary.admitted_count} students admitted` : ""],
+      ["Placement rate (current)", placement.data ? percent1(placement.data.placementRate) : "", placement.data ? `${placement.data.studentsPlaced} placed` : ""],
+      ["Hostel occupancy (current)", hostel.data ? percent1(hostel.data.occupancy_pct) : "", hostel.data ? `${hostel.data.beds_occupied} of ${hostel.data.beds_total} beds` : ""],
+      ["SOP requests awaiting review", pendingSop.data ?? "", ""],
+      [],
+      ["Students by department", "Active headcount", ""],
+      ...(studentsByDept.data ?? []).map((d) => [d.label, d.value, ""]),
+      [],
+      ["Enrolment by batch", "Headcount", ""],
+      ...(studentsByBatch.data ?? []).map((b) => [b.label, b.value, ""]),
+      [],
+      ["Fee outstanding by department", "Demand", "Outstanding"],
+      ...departmentOutstanding.map((d) => [d.department, currencyShort(d.totalDemand), currencyShort(d.totalOutstanding)]),
+    ]);
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -76,17 +143,30 @@ export default function AdminDashboardPage() {
         description="Institution overview · Admin Console"
         actions={
           <>
-            {/* Every figure below is a point-in-time total, not a windowed query — no
-                endpoint here supports "as of today" vs "this year" yet, so this only
-                changes which segment looks selected. Kept visible rather than removed
-                so the affordance isn't silently missing. */}
+            {/* Drives every windowed figure below (Fee collected, New
+                applications) via real from/to query params — see
+                rangeBounds(). Figures with no natural time dimension (a
+                current headcount, a current outstanding balance, a current
+                occupancy %) are intentionally unaffected by this toggle;
+                they're "as of now" by definition, not a period flow. */}
             <SegmentedPillToggle options={[...TIME_RANGES]} value={timeRange} onChange={setTimeRange} />
-            <Button variant="secondary" disabled title="Export board — not built yet">
+            <Button variant="secondary" onClick={handleExport}>
+              <Icon name="download" size={16} />
               Export board
             </Button>
-            <Button variant="primary" disabled title="Quick actions — see the panel below for now">
-              Quick actions
-            </Button>
+            <Dropdown
+              align="right"
+              trigger={
+                <Button variant="primary">
+                  Quick actions
+                  <Icon name="expand_more" size={16} />
+                </Button>
+              }
+              items={[
+                { key: "admit", label: "Admit student", onSelect: () => router.push("/admin/students/admit") },
+                { key: "certificate", label: "Issue certificate", onSelect: () => router.push("/admin/bonafide-requests") },
+              ]}
+            />
           </>
         }
       />
@@ -108,9 +188,9 @@ export default function AdminDashboardPage() {
         <KpiCard
           label="Fee collected"
           icon="account_balance_wallet"
-          value={kpis ? currencyShort(kpis.totalCollected) : finance.isLoading ? "…" : "—"}
-          delta={kpis ? `+${percent1(kpis.collectionPercentage)}` : undefined}
-          sub={kpis ? "of demand" : undefined}
+          value={kpis?.collectedInRange !== undefined ? currencyShort(kpis.collectedInRange) : finance.isLoading ? "…" : "—"}
+          delta={kpis?.paymentCountInRange !== undefined ? String(kpis.paymentCountInRange) : undefined}
+          sub={kpis?.paymentCountInRange !== undefined ? `payment${kpis.paymentCountInRange === 1 ? "" : "s"} ${range.label}` : undefined}
         />
         <KpiCard
           label="Fee outstanding"
@@ -166,6 +246,13 @@ export default function AdminDashboardPage() {
           value={hostel.data ? percent1(hostel.data.occupancy_pct) : hostel.isLoading ? "…" : "—"}
           delta={hostel.data ? String(hostel.data.beds_occupied) : undefined}
           sub={hostel.data ? `of ${hostel.data.beds_total} beds` : undefined}
+        />
+        <KpiCard
+          label="SOP requests"
+          icon="handyman"
+          value={pendingSop.data !== undefined ? pendingSop.data : pendingSop.isLoading ? "…" : "—"}
+          sub="awaiting review"
+          href="/admin/sop-requests"
         />
       </div>
 
@@ -236,19 +323,31 @@ export default function AdminDashboardPage() {
               </Link>
             }
           >
-            {pipeline && (pipeline.applied > 0 || pipeline.feesPaid > 0) ? (
+            {pipeline ? (
               <div className="flex flex-col gap-3">
+                {pipeline.applied > 0 || pipeline.feesPaid > 0 ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-admin-body">Just applied — awaiting fee payment</span>
+                      <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">{pipeline.applied}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-admin-body">Fees paid — awaiting admission confirmation</span>
+                      <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">{pipeline.feesPaid}</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-admin-subtle">Nothing waiting — every application is confirmed or cancelled.</p>
+                )}
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-admin-body">Just applied — awaiting fee payment</span>
-                  <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">{pipeline.applied}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-admin-body">Fees paid — awaiting admission confirmation</span>
-                  <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">{pipeline.feesPaid}</span>
+                  <span className="text-admin-body">New applications — {range.label}</span>
+                  <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">
+                    {newApplications.data !== undefined ? newApplications.data : newApplications.isLoading ? "…" : "—"}
+                  </span>
                 </div>
               </div>
             ) : (
-              <PendingNotice reason={admissions.isLoading ? "Loading…" : "Nothing waiting — every application is confirmed or cancelled."} height={100} />
+              <PendingNotice reason={admissions.isLoading ? "Loading…" : "No admission applications recorded yet."} height={100} />
             )}
           </SectionCard>
 
@@ -269,10 +368,28 @@ export default function AdminDashboardPage() {
               <PendingNotice reason={finance.isLoading ? "Loading…" : "No outstanding fee demand recorded."} height={120} />
             )}
           </SectionCard>
+
+          <SectionCard
+            title="SOP requests awaiting review"
+            subtitle="Service requests submitted by department secretaries"
+            actions={
+              <Link href="/admin/sop-requests" className="text-sm font-semibold text-admin-primary hover:text-admin-primary-dark">
+                Review requests →
+              </Link>
+            }
+          >
+            {pendingSop.data !== undefined && pendingSop.data > 0 ? (
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-admin-body">Pending your decision</span>
+                <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">{pendingSop.data}</span>
+              </div>
+            ) : (
+              <PendingNotice reason={pendingSop.isLoading ? "Loading…" : "Nothing waiting — every SOP request is decided."} height={80} />
+            )}
+          </SectionCard>
         </div>
 
         <div className="flex flex-col gap-5">
-          <QuickActionsCard actions={QUICK_ACTIONS} />
           <SectionCard title="Faculty workforce" subtitle="On roll, by employment status">
             {workforce.data && workforce.data.length > 0 ? (
               <HorizontalBarChart data={workforce.data} />

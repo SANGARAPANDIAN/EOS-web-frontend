@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { PageHeader, Badge, type BadgeTone, Card, Button, KpiCard, Select, useToast } from "@/modules/admin/components/ui";
-import { useReportsGeneratedCount } from "@/modules/placement/api/studentReport";
+import { fetchStudentReport, useReportsGeneratedCount } from "@/modules/placement/api/studentReport";
 import { useBatches } from "@/modules/placement/api/refData";
 import {
   useExportPlacementSummary,
   useExportStudentReport,
   type ReportFormat,
 } from "@/modules/placement/api/reports";
+import { generateStudentReportPdf } from "@/modules/placement/lib/student-report-pdf";
 import { ApiError } from "@/types/api";
 
 /**
@@ -94,7 +95,14 @@ export default function ReportsPage() {
     const batch = batchId === "all" ? undefined : batchId;
     setBusyKey(key);
     try {
-      if (card.kind === "student") {
+      if (card.kind === "student" && format === "pdf") {
+        // Client-side, not the backend's PDFKit renderer — that renderer
+        // draws every row at a fixed height with no wrap-aware sizing, so a
+        // long department name overlaps into the next row (same fix as the
+        // Students page's own "Export PDF" button).
+        const rows = await fetchStudentReport(batch);
+        await generateStudentReportPdf(rows, { batchLabel: batch !== undefined ? batches.data?.find((b) => b.id === batch)?.name : undefined });
+      } else if (card.kind === "student") {
         await exportStudents.mutateAsync({ batchId: batch, format });
       } else {
         await exportSummary.mutateAsync({
@@ -104,7 +112,10 @@ export default function ReportsPage() {
         });
       }
       show(`${card.title} downloaded as ${format === "excel" ? "Excel" : "PDF"}.`, "success");
-      // The tile counts audit-logged exports, so it moves after a real download.
+      // The tile counts audit-logged exports from the two backend export
+      // routes — student+PDF no longer calls either (built client-side
+      // instead), so this refetch is a harmless no-op for that one
+      // combination; every other export still moves the count as before.
       void generatedCount.refetch();
     } catch (err) {
       show(err instanceof ApiError ? err.message : "Could not generate this report.", "error");

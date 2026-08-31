@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { tone } from "@/modules/secretary/helpers";
 import { useVenues, useVenueBookings, useCreateVenueBooking } from "@/modules/secretary/api/venues";
+import { VenueThumbnail } from "@/components/shared/VenueThumbnail";
 
 // Pixel-exact layout port of the `isVenue` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1733-1833.
@@ -139,7 +140,7 @@ export default function SecretaryVenuePage() {
             {bookedVenues.map((v) => (
               <div key={v.id} data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: 20 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <span style={{ width: 38, height: 38, borderRadius: 10, background: "#eef2f7", flex: "0 0 auto" }} />
+                  <VenueThumbnail photoUrl={v.photo_url} name={v.name} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13.9, fontWeight: 700, letterSpacing: -0.2 }}>{v.name}</div>
                     <div style={{ fontSize: 11.7, color: "#64748b", marginTop: 4 }}>{v.booking?.purpose}{v.booking?.booked_by ? ` · ${v.booking.booked_by}` : ""}</div>

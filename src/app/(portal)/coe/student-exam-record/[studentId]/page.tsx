@@ -10,7 +10,10 @@ import { useStudentExamRecord } from "@/modules/coe/api/studentExamRecord";
 
 const ELIGIBILITY_TONE: Record<string, BadgeTone> = { eligible: "accentDark", condonation: "accent", detained: "danger" };
 const ELIGIBILITY_LABEL: Record<string, string> = { eligible: "Eligible", condonation: "Condonation", detained: "Detained" };
-const CERT_TONE: Record<string, BadgeTone> = { issued: "accentDark", pending: "accent", blocked: "danger", rejected: "danger" };
+// Real certificate_request_status_enum values only — "blocked"/"rejected" don't exist in the schema.
+const CERT_TONE: Record<string, BadgeTone> = { pending: "accent", ready_to_print: "accent", printed: "accentDark", issued: "accentDark" };
+const CERT_LABEL: Record<string, string> = { pending: "Pending", ready_to_print: "Ready to print", printed: "Printed", issued: "Issued" };
+const SEMESTER_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"] as const;
 
 export default function CoeStudentExamRecordProfilePage({ params }: { params: Promise<{ studentId: string }> }) {
   const { studentId: studentIdParam } = use(params);
@@ -68,7 +71,7 @@ export default function CoeStudentExamRecordProfilePage({ params }: { params: Pr
                   <div className="mt-0.5 text-[12.5px] text-muted">
                     {record.data.student.register_no} · {record.data.student.programme ?? record.data.student.department?.name ?? "—"}
                     {record.data.student.year ? ` · ${["I", "II", "III", "IV"][record.data.student.year - 1] ?? record.data.student.year} Year` : ""}
-                    {record.data.student.semester ? ` · Semester ${record.data.student.semester}` : ""}
+                    {record.data.student.semester ? ` · Semester ${SEMESTER_ROMAN[record.data.student.semester - 1] ?? record.data.student.semester}` : ""}
                     {record.data.student.regulation_code ? ` · Regulation ${record.data.student.regulation_code}` : ""}
                   </div>
                 </div>
@@ -77,13 +80,8 @@ export default function CoeStudentExamRecordProfilePage({ params }: { params: Pr
                 <Stat label="CGPA" value={record.data.stats.cgpa != null ? record.data.stats.cgpa.toFixed(2) : "—"} />
                 <Stat label="Credits earned" value={`${record.data.stats.credits_earned} / ${record.data.stats.credits_total}`} />
                 <Stat label="Arrears" value={String(record.data.stats.arrears_count)} danger={record.data.stats.arrears_count > 0} />
-                <div className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <span className="text-[20px] font-extrabold text-ink">{record.data.stats.attendance_pct != null ? `${record.data.stats.attendance_pct}%` : "—"}</span>
-                    {record.data.stats.attendance_hold && <Badge tone="danger">HOLD</Badge>}
-                  </div>
-                  <div className="text-[11px] font-bold uppercase tracking-wide text-muted">Attendance</div>
-                </div>
+                <Stat label="Attendance" value={record.data.stats.attendance_pct != null ? `${record.data.stats.attendance_pct}%` : "—"} />
+                {record.data.stats.attendance_hold && <Badge tone="accent">Hold</Badge>}
               </div>
             </div>
           </Card>
@@ -150,7 +148,7 @@ export default function CoeStudentExamRecordProfilePage({ params }: { params: Pr
                     <p className="text-[12.5px] text-subtle">No standing arrears.</p>
                   ) : (
                     record.data.standingArrears.map((a) => (
-                      <div key={a.subject_code} className="flex items-center justify-between gap-3 rounded-input border border-border-default px-3 py-2.5">
+                      <div key={a.subject_code} className="flex items-center justify-between gap-3 rounded-input border border-danger-border bg-danger-bg px-3 py-2.5">
                         <div>
                           <div className="text-[13px] font-bold text-ink">
                             {a.subject_code} · {a.subject_name}
@@ -194,7 +192,7 @@ export default function CoeStudentExamRecordProfilePage({ params }: { params: Pr
                           <div className="text-[13px] font-bold text-ink">{c.type_name}</div>
                           <div className="text-[11.5px] text-muted">{c.issued_at ? `Issued ${c.issued_at}` : `Requested ${c.requested_at}`}</div>
                         </div>
-                        <Badge tone={CERT_TONE[c.status] ?? "neutral"}>{c.status.toUpperCase()}</Badge>
+                        <Badge tone={CERT_TONE[c.status] ?? "neutral"}>{(CERT_LABEL[c.status] ?? c.status).toUpperCase()}</Badge>
                       </div>
                     ))
                   )}
@@ -210,9 +208,9 @@ export default function CoeStudentExamRecordProfilePage({ params }: { params: Pr
 
 function Stat({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
   return (
-    <div className="text-right">
-      <div className={`text-[20px] font-extrabold ${danger ? "text-danger-fg" : "text-ink"}`}>{value}</div>
+    <div>
       <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{label}</div>
+      <div className={`mt-0.5 text-[20px] font-extrabold ${danger ? "text-danger-fg" : "text-ink"}`}>{value}</div>
     </div>
   );
 }

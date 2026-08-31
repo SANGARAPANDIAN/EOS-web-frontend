@@ -45,8 +45,8 @@ export const studentModuleConfig: ModuleConfig = {
     {
       label: "Campus",
       items: [
-        { key: "hostel", label: "Hostel", icon: "apartment", href: `${BASE}/hostel` },
-        { key: "inout", label: "In / out request", icon: "swap_horiz", href: `${BASE}/inout` },
+        { key: "hostel", label: "Hostel", icon: "apartment", href: `${BASE}/hostel`, hostellerOnly: true },
+        { key: "inout", label: "In / out request", icon: "swap_horiz", href: `${BASE}/inout`, hostellerOnly: true },
         { key: "library", label: "Library", icon: "local_library", href: `${BASE}/library` },
         {
           key: "feedback",
@@ -55,6 +55,7 @@ export const studentModuleConfig: ModuleConfig = {
           href: `${BASE}/feedback`,
           badgeKey: "feedbackPending",
         },
+        { key: "my-venture", label: "My Venture", icon: "rocket_launch", href: `${BASE}/my-venture` },
       ],
     },
   ],

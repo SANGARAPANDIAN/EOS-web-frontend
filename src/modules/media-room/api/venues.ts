@@ -6,6 +6,7 @@ export interface Venue {
   name: string;
   location: string | null;
   capacity: number | null;
+  photo_url: string | null;
 }
 
 interface PaginatedResponse<T> {

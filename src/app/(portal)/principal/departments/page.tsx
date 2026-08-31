@@ -6,6 +6,7 @@ import { principalColors } from "@/modules/principal/theme";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
 import { PrincipalTableSkeleton } from "@/modules/principal/components/PrincipalTableSkeleton";
 import { useInitialQueryParam } from "@/lib/utils/useInitialQueryParam";
+import { sectionLabel } from "@/lib/utils/academic";
 import {
   useDepartmentsList,
   useDepartmentDetail,
@@ -212,6 +213,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
               }
               progressPercent={detail.data.students.attendance_percentage ?? undefined}
               footer={`${detail.data.students.sections_count} sections`}
+              href={`/principal/students?department_id=${departmentId}`}
             />
             <PrincipalStatCard
               label="Faculty"
@@ -279,7 +281,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
               {sections.data?.map((s) => (
                 <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
-                    {s.section} {s.semester != null ? `· Sem ${s.semester}` : ""}
+                    {sectionLabel(s.semester, s.section)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3.5" style={{ color: principalColors.body }}>
                     {s.advisor?.name ?? "—"}

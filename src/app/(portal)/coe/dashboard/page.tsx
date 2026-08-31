@@ -9,7 +9,7 @@ import { SkeletonRows } from "@/components/ui/Skeleton";
 import { useCoeDashboardSummary, type DashboardPeriod } from "@/modules/coe/api/dashboard";
 import { cn } from "@/lib/utils/cn";
 import { formatNumber } from "@/lib/utils/format";
-import { exportToPdf } from "@/lib/utils/pdf-export";
+import { exportToPdf, formatMoneyForPdf } from "@/lib/utils/pdf-export";
 
 const PERIOD_TABS: { key: DashboardPeriod; label: string }[] = [
   { key: "today", label: "Today" },
@@ -58,7 +58,7 @@ export default function CoeDashboardPage() {
               ["Eligible students", `${data.eligibleStudents.total}`],
               ["Pending valuation", `${data.pendingValuation.total - data.pendingValuation.valued}`],
               ["Pending results", `${data.pendingResults.total}`],
-              ["Exam fee collected", `₹${data.examFeeCollected.total}`],
+              ["Exam fee collected", formatMoneyForPdf(data.examFeeCollected.total)],
             ],
           },
           {

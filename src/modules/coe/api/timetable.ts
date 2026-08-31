@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import type { ExamSessionCode } from "@/modules/coe/api/shared";
 
-// src/modules/exams/exam-timetable/exam-timetable.controller.ts — confirmed:
-// no conflict-detection, no draft/publish-version workflow (every exam gets
-// one implicit version). Publish state lives on exam_subject_mapping.is_published,
-// flipped only as a side-effect of this same create/update call.
+// src/modules/exams/exam-timetable/exam-timetable.controller.ts — writes go
+// through the real exam_timetable_versions workflow (see
+// examTimetableVersions.ts): create/update always land on the exam's current
+// editable draft, never on an already-published version. Publish state also
+// lives on exam_subject_mapping.is_published, flipped as a side-effect of
+// this same create/update call (kept in sync with the version-level publish).
 
 export interface TimetableEntry {
   id: number;

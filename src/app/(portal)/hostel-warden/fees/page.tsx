@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, DataTable, EmptyState, type BadgeTone, type DataTableColumn } from "@/components/ui";
-import { useHostelFees, type HostelFeeRow, type HostelFeeStatus } from "@/modules/hostel-warden/api/fees";
+import { Badge, Banner, Button, DataTable, EmptyState, PillTabs, type BadgeTone, type DataTableColumn } from "@/components/ui";
+import { useHostelFees, useReconcileHostelFees, type HostelFeeRow, type HostelFeeStatus } from "@/modules/hostel-warden/api/fees";
 import { StudentDetailModal } from "@/modules/hostel-warden/components/StudentDetailModal";
+import { friendlyError } from "@/lib/utils/errors";
 
 type FilterKey = "all" | HostelFeeStatus;
 
@@ -11,7 +12,8 @@ const STATUS_TONE: Record<HostelFeeStatus, BadgeTone> = { paid: "accent", partia
 const STATUS_LABEL: Record<HostelFeeStatus, string> = { paid: "Paid", partially_paid: "Part paid", unpaid: "Overdue" };
 
 export default function HostelFeesPage() {
-  const fees = useHostelFees({ page_size: 100 });
+  const fees = useHostelFees();
+  const reconcile = useReconcileHostelFees();
   const [filter, setFilter] = useState<FilterKey>("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -57,19 +59,27 @@ export default function HostelFeesPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setFilter(t.key)}
-            className={`rounded-pill border px-4 py-2 text-[13px] font-bold transition-colors ${
-              filter === t.key ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-ink-soft hover:bg-surface-tint"
-            }`}
-          >
-            {t.label} ({t.count})
-          </button>
-        ))}
+        <PillTabs
+          options={TABS.map((t) => ({ key: t.key, label: `${t.label} (${t.count})` }))}
+          value={filter}
+          onChange={(k) => setFilter(k as FilterKey)}
+        />
       </div>
+
+      {!fees.isLoading && rows.length === 0 && (
+        <Banner>
+          <div className="flex items-center justify-between gap-4">
+            <span>
+              No resident is linked to a fee structure yet. This generates each resident&apos;s fee demand from their room type — safe to run
+              again later as new residents are allocated.
+            </span>
+            <Button variant="primarySmall" className="shrink-0" loading={reconcile.isPending} onClick={() => reconcile.mutate()}>
+              Generate fee demands
+            </Button>
+          </div>
+        </Banner>
+      )}
+      {reconcile.isError && <div className="rounded-[11px] border border-danger-fg bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">{friendlyError(reconcile.error)}</div>}
 
       {fees.isLoading ? (
         <EmptyState message="Loading…" />

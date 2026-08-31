@@ -37,6 +37,7 @@ export interface ArrearBucket {
 
 export interface ReportsAnalyticsSummary {
   exam: { id: number; label: string };
+  previousExamLabel: string | null;
   overallPassPercentage: number | null;
   overallPassPercentageDelta: number | null;
   studentsWithDistinction: number;

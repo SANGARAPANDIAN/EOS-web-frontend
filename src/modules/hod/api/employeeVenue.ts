@@ -11,6 +11,7 @@ export interface HodVenueAvailability {
   name: string;
   location: string | null;
   capacity: number | null;
+  photo_url: string | null;
   is_available: boolean;
   booking: {
     purpose: string;

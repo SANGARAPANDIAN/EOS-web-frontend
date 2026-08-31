@@ -305,31 +305,31 @@ export default function PrincipalExamsPage() {
                     {results.data.candidate_count} candidates · {results.data.paper_count} papers
                   </span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="max-h-[560px] overflow-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ background: principalColors.surfaceMuted }}>
-                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                      <tr>
+                        <th className="sticky top-0 z-10 whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint, background: principalColors.surfaceMuted }}>
                           REGISTER NO.
                         </th>
-                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                        <th className="sticky top-0 z-10 whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint, background: principalColors.surfaceMuted }}>
                           CANDIDATE
                         </th>
-                        <th className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                        <th className="sticky top-0 z-10 whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint, background: principalColors.surfaceMuted }}>
                           DEPT
                         </th>
-                        <th className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                        <th className="sticky top-0 z-10 whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint, background: principalColors.surfaceMuted }}>
                           SEC
                         </th>
                         {results.data.subjects.map((s) => (
-                          <th key={s.subject_code} className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold" style={{ color: principalColors.primary }}>
+                          <th key={s.subject_code} className="sticky top-0 z-10 whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold" style={{ color: principalColors.primary, background: principalColors.surfaceMuted }}>
                             {s.subject_code}
                             <div className="mt-0.5 max-w-[110px] truncate text-[10px] font-medium normal-case" style={{ color: principalColors.textFaint }}>
                               {s.name}
                             </div>
                           </th>
                         ))}
-                        <th className="whitespace-nowrap px-3 py-2.5 text-right text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                        <th className="sticky top-0 z-10 whitespace-nowrap px-3 py-2.5 text-right text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint, background: principalColors.surfaceMuted }}>
                           AVERAGE
                         </th>
                       </tr>

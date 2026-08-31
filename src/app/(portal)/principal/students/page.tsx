@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { useInitialQueryParam } from "@/lib/utils/useInitialQueryParam";
@@ -57,6 +57,7 @@ function formatRupees(amount: number): string {
 }
 
 export default function PrincipalStudentsPage() {
+  const router = useRouter();
   const initialQ = useInitialQueryParam("q");
   const [q, setQ] = useState("");
   useEffect(() => {
@@ -259,15 +260,14 @@ export default function PrincipalStudentsPage() {
                       ? "#B42318"
                       : principalColors.heading;
                 return (
-                  <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
-                    <td className="whitespace-nowrap px-5 py-3.5 font-semibold">
-                      <Link
-                        href={`/principal/students/${s.id}`}
-                        className="hover:underline"
-                        style={{ color: principalColors.heading }}
-                      >
-                        {s.name}
-                      </Link>
+                  <tr
+                    key={s.id}
+                    onClick={() => router.push(`/principal/students/${s.id}`)}
+                    className="cursor-pointer border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]"
+                    style={{ borderColor: principalColors.borderMuted }}
+                  >
+                    <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
+                      {s.name}
                     </td>
                     <td className="px-3 py-3.5" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
                       {s.register_no ?? "—"}

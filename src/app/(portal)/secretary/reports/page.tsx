@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { exportToPdf } from "@/lib/utils/pdf-export";
 import {
   useStudentAttendanceOverview,
@@ -59,9 +59,15 @@ const REPORT_DESCRIPTORS = [
 
 const thSx = { fontSize: 11.3, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" as const, color: "#94a3b8" };
 
+// One blue family, four shades (darkest = best band) — a single-hue ramp
+// instead of the red/amber/green severity colors, to stay on the app's
+// blue brand rather than introducing off-brand hues here.
+const BLUE_SHADES = ["#1e3a8a", "#2563eb", "#60a5fa", "#bfdbfe"];
+
 export default function SecretaryReportsPage() {
   const router = useRouter();
   const [lens, setLens] = useState<(typeof STUDENT_LENSES)[number]>("Attendance below 75%");
+  const [semesterFilter, setSemesterFilter] = useState<number | "all">("all");
   const [facLens, setFacLens] = useState<(typeof FACULTY_LENSES)[number]>("Attendance below 95%");
   const [toast, setToast] = useState("");
 
@@ -96,10 +102,10 @@ export default function SecretaryReportsPage() {
     const rows = (sample?.students ?? []).filter((s) => s.cgpa !== null);
     const total = rows.length;
     const bands = [
-      { label: "CGPA above 8.5", count: rows.filter((s) => s.cgpa! >= 8.5).length, color: "#047857" },
-      { label: "CGPA 7.5 – 8.5", count: rows.filter((s) => s.cgpa! >= 7.5 && s.cgpa! < 8.5).length, color: "#1d4ed8" },
-      { label: "CGPA 7.0 – 7.5", count: rows.filter((s) => s.cgpa! >= 7 && s.cgpa! < 7.5).length, color: "#b45309" },
-      { label: "CGPA below 7.0", count: rows.filter((s) => s.cgpa! < 7).length, color: "#b91c1c" },
+      { label: "CGPA above 8.5", count: rows.filter((s) => s.cgpa! >= 8.5).length, color: BLUE_SHADES[0] },
+      { label: "CGPA 7.5 – 8.5", count: rows.filter((s) => s.cgpa! >= 7.5 && s.cgpa! < 8.5).length, color: BLUE_SHADES[1] },
+      { label: "CGPA 7.0 – 7.5", count: rows.filter((s) => s.cgpa! >= 7 && s.cgpa! < 7.5).length, color: BLUE_SHADES[2] },
+      { label: "CGPA below 7.0", count: rows.filter((s) => s.cgpa! < 7).length, color: BLUE_SHADES[3] },
     ];
     return bands.map((b) => ({ ...b, share: total > 0 ? `${Math.round((b.count / total) * 100)}%` : "0%" }));
   }, [sample]);
@@ -108,21 +114,37 @@ export default function SecretaryReportsPage() {
     const rows = (sample?.students ?? []).filter((s) => s.attendance_pct !== null);
     const total = rows.length;
     const bands = [
-      { label: "Above 90%", count: rows.filter((s) => s.attendance_pct! >= 90).length, color: "#047857" },
-      { label: "75% – 90%", count: rows.filter((s) => s.attendance_pct! >= 75 && s.attendance_pct! < 90).length, color: "#1d4ed8" },
-      { label: "65% – 75% · condonation", count: rows.filter((s) => s.attendance_pct! >= 65 && s.attendance_pct! < 75).length, color: "#b45309" },
-      { label: "Below 65% · not eligible", count: rows.filter((s) => s.attendance_pct! < 65).length, color: "#b91c1c" },
+      { label: "Above 90%", count: rows.filter((s) => s.attendance_pct! >= 90).length, color: BLUE_SHADES[0] },
+      { label: "75% – 90%", count: rows.filter((s) => s.attendance_pct! >= 75 && s.attendance_pct! < 90).length, color: BLUE_SHADES[1] },
+      { label: "65% – 75% · condonation", count: rows.filter((s) => s.attendance_pct! >= 65 && s.attendance_pct! < 75).length, color: BLUE_SHADES[2] },
+      { label: "Below 65% · not eligible", count: rows.filter((s) => s.attendance_pct! < 65).length, color: BLUE_SHADES[3] },
     ];
     return bands.map((b) => ({ ...b, share: total > 0 ? `${Math.round((b.count / total) * 100)}%` : "0%" }));
   }, [sample]);
 
-  const lensRows = useMemo(() => {
+  const lensRowsUnfiltered = useMemo(() => {
     if (lens === "Attendance below 75%") return below75?.students ?? [];
     const rows = sample?.students ?? [];
     if (lens === "CGPA above 8.5") return rows.filter((s) => s.cgpa !== null && s.cgpa >= 8.5);
     if (lens === "CGPA below 7") return rows.filter((s) => s.cgpa !== null && s.cgpa < 7);
     return []; // "With arrears" — no per-student field exists, see aggregate callout below instead
   }, [lens, below75, sample]);
+
+  // Distinct semesters actually present in this lens, so the dropdown never
+  // offers a semester that would just filter down to an empty table.
+  const availableSemesters = useMemo(
+    () => Array.from(new Set(lensRowsUnfiltered.map((r) => r.semester).filter((s): s is number => s !== null))).sort((a, b) => a - b),
+    [lensRowsUnfiltered],
+  );
+  const lensRows = useMemo(
+    () => (semesterFilter === "all" ? lensRowsUnfiltered : lensRowsUnfiltered.filter((r) => r.semester === semesterFilter)),
+    [lensRowsUnfiltered, semesterFilter],
+  );
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (semesterFilter !== "all" && !availableSemesters.includes(semesterFilter)) setSemesterFilter("all");
+  }, [availableSemesters, semesterFilter]);
 
   const facAttendanceById = useMemo(() => {
     const map = new Map<number, number>();
@@ -314,11 +336,24 @@ export default function SecretaryReportsPage() {
       <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
         <div data-sec-row="" style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 24px", borderBottom: "1px solid #eef2f7", flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontSize: 15.7, fontWeight: 700 }}>Students needing attention</h2>
-          <div style={{ display: "flex", gap: 8, marginLeft: 20 }}>
+          <div style={{ display: "flex", gap: 8, marginLeft: 20, flexWrap: "wrap" }}>
             {STUDENT_LENSES.map((l) => (
               <button key={l} data-sec-nav-item="" onClick={() => setLens(l)} style={{ border: lens === l ? "1px solid #c7d7fe" : "1px solid #e5e9f2", background: lens === l ? "#eef4ff" : "#ffffff", color: lens === l ? "#1e3a8a" : "#475569", fontSize: 11.7, fontWeight: lens === l ? 600 : 500, borderRadius: 999, padding: "8px 16px", cursor: "pointer" }}>{l}</button>
             ))}
           </div>
+          {lens !== "With arrears" && availableSemesters.length > 1 && (
+            <select
+              aria-label="Filter by semester"
+              value={semesterFilter}
+              onChange={(e) => setSemesterFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
+              style={{ border: "1px solid #e5e9f2", background: "#ffffff", color: "#334155", fontSize: 11.7, fontWeight: 500, borderRadius: 9, padding: "8px 12px", cursor: "pointer" }}
+            >
+              <option value="all">All semesters</option>
+              {availableSemesters.map((s) => (
+                <option key={s} value={s}>Semester {s}</option>
+              ))}
+            </select>
+          )}
           <span style={{ marginLeft: "auto", fontSize: 11.7, color: "#64748b" }}>{lens === "With arrears" ? `${examsOverview?.students_with_arrears ?? 0} students (${deptName} total)` : `${lensRows.length} students listed`}</span>
         </div>
         {lens === "With arrears" ? (

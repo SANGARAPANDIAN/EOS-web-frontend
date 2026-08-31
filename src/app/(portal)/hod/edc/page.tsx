@@ -121,7 +121,7 @@ export default function HodEdcPage() {
           <Select
             value={batchId ?? "all"}
             onChange={(e) => setBatchId(e.target.value === "all" ? null : Number(e.target.value))}
-            className="max-w-[180px] font-bold"
+            className="w-auto min-w-[140px] font-bold"
           >
             <option value="all">All batches</option>
             {(o?.filters.batches ?? []).map((b) => (
@@ -133,7 +133,7 @@ export default function HodEdcPage() {
           <Select
             value={departmentId ?? "all"}
             onChange={(e) => setDepartmentId(e.target.value === "all" ? null : Number(e.target.value))}
-            className="max-w-[200px] font-bold"
+            className="w-auto min-w-[160px] font-bold"
           >
             <option value="all">My department</option>
             {(o?.filters.departments ?? []).map((d) => (

@@ -11,8 +11,7 @@ import {
   type FundingSourceCategory,
   type FundingStatus,
 } from "@/modules/edc/api/funding";
-import { useEdcEntrepreneurship, type StudentSearchResult } from "@/modules/edc/api/entrepreneurship";
-import { useSearchStudentsForEdc } from "@/modules/edc/api/entrepreneurship";
+import { useSearchStudentsForEdc, type StudentSearchResult } from "@/modules/edc/api/entrepreneurship";
 import { pillSx, barSx } from "@/modules/edc/genericPage";
 
 // Real backend connection — GET/POST/DELETE /me/edc-funding, added this
@@ -40,7 +39,6 @@ function statusTone(status: FundingStatus) {
 export default function EdcFundingPage() {
   const stats = useFundingStats();
   const records = useFundingRecords();
-  const ventures = useEdcEntrepreneurship();
   const create = useCreateFundingRecord();
   const remove = useDeleteFundingRecord();
 
@@ -71,13 +69,13 @@ export default function EdcFundingPage() {
   }
 
   function submit() {
-    if (!student || !form.amount || !form.disbursed_date) {
+    if (!student || !student.student_entrepreneurship_id || !form.amount || !form.disbursed_date) {
       setError("Pick a venture, amount and date are required.");
       return;
     }
     create.mutate(
       {
-        student_entrepreneurship_id: student.id,
+        student_entrepreneurship_id: student.student_entrepreneurship_id,
         source_category: form.source_category,
         source_detail: form.source_detail || undefined,
         amount: Number(form.amount),
@@ -234,15 +232,32 @@ export default function EdcFundingPage() {
               ) : (
                 <>
                   <input value={studentQuery} onChange={(e) => setStudentQuery(e.target.value)} placeholder="Search by roll number or name…" style={inputSx} />
-                  {studentQuery.trim().length >= 2 && (
-                    <div style={{ maxHeight: 140, overflowY: "auto", border: "1px solid #E2E8F0", borderRadius: 10 }}>
-                      {(studentSearch.data ?? []).filter((s) => ventures.data?.some((v) => v.student.id === s.id)).map((s) => (
-                        <div key={s.id} onClick={() => { setStudent(s); setStudentQuery(""); }} style={{ padding: "9px 13px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #F1F5F9" }}>
-                          {s.name} · {s.student_id_no}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {studentQuery.trim().length >= 2 && (() => {
+                    const matches = (studentSearch.data ?? []).filter((s) => s.has_venture && s.student_entrepreneurship_id != null);
+                    return (
+                      <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid #E2E8F0", borderRadius: 10 }}>
+                        {studentSearch.isLoading && (
+                          <div style={{ padding: "10px 13px", fontSize: 12.5, color: "#94A3B8" }}>Searching…</div>
+                        )}
+                        {!studentSearch.isLoading && matches.length === 0 && (
+                          <div style={{ padding: "10px 13px", fontSize: 12.5, color: "#94A3B8" }}>No student with a registered venture matches this search.</div>
+                        )}
+                        {matches.map((s) => {
+                          const rollNumber = s.roll_no ?? s.register_no ?? s.student_id_no;
+                          return (
+                            <div
+                              key={s.id}
+                              onClick={() => { setStudent(s); setStudentQuery(""); }}
+                              style={{ padding: "9px 13px", cursor: "pointer", borderBottom: "1px solid #F1F5F9" }}
+                            >
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                              <div style={{ fontSize: 11.5, color: "#94A3B8" }}>{rollNumber}{s.department ? ` · ${s.department.code}` : ""}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   <div style={{ fontSize: 11.5, color: "#94A3B8" }}>Only students with a registered venture can receive funding.</div>
                 </>
               )}

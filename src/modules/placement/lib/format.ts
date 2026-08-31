@@ -79,6 +79,14 @@ export function rosterStatusLabel(status: ApplicationStatus | null): string {
   return "In process";
 }
 
+/** Opt-out overrides eligibility in display — a student who opted out isn't meaningfully "eligible" or "not eligible" for this cycle anymore. Shared by the Students list and its PDF export so the two never drift apart. */
+export function eligibilityLabel(r: { placementEligible: boolean | null; placementOptedOut: boolean }): string {
+  if (r.placementOptedOut) return "Opted out";
+  if (r.placementEligible === true) return "Eligible";
+  if (r.placementEligible === false) return "Not eligible";
+  return "Not assessed";
+}
+
 /** Per-round stage label — used by the drive detail student list and the student profile's application history. */
 export function applicationStageLabel(status: ApplicationStatus): string {
   if (status === "placed") return "Selected";

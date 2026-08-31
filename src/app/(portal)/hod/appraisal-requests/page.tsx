@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Avatar, Badge, Button, PillTabs, Textarea, SkeletonTable, Modal } from "@/components/ui";
+import { Avatar, Badge, Button, Icon, PillTabs, Textarea, SkeletonTable, Modal } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import {
   useHodAppraisalRequests,
@@ -51,9 +51,21 @@ export default function HodAppraisalRequestsPage() {
     {
       key: "entries",
       header: "Entries",
-      width: "80px",
+      width: "110px",
       align: "right",
-      render: (r) => <span className="text-[13.5px] font-bold text-ink">{r.entries_count}</span>,
+      render: (r) => (
+        <div className="flex items-center justify-end gap-2">
+          {r.attachments_count > 0 && (
+            <span
+              className="flex items-center gap-0.5 text-[11.5px] font-bold text-muted"
+              title={`${r.attachments_count} supporting document${r.attachments_count === 1 ? "" : "s"}`}
+            >
+              <Icon name="attach_file" size={13} /> {r.attachments_count}
+            </span>
+          )}
+          <span className="text-[13.5px] font-bold text-ink">{r.entries_count}</span>
+        </div>
+      ),
     },
     {
       key: "self_score",

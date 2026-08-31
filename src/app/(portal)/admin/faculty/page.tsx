@@ -7,16 +7,19 @@ import { Icon } from "@/components/ui/Icon";
 import { ApiError } from "@/types/api";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { BulkActionsBar, Button, Input, KpiCard, NumberedPagination, PageHeader, useToast } from "@/modules/admin/components/ui";
-import { useFaculties, type Faculty } from "@/modules/admin/api/faculty";
+import { fetchFacultyById, useFaculties, type Faculty } from "@/modules/admin/api/faculty";
+import { useFacultyIdCardBulkStatus, useIssueFacultyIdCard } from "@/modules/admin/api/facultyIdCard";
 import { useFacultyPreferences, FACULTY_LIST_COLUMNS } from "@/modules/admin/lib/faculty-preferences";
-import { fullName } from "@/modules/admin/lib/faculty-format";
+import { formatFacultyCode, fullName } from "@/modules/admin/lib/faculty-format";
+import { facultyToIdCardData } from "@/modules/admin/lib/id-card-data";
 import { DESIGNATION_OPTIONS } from "@/modules/admin/lib/faculty-wizard-config";
 import { exportFacultyRosterPdf } from "@/modules/admin/lib/faculty-report-pdfs";
 import { FacultyTable } from "@/modules/admin/components/faculty/FacultyTable";
 import { FacultyFiltersBar, type FacultyFiltersValue } from "@/modules/admin/components/faculty/FacultyFiltersBar";
 import { FacultyQuickViewDrawer } from "@/modules/admin/components/faculty/FacultyQuickViewDrawer";
 import { FacultyImportModal } from "@/modules/admin/components/faculty/FacultyImportModal";
-import { FacultyIdCardModal } from "@/modules/admin/components/faculty/FacultyIdCardModal";
+import { FacultyAvatar } from "@/modules/admin/components/faculty/FacultyAvatar";
+import { IdCardModal } from "@/modules/admin/components/shared/IdCardModal";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 15 }, (_, i) => CURRENT_YEAR - i);
@@ -36,6 +39,9 @@ export default function FacultyListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [idCardFaculty, setIdCardFaculty] = useState<Faculty[] | null>(null);
+  const idCardFacultyIds = useMemo(() => (idCardFaculty ?? []).map((f) => f.id), [idCardFaculty]);
+  const { data: idCardStatusMap, isLoading: idCardStatusLoading } = useFacultyIdCardBulkStatus(idCardFacultyIds);
+  const issueFacultyIdCard = useIssueFacultyIdCard();
 
   const { data, isLoading, error } = useFaculties({
     department_id: filters.department_id,
@@ -228,7 +234,23 @@ export default function FacultyListPage() {
 
       <FacultyImportModal open={importOpen} onClose={() => setImportOpen(false)} />
 
-      <FacultyIdCardModal open={idCardFaculty !== null} onClose={() => setIdCardFaculty(null)} faculty={idCardFaculty ?? []} />
+      <IdCardModal
+        open={idCardFaculty !== null}
+        onClose={() => setIdCardFaculty(null)}
+        entities={(idCardFaculty ?? []).map((f) => ({
+          id: f.id,
+          avatar: <FacultyAvatar faculty={f} className="size-11 shrink-0 rounded-admin-md text-sm" />,
+          pickerAvatar: <FacultyAvatar faculty={f} className="size-7 rounded-admin-pill text-[10px]" />,
+          title: fullName(f),
+          subtitle: `${formatFacultyCode(f.id)} · ${f.designation} · ${f.department?.code ?? "—"}`,
+          data: facultyToIdCardData(f),
+        }))}
+        statusMap={idCardStatusMap}
+        statusLoading={idCardStatusLoading}
+        issueCard={(id) => issueFacultyIdCard.mutateAsync(id)}
+        fetchFullData={(id) => fetchFacultyById(id).then(facultyToIdCardData)}
+        onIssued={() => {}}
+      />
     </div>
   );
 }

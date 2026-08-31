@@ -39,6 +39,7 @@ export function LibraryShell({ children }: { children: React.ReactNode }) {
       header={{
         programLabel: "Library · Institution",
         showNotifications: true,
+        settingsHref: "/library/settings",
       }}
       search={{
         placeholder: "Jump to a page — books, issue, reports…",

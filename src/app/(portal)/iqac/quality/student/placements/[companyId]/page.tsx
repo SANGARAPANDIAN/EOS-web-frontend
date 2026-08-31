@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { DataTable, EmptyState, type DataTableColumn } from "@/components/ui";
+import { DataTable, EmptyState, ConfirmDialog, type DataTableColumn } from "@/components/ui";
 import { StatTile } from "@/modules/iqac/components/PageControls";
-import { useRecruiterStudents, type RecruiterStudentRow } from "@/modules/iqac/api/studentDevelopment";
+import { useRecruiterStudents, useDeletePlacementApplication, type RecruiterStudentRow } from "@/modules/iqac/api/studentDevelopment";
 import { AddPlacementEntryModal } from "@/modules/iqac/components/studentDevelopment/AddPlacementEntryModal";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -22,6 +22,21 @@ export default function RecruiterStudentsPage() {
   const companyId = Number(params.companyId);
   const drilldown = useRecruiterStudents(Number.isFinite(companyId) ? companyId : null);
   const [addingEntry, setAddingEntry] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<RecruiterStudentRow | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<RecruiterStudentRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteEntry = useDeletePlacementApplication();
+
+  async function confirmDelete() {
+    if (!deletingEntry) return;
+    setDeleteError(null);
+    try {
+      await deleteEntry.mutateAsync({ driveId: deletingEntry.drive_id, studentId: deletingEntry.student_id });
+      setDeletingEntry(null);
+    } catch (err: unknown) {
+      setDeleteError((err as { message?: string })?.message ?? "Could not delete this entry.");
+    }
+  }
 
   const students = drilldown.data?.students ?? [];
   const departments = new Set(students.map((s) => s.department_code).filter(Boolean));
@@ -49,6 +64,21 @@ export default function RecruiterStudentsPage() {
       { key: "offer_response", header: "Offer response", sortValue: (r) => r.offer_response ?? "", render: (r) => r.offer_response ?? "Not recorded" },
       { key: "status", header: "Status", sortValue: (r) => STATUS_LABEL[r.status] ?? r.status, render: (r) => STATUS_LABEL[r.status] ?? r.status },
       { key: "updated_at", header: "Last updated", sortValue: (r) => r.updated_at, render: (r) => r.updated_at },
+      {
+        key: "actions",
+        header: "",
+        width: "0.9fr",
+        render: (r) => (
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditingEntry(r)} className="text-[12.5px] font-bold text-primary hover:underline">
+              Edit
+            </button>
+            <button type="button" onClick={() => setDeletingEntry(r)} className="text-[12.5px] font-bold text-danger-fg hover:underline">
+              Delete
+            </button>
+          </div>
+        ),
+      },
     ],
     [],
   );
@@ -82,6 +112,27 @@ export default function RecruiterStudentsPage() {
           onCreated={() => drilldown.refetch()}
         />
       )}
+      {editingEntry && drilldown.data && (
+        <AddPlacementEntryModal
+          companyId={companyId}
+          companyName={drilldown.data.company_name}
+          editing={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onCreated={() => drilldown.refetch()}
+        />
+      )}
+      <ConfirmDialog
+        open={deletingEntry != null}
+        title="Delete this placement entry?"
+        description={deleteError ?? "This can't be undone."}
+        confirmLabel={deleteEntry.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeletingEntry(null);
+          setDeleteError(null);
+        }}
+      />
 
       {drilldown.isLoading && (
         <div className="rounded-card border border-border-default bg-surface p-5">

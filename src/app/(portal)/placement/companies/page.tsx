@@ -210,15 +210,14 @@ export default function CompaniesPage() {
       </div>
 
       <FilterBar>
-        <div className="min-w-[220px] flex-1">
-          <Input
-            leadingIcon="search"
-            placeholder="Search companies"
-            value={query}
-            onChange={(e) => resetPage(setQuery)(e.target.value)}
-          />
-        </div>
-        <Select value={industry} onChange={(e) => resetPage(setIndustry)(e.target.value)}>
+        <Input
+          leadingIcon="search"
+          placeholder="Search companies"
+          value={query}
+          onChange={(e) => resetPage(setQuery)(e.target.value)}
+          className="max-w-xs"
+        />
+        <Select value={industry} onChange={(e) => resetPage(setIndustry)(e.target.value)} className="w-44">
           <option value="">All industries</option>
           {COMPANY_INDUSTRIES.map((i) => (
             <option key={i} value={i}>
@@ -226,13 +225,13 @@ export default function CompaniesPage() {
             </option>
           ))}
         </Select>
-        <Select value={status} onChange={(e) => resetPage(setStatus)(e.target.value)}>
+        <Select value={status} onChange={(e) => resetPage(setStatus)(e.target.value)} className="w-44">
           <option value="">All statuses</option>
           <option value="returning">Returning</option>
           <option value="new">New</option>
           <option value="no_drives">Not yet recruited</option>
         </Select>
-        <Select value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+        <Select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="w-48">
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               Sort: {o.label}

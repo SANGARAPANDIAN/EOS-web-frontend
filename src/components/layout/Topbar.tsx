@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchBar } from "@/components/ui/SearchBar";
@@ -52,6 +53,8 @@ interface TopbarProps {
   search?: TopbarSearchConfig;
   /** Omit to hide the "+" button entirely — opt-in, same as `search`. */
   quickCreate?: TopbarQuickCreateConfig;
+  /** Route to a real per-module settings page — omit to hide the gear icon entirely. Only set this for a module with genuine configurable state; most modules have none yet and should omit it rather than link to an empty page. */
+  settingsHref?: string;
 }
 
 export function Topbar({
@@ -66,7 +69,9 @@ export function Topbar({
   showNotifications = true,
   search,
   quickCreate,
+  settingsHref,
 }: TopbarProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -199,6 +204,10 @@ export function Topbar({
             </div>
           )}
         </div>
+      )}
+
+      {settingsHref && (
+        <IconButton icon="settings" aria-label="Settings" onClick={() => router.push(settingsHref)} />
       )}
 
       {showNotifications && (

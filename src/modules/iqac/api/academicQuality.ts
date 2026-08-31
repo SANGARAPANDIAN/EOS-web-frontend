@@ -269,6 +269,31 @@ export function useAssignClassMentor() {
   });
 }
 
+/** PATCH /me/iqac/academic-quality/class-rows/:id — real classes-table update. */
+export function useUpdateClassRow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ classId, section }: { classId: number; section: string }) =>
+      apiClient.patch<CreatedClassRow>(`/me/iqac/academic-quality/class-rows/${classId}`, { section }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "grade-distribution"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/academic-quality/class-rows/:id — blocked server-side (409 CLASS_IN_USE) while any student is enrolled in the class. */
+export function useDeleteClassRow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (classId: number) => apiClient.delete(`/me/iqac/academic-quality/class-rows/${classId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "grade-distribution"] });
+    },
+  });
+}
+
 /** "2025-26" style — same June-cutoff convention used elsewhere in this app. */
 export function currentAcademicYearShort(): string {
   const now = new Date();

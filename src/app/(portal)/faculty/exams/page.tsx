@@ -1,202 +1,175 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSubjectRecords, useSubjectRecordDetail } from "@/modules/advisor/api/subject-records";
-import { useIsClassAdvisor } from "@/modules/advisor/api/profile";
+import { useMemo, useState } from "react";
+import { Card, Select, Input, Button, EmptyState, SkeletonTable } from "@/components/ui";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import {
+  useAdvisorExaminationFilters,
+  useAdvisorExaminationGrid,
+  downloadAdvisorExaminationGrid,
+  type AdvisorExaminationRow,
+} from "@/modules/advisor/api/examinations";
 
-// Examination & Results = VIEW-ONLY for the advisor's class(es). Marks
-// entry now lives entirely on Subject Records — this screen has no POST of
-// any kind. Per instruction: "the advisor can view all the exam marks that
-// students scored" for the class(es) they mentor, and unpublished marks
-// must never appear here.
-//
-// CONFIRMED REAL BACKEND LIMIT, not a frontend choice: the only endpoint
-// that lets a faculty read exam records at all (GET /me/subject-records) is
-// scoped to subjects THAT FACULTY personally teaches
-// (faculty_subject_class_mapping) — there is no endpoint anywhere that lets
-// an advisor read a class's marks for a subject taught by a DIFFERENT
-// faculty (e.g. an AI&DS class advisor viewing the ML subject's marks when
-// a different lecturer teaches ML). This view therefore shows every
-// published exam record for the advisor's own mentee class(es) — which is
-// correct and complete for any subject the advisor also teaches — and
-// surfaces this exact gap in the UI when a mentee class has no visible
-// records, rather than inventing other faculty's subjects. Extending this
-// to cross-faculty class-wide results would need a new backend endpoint
-// scoped by class_mentors instead of faculty_subject_class_mapping.
-
-function gradePill(grade: string) {
-  const isFail = grade === "RA";
-  return {
-    padding: "5px 12px",
-    borderRadius: 20,
-    background: isFail ? "#FEF2F2" : "#EFF6FF",
-    border: `1px solid ${isFail ? "#FECACA" : "#DBEAFE"}`,
-    color: isFail ? "#DC2626" : "#1D4ED8",
-    fontSize: 11.5,
-    fontWeight: 800,
-  } as const;
-}
-
+// Same class × exam-type marks grid HoD's Examinations & Results page
+// shows (built by the shared backend ExamResultsGridService), scoped to
+// the advisor's own mentee class(es) instead of a whole department —
+// real, published marks for every paper, not just ones the advisor
+// personally teaches. Replaces the old subject-records-based screen, which
+// could only show subjects the advisor taught themselves (no endpoint
+// existed to read a whole class's results across every teacher — see
+// AdvisorExaminationsService on the backend for that gap now being closed).
 export default function AdvisorExamsPage() {
-  const { isAdvisor, classes: menteeClasses, isLoading: advisorLoading } = useIsClassAdvisor();
-  const menteeClassIds = new Set(menteeClasses.map((c) => c.class_id));
+  const filters = useAdvisorExaminationFilters();
 
-  const records = useSubjectRecords();
-  const published = (records.data ?? []).filter((r) => r.is_published && menteeClassIds.has(r.class.id));
+  const [classId, setClassId] = useState<number | null>(null);
+  const [examTypeId, setExamTypeId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
-  const semesters = useMemo(() => Array.from(new Set(published.map((r) => r.exam.semester))).sort((a, b) => a - b), [published]);
-  const [sem, setSem] = useState<number | null>(null);
-  useEffect(() => {
-    if (sem === null && semesters.length) setSem(semesters[semesters.length - 1]);
-  }, [sem, semesters]);
+  const classes = filters.data?.classes ?? [];
+  const effectiveClassId = classId ?? classes[0]?.class_id ?? null;
+  const effectiveExamTypeId = examTypeId ?? filters.data?.exam_types[0]?.id ?? null;
+  const selectedClass = classes.find((c) => c.class_id === effectiveClassId) ?? null;
 
-  const inSemester = published.filter((r) => r.exam.semester === sem);
-  const [mappingId, setMappingId] = useState<number | null>(null);
-  useEffect(() => {
-    if (inSemester.length && !inSemester.some((r) => r.exam_subject_mapping_id === mappingId)) {
-      setMappingId(inSemester[0].exam_subject_mapping_id);
+  const grid = useAdvisorExaminationGrid(effectiveClassId, effectiveExamTypeId);
+
+  const filteredRows = useMemo(() => {
+    const rows = grid.data?.rows ?? [];
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.register_no.toLowerCase().includes(q) || (r.name ?? "").toLowerCase().includes(q));
+  }, [grid.data, search]);
+
+  const columns: DataTableColumn<AdvisorExaminationRow>[] = useMemo(() => {
+    const deptCode = grid.data?.department.code ?? "";
+    const sectionLabel = grid.data?.class.section ?? "";
+    const subjectCols: DataTableColumn<AdvisorExaminationRow>[] = (grid.data?.subjects ?? []).map((s, i) => ({
+      key: `subject-${s.id}`,
+      header: (
+        <div className="max-w-[160px]" title={s.name}>
+          <div className="font-extrabold text-ink normal-case tracking-normal">{s.code}</div>
+          <div className="mt-0.5 truncate font-medium text-subtle normal-case tracking-normal">{s.name}</div>
+        </div>
+      ),
+      width: "110px",
+      render: (row) => <span className="text-[13px] text-ink">{row.marks[i] ?? "—"}</span>,
+    }));
+
+    return [
+      {
+        key: "register_no",
+        header: "Register No.",
+        width: "130px",
+        render: (row) => <span className="text-[13.5px] font-extrabold text-ink">{row.register_no}</span>,
+      },
+      {
+        key: "name",
+        header: "Candidate",
+        width: "1.6fr",
+        render: (row) => <span className="text-[13.5px] font-bold text-ink">{row.name ?? "—"}</span>,
+      },
+      { key: "dept", header: "Dept", width: "60px", render: () => <span className="text-[13px] text-subtle">{deptCode}</span> },
+      { key: "sec", header: "Sec", width: "50px", render: () => <span className="text-[13px] text-subtle">{sectionLabel}</span> },
+      ...subjectCols,
+      {
+        key: "average",
+        header: "Average",
+        width: "90px",
+        align: "right",
+        render: (row) => (
+          <span className="text-[13.5px] font-extrabold text-ink">{row.average_percent != null ? `${row.average_percent}%` : "—"}</span>
+        ),
+      },
+    ];
+  }, [grid.data]);
+
+  async function handleDownload() {
+    if (!selectedClass || !effectiveExamTypeId || !grid.data) return;
+    setDownloading(true);
+    try {
+      const filename = `examinations-${grid.data.department.code}-${grid.data.class.year_label}${grid.data.class.section}-${grid.data.exam_type.name}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-");
+      await downloadAdvisorExaminationGrid(selectedClass.class_id, effectiveExamTypeId, `${filename}.xlsx`);
+    } finally {
+      setDownloading(false);
     }
-  }, [inSemester, mappingId]);
-
-  const active = inSemester.find((r) => r.exam_subject_mapping_id === mappingId);
-  const detail = useSubjectRecordDetail(mappingId ?? undefined);
-
-  if (!advisorLoading && !isAdvisor) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "#94A3B8", fontWeight: 600 }}>
-        You are not a class advisor for any class — Examination &amp; Results is only available to class advisors.
-      </div>
-    );
   }
 
+  const breadcrumb = grid.data
+    ? `${grid.data.candidates} candidates · ${grid.data.class.batch_label} · Semester ${grid.data.class.semester} · ${grid.data.department.code} · Section ${grid.data.class.section} · ${grid.data.exam_type.name}`
+    : "";
+
+  const anyError = filters.isError || grid.isError;
+  const noMenteeClass = !filters.isLoading && classes.length === 0;
+
   return (
-    <div style={{ width: "100%" }}>
-      <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>Examination &amp; Results</div>
-      <div style={{ marginTop: 6, fontSize: 14, color: "#64748B", fontWeight: 500 }}>
-        Published results for {menteeClasses.map((c) => c.label).join(", ") || "your class"} · view only
-      </div>
-
-      <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px", marginTop: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>SEMESTER</div>
-            <select
-              value={sem ?? ""}
-              onChange={(e) => {
-                setSem(Number(e.target.value));
-                setMappingId(null);
-              }}
-              style={{ width: "100%", marginTop: 9, height: 44, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 14px", fontFamily: "inherit", fontSize: 13.5, fontWeight: 600, color: "#0F172A", background: "#F8FAFC" }}
-            >
-              {semesters.map((s) => (
-                <option key={s} value={s}>
-                  Semester {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>CLASS · SUBJECT · EXAM</div>
-            <select
-              value={mappingId ?? ""}
-              onChange={(e) => setMappingId(Number(e.target.value))}
-              style={{ width: "100%", marginTop: 9, height: 44, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 14px", fontFamily: "inherit", fontSize: 13.5, fontWeight: 600, color: "#0F172A", background: "#F8FAFC" }}
-            >
-              {inSemester.map((o) => (
-                <option key={o.exam_subject_mapping_id} value={o.exam_subject_mapping_id}>
-                  {o.class.label} · {o.subject.subject_code} {o.subject.name} · {o.exam.type}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, paddingTop: 14, borderTop: "1px solid #F1F4F9", flexWrap: "wrap" }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#475569" }}>{inSemester.length} published record{inSemester.length === 1 ? "" : "s"} this semester</div>
-        </div>
-      </div>
-
-      {published.length === 0 && !records.isLoading && (
-        <div style={{ marginTop: 20, padding: 40, textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 14, lineHeight: 1.6 }}>
-          No published exam records yet for {menteeClasses.map((c) => c.label).join(", ") || "your class"}.
-          <br />
-          Only subjects you also teach can be shown here — the backend has no endpoint yet for an advisor to view a subject taught by a different faculty.
+    <div className="flex flex-col gap-5 animate-pop-in">
+      {anyError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load examination data — please try again.
         </div>
       )}
+      <div>
+        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Examinations &amp; Results</h1>
+        <p className="mt-1 text-[13px] text-muted">Paper-wise marks and grades for every candidate in your class</p>
+      </div>
 
-      {active && (
-        <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, marginTop: 20, overflow: "hidden" }}>
-          <div style={{ padding: "22px 24px" }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>RESULT</div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 8 }}>
-              {active.class.label} · {active.subject.subject_code} {active.subject.name}
-            </div>
-            <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 600, marginTop: 4 }}>{active.exam.type} · {active.exam.academic_year}</div>
-
-            {detail.data && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 12, marginTop: 18 }}>
-                <div data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 11, padding: "13px 14px" }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.08em", color: "#94A3B8" }}>STRENGTH</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 5 }}>{detail.data.total_students}</div>
-                </div>
-                <div data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 11, padding: "13px 14px" }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.08em", color: "#94A3B8" }}>ENTERED</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 5 }}>{active.entered_count}</div>
-                </div>
-                <div data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 11, padding: "13px 14px" }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.08em", color: "#94A3B8" }}>ARREARS</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 5 }}>{detail.data.grade_distribution.find((g) => g.grade === "RA")?.count ?? 0}</div>
-                </div>
+      {noMenteeClass ? (
+        <Card>
+          <EmptyState message="You aren't the class advisor for any class yet — this view only covers your own mentee class(es)." />
+        </Card>
+      ) : (
+        <>
+          <Card className="hod-hover-card">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-[13px] font-bold text-ink">Class</label>
+                <Select value={effectiveClassId ?? ""} onChange={(e) => setClassId(Number(e.target.value))}>
+                  {classes.map((c) => (
+                    <option key={c.class_id} value={c.class_id}>
+                      {c.year_label}-{c.section} · {c.department?.code ?? "—"} · {c.batch_label}
+                    </option>
+                  ))}
+                </Select>
               </div>
-            )}
+              <div>
+                <label className="mb-1.5 block text-[13px] font-bold text-ink">Examination type</label>
+                <Select value={effectiveExamTypeId ?? ""} onChange={(e) => setExamTypeId(Number(e.target.value))}>
+                  {(filters.data?.exam_types ?? []).map((et) => (
+                    <option key={et.id} value={et.id}>
+                      {et.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-[13px] text-muted">{breadcrumb}</span>
+            <div className="flex items-center gap-3">
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search register no. or candidate" className="w-[280px]" />
+              <Button variant="primarySmall" onClick={handleDownload} disabled={!grid.data || downloading}>
+                {downloading ? "Preparing…" : "Download Excel"}
+              </Button>
+            </div>
           </div>
 
-          {detail.data && (
-            <>
-              <div style={{ padding: "0 24px 22px" }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8", marginBottom: 10 }}>GRADE DISTRIBUTION</div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {detail.data.grade_distribution.map((g) => (
-                    <div key={g.grade} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={gradePill(g.grade)}>{g.grade}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700 }}>{g.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "0.6fr 2.4fr 1.2fr 1fr",
-                  padding: "13px 24px",
-                  background: "#F8FAFC",
-                  borderTop: "1px solid #EEF1F6",
-                  borderBottom: "1px solid #EEF1F6",
-                  fontSize: 10.5,
-                  fontWeight: 800,
-                  letterSpacing: "0.09em",
-                  color: "#94A3B8",
-                }}
-              >
-                <div>RANK</div>
-                <div>STUDENT</div>
-                <div>ROLL NO</div>
-                <div>SCORE</div>
-              </div>
-              {detail.data.toppers.map((t) => (
-                <div key={t.rank} style={{ display: "grid", gridTemplateColumns: "0.6fr 2.4fr 1.2fr 1fr", padding: "13px 24px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#1D4ED8" }}>#{t.rank}</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>{t.roll_no}</div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700 }}>{t.score}</div>
-                </div>
-              ))}
-              {detail.data.toppers.length === 0 && (
-                <div style={{ padding: "20px 24px", fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>No marks entered yet.</div>
-              )}
-            </>
-          )}
-        </div>
+          <Card className="p-0">
+            <div className="flex items-baseline gap-2 border-b border-divider px-5 py-4">
+              <span className="text-[17px] font-extrabold text-ink">{grid.data?.department.code ?? ""}</span>
+              <span className="text-[13px] text-muted">{grid.data ? `${grid.data.candidates} candidates · ${grid.data.papers} papers` : ""}</span>
+            </div>
+            {grid.isLoading || filters.isLoading ? (
+              <SkeletonTable rows={8} className="rounded-none border-0 bg-transparent" />
+            ) : anyError ? null : !grid.data || grid.data.papers === 0 ? (
+              <EmptyState message="No examination found for this selection." />
+            ) : (
+              <DataTable columns={columns} data={filteredRows} rowKey={(r) => r.student_id} rowClassName="hod-hover-row" />
+            )}
+          </Card>
+        </>
       )}
     </div>
   );

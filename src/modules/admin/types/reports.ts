@@ -14,14 +14,14 @@ export interface AdminReportGroup {
 }
 
 /**
- * Labels/descriptions mirror the old console's ADMIN_REPORT_CATALOG exactly
- * (src/modules/admin/types/reports.ts in EOSfrontendweb), which aggregates
- * report definitions owned by the Hostel, Library and IQAC modules. Those
- * modules — and their preview/PDF/Excel-export endpoints — haven't been
- * migrated into this codebase yet (a separate phase), so this catalog is
- * kept here as a faithful list of what exists, with the page itself showing
- * an honest "not wired up here yet" state per entry rather than a broken or
- * fabricated preview.
+ * Every entry here is real and wired up (see modules/admin/api/reports.ts):
+ * Hostel/Library/IQAC's report controllers all already exist in
+ * EOSbackend1 with PDF/Excel export and already permit ADMIN — this
+ * catalog is just the menu the Admin Reports page renders from. `key`
+ * matches the backend route segment exactly for every entry (IQAC's are
+ * hyphenated — venue-bookings/student-ods/faculty-ods — not the
+ * underscored values IqacReportBundleQueryDto's `types` param uses; this
+ * page calls each report's own GET route directly, not the bundle route).
  */
 export const ADMIN_REPORT_CATALOG: AdminReportGroup[] = [
   {
@@ -97,19 +97,19 @@ export const ADMIN_REPORT_CATALOG: AdminReportGroup[] = [
     entries: [
       {
         module: "iqac",
-        key: "venue_bookings",
+        key: "venue-bookings",
         label: "Venue bookings",
         description: "Every venue booking request in the period, with its decision.",
       },
       {
         module: "iqac",
-        key: "student_ods",
+        key: "student-ods",
         label: "Student on-duty",
         description: "Student on-duty requests, mentor status and document verification.",
       },
       {
         module: "iqac",
-        key: "faculty_ods",
+        key: "faculty-ods",
         label: "Faculty on-duty",
         description: "Faculty on-duty requests, HoD/HR status and document verification.",
       },

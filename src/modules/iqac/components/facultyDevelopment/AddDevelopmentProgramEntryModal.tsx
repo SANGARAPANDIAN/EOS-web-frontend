@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui";
-import { useAddFdpEntry, useAddSttpEntry } from "@/modules/iqac/api/facultyDevelopment";
+import { useAddFdpEntry, useAddSttpEntry, useUpdateFdpEntry, useUpdateSttpEntry, type DevelopmentProgramRow } from "@/modules/iqac/api/facultyDevelopment";
 import type { FacultyRow } from "@/modules/iqac/api/faculty";
 import { FacultyPicker } from "./FacultyPicker";
 
@@ -17,31 +17,52 @@ export function AddDevelopmentProgramEntryModal({
   kind,
   onClose,
   onCreated,
+  editing,
 }: {
   kind: "fdp" | "sttp";
   onClose: () => void;
   onCreated: () => void;
+  /** Editing an existing entry — the faculty can't be changed here (delete + re-add for that). */
+  editing?: DevelopmentProgramRow;
 }) {
-  const addFdp = useAddFdpEntry();
-  const addSttp = useAddSttpEntry();
-  const addEntry = kind === "fdp" ? addFdp : addSttp;
+  const isEditing = editing != null;
+  const createFdp = useAddFdpEntry();
+  const createSttp = useAddSttpEntry();
+  const updateFdp = useUpdateFdpEntry();
+  const updateSttp = useUpdateSttpEntry();
+  const create = kind === "fdp" ? createFdp : createSttp;
+  const update = kind === "fdp" ? updateFdp : updateSttp;
 
   const [faculty, setFaculty] = useState<FacultyRow | null>(null);
-  const [programmeName, setProgrammeName] = useState("");
-  const [hostAgency, setHostAgency] = useState("");
-  const [duration, setDuration] = useState("");
-  const [attendedOn, setAttendedOn] = useState("");
-  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>("completed");
+  const [programmeName, setProgrammeName] = useState(editing?.programme_name ?? "");
+  const [hostAgency, setHostAgency] = useState(editing?.host_agency ?? "");
+  const [duration, setDuration] = useState(editing?.duration ?? "");
+  const [attendedOn, setAttendedOn] = useState(editing?.attended_on?.slice(0, 10) ?? "");
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>((editing?.status as (typeof STATUS_OPTIONS)[number]["value"]) ?? "completed");
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    if (isEditing) {
+      setError(null);
+      try {
+        await update.mutateAsync({
+          id: editing.id,
+          input: { programme_name: programmeName.trim(), host_agency: hostAgency.trim() || undefined, duration: duration.trim() || undefined, attended_on: attendedOn || undefined, status },
+        });
+        onCreated();
+        onClose();
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message ?? "Could not save this entry.");
+      }
+      return;
+    }
     if (!faculty || !programmeName.trim()) {
       setError("Faculty and programme name are both required.");
       return;
     }
     setError(null);
     try {
-      await addEntry.mutateAsync({
+      await create.mutateAsync({
         faculty_id: faculty.id,
         programme_name: programmeName.trim(),
         host_agency: hostAgency.trim() || undefined,
@@ -57,9 +78,16 @@ export function AddDevelopmentProgramEntryModal({
   }
 
   return (
-    <Modal open onClose={onClose} title="Add faculty entry" subtitle={kind === "fdp" ? "Faculty Development Programmes" : "Short Term Training Programmes"}>
+    <Modal open onClose={onClose} title={isEditing ? "Edit faculty entry" : "Add faculty entry"} subtitle={kind === "fdp" ? "Faculty Development Programmes" : "Short Term Training Programmes"}>
       <div className="flex flex-col gap-4">
-        <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        {isEditing ? (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Faculty</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.faculty.name}</div>
+          </div>
+        ) : (
+          <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        )}
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Programme</div>
@@ -127,10 +155,10 @@ export function AddDevelopmentProgramEntryModal({
           <button
             type="button"
             onClick={submit}
-            disabled={addEntry.isPending}
+            disabled={create.isPending || update.isPending}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {addEntry.isPending ? "Saving…" : "Save"}
+            {create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useStudentsSearch, useStudentProfile } from "@/modules/secretary/api/overview";
 import { tone } from "@/modules/secretary/helpers";
 import { PrintProfileStyles, PrintLetterhead } from "@/modules/secretary/PrintProfile";
+import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
 
 // Pixel-exact layout port of the `isStudentProfile` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1886-2086.
@@ -267,27 +268,14 @@ export default function StudentProfilePage() {
         )}
       </div>
 
-      {/* Current semester subjects */}
+      {/* Examinations & results — shared SubjectMarksTable (same component and
+          data source, GET /exam-marks?student_id=, as Admin/HoD/Faculty/
+          Principal use) instead of a pre-summed internal total. */}
       <div data-sec-lift="" style={{ ...cardSx, padding: 0, overflow: "hidden" }}>
-        <h2 style={{ margin: 0, padding: "20px 24px 0", fontSize: 15.7, fontWeight: 700 }}>Current semester subjects</h2>
-        {p.current_semester_subjects.length === 0 ? (
-          <div style={{ padding: 24, fontSize: 12.6, color: "#94a3b8" }}>No exam marks recorded for the current semester yet.</div>
-        ) : (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 0.8fr", gap: 12, padding: "14px 24px", borderTop: "1px solid #eef2f7", fontSize: 10.8, fontWeight: 700, letterSpacing: 0.5, color: "#94a3b8", textTransform: "uppercase" }}>
-              <span>Subject</span><span>Internal</span><span>End sem</span><span>Total</span><span>Grade</span>
-            </div>
-            {p.current_semester_subjects.map((s) => (
-              <div key={s.code} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 0.8fr", gap: 12, padding: "14px 24px", borderTop: "1px solid #f5f7fa", alignItems: "center" }}>
-                <div><div style={{ fontSize: 13.1, fontWeight: 600 }}>{s.name}</div><div style={{ fontSize: 10.8, color: "#94a3b8" }}>{s.code}</div></div>
-                <span style={{ fontSize: 12.6 }}>{s.internal ?? "—"}/50</span>
-                <span style={{ fontSize: 12.6 }}>{s.external ?? "—"}/100</span>
-                <span style={{ fontSize: 12.6, fontWeight: 700 }}>{s.total}</span>
-                <span style={{ fontSize: 11.7, fontWeight: 700, color: s.grade === "RA" ? "#b91c1c" : "#0f172a" }}>{s.grade}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <h2 style={{ margin: 0, padding: "20px 24px 0", fontSize: 15.7, fontWeight: 700 }}>Examinations & results</h2>
+        <div style={{ padding: 24 }}>
+          <SubjectMarksTable studentId={p.id} />
+        </div>
       </div>
 
       {/* Fees, scholarship, hostel/transport */}

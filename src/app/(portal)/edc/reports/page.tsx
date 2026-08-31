@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useEdcReportStats, useEdcReportLibrary, useGenerateVentureReport } from "@/modules/edc/api/reports";
 import { pillSx, barSx } from "@/modules/edc/genericPage";
+import { currentInstitutionSemesterParity } from "@/lib/utils/date";
 
 // Real backend connection — GET /me/edc-reports/stats + /library,
 // GET /me/edc-reports/venture-table (real Excel/PDF export), added this
@@ -17,25 +18,30 @@ function statusTone(status: string) {
   return pillSx("blue");
 }
 
-const inputSx = { height: 40, padding: "0 12px", border: "1px solid #E2E8F0", borderRadius: 9, background: "#fff", fontFamily: "inherit", fontSize: 13.5, color: "#0F172A", outline: "none", width: "100%" } as const;
-
 export default function EdcReportsPage() {
   const stats = useEdcReportStats();
   const library = useEdcReportLibrary();
   const generate = useGenerateVentureReport();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [periodLabel, setPeriodLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const maxDept = Math.max(1, ...(stats.data?.department_breakdown.map((d) => d.count) ?? [1]));
 
+  // No more "enter a period label" popup — every real venture is exported
+  // regardless of period (see useGenerateVentureReport), so the label is
+  // purely descriptive for the Report Library. Derived the same way every
+  // other topbar/report in this app computes "current period", instead of
+  // asking the user to type it by hand.
+  function periodLabel() {
+    const now = new Date();
+    return `${now.getFullYear()} ${currentInstitutionSemesterParity(now)}`;
+  }
+
   function generateAndLog(format: "excel" | "pdf") {
-    if (!periodLabel.trim()) {
-      setError("Enter a period label (e.g. \"2026 Odd Semester\").");
-      return;
-    }
     setError(null);
-    generate.mutate({ format, periodLabel: periodLabel.trim() }, { onSuccess: () => setModalOpen(false) });
+    generate.mutate(
+      { format, periodLabel: periodLabel() },
+      { onError: (e) => setError(e instanceof Error ? e.message : "Failed to generate report.") },
+    );
   }
 
   return (
@@ -45,10 +51,24 @@ export default function EdcReportsPage() {
           <h1 style={{ margin: "0 0 8px", fontSize: 38, fontWeight: 800, letterSpacing: "-0.025em" }}>Reports</h1>
           <p style={{ margin: 0, fontSize: 15.5, color: "#64748B" }}>Institution-wide EDC activity report, exportable for AICTE/NIRF/IIC returns.</p>
         </div>
-        <div data-edc-btn-primary="" onClick={() => setModalOpen(true)} style={{ padding: "12px 20px", borderRadius: 11, background: "#1D4ED8", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
-          + Generate Report
+        <div style={{ display: "flex", gap: 10 }}>
+          <div
+            onClick={() => generateAndLog("excel")}
+            style={{ padding: "12px 20px", borderRadius: 11, border: "1px solid #E2E8F0", fontSize: 14, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            {generate.isPending ? "Generating…" : "Export Excel"}
+          </div>
+          <div
+            data-edc-btn-primary=""
+            onClick={() => generateAndLog("pdf")}
+            style={{ padding: "12px 20px", borderRadius: 11, background: "#1D4ED8", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            {generate.isPending ? "Generating…" : "Export PDF"}
+          </div>
         </div>
       </div>
+
+      {error && <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, color: "#DC2626", fontSize: 12.5, fontWeight: 600 }}>{error}</div>}
 
       {stats.isLoading && <div style={{ color: "#94A3B8", fontSize: 14 }}>Loading…</div>}
       {stats.isError && <div style={{ color: "#DC2626", fontWeight: 600, fontSize: 14 }}>{stats.error instanceof Error ? stats.error.message : "Failed to load report stats."}</div>}
@@ -118,28 +138,6 @@ export default function EdcReportsPage() {
           </div>
         ))}
       </div>
-
-      {modalOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setModalOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 26, width: 420, display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>Generate Report</div>
-            <p style={{ margin: 0, fontSize: 13, color: "#64748B" }}>Exports every real venture as an Excel or PDF table and logs it in the Report Library.</p>
-            {error && <div style={{ padding: "9px 12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: 12.5, fontWeight: 600 }}>{error}</div>}
-            <div>
-              <label style={{ fontSize: 11.5, fontWeight: 700, color: "#94A3B8", display: "block", marginBottom: 5 }}>PERIOD</label>
-              <input style={inputSx} value={periodLabel} onChange={(e) => setPeriodLabel(e.target.value)} placeholder="e.g. 2026 Odd Semester" />
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <div onClick={() => generateAndLog("excel")} data-edc-row="" style={{ flex: 1, textAlign: "center", padding: "11px 0", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
-                {generate.isPending ? "Generating…" : "Export Excel"}
-              </div>
-              <div onClick={() => generateAndLog("pdf")} data-edc-btn-primary="" style={{ flex: 1, textAlign: "center", padding: "11px 0", borderRadius: 9, background: "#1D4ED8", color: "#fff", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
-                {generate.isPending ? "Generating…" : "Export PDF"}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

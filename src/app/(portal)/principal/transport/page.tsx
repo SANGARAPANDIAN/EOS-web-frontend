@@ -4,6 +4,314 @@ import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { useTransportList, useTransportBusDetail, type TransportBus } from "@/modules/principal/api/transport";
+import {
+  useTransportRoutes,
+  useTransportCrew,
+  useTransportMaintenance,
+  useTransportCompliance,
+  useTransportDashboard,
+} from "@/modules/principal/api/transportOps";
+
+type Tab = "overview" | "buses" | "routes" | "crew" | "maintenance" | "compliance";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "buses", label: "Buses" },
+  { key: "routes", label: "Routes" },
+  { key: "crew", label: "Drivers & crew" },
+  { key: "maintenance", label: "Maintenance" },
+  { key: "compliance", label: "Compliance" },
+];
+
+function SectionShell({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+      <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
+        <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
+          {title}
+        </div>
+        {description && (
+          <p className="mt-0.5 text-[13px]" style={{ color: principalColors.textFaint }}>
+            {description}
+          </p>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function stateBadge(state: string | null): { label: string; fg: string; bg: string; bd: string } {
+  switch (state) {
+    case "expired":
+      return { label: "Expired", fg: "#B42318", bg: "#FEF0EE", bd: "#F7C3BB" };
+    case "due_soon":
+    case "soon":
+      return { label: "Due soon", fg: "#92400E", bg: "#FEF3C7", bd: "#FBDE9A" };
+    case "missing":
+      return { label: "Missing", fg: principalColors.textFaint, bg: principalColors.surfaceMuted, bd: principalColors.borderLight };
+    default:
+      return { label: "Valid", fg: "#1B7A3D", bg: "#E9F8EE", bd: "#BEE9CC" };
+  }
+}
+
+function OverviewTab() {
+  const dashboard = useTransportDashboard("today");
+  const d = dashboard.data;
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Total buses", value: d?.fleet.total_buses, footer: `${d?.fleet.buses_on_route ?? 0} on route` },
+          { label: "Routes", value: d?.routes_count, footer: undefined },
+          { label: "Students on transport", value: d?.ridership.students_on_transport, footer: d?.ridership.occupancy_percent != null ? `${d.ridership.occupancy_percent}% occupancy` : undefined },
+          { label: "Renewals due", value: d ? d.renewals.documents_due + d.renewals.service_due : undefined, footer: d ? `${d.renewals.documents_due} documents · ${d.renewals.service_due} service` : undefined },
+        ].map((tile) => (
+          <div key={tile.label} className="rounded-2xl border p-5" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
+            <div className="text-sm font-semibold" style={{ color: principalColors.textMuted }}>
+              {tile.label}
+            </div>
+            <div className="my-2.5 text-[32px] font-extrabold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
+              {tile.value ?? "—"}
+            </div>
+            {tile.footer && (
+              <div className="text-xs" style={{ color: principalColors.textFaint }}>
+                {tile.footer}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <SectionShell title="Needs attention" description="Real, threshold-triggered flags — licence/document expiry, service due, routes at capacity">
+        <div className="p-5">
+          {dashboard.isLoading && <p className="text-sm" style={{ color: principalColors.textFaint }}>Loading…</p>}
+          {!dashboard.isLoading && (d?.needs_attention.length ?? 0) === 0 && (
+            <p className="text-sm" style={{ color: principalColors.textFaint }}>Nothing needs attention right now.</p>
+          )}
+          <div className="flex flex-col gap-3">
+            {d?.needs_attention.map((f, i) => (
+              <div key={i} className="rounded-xl border p-3.5" style={{ borderColor: principalColors.borderMuted }}>
+                <div className="text-sm font-bold" style={{ color: principalColors.heading }}>
+                  {f.title}
+                </div>
+                <div className="mt-0.5 text-xs" style={{ color: principalColors.textFaint }}>
+                  {f.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SectionShell>
+    </div>
+  );
+}
+
+function RoutesTab() {
+  const routes = useTransportRoutes();
+  return (
+    <SectionShell title="Routes" description="Every transport route, stops, fee and buses assigned">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead>
+            <tr style={{ background: principalColors.surfaceMuted }}>
+              {["ROUTE", "STOPS", "STUDENTS", "BUSES", "FEE"].map((h) => (
+                <th key={h} className="whitespace-nowrap px-5 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {routes.data?.routes.map((r) => (
+              <tr key={r.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
+                  {r.name}
+                  {r.departure_time && (
+                    <span className="ml-2 text-xs font-normal" style={{ color: principalColors.textFaint }}>
+                      {r.departure_time}–{r.arrival_time ?? "—"}
+                    </span>
+                  )}
+                </td>
+                <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{r.stops_count}</td>
+                <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{r.student_count}</td>
+                <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{r.buses.map((b) => b.bus_no).join(", ") || "—"}</td>
+                <td className="px-5 py-3.5" style={{ color: principalColors.body }}>
+                  {r.fee.per_student != null ? `₹${r.fee.per_student}` : r.fee.range ? `₹${r.fee.range.min}–₹${r.fee.range.max}` : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!routes.isLoading && (routes.data?.routes.length ?? 0) === 0 && (
+          <p className="p-5 text-center text-sm" style={{ color: principalColors.textFaint }}>No routes on file.</p>
+        )}
+      </div>
+    </SectionShell>
+  );
+}
+
+function CrewTab() {
+  const crew = useTransportCrew();
+  return (
+    <SectionShell title="Drivers & crew" description="Who's assigned to each bus — one driver + one attendant per vehicle">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead>
+            <tr style={{ background: principalColors.surfaceMuted }}>
+              {["BUS", "ROUTE", "DRIVER", "PHONE", "LICENCE"].map((h) => (
+                <th key={h} className="whitespace-nowrap px-5 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {crew.data?.crew.map((c) => {
+              const badge = stateBadge(c.licence_state);
+              return (
+                <tr key={c.bus_id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                  <td className="px-5 py-3.5 font-mono font-semibold" style={{ color: principalColors.heading }}>{c.vehicle_number}</td>
+                  <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{c.route_name ?? "—"}</td>
+                  <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{c.driver_name ?? "—"}</td>
+                  <td className="px-5 py-3.5 font-mono" style={{ color: principalColors.body }}>{c.driver_phone ?? "—"}</td>
+                  <td className="px-5 py-3.5">
+                    {c.driver_licence_no ? (
+                      <span className="rounded-full border px-2.5 py-1 text-xs font-semibold" style={{ color: badge.fg, background: badge.bg, borderColor: badge.bd }}>
+                        {badge.label}
+                      </span>
+                    ) : (
+                      <span style={{ color: principalColors.textFaint }}>—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {!crew.isLoading && (crew.data?.crew.length ?? 0) === 0 && (
+          <p className="p-5 text-center text-sm" style={{ color: principalColors.textFaint }}>No crew on file.</p>
+        )}
+      </div>
+    </SectionShell>
+  );
+}
+
+function MaintenanceTab() {
+  const maintenance = useTransportMaintenance();
+  const m = maintenance.data;
+  return (
+    <div className="flex flex-col gap-5">
+      <SectionShell title="Service due" description="By odometer reading — within 4,000 km of the next scheduled service">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-sm">
+            <thead>
+              <tr style={{ background: principalColors.surfaceMuted }}>
+                {["BUS", "ODOMETER", "NEXT SERVICE", "KM LEFT", "STATUS"].map((h) => (
+                  <th key={h} className="whitespace-nowrap px-5 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {m?.service_due.map((s) => {
+                const badge = stateBadge(s.tag);
+                return (
+                  <tr key={s.bus_id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                    <td className="px-5 py-3.5 font-mono font-semibold" style={{ color: principalColors.heading }}>{s.vehicle_number}</td>
+                    <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{s.odometer_km.toLocaleString("en-IN")} km</td>
+                    <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{s.next_service_due_km.toLocaleString("en-IN")} km</td>
+                    <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{Math.max(s.km_left, 0).toLocaleString("en-IN")} km</td>
+                    <td className="px-5 py-3.5">
+                      <span className="rounded-full border px-2.5 py-1 text-xs font-semibold" style={{ color: badge.fg, background: badge.bg, borderColor: badge.bd }}>
+                        {badge.label}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!maintenance.isLoading && (m?.service_due.length ?? 0) === 0 && (
+            <p className="p-5 text-center text-sm" style={{ color: principalColors.textFaint }}>No bus is due for service soon.</p>
+          )}
+        </div>
+      </SectionShell>
+
+      <SectionShell title="Service &amp; repair log" description="Most recent 50 entries">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-sm">
+            <thead>
+              <tr style={{ background: principalColors.surfaceMuted }}>
+                {["DATE", "BUS", "WORK", "GARAGE", "COST"].map((h) => (
+                  <th key={h} className="whitespace-nowrap px-5 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {m?.service_log.map((l) => (
+                <tr key={l.id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                  <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{new Date(l.service_date).toLocaleDateString("en-IN")}</td>
+                  <td className="px-5 py-3.5 font-mono font-semibold" style={{ color: principalColors.heading }}>{l.bus_no}</td>
+                  <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{l.work_description}</td>
+                  <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{l.garage ?? "—"}</td>
+                  <td className="px-5 py-3.5" style={{ color: principalColors.body }}>{l.cost != null ? `₹${l.cost.toLocaleString("en-IN")}` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!maintenance.isLoading && (m?.service_log.length ?? 0) === 0 && (
+            <p className="p-5 text-center text-sm" style={{ color: principalColors.textFaint }}>No service history on file.</p>
+          )}
+        </div>
+      </SectionShell>
+    </div>
+  );
+}
+
+function ComplianceTab() {
+  const compliance = useTransportCompliance();
+  return (
+    <SectionShell title="Statutory documents" description="One row per bus, one column per document type — a gap is shown rather than hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead>
+            <tr style={{ background: principalColors.surfaceMuted }}>
+              <th className="whitespace-nowrap px-5 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>BUS</th>
+              {compliance.data?.buses[0]?.documents.map((d) => (
+                <th key={d.doc_type} className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold tracking-wider" style={{ color: principalColors.textFaint }}>
+                  {d.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {compliance.data?.buses.map((b) => (
+              <tr key={b.bus_id} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                <td className="px-5 py-3.5 font-mono font-semibold" style={{ color: principalColors.heading }}>{b.vehicle_number}</td>
+                {b.documents.map((d) => {
+                  const badge = stateBadge(d.state);
+                  return (
+                    <td key={d.doc_type} className="px-3 py-3.5">
+                      <span className="rounded-full border px-2.5 py-1 text-xs font-semibold" style={{ color: badge.fg, background: badge.bg, borderColor: badge.bd }}>
+                        {badge.label}
+                      </span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!compliance.isLoading && (compliance.data?.buses.length ?? 0) === 0 && (
+          <p className="p-5 text-center text-sm" style={{ color: principalColors.textFaint }}>Document tracking isn&apos;t set up for this fleet yet.</p>
+        )}
+      </div>
+    </SectionShell>
+  );
+}
 
 function occupancyBadge(bus: TransportBus): { label: string; fg: string; bg: string; bd: string } {
   if (bus.capacity == null) {
@@ -221,7 +529,7 @@ function BusDetailView({ busId, onBack }: { busId: number; onBack: () => void })
   );
 }
 
-export default function PrincipalTransportPage() {
+function BusesTab() {
   const [q, setQ] = useState("");
   const [openBusId, setOpenBusId] = useState<number | null>(null);
   const list = useTransportList();
@@ -239,18 +547,6 @@ export default function PrincipalTransportPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <div>
-        <h1
-          className="text-[34px] font-extrabold tracking-tight"
-          style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
-        >
-          Transport
-        </h1>
-        <p className="mt-1.5 text-[15px]" style={{ color: principalColors.textFaint }}>
-          College fleet by bus number · open a bus for route, occupancy and live tracking
-        </p>
-      </div>
-
       <div className="flex items-center gap-3 rounded-2xl border p-4" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
         <label className="flex h-11 flex-1 items-center gap-2.5 rounded-xl border px-3.5" style={{ borderColor: principalColors.border }}>
           <Icon name="search" size={20} style={{ color: principalColors.textFaint }} />
@@ -281,6 +577,54 @@ export default function PrincipalTransportPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+export default function PrincipalTransportPage() {
+  const [tab, setTab] = useState<Tab>("overview");
+
+  return (
+    <div className="flex flex-1 flex-col gap-5">
+      <div>
+        <h1
+          className="text-[34px] font-extrabold tracking-tight"
+          style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
+        >
+          Transport
+        </h1>
+        <p className="mt-1.5 text-[15px]" style={{ color: principalColors.textFaint }}>
+          Full read-only view of the college fleet — routes, drivers, maintenance and statutory compliance
+        </p>
+      </div>
+
+      <div className="flex gap-1 overflow-x-auto rounded-xl p-1" style={{ background: principalColors.borderLight, width: "fit-content" }}>
+        {TABS.map((t) => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className="h-[38px] whitespace-nowrap rounded-[9px] px-[16px] text-sm font-semibold transition-colors"
+              style={{
+                background: active ? principalColors.bg : "transparent",
+                color: active ? principalColors.heading : principalColors.textFaint,
+                boxShadow: active ? "0 1px 2px rgba(13,30,79,0.08)" : undefined,
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "overview" && <OverviewTab />}
+      {tab === "buses" && <BusesTab />}
+      {tab === "routes" && <RoutesTab />}
+      {tab === "crew" && <CrewTab />}
+      {tab === "maintenance" && <MaintenanceTab />}
+      {tab === "compliance" && <ComplianceTab />}
     </div>
   );
 }

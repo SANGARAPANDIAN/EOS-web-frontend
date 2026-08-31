@@ -12,7 +12,12 @@ export interface Resident {
   course: string;
   batch: string;
   hostel: { id: number; name: string; code: string } | null;
-  room: { id: number; room_number: string } | null;
+  room: {
+    id: number;
+    room_number: string;
+    block: { id: number; name: string } | null;
+    floor: { id: number; name: string } | null;
+  } | null;
   sharing: string | null;
   guardian_name: string | null;
   guardian_phone: string | null;
@@ -28,8 +33,8 @@ export interface ResidentsPage {
   data: Resident[];
 }
 
-/** GET /hostel/residents?q=&page=&page_size= — hostel_id scoping is enforced server-side. */
-export function useResidents(params: { q?: string; page?: number; page_size?: number } = {}) {
+/** GET /hostel/residents?q=&room_id=&page=&page_size= — hostel_id scoping is enforced server-side. */
+export function useResidents(params: { q?: string; room_id?: number; page?: number; page_size?: number } = {}) {
   return useQuery({
     queryKey: ["hostel", "residents", params],
     queryFn: () => apiClient.get<ResidentsPage>("/hostel/residents", params),

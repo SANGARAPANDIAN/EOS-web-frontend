@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/ui";
+import { DataTable, ConfirmDialog, type DataTableColumn } from "@/components/ui";
 import { MetricBackNav, MetricHeader, MetricCards, DepartmentRollup, MetricFilterBar } from "@/modules/iqac/components/academic/MetricPageChrome";
 import { AddResearchEntryModal } from "@/modules/iqac/components/facultyDevelopment/AddResearchEntryModal";
-import { useResearch, useResearchQuality, type ResearchRow } from "@/modules/iqac/api/facultyDevelopment";
+import { useResearch, useResearchQuality, useDeleteResearchEntry, type ResearchRow } from "@/modules/iqac/api/facultyDevelopment";
 
 export default function ResearchPage() {
   const [addingEntry, setAddingEntry] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<ResearchRow | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<ResearchRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [dept, setDept] = useState<string | null>(null);
@@ -16,6 +19,18 @@ export default function ResearchPage() {
 
   const research = useResearch();
   const quality = useResearchQuality();
+  const deleteEntry = useDeleteResearchEntry();
+
+  async function confirmDelete() {
+    if (!deletingEntry) return;
+    setDeleteError(null);
+    try {
+      await deleteEntry.mutateAsync(deletingEntry.id);
+      setDeletingEntry(null);
+    } catch (err: unknown) {
+      setDeleteError((err as { message?: string })?.message ?? "Could not delete this entry.");
+    }
+  }
 
   const allRows = useMemo(() => research.data ?? [], [research.data]);
 
@@ -71,6 +86,21 @@ export default function ResearchPage() {
       { key: "role", header: "Role", sortValue: (r) => r.role, render: (r) => r.role },
       { key: "project_status", header: "Status", sortValue: (r) => r.project_status, render: (r) => r.project_status },
       { key: "joined_on", header: "Joined on", align: "right", sortValue: (r) => r.joined_on ?? "", render: (r) => (r.joined_on ? r.joined_on.slice(0, 10) : "—") },
+      {
+        key: "actions",
+        header: "",
+        width: "0.9fr",
+        render: (r) => (
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditingEntry(r)} className="text-[12.5px] font-bold text-primary hover:underline">
+              Edit
+            </button>
+            <button type="button" onClick={() => setDeletingEntry(r)} className="text-[12.5px] font-bold text-danger-fg hover:underline">
+              Delete
+            </button>
+          </div>
+        ),
+      },
     ],
     [],
   );
@@ -86,6 +116,21 @@ export default function ResearchPage() {
       />
 
       {addingEntry && <AddResearchEntryModal onClose={() => setAddingEntry(false)} onCreated={() => research.refetch()} />}
+      {editingEntry && (
+        <AddResearchEntryModal editing={editingEntry} onClose={() => setEditingEntry(null)} onCreated={() => research.refetch()} />
+      )}
+      <ConfirmDialog
+        open={deletingEntry != null}
+        title="Delete this research membership?"
+        description={deleteError ?? "This can't be undone. The shared project itself isn't affected."}
+        confirmLabel={deleteEntry.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeletingEntry(null);
+          setDeleteError(null);
+        }}
+      />
 
       <MetricCards
         cards={[

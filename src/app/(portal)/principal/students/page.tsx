@@ -64,7 +64,12 @@ export default function PrincipalStudentsPage() {
     if (initialQ) setQ(initialQ);
   }, [initialQ]);
   const [batchId, setBatchId] = useState<number | undefined>(undefined);
+  const initialDepartmentId = useInitialQueryParam("department_id");
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (initialDepartmentId) setDepartmentId(Number(initialDepartmentId));
+  }, [initialDepartmentId]);
   const [section, setSection] = useState<string | undefined>(undefined);
   const [filter, setFilter] = useState<StudentsFilterPreset>("all");
   const [page, setPage] = useState(1);

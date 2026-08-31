@@ -3,14 +3,9 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, Badge, Button, EmptyState, Input, Textarea, ProfilePhoto, SkeletonBlock } from "@/components/ui";
-import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
-import {
-  useHodStudentProfile,
-  useHodMeetingNotes,
-  useAddHodMeetingNote,
-  type HodStudentProfile,
-} from "@/modules/hod/api/studentProfile";
+import { useHodStudentProfile, useHodMeetingNotes, useAddHodMeetingNote } from "@/modules/hod/api/studentProfile";
 import { formatDisplayDate } from "@/lib/utils/date";
+import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -148,52 +143,9 @@ export default function HodStudentProfilePage() {
     certificates,
     semester_wise_gpa,
     monthly_attendance,
-    current_semester_subjects,
     fees,
     placement_status,
   } = profile.data;
-
-  const subjectColumns: DataTableColumn<HodStudentProfile["current_semester_subjects"][number]>[] = [
-    { key: "subject", header: "Subject", width: "2fr", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
-    { key: "code", header: "Code", width: "90px", render: (r) => <span className="text-subtle">{r.code}</span> },
-    {
-      key: "internal",
-      header: "Internal",
-      width: "90px",
-      align: "right",
-      render: (r) => <span>{r.internal_obtained != null ? `${r.internal_obtained}/${r.internal_max}` : "—"}</span>,
-    },
-    {
-      key: "endsem",
-      header: "End sem",
-      width: "90px",
-      align: "right",
-      render: (r) => <span>{r.external_obtained != null ? `${r.external_obtained}/${r.external_max}` : "—"}</span>,
-    },
-    {
-      key: "total",
-      header: "Total",
-      width: "80px",
-      align: "right",
-      render: (r) => <span className="font-bold text-ink">{r.total_percent != null ? `${r.total_percent}%` : "—"}</span>,
-    },
-    {
-      key: "grade",
-      header: "Grade",
-      width: "70px",
-      align: "right",
-      render: (r) => (
-        <span className={"font-extrabold " + (r.grade === "RA" ? "text-[#b91c1c]" : "text-primary")}>{r.grade ?? "—"}</span>
-      ),
-    },
-    {
-      key: "attendance",
-      header: "Attendance",
-      width: "90px",
-      align: "right",
-      render: (r) => <span>{r.attendance_percent != null ? `${r.attendance_percent}%` : "—"}</span>,
-    },
-  ];
 
   const guardianEmail = guardian?.relation === "father" ? family?.father?.email : family?.mother?.email;
 
@@ -509,16 +461,12 @@ export default function HodStudentProfilePage() {
 
       <Card className="p-0">
         <div className="border-b border-divider px-5 py-4">
-          <h2 className="text-[17px] font-extrabold text-ink">Current semester subjects</h2>
-          <p className="mt-0.5 text-[12.5px] text-muted">Internal assessment, end-semester mark, grade and subject attendance</p>
+          <h2 className="text-[17px] font-extrabold text-ink">Examinations & results</h2>
+          <p className="mt-0.5 text-[12.5px] text-muted">CIA1, CIA2, Quiz and Internal marks per subject; End Sem shows a grade once published</p>
         </div>
-        <DataTable
-          columns={subjectColumns}
-          data={current_semester_subjects}
-          rowKey={(r) => r.subject_id}
-          rowClassName="hod-hover-row"
-          emptyMessage="No subject marks entered yet this semester."
-        />
+        <div className="p-5">
+          <SubjectMarksTable studentId={studentId} />
+        </div>
       </Card>
 
       {certificates.length > 0 && (

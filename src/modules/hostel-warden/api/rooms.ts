@@ -7,6 +7,8 @@ export interface HostelRoom {
   room_number: string;
   room_type_id: number;
   capacity: number;
+  block: { id: number; name: string } | null;
+  floor: { id: number; name: string } | null;
   occupied: number;
   vacant: number;
 }

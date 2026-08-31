@@ -52,7 +52,10 @@ export default function ComplaintsPage() {
   const complaints = useComplaints({ page_size: 100 });
   const update = useUpdateComplaint();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | ComplaintStatus>("all");
+  // Defaults to "Open" rather than "All status" — a warden opening this page
+  // wants the actionable queue, not a full history they'd have to re-filter
+  // down to every single visit.
+  const [status, setStatus] = useState<"all" | ComplaintStatus>("open");
   const [category, setCategory] = useState<"all" | ComplaintCategory>("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 

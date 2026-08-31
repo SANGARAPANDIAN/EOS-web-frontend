@@ -83,6 +83,8 @@ export interface StudentSearchResult {
   section: string | null;
   batch_name: string | null;
   has_venture: boolean;
+  /** The venture's own real student_entrepreneurship.id (null when has_venture is false) — required for anything that references an existing venture (e.g. Funding), since that's a different id than the student's own. */
+  student_entrepreneurship_id: number | null;
   similarity: number;
 }
 

@@ -87,10 +87,19 @@ export interface PrincipalCampusInfrastructure {
   service_requests: { pending: number };
 }
 
+export interface PrincipalEmployeeSnapshot {
+  total_active: number;
+  attendance_marked_today: boolean;
+  attendance_percentage_today: number | null;
+  on_leave_today: number;
+  pending_appraisals: number;
+}
+
 export interface PrincipalDashboardInsights {
   placement: PrincipalPlacementSummary;
   attention_flags: PrincipalAttentionFlag[];
   campus: PrincipalCampusInfrastructure;
+  employee: PrincipalEmployeeSnapshot;
 }
 
 /**

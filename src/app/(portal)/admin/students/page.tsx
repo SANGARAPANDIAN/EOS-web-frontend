@@ -19,7 +19,18 @@ import {
 import { StudentFilters, type StudentFiltersValue } from "@/modules/admin/components/students/StudentFilters";
 import { ColumnsMenu, type ColumnOption } from "@/modules/admin/components/students/ColumnsMenu";
 import { avatarTint, formatDate, initials, studentName } from "@/modules/admin/lib/students-format";
-import { useStudents, useStudentCount, type ListStudentsParams, type StudentListItem } from "@/modules/admin/api/students";
+import {
+  fetchStudentIdCardSource,
+  useStudents,
+  useStudentCount,
+  useAttendanceRiskIds,
+  type ListStudentsParams,
+  type StudentListItem,
+} from "@/modules/admin/api/students";
+import { useStudentIdCardBulkStatus, useIssueStudentIdCard } from "@/modules/admin/api/studentIdCard";
+import { studentToIdCardData } from "@/modules/admin/lib/id-card-data";
+import { IdCardModal } from "@/modules/admin/components/shared/IdCardModal";
+import { useOutstandingStudentIds } from "@/modules/admin/api/dashboard";
 
 const PAGE_SIZE = 10;
 
@@ -37,17 +48,18 @@ const COLUMN_OPTIONS: ColumnOption[] = [
 interface Tab {
   id: string;
   label: string;
-  filters: StudentFiltersValue;
-  /** No real data to back this view yet — shown to match the old console's full tab set, disabled until it exists. */
+  /** Static tabs set filters directly; "fee-defaulters"/"attendance-risk" are special-cased in selectTab() since their id list comes from an async fetch. */
+  filters?: Partial<ListStudentsParams>;
+  /** No real data to back this view yet. */
   soonReason?: string;
 }
 
 const TABS: Tab[] = [
   { id: "all", label: "All students", filters: {} },
   { id: "active", label: "Active only", filters: { status: "active" } },
-  { id: "fee-defaulters", label: "Fee defaulters", filters: {}, soonReason: "Needs a per-student fee-status endpoint — none exists yet" },
-  { id: "attendance-risk", label: "Attendance risk", filters: {}, soonReason: "Needs an attendance-summary endpoint — none exists yet" },
-  { id: "final-year", label: "Final year", filters: {}, soonReason: "Needs a per-student study-year field — not in the schema yet" },
+  { id: "fee-defaulters", label: "Fee defaulters" },
+  { id: "attendance-risk", label: "Attendance risk" },
+  { id: "final-year", label: "Final year", filters: { final_year: true } },
 ];
 
 /** Matches the old console's drawer metric tiles — shown, disabled, since none of the three exist as per-student data yet. */
@@ -72,14 +84,34 @@ function KvRow({ label, value, muted, reason }: { label: string; value: string; 
 export default function AdminStudentsPage() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query);
-  const [filters, setFilters] = useState<StudentFiltersValue>({});
+  const [filters, setFilters] = useState<Partial<ListStudentsParams>>({});
   const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => new Set(COLUMN_OPTIONS.map((c) => c.key)));
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [quickViewRow, setQuickViewRow] = useState<StudentListItem | null>(null);
+  const [idCardRows, setIdCardRows] = useState<StudentListItem[] | null>(null);
+  const idCardIds = idCardRows?.map((s) => s.id) ?? [];
+  const { data: idCardStatusMap, isLoading: idCardStatusLoading } = useStudentIdCardBulkStatus(idCardIds);
+  const issueStudentIdCard = useIssueStudentIdCard();
+
+  // Both real filters, both computed server-side via one bulk query (not
+  // N+1 per student) — see /finance-overview's topOutstandingStudents and
+  // /students/attendance-risk-ids. Only fetched once their tab is actually
+  // selected, and their ids get threaded into the normal /students?ids=...
+  // list call below so the row data (department/batch/contact/etc.) is
+  // real too. "0" is a sentinel matching no real student — holds the table
+  // at "no rows" instead of flashing every student while the id list is
+  // still loading, without needing an effect to sync it into `filters`.
+  const outstandingIds = useOutstandingStudentIds(activeTab === "fee-defaulters");
+  const attendanceRiskIds = useAttendanceRiskIds(activeTab === "attendance-risk");
 
   const params: ListStudentsParams = { q: debouncedQuery || undefined, ...filters, page, limit: PAGE_SIZE };
+  if (activeTab === "fee-defaulters") {
+    params.ids = outstandingIds.data && outstandingIds.data.length > 0 ? outstandingIds.data.join(",") : "0";
+  } else if (activeTab === "attendance-risk") {
+    params.ids = attendanceRiskIds.data && attendanceRiskIds.data.ids.length > 0 ? attendanceRiskIds.data.ids.join(",") : "0";
+  }
 
   const { data, isLoading, error } = useStudents(params);
   const total = useStudentCount({});
@@ -91,7 +123,7 @@ export default function AdminStudentsPage() {
   function selectTab(tab: Tab) {
     if (tab.soonReason) return;
     setActiveTab(tab.id);
-    setFilters(tab.filters);
+    setFilters(tab.filters ?? {});
     setPage(1);
     setSelectedIds(new Set());
   }
@@ -120,6 +152,12 @@ export default function AdminStudentsPage() {
   const pageRows = data?.data ?? [];
   const allOnPageSelected = pageRows.length > 0 && pageRows.every((row) => selectedIds.has(row.id));
   const someOnPageSelected = pageRows.some((row) => selectedIds.has(row.id));
+  const selectedRows = pageRows.filter((row) => selectedIds.has(row.id));
+
+  function handleGenerateIdCards() {
+    if (selectedRows.length === 0) return;
+    setIdCardRows(selectedRows);
+  }
 
   function toggleRow(row: StudentListItem) {
     setSelectedIds((prev) => {
@@ -229,24 +267,14 @@ export default function AdminStudentsPage() {
           >
             <Icon name="visibility" size={17} />
           </button>
-          <button
-            type="button"
-            disabled
-            title="Edit — student edit page not built yet"
+          <Link
+            href={`/admin/students/${row.id}?edit=1`}
+            title="Edit"
             aria-label={`Edit ${studentName(row.first_name, row.last_name)}`}
-            className="cursor-not-allowed rounded-admin-sm p-1.5 text-admin-border-hover"
+            className="rounded-admin-sm p-1.5 text-admin-muted hover:bg-admin-tint-strong hover:text-admin-body"
           >
             <Icon name="edit" size={17} />
-          </button>
-          <button
-            type="button"
-            disabled
-            title="Timeline — no per-student activity endpoint yet"
-            aria-label={`Timeline for ${studentName(row.first_name, row.last_name)}`}
-            className="cursor-not-allowed rounded-admin-sm p-1.5 text-admin-border-hover"
-          >
-            <Icon name="history" size={17} />
-          </button>
+          </Link>
         </div>
       ),
     },
@@ -276,10 +304,11 @@ export default function AdminStudentsPage() {
             </Button>
             <Button
               variant="secondary"
-              disabled
-              title={selectedIds.size > 0 ? `ID cards for ${selectedIds.size} selected — module planned` : "Select students, then ID cards — module planned"}
+              disabled={selectedIds.size === 0}
+              title={selectedIds.size > 0 ? `ID cards for ${selectedIds.size} selected` : "Select students, then issue ID cards"}
+              onClick={handleGenerateIdCards}
             >
-              ID cards
+              <Icon name="badge" size={16} /> ID cards
             </Button>
             <Link href="/admin/students/admit">
               <Button variant="primary">Admit student</Button>
@@ -340,7 +369,7 @@ export default function AdminStudentsPage() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden text-xs text-admin-subtle sm:inline">Click a row for a quick view</span>
+          <span className="hidden text-xs text-admin-subtle sm:inline">Click the eye icon for a quick view</span>
           {selectedIds.size > 0 && <span className="text-xs font-semibold text-admin-muted">{selectedIds.size} selected</span>}
           <ColumnsMenu columns={COLUMN_OPTIONS} visible={visibleColumns} onToggle={toggleColumn} />
           <Button variant="secondary" disabled title="Export — no CSV export endpoint yet">
@@ -367,7 +396,6 @@ export default function AdminStudentsPage() {
           allSelected: allOnPageSelected,
           someSelected: someOnPageSelected,
         }}
-        onRowClick={setQuickViewRow}
         footer={data && <Pagination page={data.meta.page} pageSize={data.meta.limit} total={data.meta.total} onPageChange={goToPage} />}
       />
 
@@ -396,9 +424,11 @@ export default function AdminStudentsPage() {
               <Button variant="secondary" disabled title="Notifications — no messaging backend yet" aria-label="Send notification">
                 <Icon name="send" size={16} />
               </Button>
-              <Button variant="secondary" disabled title="Edit — student edit page not built yet" aria-label="Edit student">
-                <Icon name="edit" size={16} />
-              </Button>
+              <Link href={`/admin/students/${quickViewRow.id}?edit=1`}>
+                <Button variant="secondary" aria-label="Edit student">
+                  <Icon name="edit" size={16} />
+                </Button>
+              </Link>
             </>
           )
         }
@@ -465,6 +495,48 @@ export default function AdminStudentsPage() {
           </div>
         )}
       </Drawer>
+
+      <IdCardModal
+        open={idCardRows !== null}
+        onClose={() => setIdCardRows(null)}
+        entities={(idCardRows ?? []).map((s) => ({
+          id: s.id,
+          avatar: (
+            <span
+              className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-admin-md border border-admin-border text-sm font-semibold"
+              style={s.photo_url ? undefined : { background: avatarTint(s.id).bg, color: avatarTint(s.id).fg }}
+            >
+              {s.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a remote storage URL, not a local/optimizable asset
+                <img src={s.photo_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                initials(s.first_name, s.last_name)
+              )}
+            </span>
+          ),
+          pickerAvatar: (
+            <span
+              className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-admin-pill text-[10px] font-semibold"
+              style={s.photo_url ? undefined : { background: avatarTint(s.id).bg, color: avatarTint(s.id).fg }}
+            >
+              {s.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a remote storage URL, not a local/optimizable asset
+                <img src={s.photo_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                initials(s.first_name, s.last_name)
+              )}
+            </span>
+          ),
+          title: studentName(s.first_name, s.last_name),
+          subtitle: `${s.register_no ?? s.roll_no ?? s.student_id_no} · ${s.course?.name ?? "—"} · ${s.department?.name ?? "—"}`,
+          data: studentToIdCardData({ ...s, blood_group: null, addresses: [] }),
+        }))}
+        statusMap={idCardStatusMap}
+        statusLoading={idCardStatusLoading}
+        issueCard={(id) => issueStudentIdCard.mutateAsync(id)}
+        fetchFullData={(id) => fetchStudentIdCardSource(id).then(studentToIdCardData)}
+        onIssued={() => {}}
+      />
 
       <p className="mt-3 text-xs leading-relaxed text-admin-subtle">
         Showing only what the database actually has today: identity, batch/course/department, residence type, status,

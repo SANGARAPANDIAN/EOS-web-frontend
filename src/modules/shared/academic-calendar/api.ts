@@ -1,31 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import { placementKeys } from "./queryKeys";
-
-// `academic_calendars` is a per-batch/semester period (start_date/end_date);
-// `calendar_events` are the actual dated entries inside one. Both real,
-// both read-only for the placement role — write access is Academic
-// Coordinator / Principal only.
-export interface AcademicCalendarPeriod {
-  id: number;
-  batchId: number;
-  semester: number;
-  startDate: string;
-  endDate: string;
-}
-
-export type CalendarEventType = "holiday" | "event" | "instruction" | "assessment" | "placement" | "institution";
-
-export interface CalendarEventItem {
-  id: number;
-  academicCalendarId: number;
-  eventDate: string;
-  title: string;
-  description: string | null;
-  eventType: CalendarEventType;
-  startTime: string | null;
-  endTime: string | null;
-}
+import type { AcademicCalendarPeriod, CalendarEventItem } from "./types";
 
 interface BackendAcademicCalendar {
   id: number;
@@ -44,21 +19,15 @@ interface BackendCalendarEvent {
   title: string;
   start_time: string | null;
   end_time: string | null;
+  created_by_user_id: number | null;
 }
 
 function toPeriod(c: BackendAcademicCalendar): AcademicCalendarPeriod {
-  return {
-    id: c.id,
-    batchId: c.batch_id,
-    semester: c.semester,
-    startDate: c.start_date,
-    endDate: c.end_date,
-  };
+  return { id: c.id, batchId: c.batch_id, semester: c.semester, startDate: c.start_date, endDate: c.end_date };
 }
 
-// start_time/end_time come back as full ISO datetimes pinned to an
-// arbitrary reference date (1970-01-01) — only the HH:MM time-of-day part
-// is real, so it's sliced out here rather than parsed as a calendar date.
+// start_time/end_time round-trip as full ISO datetimes pinned to an
+// arbitrary reference date — only the HH:MM time-of-day part is real.
 function toTimeLabel(iso: string | null): string | null {
   if (!iso) return null;
   const match = /T(\d{2}:\d{2})/.exec(iso);
@@ -75,12 +44,16 @@ function toEvent(e: BackendCalendarEvent): CalendarEventItem {
     eventType: e.event_type as CalendarEventItem["eventType"],
     startTime: toTimeLabel(e.start_time),
     endTime: toTimeLabel(e.end_time),
+    createdByUserId: e.created_by_user_id,
   };
 }
 
+const KEY = ["shared", "academic-calendar"] as const;
+
+/** GET /academic-calendar — every published batch/semester period, read-only for every role that reaches this hook. */
 export function useAcademicCalendarPeriods() {
   return useQuery({
-    queryKey: placementKeys.academicCalendarPeriods(),
+    queryKey: [...KEY, "periods"],
     queryFn: async () => {
       const rows = await apiClient.get<BackendAcademicCalendar[]>("/academic-calendar");
       return rows.map(toPeriod);
@@ -89,9 +62,10 @@ export function useAcademicCalendarPeriods() {
   });
 }
 
+/** GET /academic-calendar-events?academic_calendar_id= */
 export function useCalendarEvents(academicCalendarId?: number) {
   return useQuery({
-    queryKey: placementKeys.academicCalendarEvents(academicCalendarId),
+    queryKey: [...KEY, "events", academicCalendarId],
     queryFn: async () => {
       const rows = await apiClient.get<BackendCalendarEvent[]>("/academic-calendar-events", {
         academic_calendar_id: academicCalendarId,
@@ -106,47 +80,40 @@ export interface CreateCalendarEventInput {
   title: string;
   event_date: string;
   event_type: "holiday" | "event";
-  /** The backend requires both times in HH:mm; the form defaults them. */
   start_time: string;
   end_time: string;
   description?: string;
 }
 
 /**
- * POST /academic-calendar-events
- *
- * Placement may add its own events (drive dates, pre-placement talks). Editing
- * or deleting is scoped server-side to events this user created, so the shared
- * institution entries — semester boundaries, exam dates — cannot be touched
- * from here.
+ * POST /academic-calendar-events — role-gated server-side to
+ * ACADEMIC_COORDINATOR/PRINCIPAL/SECRETARY/MEDIA_ROOM/PLACEMENT. The latter
+ * two may only edit/delete events they created themselves; the rest have
+ * unrestricted access to the shared institution calendar.
  */
 export function useCreateCalendarEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateCalendarEventInput) =>
-      apiClient.post<BackendCalendarEvent>("/academic-calendar-events", input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: placementKeys.academicCalendarEvents(undefined).slice(0, -1) }),
+    mutationFn: (input: CreateCalendarEventInput) => apiClient.post<BackendCalendarEvent>("/academic-calendar-events", input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...KEY, "events"] }),
   });
 }
 
-/** PATCH /academic-calendar-events/:id — own events only (server-enforced). */
+/** PATCH /academic-calendar-events/:id */
 export function useUpdateCalendarEvent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...input }: Partial<CreateCalendarEventInput> & { id: number }) =>
       apiClient.patch<BackendCalendarEvent>(`/academic-calendar-events/${id}`, input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: placementKeys.academicCalendarEvents(undefined).slice(0, -1) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...KEY, "events"] }),
   });
 }
 
-/** DELETE /academic-calendar-events/:id — own events only (server-enforced). */
+/** DELETE /academic-calendar-events/:id */
 export function useDeleteCalendarEvent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => apiClient.delete(`/academic-calendar-events/${id}`),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: placementKeys.academicCalendarEvents(undefined).slice(0, -1) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...KEY, "events"] }),
   });
 }

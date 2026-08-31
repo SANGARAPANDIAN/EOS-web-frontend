@@ -36,5 +36,18 @@ export const adminModuleConfig: ModuleConfig = {
         { key: "faculty-settings", href: "/admin/faculty/settings", label: "Settings", icon: "settings" },
       ],
     },
+    {
+      label: "Requests",
+      items: [
+        { key: "sop-requests", href: "/admin/sop-requests", label: "SOP requests", icon: "handyman", badgeKey: "adminSopPending" },
+      ],
+    },
+    {
+      label: "Facilities",
+      items: [
+        { key: "venues", href: "/admin/facilities/venues", label: "Venues", icon: "meeting_room" },
+        { key: "hostel-blocks", href: "/admin/facilities/hostel-blocks", label: "Hostel blocks", icon: "apartment" },
+      ],
+    },
   ],
 };

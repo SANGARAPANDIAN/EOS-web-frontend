@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, DataTable, EmptyState, SearchBar, type BadgeTone, type DataTableColumn } from "@/components/ui";
+import { Badge, DataTable, EmptyState, PillTabs, SearchBar, type BadgeTone, type DataTableColumn } from "@/components/ui";
 import { useOutings, useDecideOuting, isMultiDayOuting, type Outing } from "@/modules/hostel-warden/api/outings";
 import {
   useHostelLeaveRequests,
@@ -178,10 +178,10 @@ export default function LeaveRequestsPage() {
   ];
 
   const TABS: { key: FilterKey; label: string; count: number }[] = [
-    { key: "all", label: "All", count: counts.all },
     { key: "pending", label: "Pending", count: counts.pending },
     { key: "approved", label: "Approved", count: counts.approved },
     { key: "rejected", label: "Rejected", count: counts.rejected },
+    { key: "all", label: "History", count: counts.all },
   ];
 
   const academicRows = academicLeaves.data?.data ?? [];
@@ -194,18 +194,11 @@ export default function LeaveRequestsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setFilter(t.key)}
-            className={`rounded-pill border px-4 py-2 text-[13px] font-bold transition-colors ${
-              filter === t.key ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-ink-soft hover:bg-surface-tint"
-            }`}
-          >
-            {t.label} ({t.count})
-          </button>
-        ))}
+        <PillTabs
+          options={TABS.map((t) => ({ key: t.key, label: `${t.label} (${t.count})` }))}
+          value={filter}
+          onChange={(k) => setFilter(k as FilterKey)}
+        />
         <div className="flex-1" />
         <SearchBar className="w-[280px]" placeholder="Student, register number or room" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>

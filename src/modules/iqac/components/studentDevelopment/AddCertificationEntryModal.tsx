@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui";
-import { useAddCertificationEntry } from "@/modules/iqac/api/studentDevelopment";
+import { useAddCertificationEntry, useUpdateCertificationEntry, type CertificationRow } from "@/modules/iqac/api/studentDevelopment";
 import type { StudentRow } from "@/modules/iqac/api/students";
 import { StudentPicker } from "./StudentPicker";
 
@@ -13,25 +13,50 @@ const STATUS_OPTIONS: { value: "enrolled" | "in_progress" | "completed"; label: 
 ];
 
 /** Records a real student_certificates row with certificate_type_id left null — a skill/course certification, not an admin document. */
-export function AddCertificationEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const addEntry = useAddCertificationEntry();
+export function AddCertificationEntryModal({
+  onClose,
+  onCreated,
+  editing,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  /** Editing an existing certification — the student can't be changed here (delete + re-add for that). */
+  editing?: CertificationRow;
+}) {
+  const create = useAddCertificationEntry();
+  const update = useUpdateCertificationEntry();
+  const isEditing = editing != null;
 
   const [student, setStudent] = useState<StudentRow | null>(null);
-  const [platform, setPlatform] = useState("");
-  const [track, setTrack] = useState("");
-  const [score, setScore] = useState("");
-  const [completedOn, setCompletedOn] = useState("");
-  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>("completed");
+  const [platform, setPlatform] = useState(editing?.platform ?? "");
+  const [track, setTrack] = useState(editing?.track ?? "");
+  const [score, setScore] = useState(editing?.score ?? "");
+  const [completedOn, setCompletedOn] = useState(editing?.completed_on?.slice(0, 10) ?? "");
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>((editing?.status as (typeof STATUS_OPTIONS)[number]["value"]) ?? "completed");
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    if (isEditing) {
+      setError(null);
+      try {
+        await update.mutateAsync({
+          id: editing.id,
+          input: { platform: platform.trim(), track: track.trim(), score: score.trim() || undefined, completed_on: completedOn || undefined, status },
+        });
+        onCreated();
+        onClose();
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message ?? "Could not save this certification.");
+      }
+      return;
+    }
     if (!student || !platform.trim() || !track.trim()) {
       setError("Student, platform and track are all required.");
       return;
     }
     setError(null);
     try {
-      await addEntry.mutateAsync({
+      await create.mutateAsync({
         student_id: student.id,
         platform: platform.trim(),
         track: track.trim(),
@@ -47,9 +72,16 @@ export function AddCertificationEntryModal({ onClose, onCreated }: { onClose: ()
   }
 
   return (
-    <Modal open onClose={onClose} title="Add student entry" subtitle="Certifications · skill and course certifications">
+    <Modal open onClose={onClose} title={isEditing ? "Edit student entry" : "Add student entry"} subtitle="Certifications · skill and course certifications">
       <div className="flex flex-col gap-4">
-        <StudentPicker selected={student} onSelect={setStudent} />
+        {isEditing ? (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Student</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.student.name}</div>
+          </div>
+        ) : (
+          <StudentPicker selected={student} onSelect={setStudent} />
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -117,10 +149,10 @@ export function AddCertificationEntryModal({ onClose, onCreated }: { onClose: ()
           <button
             type="button"
             onClick={submit}
-            disabled={addEntry.isPending}
+            disabled={create.isPending || update.isPending}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {addEntry.isPending ? "Saving…" : "Save"}
+            {create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

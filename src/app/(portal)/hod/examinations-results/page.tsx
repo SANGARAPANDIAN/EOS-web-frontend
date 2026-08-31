@@ -66,7 +66,7 @@ export default function HodExaminationsResultsPage() {
       (s, i) => ({
         key: `subject-${s.id}`,
         header: (
-          <div className="max-w-[120px]" title={s.name}>
+          <div className="max-w-[160px]" title={s.name}>
             <div className="font-extrabold text-ink normal-case tracking-normal">{s.code}</div>
             <div className="mt-0.5 truncate font-medium text-subtle normal-case tracking-normal">{s.name}</div>
           </div>

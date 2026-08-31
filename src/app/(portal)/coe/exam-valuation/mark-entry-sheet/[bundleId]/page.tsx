@@ -33,7 +33,7 @@ export default function CoeMarkEntrySheetPage({ params }: { params: Promise<{ bu
   const [jump, setJump] = useState("");
   const inputRefs = useRef(new Map<string, HTMLInputElement>());
 
-  const rows = sheet.data?.rows ?? [];
+  const rows = useMemo(() => sheet.data?.rows ?? [], [sheet.data]);
   const locked = sheet.data?.bundle.status === "submitted";
   const passMark = passRules.data?.pass_mark_total ?? 50;
 

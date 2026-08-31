@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Card, StatCard, Select, Input, Button, Badge } from "@/components/ui";
+import { useState } from "react";
+import { Card, StatCard, Input, Button, Badge, Pagination, DEFAULT_PAGE_SIZE } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { useExams } from "@/modules/coe/api/exams";
@@ -11,32 +10,22 @@ import { usePassBoardSheet, useSetGrace, useResetModeration, useAddSignoff, useS
 
 export default function CoePassBoardPage() {
   const exams = useExams();
-  // Results Management's "Analysis" action links here with ?exam_id=... so
-  // the board opens already scoped to the course the COE was looking at.
-  const searchParams = useSearchParams();
-  const examIdFromQuery = Number(searchParams.get("exam_id")) || null;
-  const [examId, setExamId] = useState<number | null>(null);
 
-  // Defaulting to the highest-id exam often lands on one with zero real
-  // marks entered yet; default instead to whichever exam actually has the
-  // most script bundles (and therefore real exam_marks), so the sheet
-  // shows real data out of the box.
+  // No exam picker in this design — default to whichever exam actually has
+  // the most script bundles (and therefore real exam_marks), same real-data-
+  // first pattern as the other rebuilt COE pages.
   const allScriptBundles = useAllScriptBundles();
-  const busiestExamId = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const b of allScriptBundles.data ?? []) counts.set(b.exam_id, (counts.get(b.exam_id) ?? 0) + 1);
-    let best: number | null = null;
-    let bestCount = 0;
-    for (const [id, count] of counts) {
-      if (count > bestCount) {
-        best = id;
-        bestCount = count;
-      }
+  const counts = new Map<number, number>();
+  for (const b of allScriptBundles.data ?? []) counts.set(b.exam_id, (counts.get(b.exam_id) ?? 0) + 1);
+  let busiestExamId: number | null = null;
+  let bestCount = 0;
+  for (const [id, count] of counts) {
+    if (count > bestCount) {
+      busiestExamId = id;
+      bestCount = count;
     }
-    return best;
-  }, [allScriptBundles.data]);
-  const effectiveExamId = examId ?? examIdFromQuery ?? busiestExamId ?? [...(exams.data ?? [])].sort((a, b) => b.id - a.id)[0]?.id ?? null;
-  const currentExam = (exams.data ?? []).find((e) => e.id === effectiveExamId);
+  }
+  const effectiveExamId = busiestExamId ?? [...(exams.data ?? [])].sort((a, b) => b.id - a.id)[0]?.id ?? null;
 
   const board = usePassBoardSheet(effectiveExamId);
   const setGrace = useSetGrace(effectiveExamId);
@@ -50,6 +39,11 @@ export default function CoePassBoardPage() {
 
   const data = board.data;
   const frozen = data?.sheet.status === "frozen";
+  const courses = data?.courses ?? [];
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(courses.length / DEFAULT_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageCourses = courses.slice((safePage - 1) * DEFAULT_PAGE_SIZE, safePage * DEFAULT_PAGE_SIZE);
 
   const subtitle = data
     ? `${data.exam_title ?? data.exam_type_name ?? "Exam"} · ${data.sheet.phase} — moderation and approval sheet${
@@ -64,13 +58,6 @@ export default function CoePassBoardPage() {
         subtitle={subtitle}
         actions={
           <>
-            <Select value={effectiveExamId ?? ""} onChange={(e) => setExamId(Number(e.target.value))} className="w-56">
-              {[...(exams.data ?? [])].sort((a, b) => b.id - a.id).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.exam_category} · {e.academic_year} · Sem {e.semester}
-                </option>
-              ))}
-            </Select>
             <Button variant="secondary" className="w-auto" disabled={frozen || resetModeration.isPending || !data?.courses_graced_count} onClick={() => resetModeration.mutate()}>
               Reset moderation
             </Button>
@@ -111,17 +98,18 @@ export default function CoePassBoardPage() {
               <div className="w-[70px]">Moved</div>
               <div className="w-[220px]">Board note</div>
             </div>
-            {(data?.courses ?? []).map((c) => (
+            {pageCourses.map((c) => (
               <CourseRow key={c.exam_subject_mapping_id} course={c} frozen={frozen} onSave={(grace, note) => setGrace.mutate({ exam_subject_mapping_id: c.exam_subject_mapping_id, grace_marks: grace, board_note: note })} />
             ))}
           </div>
+          <Pagination page={safePage} pageSize={DEFAULT_PAGE_SIZE} total={courses.length} onPageChange={setPage} />
         </Card>
       )}
 
       <Card>
         <h2 className="text-[15px] font-extrabold text-ink">Board sign-off</h2>
         <div className="mt-3 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wide text-muted">
+          <div className="flex items-center justify-between border-b border-divider pb-2 text-[11px] font-bold uppercase tracking-wide text-muted">
             <span>Member</span>
             <span>Status</span>
           </div>

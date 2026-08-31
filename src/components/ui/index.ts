@@ -25,3 +25,4 @@ export * from "@/components/ui/ConfirmDialog";
 export * from "@/components/ui/Modal";
 export * from "@/components/ui/Toggle";
 export * from "@/components/ui/PersonPicker";
+export * from "@/components/ui/Pagination";

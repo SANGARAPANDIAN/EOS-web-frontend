@@ -155,6 +155,8 @@ export interface VenueAvailability {
   photo_url: string | null;
   is_available: boolean;
   booking: { purpose: string; booked_by: string; accommodating_strength: number | null; from_datetime: string; to_datetime: string } | null;
+  /** Real COE exam hall-plan blocking this venue, if any — distinct from a regular `booking`. */
+  exam_usage: { exam_date: string; exam_label: string } | null;
 }
 
 // ListVenueQueryDto requires `from`/`to` (ISO datetime, no @IsOptional()) —

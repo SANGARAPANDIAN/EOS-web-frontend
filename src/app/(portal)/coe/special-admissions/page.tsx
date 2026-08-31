@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, StatCard, PillTabs, SearchBar, Select, Input, Textarea, Button, Badge, Modal } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonFilterBar, SkeletonTable } from "@/components/ui/Skeleton";

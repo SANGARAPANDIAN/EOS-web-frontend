@@ -14,6 +14,8 @@ export interface ShellHeaderData {
   semesterParityLabel?: string;
   unreadNotifications?: number;
   showNotifications?: boolean;
+  /** Route to a real per-module settings page — omit to hide the topbar's gear icon entirely. Only set this for a module with genuine configurable state. */
+  settingsHref?: string;
 }
 
 interface AppShellProps {
@@ -84,6 +86,7 @@ export function AppShell({ moduleConfig, header, navBadges, search, programIcon,
               showNotifications={header?.showNotifications}
               search={search}
               quickCreate={quickCreate}
+              settingsHref={header?.settingsHref}
             />
           )}
         </div>

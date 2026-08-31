@@ -170,8 +170,9 @@ export default function EdcIdeasPage() {
                       <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #E2E8F0", borderRadius: 10 }}>
                         {studentSearch.isLoading && <div style={{ padding: 12, fontSize: 12.5, color: "#94A3B8" }}>Searching…</div>}
                         {(studentSearch.data ?? []).map((s) => (
-                          <div key={s.id} onClick={() => { setStudent(s); setStudentQuery(""); }} style={{ padding: "9px 13px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #F1F5F9" }}>
-                            {s.name} · {s.student_id_no}
+                          <div key={s.id} onClick={() => { setStudent(s); setStudentQuery(""); }} style={{ padding: "9px 13px", cursor: "pointer", borderBottom: "1px solid #F1F5F9" }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{s.name}</div>
+                            <div style={{ fontSize: 11.5, color: "#94A3B8" }}>{s.roll_no ?? s.register_no ?? s.student_id_no}{s.department ? ` · ${s.department.code}` : ""}</div>
                           </div>
                         ))}
                         {studentSearch.data?.length === 0 && !studentSearch.isLoading && <div style={{ padding: 12, fontSize: 12.5, color: "#94A3B8" }}>No students match.</div>}

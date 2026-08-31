@@ -54,6 +54,10 @@ export function CoeShell({ children }: { children: React.ReactNode }) {
         academicYearLabel: viewedAcademicYearLabel(now.getFullYear(), now.getMonth()),
         semesterParityLabel: currentInstitutionSemesterParity(now),
         showNotifications: true,
+        // Real, backend-wired pass-mark/grade-threshold config
+        // (exam_pass_rules_settings) — previously only reachable by typing
+        // the URL directly since it was dropped from nav during a redesign.
+        settingsHref: "/coe/settings",
       }}
       navBadges={{
         coeRevaluationPending: pendingRevaluation || undefined,

@@ -13,10 +13,12 @@ import {
   type DashboardPeriod,
 } from "@/modules/principal/api/dashboard";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
+import { usePlacementsSummary } from "@/modules/principal/api/placements";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
 import { PrincipalPlacementCard } from "@/modules/principal/components/PrincipalPlacementCard";
 import { PrincipalAttentionCard } from "@/modules/principal/components/PrincipalAttentionCard";
 import { PrincipalCampusCard } from "@/modules/principal/components/PrincipalCampusCard";
+import { PrincipalEmployeeCard } from "@/modules/principal/components/PrincipalEmployeeCard";
 import { principalColors } from "@/modules/principal/theme";
 import { formatLongDate, formatDayAndTime, greetingForHour } from "@/lib/utils/date";
 
@@ -32,6 +34,7 @@ export default function PrincipalDashboardPage() {
   const identity = useMyIdentity();
   const summary = usePrincipalDashboardSummary(period);
   const insights = usePrincipalDashboardInsights();
+  const placements = usePlacementsSummary();
   const announcements = useAnnouncements();
 
   const displayName = identity.data?.name;
@@ -180,12 +183,19 @@ export default function PrincipalDashboardPage() {
         )}
 
         <PrincipalStatCard
-          label="Departments"
-          icon="account_tree"
-          loading={summary.isLoading}
-          value={s ? s.departments.total.toLocaleString("en-IN") : "—"}
-          footer="across the institution"
-          href="/principal/departments"
+          label="Placements"
+          icon="work"
+          loading={placements.isLoading}
+          value={placements.data ? placements.data.overall.placed.toLocaleString("en-IN") : "—"}
+          delta={placements.data ? placements.data.overall.unplaced.toLocaleString("en-IN") : undefined}
+          sub={placements.data ? "unplaced" : undefined}
+          progressPercent={placements.data?.overall.percentage ?? undefined}
+          footer={
+            placements.data?.average_package != null
+              ? `₹${placements.data.average_package} LPA average package`
+              : "No placement data yet"
+          }
+          href="/principal/placements"
         />
       </div>
 
@@ -240,6 +250,8 @@ export default function PrincipalDashboardPage() {
           </div>
         </div>
       </div>
+
+      <PrincipalEmployeeCard data={insights.data?.employee} isLoading={insights.isLoading} />
 
       <PrincipalCampusCard data={insights.data?.campus} isLoading={insights.isLoading} />
     </div>

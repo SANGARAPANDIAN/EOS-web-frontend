@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
-import { Button, PageHeader, KpiCard } from "@/modules/admin/components/ui";
+import { Button, PageHeader, KpiCard, useToast } from "@/modules/admin/components/ui";
 import { useDashboardSummary } from "@/modules/placement/api/dashboard";
 import { lpa } from "@/modules/placement/lib/format";
+import { generatePlacementDashboardReport } from "@/modules/placement/lib/placement-dashboard-report";
+import { friendlyError } from "@/lib/utils/errors";
 import { PlacementFunnelCard } from "@/modules/placement/components/dashboard/PlacementFunnelCard";
 import { DepartmentPlacementRatesCard } from "@/modules/placement/components/dashboard/DepartmentPlacementRatesCard";
 import { PackageDistributionCard } from "@/modules/placement/components/dashboard/PackageDistributionCard";
@@ -16,11 +19,25 @@ import { NeedsAttentionCard } from "@/modules/placement/components/dashboard/Nee
 export default function PlacementDashboardPage() {
   const router = useRouter();
   const { data, isLoading } = useDashboardSummary();
+  const { show } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
 
   const eligiblePlacedPct =
     data && data.eligibleStudentsTotal > 0
       ? Math.round((data.studentsPlaced / data.eligibleStudentsTotal) * 1000) / 10
       : undefined;
+
+  async function handleExport() {
+    if (!data) return;
+    setIsExporting(true);
+    try {
+      await generatePlacementDashboardReport(data);
+    } catch (err: unknown) {
+      show(friendlyError(err), "error");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -29,8 +46,8 @@ export default function PlacementDashboardPage() {
         description="Drives, students, recruiters and outcomes for this placement cycle."
         actions={
           <>
-            <Button variant="secondary" disabled title="Export board — not wired to a real handler yet">
-              <Icon name="download" size={16} /> Export
+            <Button variant="secondary" onClick={handleExport} disabled={!data || isExporting}>
+              <Icon name="download" size={16} /> {isExporting ? "Preparing…" : "Export"}
             </Button>
             <Button variant="primary" onClick={() => router.push("/placement/drives/new")}>
               <Icon name="add" size={16} /> Create drive

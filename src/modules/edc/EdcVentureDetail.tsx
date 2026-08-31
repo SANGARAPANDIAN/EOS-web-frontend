@@ -50,7 +50,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function EdcVentureDetail({ row, backHref, backLabel }: { row: EdcEntrepreneurshipRow; backHref: string; backLabel: string }) {
+export function EdcVentureDetail({
+  row,
+  backHref,
+  backLabel,
+  readOnly,
+}: {
+  row: EdcEntrepreneurshipRow;
+  backHref?: string;
+  backLabel?: string;
+  /** Hides Edit/Delete — the student's own "My Venture" view is read-only; only the EDC Coordinator can change venture data. */
+  readOnly?: boolean;
+}) {
   const router = useRouter();
   const update = useUpdateEdcVenture();
   const remove = useDeleteEdcVenture();
@@ -120,7 +131,10 @@ export function EdcVentureDetail({ row, backHref, backLabel }: { row: EdcEntrepr
   }
 
   function doDelete() {
-    remove.mutate(row.id, { onSuccess: () => router.push(backHref), onError: (e) => setError(e instanceof Error ? e.message : "Failed to delete.") });
+    remove.mutate(row.id, {
+      onSuccess: () => { if (backHref) router.push(backHref); },
+      onError: (e) => setError(e instanceof Error ? e.message : "Failed to delete."),
+    });
   }
 
   const studentInfo = [
@@ -133,24 +147,30 @@ export function EdcVentureDetail({ row, backHref, backLabel }: { row: EdcEntrepr
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 1560 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div onClick={() => router.push(backHref)} data-edc-back="" style={{ fontSize: 13, fontWeight: 600, color: "#64748B", cursor: "pointer", width: "fit-content" }}>
-          ← {backLabel}
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          {edit ? (
-            <>
-              <div onClick={() => setEdit(false)} data-edc-row="" style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Cancel</div>
-              <div data-edc-btn-primary="" onClick={save} style={{ padding: "9px 18px", borderRadius: 9, background: "#1D4ED8", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                {update.isPending ? "Saving…" : "Save changes"}
-              </div>
-            </>
-          ) : (
-            <>
-              <div onClick={() => setConfirmDelete(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #FECACA", color: "#DC2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Delete venture</div>
-              <div onClick={startEdit} data-edc-row="" style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Edit</div>
-            </>
-          )}
-        </div>
+        {backHref ? (
+          <div onClick={() => router.push(backHref)} data-edc-back="" style={{ fontSize: 13, fontWeight: 600, color: "#64748B", cursor: "pointer", width: "fit-content" }}>
+            ← {backLabel}
+          </div>
+        ) : (
+          <div />
+        )}
+        {!readOnly && (
+          <div style={{ display: "flex", gap: 10 }}>
+            {edit ? (
+              <>
+                <div onClick={() => setEdit(false)} data-edc-row="" style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Cancel</div>
+                <div data-edc-btn-primary="" onClick={save} style={{ padding: "9px 18px", borderRadius: 9, background: "#1D4ED8", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {update.isPending ? "Saving…" : "Save changes"}
+                </div>
+              </>
+            ) : (
+              <>
+                <div onClick={() => setConfirmDelete(true)} style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #FECACA", color: "#DC2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Delete venture</div>
+                <div onClick={startEdit} data-edc-row="" style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Edit</div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {error && <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, color: "#DC2626", fontSize: 12.5, fontWeight: 600 }}>{error}</div>}

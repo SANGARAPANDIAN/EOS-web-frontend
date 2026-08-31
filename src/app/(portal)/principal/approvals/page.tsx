@@ -236,44 +236,11 @@ export default function PrincipalApprovalsPage() {
           onChange={(e) => setKind(e.target.value as ApprovalKindFilter)}
           className="h-11 rounded-xl border px-3 text-sm"
           style={{ borderColor: principalColors.border, color: principalColors.heading }}
-          title="Only Leave and OD ever reach a Principal approval stage in this system — the rest are shown for reference and disabled."
+          title="Leave and OD are the only two request types with a real Principal approval stage in this system."
         >
           <option value="all">All request types</option>
-          <option value="" disabled>
-            SOP — not routed to Principal
-          </option>
-          <option value="" disabled>
-            POP — not routed to Principal
-          </option>
           <option value="od">OD</option>
           <option value="leave">LEAVE</option>
-          <option value="" disabled>
-            PURCHASE — not routed to Principal
-          </option>
-          <option value="" disabled>
-            BUDGET — not available in this system
-          </option>
-          <option value="" disabled>
-            EVENT — not available in this system
-          </option>
-          <option value="" disabled>
-            MOU — not available in this system
-          </option>
-          <option value="" disabled>
-            RECRUITMENT — not available in this system
-          </option>
-          <option value="" disabled>
-            INFRASTRUCTURE — not available in this system
-          </option>
-          <option value="" disabled>
-            TRANSPORT — not available in this system
-          </option>
-          <option value="" disabled>
-            CIRCULAR — not available in this system
-          </option>
-          <option value="" disabled>
-            EXAM — not available in this system
-          </option>
         </select>
       </div>
 

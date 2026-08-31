@@ -9,14 +9,20 @@ import { friendlyError } from "@/lib/utils/errors";
 import { generateStudentProfileReport } from "@/modules/admin/lib/student-profile-report";
 import { avatarTint, formatDate, initials, studentName } from "@/modules/admin/lib/students-format";
 import {
+  fetchStudentIdCardSource,
   useClassMentor,
+  useNotifyStudent,
   useStudent,
   useStudentAttendanceSummary,
   useStudentCertificates,
   useStudentFeeWorkspace,
   useStudentSubjects,
 } from "@/modules/admin/api/students";
+import { useStudentIdCardBulkStatus, useIssueStudentIdCard } from "@/modules/admin/api/studentIdCard";
 import { useCertificateTypes } from "@/modules/admin/api/admissions";
+import { studentToIdCardData } from "@/modules/admin/lib/id-card-data";
+import { IdCardModal } from "@/modules/admin/components/shared/IdCardModal";
+import { NotifyModal } from "@/modules/admin/components/shared/NotifyModal";
 import { EditProfileModal } from "@/modules/admin/components/student-detail/EditProfileModal";
 import { ResetPasswordModal } from "@/modules/admin/components/student-detail/ResetPasswordModal";
 import { OverviewSection } from "@/modules/admin/components/student-detail/OverviewSection";
@@ -157,10 +163,25 @@ export default function StudentDetailPage() {
   const { data: overviewSubjects } = useStudentSubjects(studentId, onOverview);
   const { data: overviewCertificateTypes } = useCertificateTypes(onOverview);
   const { data: overviewCertificates } = useStudentCertificates(studentId, onOverview);
-  const [editOpen, setEditOpen] = useState(false);
+  // The Students list page's row-level Edit action links here with
+  // ?edit=1 so clicking it opens straight into the edit modal instead of
+  // landing on the read-only profile first. Read via window.location in
+  // the lazy initializer (not an effect — this is real initial state, not
+  // a sync) rather than useSearchParams() to avoid the Suspense-boundary
+  // requirement that hook forces on the whole page for one small affordance.
+  const [editOpen, setEditOpen] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("edit") === "1",
+  );
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [idCardOpen, setIdCardOpen] = useState(false);
+  const { data: idCardStatusMap, isLoading: idCardStatusLoading } = useStudentIdCardBulkStatus(
+    idCardOpen ? [studentId] : [],
+  );
+  const issueStudentIdCard = useIssueStudentIdCard();
   const { show } = useToast();
+  const notifyStudent = useNotifyStudent();
   const [railCollapsed, setRailCollapsed] = useState(
     () => typeof window !== "undefined" && window.localStorage.getItem(RAIL_KEY) === "1",
   );
@@ -193,6 +214,16 @@ export default function StudentDetailPage() {
       show(friendlyError(err), "error");
     } finally {
       setIsGeneratingReport(false);
+    }
+  }
+
+  async function handleSendNotification(input: { title: string; message: string }) {
+    try {
+      await notifyStudent.mutateAsync({ id: studentId, input });
+      show("Notification sent.", "success");
+      setNotifyOpen(false);
+    } catch (err: unknown) {
+      show(friendlyError(err), "error");
     }
   }
 
@@ -262,16 +293,13 @@ export default function StudentDetailPage() {
           <Button variant="secondary" onClick={() => setResetPasswordOpen(true)}>
             <Icon name="lock" size={16} /> Reset password
           </Button>
-          <Button variant="secondary" disabled title="Timeline — no per-student activity endpoint yet">
-            <Icon name="history" size={16} /> Timeline
-          </Button>
-          <Button variant="secondary" disabled title="Academic history — needs the Academics sections built out">
+          <Button variant="secondary" onClick={() => setActiveTab("academic")}>
             <Icon name="school" size={16} /> Academic history
           </Button>
-          <Button variant="secondary" disabled title="Notify — no messaging backend yet">
+          <Button variant="secondary" onClick={() => setNotifyOpen(true)}>
             <Icon name="send" size={16} /> Notify
           </Button>
-          <Button variant="secondary" disabled title="ID card — no ID card module yet">
+          <Button variant="secondary" onClick={() => setIdCardOpen(true)}>
             <Icon name="badge" size={16} /> ID card
           </Button>
           <Button variant="secondary" onClick={handlePrintReport} disabled={isGeneratingReport}>
@@ -378,6 +406,56 @@ export default function StudentDetailPage() {
 
       <EditProfileModal studentId={studentId} firstName={student.first_name} lastName={student.last_name} open={editOpen} onClose={() => setEditOpen(false)} />
       <ResetPasswordModal studentId={studentId} studentName={name} open={resetPasswordOpen} onClose={() => setResetPasswordOpen(false)} />
+      <NotifyModal
+        open={notifyOpen}
+        onClose={() => setNotifyOpen(false)}
+        recipientName={name}
+        onSend={handleSendNotification}
+        isSending={notifyStudent.isPending}
+      />
+      <IdCardModal
+        open={idCardOpen}
+        onClose={() => setIdCardOpen(false)}
+        entities={[
+          {
+            id: student.id,
+            avatar: (
+              <span
+                className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-admin-md border border-admin-border text-sm font-semibold"
+                style={student.photo_url ? undefined : { background: tint.bg, color: tint.fg }}
+              >
+                {student.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a remote storage URL, not a local/optimizable asset
+                  <img src={student.photo_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  initials(student.first_name, student.last_name)
+                )}
+              </span>
+            ),
+            pickerAvatar: (
+              <span
+                className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-admin-pill text-[10px] font-semibold"
+                style={student.photo_url ? undefined : { background: tint.bg, color: tint.fg }}
+              >
+                {student.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a remote storage URL, not a local/optimizable asset
+                  <img src={student.photo_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  initials(student.first_name, student.last_name)
+                )}
+              </span>
+            ),
+            title: name,
+            subtitle: `${student.register_no ?? student.roll_no ?? student.student_id_no} · ${student.course?.name ?? "—"} · ${student.department?.name ?? "—"}`,
+            data: studentToIdCardData({ ...student, blood_group: null, addresses: [] }),
+          },
+        ]}
+        statusMap={idCardStatusMap}
+        statusLoading={idCardStatusLoading}
+        issueCard={(id) => issueStudentIdCard.mutateAsync(id)}
+        fetchFullData={(id) => fetchStudentIdCardSource(id).then(studentToIdCardData)}
+        onIssued={() => {}}
+      />
     </div>
   );
 }

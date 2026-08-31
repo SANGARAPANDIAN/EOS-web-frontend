@@ -29,7 +29,18 @@ export default function ResidentsPage() {
       ),
     },
     { key: "reg", header: "Register no.", width: "1fr", render: (row) => <span className="font-mono text-body">{row.student_id_no}</span> },
-    { key: "room", header: "Room", width: "0.7fr", render: (row) => <span className="text-body">{row.room?.room_number ?? "—"}</span> },
+    {
+      key: "room",
+      header: "Room",
+      width: "0.9fr",
+      render: (row) => (
+        <span className="text-body">
+          {row.room
+            ? `${row.room.block ? `${row.room.block.name} · ` : ""}${row.room.room_number}${row.room.floor ? ` (${row.room.floor.name})` : ""}`
+            : "—"}
+        </span>
+      ),
+    },
     { key: "course", header: "Course", width: "1.4fr", render: (row) => <span className="text-body">{row.course}</span> },
     {
       key: "guardian",

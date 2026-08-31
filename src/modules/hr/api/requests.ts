@@ -48,7 +48,8 @@ export interface HrRequestsListParams {
 export interface CreateHrVacationEntryInput {
   faculty_id: number;
   kind: "leave" | "od";
-  date: string;
+  from_date: string;
+  to_date: string;
   reason?: string;
   /** Only meaningful when kind is "leave" — FK into leave_types. */
   leave_type_id?: number;
@@ -101,7 +102,7 @@ export function useHrRequestDecision() {
   });
 }
 
-/** HR recording a single-day leave/OD entry directly, e.g. from the Vacation Management calendar. */
+/** HR recording a leave/OD entry directly (single day or a date range), e.g. from the Vacation Management calendar. */
 export function useCreateHrVacationEntry() {
   const invalidate = useInvalidateHrRequests();
   return useMutation({

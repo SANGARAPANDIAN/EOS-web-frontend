@@ -22,6 +22,9 @@ export const libraryKeys = {
     search: (q: string) => [...base, "students", "search", q] as const,
     noDues: (id: number) => [...base, "students", "no-dues", id] as const,
   },
+  faculty: {
+    search: (q: string) => [...base, "faculty", "search", q] as const,
+  },
   settings: () => [...base, "settings"] as const,
   reports: {
     preview: (key: string, filters: object = {}) => [...base, "reports", key, filters] as const,

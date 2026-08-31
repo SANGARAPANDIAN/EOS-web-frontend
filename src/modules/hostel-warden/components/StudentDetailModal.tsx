@@ -39,7 +39,11 @@ export function StudentDetailModal({ studentId, onClose }: { studentId: number; 
           <div>
             <div className="text-[19px] font-extrabold text-ink">{s?.name ?? "Loading…"}</div>
             <div className="mt-0.5 text-[13px] text-muted">
-              {s ? `${s.student_id_no} · ${s.course} · ${s.hostel?.name ?? "—"}${s.room ? ` · Room ${s.room.room_number}` : ""}` : ""}
+              {s
+                ? `${s.student_id_no} · ${s.course} · ${s.hostel?.name ?? "—"}${
+                    s.room ? ` · ${s.room.block ? `${s.room.block.name} · ` : ""}Room ${s.room.room_number}` : ""
+                  }`
+                : ""}
             </div>
           </div>
           <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
@@ -75,6 +79,8 @@ export function StudentDetailModal({ studentId, onClose }: { studentId: number; 
                 <div className="mb-1 text-[13px] font-extrabold text-ink">Allotment</div>
                 {[
                   ["Batch", s.batch],
+                  ["Block", s.room?.block?.name ?? "—"],
+                  ["Floor", s.room?.floor?.name ?? "—"],
                   ["Room", s.room?.room_number ?? "—"],
                   ["Allotted on", s.allocated_date ? s.allocated_date.slice(0, 10) : "—"],
                 ].map(([label, value]) => (

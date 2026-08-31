@@ -66,7 +66,8 @@ export type NavBadgeKey =
   | "secretaryOutpass"
   | "secretaryDocs"
   | "secretaryEmpLeave"
-  | "secretaryEmpOd";
+  | "secretaryEmpOd"
+  | "adminSopPending";
 
 export interface NavItem {
   key: string;
@@ -76,6 +77,8 @@ export interface NavItem {
   href: string;
   /** Populated at render time from live data (recent-item counts, dues, etc.) — never hardcoded. */
   badgeKey?: NavBadgeKey;
+  /** Only relevant to hostel residents — the consuming Shell filters this out of the config it passes to AppShell for a day scholar. Omit for items every student should see. */
+  hostellerOnly?: boolean;
 }
 
 export interface NavGroup {

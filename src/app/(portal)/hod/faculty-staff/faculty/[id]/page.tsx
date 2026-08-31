@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, EmptyState, Badge, Button, ProfilePhoto, SkeletonBlock } from "@/components/ui";
 import { useHodFacultyProfile } from "@/modules/hod/api/facultyStaff";
+import { generateHodFacultyProfileReport } from "@/modules/hod/lib/faculty-profile-report";
+import { friendlyError } from "@/lib/utils/errors";
 import { formatDisplayDate } from "@/lib/utils/date";
 
 function appraisalStatusLabel(status: string | null): string {
@@ -36,6 +39,21 @@ export default function HodFacultyProfilePage() {
   const facultyId = Number(params.id);
   const router = useRouter();
   const profile = useHodFacultyProfile(facultyId);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
+
+  async function handlePrintProfile() {
+    if (!profile.data) return;
+    setPrintError(null);
+    setIsGeneratingReport(true);
+    try {
+      await generateHodFacultyProfileReport(profile.data);
+    } catch (err) {
+      setPrintError(friendlyError(err));
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }
 
   if (profile.isLoading) {
     return (
@@ -66,6 +84,19 @@ export default function HodFacultyProfilePage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {printError && (
+        <div className="flex items-center justify-between gap-3 rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          <span>Couldn&apos;t generate the PDF — {printError}</span>
+          <button
+            type="button"
+            onClick={() => setPrintError(null)}
+            className="shrink-0 cursor-pointer text-[16px] leading-none text-danger-fg/70 hover:text-danger-fg"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <Button variant="secondary" className="shrink-0" onClick={() => router.push("/hod/faculty-staff")}>
@@ -79,8 +110,8 @@ export default function HodFacultyProfilePage() {
           </div>
         </div>
         <div className="flex shrink-0 gap-2.5">
-          <Button variant="secondary" onClick={() => window.print()}>
-            Print profile
+          <Button variant="secondary" onClick={handlePrintProfile} disabled={isGeneratingReport}>
+            {isGeneratingReport ? "Preparing PDF…" : "Print profile"}
           </Button>
           {faculty.institute_email && (
             <a href={`mailto:${faculty.institute_email}`}>

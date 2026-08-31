@@ -2,44 +2,47 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import type { Faculty } from "@/modules/admin/api/faculty";
-import { CARD_ASPECT, renderFacultyCardImages } from "@/modules/admin/lib/id-card-image";
+import { CARD_ASPECT, renderIdCardImages } from "@/modules/admin/lib/id-card-image";
+import type { IdCardData } from "@/modules/admin/lib/id-card-data";
 
 interface FlipIdCardProps {
-  /** Must carry the back-side fields (DOB/address/etc.) — a summary list
-   * row isn't enough; pass a fetchFacultyById() result. */
-  faculty: Faculty;
+  /** Must carry the back-side fields (DOB/address/etc.) — build via
+   * facultyToIdCardData/studentToIdCardData from a full record, not a
+   * summary list row. */
+  data: IdCardData;
   /** Rendered width in px — height follows the card's real aspect ratio. */
   width?: number;
 }
 
 /**
  * A floating, click-to-flip preview of exactly the PNG that ends up in the
- * printed PDF — both are drawn by the same renderFacultyCardImages() call,
- * so there's no separately hand-built "preview version" of the card design
- * that could ever drift out of sync with what actually prints.
+ * printed PDF — both are drawn by the same renderIdCardImages() call, so
+ * there's no separately hand-built "preview version" of the card design
+ * that could ever drift out of sync with what actually prints. Entity-
+ * agnostic: callers (faculty, students, ...) all normalize their record
+ * into an IdCardData first.
  *
- * Render with `key={faculty.id}` at the call site when the previewed person
- * can change (e.g. a picker) — that remounts this component with a clean
- * "loading"/"front-facing" state instead of showing the previous person's
- * card while the new one is still being drawn.
+ * Render with `key={data.entityId}` at the call site when the previewed
+ * entity can change (e.g. a picker) — that remounts this component with a
+ * clean "loading"/"front-facing" state instead of showing the previous
+ * entity's card while the new one is still being drawn.
  */
-export function FlipIdCard({ faculty, width = 220 }: FlipIdCardProps) {
+export function FlipIdCard({ data, width = 220 }: FlipIdCardProps) {
   const [images, setImages] = useState<{ front: string; back: string } | null>(null);
   const [flipped, setFlipped] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    renderFacultyCardImages(faculty).then((result) => {
+    renderIdCardImages(data).then((result) => {
       if (!cancelled) setImages(result);
     });
     return () => {
       cancelled = true;
     };
-    // faculty.id is enough to key the re-render — a new object with the same
+    // entityId is enough to key the re-render — a new object with the same
     // id (e.g. a fresh fetch) is the same card and shouldn't re-flicker.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [faculty.id]);
+  }, [data.entityId]);
 
   const height = Math.round(width / CARD_ASPECT);
 

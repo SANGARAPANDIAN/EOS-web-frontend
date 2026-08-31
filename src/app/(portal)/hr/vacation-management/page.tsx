@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import {
   Avatar,
   Badge,
@@ -13,15 +13,12 @@ import {
   IconButton,
   Input,
   Modal,
-  SegmentedTabs,
   Select,
   StatCard,
-  Textarea,
   type DataTableColumn,
 } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
 import {
-  useCreateHrVacationEntry,
   useDeleteHrVacationEntry,
   useHrRequests,
   type ApprovalStatus,
@@ -29,8 +26,8 @@ import {
 } from "@/modules/hr/api/requests";
 import { HrFacultyPicker } from "@/modules/hr/components/HrFacultyPicker";
 import type { HrFaculty } from "@/modules/hr/api/facultyDirectory";
-import { useLeaveTypes } from "@/modules/hr/api/leaveTypes";
-import { formatDisplayDate, toIsoDateString, todayDateOnly } from "@/lib/utils/date";
+import { Field, RecordVacationEntryForm } from "@/modules/hr/components/RecordVacationEntryForm";
+import { formatDisplayDate, toIsoDateString } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
 const STATUS_TONE: Record<ApprovalStatus, BadgeTone> = {
@@ -59,112 +56,15 @@ function monthBounds(date: Date = new Date()): { start: string; end: string } {
   return { start: toIsoDateString(start), end: toIsoDateString(end) };
 }
 
-/** A labelled cell, so the filter bar and the form read as forms rather than rows of loose controls. */
-function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
-  return (
-    <div className={className}>
-      <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[.05em] text-muted">{label}</label>
-      {children}
-    </div>
-  );
-}
-
 function AddEntryModal({ onClose }: { onClose: () => void }) {
-  const createEntry = useCreateHrVacationEntry();
-  const leaveTypes = useLeaveTypes();
-
-  const [faculty, setFaculty] = useState<HrFaculty | null>(null);
-  const [kind, setKind] = useState<"leave" | "od">("leave");
-  const [date, setDate] = useState(todayDateOnly());
-  const [leaveTypeId, setLeaveTypeId] = useState("");
-  const [reason, setReason] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit() {
-    if (faculty === null) {
-      setError("Choose a faculty member.");
-      return;
-    }
-    if (!date) {
-      setError("Choose a date.");
-      return;
-    }
-    setError(null);
-    try {
-      await createEntry.mutateAsync({
-        faculty_id: faculty.id,
-        kind,
-        date,
-        reason: reason.trim() || undefined,
-        leave_type_id: kind === "leave" && leaveTypeId ? Number(leaveTypeId) : undefined,
-      });
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not record this entry.");
-    }
-  }
-
   return (
     <Modal
       open
       onClose={onClose}
       title="Record a leave / OD entry"
-      subtitle="Directly registers a single-day entry on someone's behalf"
+      subtitle="Directly registers a leave/OD entry on someone's behalf"
     >
-      <div className="flex flex-col gap-4">
-        <Field label="Faculty">
-          <HrFacultyPicker value={faculty} onChange={setFaculty} />
-        </Field>
-
-        <Field label="Kind">
-          <SegmentedTabs
-            value={kind}
-            onChange={(k) => setKind(k as "leave" | "od")}
-            options={[
-              { key: "leave", label: "Leave" },
-              { key: "od", label: "On duty" },
-            ]}
-          />
-        </Field>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Date">
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </Field>
-          {kind === "leave" && (
-            <Field label="Leave type">
-              <Select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}>
-                <option value="">Not specified</option>
-                {leaveTypes.data?.map((lt) => (
-                  <option key={lt.id} value={lt.id}>
-                    {lt.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
-        </div>
-
-        <Field label="Reason">
-          <Textarea
-            rows={2}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Why this entry is being recorded (optional)"
-          />
-        </Field>
-
-        {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
-      </div>
-
-      <div className="mt-6 flex justify-end gap-2.5 border-t border-divider pt-5">
-        <Button variant="secondary" className="w-auto" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button variant="primarySmall" className="w-auto px-6" onClick={submit} disabled={createEntry.isPending}>
-          {createEntry.isPending ? "Saving…" : "Save entry"}
-        </Button>
-      </div>
+      <RecordVacationEntryForm onClose={onClose} />
     </Modal>
   );
 }
@@ -286,8 +186,8 @@ export default function HrVacationManagementPage() {
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Vacation management</h1>
           <p className="mt-1 text-[13px] text-muted">
-            Record a single-day leave/OD entry on a faculty member&apos;s behalf, or remove one — to approve or reject an
-            incoming request instead, use the Requests page.
+            Record a leave/OD entry (a single day or a date range) on a faculty member&apos;s behalf, or remove one — to
+            approve or reject an incoming request instead, use the Requests page.
           </p>
         </div>
         <Button

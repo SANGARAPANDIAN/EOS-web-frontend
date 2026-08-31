@@ -6,7 +6,7 @@ import { FilterSelect } from "@/modules/iqac/components/PageControls";
 import { Modal } from "@/components/ui";
 import { useDepartmentsList } from "@/modules/iqac/api/departments";
 import { useFacultyList } from "@/modules/iqac/api/faculty";
-import { useClassOptions, useCreateClassRow, useAssignClassMentor, currentAcademicYearShort } from "@/modules/iqac/api/academicQuality";
+import { useClassOptions, useCreateClassRow, useUpdateClassRow, useAssignClassMentor, currentAcademicYearShort } from "@/modules/iqac/api/academicQuality";
 
 /** "← IQAC dashboard" + breadcrumb — matches the design's metric-detail back nav exactly. */
 export function MetricBackNav({ crumb }: { crumb: string }) {
@@ -357,6 +357,125 @@ export function AddClassRowForm({
           className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
         >
           {create.isPending || assignMentor.isPending ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Editing a class row is deliberately narrower than creating one —
+ * department/course/batch identify which class a row IS (this register's
+ * own aggregate doesn't even carry their raw ids, only display labels), so
+ * "editing" them would really mean recreating a different class. What's
+ * genuinely correctable after the fact is the section label and who the
+ * class advisor/mentor is — both real, low-risk edits — plus removing the
+ * row entirely (blocked server-side with a real 409 while any student is
+ * still enrolled in it).
+ */
+export function EditClassRowForm({
+  crumb,
+  classId,
+  currentSection,
+  onClose,
+  onSaved,
+}: {
+  crumb: string;
+  classId: number;
+  currentSection: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const update = useUpdateClassRow();
+  const assignMentor = useAssignClassMentor();
+
+  const [section, setSection] = useState(currentSection);
+  const [facultyQuery, setFacultyQuery] = useState("");
+  const [facultyId, setFacultyId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const faculty = useFacultyList({ q: facultyQuery.trim() || undefined, status: "all" });
+
+  async function submit() {
+    if (!section.trim()) {
+      setError("Section is required.");
+      return;
+    }
+    setError(null);
+    try {
+      if (section.trim() !== currentSection) {
+        await update.mutateAsync({ classId, section: section.trim() });
+      }
+      if (facultyId) {
+        await assignMentor.mutateAsync({
+          classId,
+          faculty_id: Number(facultyId),
+          academic_year: currentAcademicYearShort(),
+        });
+      }
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not save this class.");
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Edit department row" subtitle={crumb}>
+      <div>
+        <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Section</div>
+        <input
+          value={section}
+          onChange={(e) => setSection(e.target.value)}
+          maxLength={5}
+          className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
+        />
+      </div>
+
+      <div className="mt-4">
+        <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Reassign class advisor (optional)</div>
+        <input
+          value={facultyQuery}
+          onChange={(e) => {
+            setFacultyQuery(e.target.value);
+            setFacultyId("");
+          }}
+          placeholder="Search faculty by name"
+          className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
+        />
+        {facultyQuery.trim() && !faculty.isLoading && (
+          <div className="mt-1.5 max-h-[160px] overflow-y-auto rounded-[10px] border border-border-default">
+            {(faculty.data?.faculty ?? []).slice(0, 20).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => {
+                  setFacultyId(String(f.id));
+                  setFacultyQuery(`${f.name} (${f.department?.code ?? "—"})`);
+                }}
+                className={`block w-full px-3.5 py-2 text-left text-[13px] hover:bg-surface-tint ${String(f.id) === facultyId ? "bg-accent-50 font-bold text-primary" : "text-ink"}`}
+              >
+                {f.name} · {f.designation} · {f.department?.code ?? "—"}
+              </button>
+            ))}
+            {(faculty.data?.faculty ?? []).length === 0 && <div className="px-3.5 py-2 text-[13px] text-subtle">No matching faculty.</div>}
+          </div>
+        )}
+      </div>
+
+      {error && <div className="mt-3 text-[13px] font-semibold text-danger-fg">{error}</div>}
+
+      <div className="mt-4 flex justify-end gap-3">
+        <button type="button" onClick={onClose} className="h-[42px] rounded-[10px] border border-border-default bg-surface px-4 text-[13.5px] font-bold text-ink hover:bg-surface-tint">
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={update.isPending || assignMentor.isPending}
+          className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
+        >
+          {update.isPending || assignMentor.isPending ? "Saving…" : "Save"}
         </button>
       </div>
     </Modal>

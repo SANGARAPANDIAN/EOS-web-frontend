@@ -1,5 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { getToken } from "@/lib/auth/session";
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001/api/v1";
+
+/**
+ * Uploads a certificate file via the existing shared attachments endpoint
+ * (same Supabase Storage plumbing the EDC documents feature and
+ * announcements attachments already use — IQAC already has role access to
+ * it). apiClient.post() doesn't support FormData, so this does a plain
+ * fetch with the same auth header apiClient injects.
+ */
+export async function uploadIqacCertificateFile(file: File): Promise<{ file_key: string; file_name: string; url: string }> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${BASE_URL.replace(/\/+$/, "")}/announcements/attachments`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message ?? "Upload failed");
+  return json.data;
+}
 
 export interface PublicationVenueRow {
   venue: string;
@@ -114,6 +138,39 @@ export function useAddPublicationEntry() {
   });
 }
 
+export interface UpdatePublicationEntryInput {
+  title?: string;
+  venue?: string;
+  author_role?: "first_author" | "co_author" | "corresponding_author";
+  indexing?: string;
+  published_date?: string;
+  status?: "published" | "accepted" | "under_review" | "submitted";
+  citation_count?: number;
+}
+
+/** PATCH /me/iqac/faculty-development/publications/:id — real faculty_publications update. */
+export function useUpdatePublicationEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdatePublicationEntryInput }) =>
+      apiClient.patch(`/me/iqac/faculty-development/publications/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "publications"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/faculty-development/publications/:id */
+export function useDeletePublicationEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/faculty-development/publications/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "publications"] });
+    },
+  });
+}
+
 export interface FacultySummary {
   id: number;
   name: string;
@@ -175,6 +232,31 @@ export function useAddFdpEntry() {
   });
 }
 
+export type UpdateDevelopmentProgramEntryInput = Partial<Omit<AddDevelopmentProgramEntryInput, "faculty_id">>;
+
+/** PATCH /me/iqac/faculty-development/fdp/:id — real faculty_development_programs update. */
+export function useUpdateFdpEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateDevelopmentProgramEntryInput }) =>
+      apiClient.patch(`/me/iqac/faculty-development/fdp/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "fdp"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/faculty-development/fdp/:id */
+export function useDeleteFdpEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/faculty-development/fdp/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "fdp"] });
+    },
+  });
+}
+
 /** GET /me/iqac/faculty-development/sttp/quality */
 export function useSttpQuality() {
   return useQuery({
@@ -196,6 +278,29 @@ export function useAddSttpEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: AddDevelopmentProgramEntryInput) => apiClient.post("/me/iqac/faculty-development/sttp", input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "sttp"] });
+    },
+  });
+}
+
+/** PATCH /me/iqac/faculty-development/sttp/:id — real faculty_development_programs update. */
+export function useUpdateSttpEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateDevelopmentProgramEntryInput }) =>
+      apiClient.patch(`/me/iqac/faculty-development/sttp/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "sttp"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/faculty-development/sttp/:id */
+export function useDeleteSttpEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/faculty-development/sttp/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "sttp"] });
     },
@@ -241,6 +346,36 @@ export function useAddResearchEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: AddResearchEntryInput) => apiClient.post("/me/iqac/faculty-development/research", input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "research"] });
+    },
+  });
+}
+
+export interface UpdateResearchEntryInput {
+  role?: string;
+  joined_on?: string;
+  focus_area?: string;
+  status?: "ongoing" | "completed";
+}
+
+/** PATCH /me/iqac/faculty-development/research/:id — role/joined_on edit the membership; focus_area/status edit the shared project. */
+export function useUpdateResearchEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateResearchEntryInput }) =>
+      apiClient.patch(`/me/iqac/faculty-development/research/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "research"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/faculty-development/research/:id — removes just this faculty's membership, not the shared project. */
+export function useDeleteResearchEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/faculty-development/research/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "research"] });
     },
@@ -293,6 +428,37 @@ export function useAddPatentEntry() {
   });
 }
 
+export interface UpdatePatentEntryInput {
+  role?: string;
+  title?: string;
+  stage?: "filed" | "published" | "granted";
+  filed_year?: number;
+  stage_date?: string;
+}
+
+/** PATCH /me/iqac/faculty-development/patents/:id — role edits the inventorship; title/stage/filed_year/stage_date edit the shared patent. */
+export function useUpdatePatentEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdatePatentEntryInput }) =>
+      apiClient.patch(`/me/iqac/faculty-development/patents/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "patents"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/faculty-development/patents/:id — removes just this faculty's inventorship, not the shared patent. */
+export function useDeletePatentEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/faculty-development/patents/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "patents"] });
+    },
+  });
+}
+
 export interface FacultyCertificationRow {
   id: number;
   faculty: FacultySummary;
@@ -335,6 +501,29 @@ export function useAddFacultyCertificationEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: AddFacultyCertificationEntryInput) => apiClient.post("/me/iqac/faculty-development/certifications", input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "certifications"] });
+    },
+  });
+}
+
+/** PATCH /me/iqac/faculty-development/certifications/:id — real faculty_certifications update. */
+export function useUpdateFacultyCertificationEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Partial<Omit<AddFacultyCertificationEntryInput, "faculty_id">> }) =>
+      apiClient.patch(`/me/iqac/faculty-development/certifications/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "certifications"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/faculty-development/certifications/:id */
+export function useDeleteFacultyCertificationEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/faculty-development/certifications/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "certifications"] });
     },

@@ -152,6 +152,7 @@ export interface VenueAvailability {
   name: string;
   location: string | null;
   capacity: number | null;
+  photo_url: string | null;
   is_available: boolean;
   booking: { purpose: string; booked_by: string; accommodating_strength: number | null; from_datetime: string; to_datetime: string } | null;
 }

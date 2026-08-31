@@ -22,9 +22,12 @@ import { useMyLeaves, useMyOds } from "./api/selfService";
 //   fake/manual state that never reflected real dates — replaced with real
 //   computed values via viewedAcademicYearLabel/currentInstitutionSemesterParity
 //   (same helpers CoeTopbar uses), matching every other migrated module.
-// - The "New request" `+` icon-link and the settings gear had no shared
-//   Topbar equivalent and were single-purpose extras — dropped, same call
-//   already made for Principal's inert icons and Billing's help popover.
+// - The "New request" `+` icon-link was a single-purpose extra with no
+//   shared Topbar equivalent — dropped, same call already made for
+//   Principal's inert icons and Billing's help popover. The settings gear
+//   WAS dropped for the same reason at the time, but this module's real,
+//   backend-wired /secretary/settings page (attendance digest, escalation
+//   alerts, etc.) now wires into the shared Topbar's opt-in `settingsHref`.
 // - The hardcoded `department = "CSE"` literal is replaced with the real
 //   department off GET /me/my-profile (useMyIdentity — the same generic
 //   identity hook HoD/Principal shells already use), which also gives us a
@@ -80,6 +83,7 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
         academicYearLabel: academicYear,
         semesterParityLabel: semesterParity,
         showNotifications: true,
+        settingsHref: "/secretary/settings",
       }}
       navBadges={navBadges}
     >

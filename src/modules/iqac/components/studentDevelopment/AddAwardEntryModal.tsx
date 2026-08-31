@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui";
-import { useCreateAward } from "@/modules/iqac/api/studentDevelopment";
+import { useCreateAward, useUpdateAward, type AwardParticipantRow } from "@/modules/iqac/api/studentDevelopment";
 import type { StudentRow } from "@/modules/iqac/api/students";
 import { StudentPicker } from "./StudentPicker";
 
@@ -24,22 +24,41 @@ export function AddAwardEntryModal({
   onClose,
   onCreated,
   eventName,
+  editing,
 }: {
   onClose: () => void;
   onCreated: () => void;
   eventName?: string;
+  /** Editing an existing achievement — the athlete can't be changed here (delete + re-add for that); every other field can. */
+  editing?: AwardParticipantRow;
 }) {
   const create = useCreateAward();
+  const update = useUpdateAward();
+  const isEditing = editing != null;
 
   const [student, setStudent] = useState<StudentRow | null>(null);
   const [award, setAward] = useState(eventName ?? "");
-  const [venue, setVenue] = useState("");
-  const [level, setLevel] = useState(LEVEL_OPTIONS[0]);
-  const [awardedOn, setAwardedOn] = useState(todayDateInput());
-  const [result, setResult] = useState(RESULT_OPTIONS[0]);
+  const [venue, setVenue] = useState(editing?.venue ?? "");
+  const [level, setLevel] = useState(editing?.level ?? LEVEL_OPTIONS[0]);
+  const [awardedOn, setAwardedOn] = useState(editing?.achievement_date.slice(0, 10) ?? todayDateInput());
+  const [result, setResult] = useState(editing?.result ?? RESULT_OPTIONS[0]);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    if (isEditing) {
+      setError(null);
+      try {
+        await update.mutateAsync({
+          id: editing.id,
+          input: { result, achievement_date: awardedOn, level, venue: venue.trim() || undefined },
+        });
+        onCreated();
+        onClose();
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message ?? "Could not save this achievement.");
+      }
+      return;
+    }
     if (!student || !award.trim()) {
       setError("Student and award are both required.");
       return;
@@ -62,15 +81,21 @@ export function AddAwardEntryModal({
   }
 
   return (
-    <Modal open onClose={onClose} title="Add student entry" subtitle={`Award winners · ${eventName ?? (award || "Awards")}`}>
+    <Modal open onClose={onClose} title={isEditing ? "Edit student entry" : "Add student entry"} subtitle={`Award winners · ${eventName ?? (award || "Awards")}`}>
       <div className="flex flex-col gap-4">
-        <StudentPicker selected={student} onSelect={setStudent} />
+        {!isEditing && <StudentPicker selected={student} onSelect={setStudent} />}
+        {isEditing && (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Participant</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.participant}</div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Award</div>
-            {eventName ? (
-              <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{eventName}</div>
+            {eventName || isEditing ? (
+              <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{eventName ?? award}</div>
             ) : (
               <input
                 value={award}
@@ -117,12 +142,14 @@ export function AddAwardEntryModal({
           </div>
         </div>
 
-        <div>
-          <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Faculty mentor</div>
-          <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">
-            {student?.mentor?.name ?? "Not assigned"}
+        {!isEditing && (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Faculty mentor</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">
+              {student?.mentor?.name ?? "Not assigned"}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Result</div>
@@ -148,10 +175,10 @@ export function AddAwardEntryModal({
           <button
             type="button"
             onClick={submit}
-            disabled={create.isPending}
+            disabled={create.isPending || update.isPending}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {create.isPending ? "Saving…" : "Save"}
+            {create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

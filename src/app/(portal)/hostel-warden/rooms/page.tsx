@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { EmptyState, ProgressBar, SearchBar } from "@/components/ui";
+import { EmptyState, PillTabs, ProgressBar, SearchBar } from "@/components/ui";
 import { useHostelRooms, useHostelRoomTypes, type HostelRoom } from "@/modules/hostel-warden/api/rooms";
 import { useResidents } from "@/modules/hostel-warden/api/residents";
 import { StudentDetailModal } from "@/modules/hostel-warden/components/StudentDetailModal";
@@ -16,17 +16,26 @@ function roomState(r: HostelRoom): Filter {
 }
 
 function RoomRosterModal({ room, typeName, onClose, onSelectStudent }: { room: HostelRoom; typeName: string; onClose: () => void; onSelectStudent: (id: number) => void }) {
-  const residents = useResidents({ page_size: 100 });
-  const occupants = (residents.data?.data ?? []).filter((r) => r.room?.id === room.id);
+  // Scoped server-side to this exact room — fetching page_size=100 of the
+  // whole hostel and filtering client-side silently dropped any occupant
+  // sorted past position 100 (a hostel commonly has 300+ residents), making
+  // an actually-full room look empty. See query.md-adjacent fix in
+  // ResidentsService.findAll (room_id filter).
+  const residents = useResidents({ room_id: room.id, page_size: Math.max(room.capacity, 1) });
+  const occupants = residents.data?.data ?? [];
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
       <div className="w-full max-w-[420px] rounded-modal bg-surface">
         <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
           <div>
-            <div className="text-[19px] font-extrabold text-ink">Room {room.room_number}</div>
+            <div className="text-[19px] font-extrabold text-ink">
+              Room {room.room_number}
+              {room.block && ` · ${room.block.name}`}
+            </div>
             <div className="mt-0.5 text-[13px] text-muted">
               {typeName} · {room.occupied}/{room.capacity} beds filled
+              {room.floor && ` · ${room.floor.name}`}
             </div>
           </div>
           <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
@@ -93,12 +102,18 @@ export default function RoomsPage() {
     return true;
   });
 
-  const TILE_STYLE: Record<Filter, string> = {
-    full: "border-primary bg-primary text-white",
-    free: "border-border-accent bg-accent-50 text-primary-dark",
-    empty: "border-border-default bg-surface text-body",
-    all: "border-border-default bg-surface text-body",
-  };
+  // Proportional heatmap rather than a flat 3-bucket color: a room's tile
+  // blends from white (empty) toward the primary blue (full) in direct
+  // proportion to occupied/capacity, so a nearly-full room reads visibly
+  // darker than a barely-occupied one instead of both sharing one "free" tint.
+  function heatmapStyle(occupied: number, capacity: number) {
+    const ratio = capacity > 0 ? Math.min(1, occupied / capacity) : 0;
+    const pct = Math.round(ratio * 100);
+    return {
+      background: `color-mix(in srgb, var(--color-primary) ${pct}%, white)`,
+      borderColor: pct === 0 ? "var(--color-border-default)" : `color-mix(in srgb, var(--color-primary) ${Math.min(pct + 15, 100)}%, var(--color-border-default))`,
+    };
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -120,23 +135,16 @@ export default function RoomsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        {[
-          { key: "all" as const, label: "All rooms", count: counts.all },
-          { key: "free" as const, label: "Has free beds", count: counts.free },
-          { key: "full" as const, label: "Fully occupied", count: counts.full },
-          { key: "empty" as const, label: "Empty rooms", count: counts.empty },
-        ].map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setFilter(t.key)}
-            className={`rounded-pill border px-4 py-2 text-[13px] font-bold transition-colors ${
-              filter === t.key ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-ink-soft hover:bg-surface-tint"
-            }`}
-          >
-            {t.label} ({t.count})
-          </button>
-        ))}
+        <PillTabs
+          options={[
+            { key: "all", label: `All rooms (${counts.all})` },
+            { key: "free", label: `Has free beds (${counts.free})` },
+            { key: "full", label: `Fully occupied (${counts.full})` },
+            { key: "empty", label: `Empty rooms (${counts.empty})` },
+          ]}
+          value={filter}
+          onChange={(k) => setFilter(k as Filter)}
+        />
         <div className="flex-1" />
         <SearchBar className="w-[220px]" placeholder="Room number" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
@@ -148,19 +156,27 @@ export default function RoomsPage() {
       ) : (
         <div className="grid grid-cols-6 gap-3">
           {filtered.map((r) => {
-            const state = roomState(r);
+            const ratio = r.capacity > 0 ? Math.min(1, r.occupied / r.capacity) : 0;
+            const dark = ratio >= 0.6;
             return (
               <button
                 key={r.id}
                 type="button"
                 onClick={() => setSelectedRoom(r)}
-                className={`rounded-[10px] border p-3 text-left transition-transform hover:-translate-y-0.5 ${TILE_STYLE[state]}`}
+                style={heatmapStyle(r.occupied, r.capacity)}
+                className={`rounded-[10px] border p-3 text-left transition-transform hover:-translate-y-0.5 ${dark ? "text-white" : "text-body"}`}
               >
-                <div className="font-mono text-[13px] font-bold">{r.room_number}</div>
-                <div className={`mt-1 text-[12px] ${state === "full" ? "text-white/85" : "text-subtle"}`}>
+                <div className="font-mono text-[13px] font-bold">
+                  {r.block && `${r.block.name} · `}
+                  {r.room_number}
+                </div>
+                <div className={`mt-1 text-[12px] ${dark ? "text-white/85" : "text-subtle"}`}>
                   {r.occupied}/{r.capacity} beds filled
                 </div>
-                <div className={`mt-0.5 text-[11px] ${state === "full" ? "text-white/70" : "text-subtle"}`}>{typeName.get(r.room_type_id) ?? "—"}</div>
+                <div className={`mt-0.5 text-[11px] ${dark ? "text-white/70" : "text-subtle"}`}>
+                  {typeName.get(r.room_type_id) ?? "—"}
+                  {r.floor && ` · ${r.floor.name}`}
+                </div>
               </button>
             );
           })}

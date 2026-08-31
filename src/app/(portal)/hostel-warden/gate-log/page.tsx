@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Badge, Button, DataTable, EmptyState, Icon, SearchBar, Select, type BadgeTone, type DataTableColumn } from "@/components/ui";
+import { Badge, Button, DataTable, EmptyState, Icon, PillTabs, SearchBar, Select, type BadgeTone, type DataTableColumn } from "@/components/ui";
 import {
   useGateLog,
   useHostelStudentSearch,
@@ -237,18 +237,15 @@ export default function GateLogPage() {
 
       <div className="flex flex-wrap items-center gap-2.5">
         <SearchBar className="min-w-[260px] max-w-[360px]" placeholder="Search name, roll no, register no or room" value={search} onChange={(e) => setSearch(e.target.value)} />
-        {(["all", "out", "in"] as const).map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setFilter(k)}
-            className={`rounded-pill border px-4 py-2 text-[13px] font-bold transition-colors ${
-              filter === k ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-ink-soft hover:bg-surface-tint"
-            }`}
-          >
-            {k === "all" ? "All" : k === "out" ? "Out" : "In"}
-          </button>
-        ))}
+        <PillTabs
+          options={[
+            { key: "history", label: "History" },
+            { key: "out", label: "Out" },
+            { key: "in", label: "In" },
+          ]}
+          value={filter === "all" ? "history" : filter}
+          onChange={(k) => setFilter(k === "history" ? "all" : (k as EntryType))}
+        />
       </div>
 
       {log.isLoading ? (

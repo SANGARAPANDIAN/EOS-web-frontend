@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Button, ProfilePhoto, Icon, Input, Modal, Select, EmptyState } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
+import { EntityDetailHeader } from "@/components/shared/EntityDetailHeader";
 import { useAthleteDetail, useUpdateAthlete, type AthleteStatus } from "@/modules/sports-admin/api/athletes";
 import { useDisciplines } from "@/modules/sports-admin/api/disciplines";
 import { formatDisplayDate } from "@/lib/utils/date";
@@ -71,37 +72,28 @@ export default function AthleteDetailPage({ params }: { params: Promise<{ id: st
         </Card>
       ) : (
         <>
-          <Card className="flex gap-6 p-6">
-            <div className="flex flex-col items-center gap-2">
-              <ProfilePhoto photoUrl={a.photo_url} name={a.name} size={72} />
-              <span className="font-mono text-[11px] text-muted">SPT-{String(a.student_id).padStart(4, "0")}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-[26px] font-extrabold tracking-[-.02em] text-ink">{a.name}</h1>
-                <Badge tone={STATUS_TONE[a.status] ?? "neutral"}>{a.status}</Badge>
-                <Button variant="secondary" onClick={openEditModal}>
-                  Edit
-                </Button>
+          <EntityDetailHeader
+            avatar={
+              <div className="flex flex-col items-center gap-2">
+                <ProfilePhoto photoUrl={a.photo_url} name={a.name} size={72} />
+                <span className="font-mono text-[11px] text-muted">SPT-{String(a.student_id).padStart(4, "0")}</span>
               </div>
-              <p className="mt-1 text-[13.5px] text-muted">
-                {[a.department?.name, a.discipline?.name].filter(Boolean).join(" · ")}
-              </p>
-              <div className="mt-4 grid grid-cols-4 gap-3">
-                {[
-                  { label: "Register no.", value: a.reg_no ?? "—" },
-                  { label: "Year", value: a.year ?? "—" },
-                  { label: "Section", value: a.section ?? "—" },
-                  { label: "Attendance", value: `${a.attendance_pct}%` },
-                ].map((k) => (
-                  <div key={k.label} className="rounded-card-sm border border-border-default bg-surface-muted p-3">
-                    <div className="text-[10px] font-extrabold tracking-[.07em] text-subtle uppercase">{k.label}</div>
-                    <div className="mt-1 text-[14.5px] font-bold text-ink">{k.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
+            }
+            title={a.name}
+            badge={<Badge tone={STATUS_TONE[a.status] ?? "neutral"}>{a.status}</Badge>}
+            actions={
+              <Button variant="secondary" onClick={openEditModal}>
+                Edit
+              </Button>
+            }
+            subtitle={[a.department?.name, a.discipline?.name].filter(Boolean).join(" · ")}
+            fields={[
+              { label: "Register no.", value: a.reg_no ?? "—" },
+              { label: "Year", value: a.year ?? "—" },
+              { label: "Section", value: a.section ?? "—" },
+              { label: "Attendance", value: `${a.attendance_pct}%` },
+            ]}
+          />
 
           <div className="grid grid-cols-2 items-start gap-4">
             <Card>

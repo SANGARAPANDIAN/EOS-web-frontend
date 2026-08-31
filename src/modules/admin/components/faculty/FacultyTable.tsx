@@ -44,13 +44,13 @@ export function FacultyTable({
       key: "name",
       header: "Faculty Name",
       render: (row) => (
-        <button type="button" onClick={() => onView(row)} className="flex items-center gap-3 text-left">
+        <div className="flex items-center gap-3 text-left">
           <FacultyAvatar faculty={row} className="size-9 rounded-admin-pill text-xs" />
           <div>
             <p className="font-semibold text-admin-ink">{fullName(row)}</p>
             <p className="font-mono text-xs text-admin-muted">{formatFacultyCode(row.id)}</p>
           </div>
-        </button>
+        </div>
       ),
     },
     { key: "designation", header: "Designation", render: (row) => row.designation },
@@ -109,7 +109,6 @@ export function FacultyTable({
       isLoading={isLoading}
       error={error}
       emptyTitle="No faculty found"
-      onRowClick={onView}
       selection={{
         isSelected: (row) => selectedIds.has(row.id),
         onToggle: (row) => onToggleOne(row.id),

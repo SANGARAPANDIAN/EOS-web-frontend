@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DataTable, type DataTableColumn } from "@/components/ui";
 import { PageCrumbs, StatTile, FilterSelect, FilterBarFooter } from "@/modules/iqac/components/PageControls";
 import { useDepartmentsList, useNaacReadiness, type DepartmentRow } from "@/modules/iqac/api/departments";
+import { exportToPdf } from "@/lib/utils/pdf-export";
 
 const EMPTY_FILTERS = { q: "", dept: "", accreditation: "" };
 
@@ -70,11 +71,38 @@ export default function IqacDepartmentsPage() {
   }
 
   function handleExportPdf() {
-    try {
-      window.print();
-    } catch {
-      // print unavailable in this environment — no-op, matching the reference design's own try/catch.
-    }
+    void exportToPdf({
+      title: "Departments & HoDs",
+      subtitle: "Every real department on file",
+      filename: "departments.pdf",
+      sections: [
+        {
+          type: "table",
+          columns: [
+            { header: "Dept", key: "code" },
+            { header: "Department", key: "name" },
+            { header: "Head of Department", key: "hod" },
+            { header: "Students", key: "students" },
+            { header: "Faculty", key: "faculty" },
+            { header: "Ratio", key: "ratio" },
+            { header: "Attendance", key: "attendance" },
+            { header: "Placement", key: "placement" },
+            { header: "Accreditation", key: "accreditation" },
+          ],
+          rows: rows.map((r) => ({
+            code: r.code,
+            name: r.name,
+            hod: r.hod?.name ?? "Not assigned",
+            students: r.students_count,
+            faculty: r.faculty_count,
+            ratio: r.faculty_count > 0 ? `${Math.round(r.students_count / r.faculty_count)}:1` : "—",
+            attendance: r.attendance_percentage != null ? `${r.attendance_percentage}%` : "—",
+            placement: r.placement_percentage != null ? `${r.placement_percentage}%` : "—",
+            accreditation: r.accreditation_status ?? "—",
+          })),
+        },
+      ],
+    });
   }
 
   const columns = useMemo<DataTableColumn<DepartmentRow>[]>(

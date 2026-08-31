@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, Badge, SegmentedTabs, Button, Input, Textarea, Banner, EmptyState } from "@/components/ui";
 import { useMyLeaves, useCreateLeave, type LeaveRow, type LeaveStatus } from "@/modules/student/api/leave";
+import { useMyAcademicProfile } from "@/modules/student/api/profile";
 import { formatDisplayDate } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
@@ -33,6 +34,10 @@ export default function LeavePage() {
   // own history in the Hostel page's Leave section, not here.
   const leaves = useMyLeaves(false);
   const createLeave = useCreateLeave();
+  // Mess charges/warden notification only apply to an actual resident —
+  // day scholars never see the option, so hostelLeave stays false for them.
+  const academicProfile = useMyAcademicProfile();
+  const isHosteller = academicProfile.data?.student_type === "hosteller";
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -111,20 +116,22 @@ export default function LeavePage() {
               />
             </div>
 
-            <label className="flex items-start gap-3 rounded-[11px] border border-border-default bg-surface-muted p-3.5">
-              <input
-                type="checkbox"
-                checked={hostelLeave}
-                onChange={(e) => setHostelLeave(e.target.checked)}
-                className="mt-0.5 size-[17px] shrink-0 accent-primary"
-              />
-              <span>
-                <span className="block text-[13.5px] font-bold text-ink">Also on hostel leave</span>
-                <span className="mt-0.5 block text-[12px] leading-[1.5] text-muted">
-                  Tick if you are going home — the warden and the mess are informed and your mess charges are paused for those days.
+            {isHosteller && (
+              <label className="flex items-start gap-3 rounded-[11px] border border-border-default bg-surface-muted p-3.5">
+                <input
+                  type="checkbox"
+                  checked={hostelLeave}
+                  onChange={(e) => setHostelLeave(e.target.checked)}
+                  className="mt-0.5 size-[17px] shrink-0 accent-primary"
+                />
+                <span>
+                  <span className="block text-[13.5px] font-bold text-ink">Also on hostel leave</span>
+                  <span className="mt-0.5 block text-[12px] leading-[1.5] text-muted">
+                    Tick if you are going home — the warden and the mess are informed and your mess charges are paused for those days.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            )}
 
             {error && (
               <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">

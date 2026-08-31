@@ -1,5 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+export { useStudentExamMarks } from "@/modules/shared/marks/api";
+export type { ExamMarkRecord as StudentExamMark } from "@/modules/shared/marks/types";
 
 export interface StudentListItem {
   id: number;
@@ -194,24 +196,15 @@ export interface StudentSubject {
   semester: number;
 }
 
-export interface StudentExamMark {
-  id: number;
-  marks_obtained: string | null;
-  max_marks: string;
-  entered_at: string;
-  exam_subject_mapping: {
-    id: number;
-    exam_id: number;
-    subject_id: number;
-    exams: { id: number; academic_year: string; semester: number; exam_types: { name: string } | null };
-    subjects: { id: number; name: string; subject_code: string };
-  };
-}
-
 export interface StudentHostelResident {
   id: number;
   hostel: { id: number; name: string; code: string } | null;
-  room: { id: number; room_number: string } | null;
+  room: {
+    id: number;
+    room_number: string;
+    block: { id: number; name: string } | null;
+    floor: { id: number; name: string } | null;
+  } | null;
   sharing: string | null;
   fee_status: "not_applicable" | "unpaid" | "partially_paid" | "paid";
   allocated_date: string | null;
@@ -386,6 +379,10 @@ export interface ListStudentsParams {
   department_id?: number;
   status?: "active" | "inactive";
   student_type?: "hosteller" | "dayscholar";
+  /** Comma-separated student ids — restricts the result to exactly these (e.g. Fee Defaulters / Attendance Risk views). */
+  ids?: string;
+  /** classes.current_semester >= 7. */
+  final_year?: boolean;
 }
 
 interface PaginatedData<T> {
@@ -402,6 +399,21 @@ export interface ClassMentor {
   academic_year: string;
   assigned_by_user_id: number | null;
   faculty: { id: number; first_name: string; last_name: string; designation: string | null };
+}
+
+/**
+ * GET /students/attendance-risk-ids?threshold= — every active student
+ * below the attendance threshold (default 75%), computed server-side via a
+ * single grouped aggregate. `enabled` gates it behind the Attendance Risk
+ * tab actually being selected, since it's real work the page shouldn't pay
+ * for on every visit.
+ */
+export function useAttendanceRiskIds(enabled: boolean, threshold = 75) {
+  return useQuery({
+    queryKey: ["students", "attendance-risk-ids", threshold],
+    queryFn: () => apiClient.get<{ ids: number[]; threshold: number }>("/students/attendance-risk-ids", { threshold }),
+    enabled,
+  });
 }
 
 /** GET /students */
@@ -434,6 +446,30 @@ export function useStudent(id: number) {
   });
 }
 
+export type StudentIdCardSource = StudentListItem & {
+  blood_group: string | null;
+  addresses: StudentAddress[];
+};
+
+/**
+ * Non-hook read for contexts outside React (e.g. the ID card image
+ * generator, which needs each student's full record — blood group and
+ * addresses live on the profile-details endpoint, not the plain detail
+ * one, so this combines both the same way the ID card back side needs
+ * them together).
+ */
+export async function fetchStudentIdCardSource(id: number): Promise<StudentIdCardSource> {
+  const [student, profileDetails] = await Promise.all([
+    apiClient.get<StudentListItem>(`/students/${id}`),
+    apiClient.get<StudentProfileDetails>(`/students/${id}/profile-details`).catch(() => null),
+  ]);
+  return {
+    ...student,
+    blood_group: profileDetails?.blood_group ?? null,
+    addresses: profileDetails?.addresses ?? [],
+  };
+}
+
 /** GET /fee-payments/students/:id/workspace */
 export function useStudentFeeWorkspace(id: number) {
   return useQuery({
@@ -448,6 +484,19 @@ export function useStudentEditProfile(id: number, enabled: boolean) {
     queryKey: ["students", "edit-profile", id],
     queryFn: () => apiClient.get<StudentEditProfile>(`/students/${id}/edit-profile`),
     enabled,
+  });
+}
+
+export interface NotifyStudentInput {
+  title: string;
+  message: string;
+}
+
+/** POST /students/:id/notify — sends straight to this student's own notification inbox (bell icon), real push included. */
+export function useNotifyStudent() {
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: NotifyStudentInput }) =>
+      apiClient.post<{ sent: boolean }>(`/students/${id}/notify`, input),
   });
 }
 
@@ -599,13 +648,6 @@ export function useStudentSubjects(id: number, enabled: boolean) {
   });
 }
 
-export function useStudentExamMarks(id: number, enabled: boolean) {
-  return useQuery({
-    queryKey: ["students", "exam-marks", id],
-    queryFn: () => apiClient.get<StudentExamMark[]>("/exam-marks", { student_id: id }),
-    enabled,
-  });
-}
 
 export function useStudentHostelResident(id: number, enabled: boolean) {
   return useQuery({

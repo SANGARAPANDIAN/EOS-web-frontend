@@ -20,6 +20,7 @@ export interface VenueAvailability {
   name: string;
   location: string | null;
   capacity: number | null;
+  photo_url: string | null;
   is_available: boolean;
   booking: VenueBooking | null;
 }

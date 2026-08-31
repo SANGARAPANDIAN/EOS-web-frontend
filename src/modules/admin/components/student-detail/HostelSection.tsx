@@ -29,6 +29,8 @@ export function HostelSection({
       <DlGrid
         pairs={[
           ["Hostel", data.hostel ? `${data.hostel.name} (${data.hostel.code})` : null],
+          ["Block", data.room?.block?.name ?? null],
+          ["Floor", data.room?.floor?.name ?? null],
           ["Room", data.room?.room_number ?? null],
           ["Sharing", data.sharing],
           ["Fee status", data.fee_status.replace("_", " ")],

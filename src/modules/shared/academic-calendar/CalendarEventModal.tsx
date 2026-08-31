@@ -6,22 +6,28 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { useToast } from "@/modules/admin/components/ui/ToastProvider";
 import { ApiError } from "@/types/api";
-import { useCreateCalendarEvent, useDeleteCalendarEvent, useUpdateCalendarEvent } from "../hooks/useAcademicCalendarMutations";
-import type { CalendarEventItem, CalendarEventType } from "../types";
+import { useCreateCalendarEvent, useDeleteCalendarEvent, useUpdateCalendarEvent } from "./api";
+import type { CalendarEventItem, CalendarEventType } from "./types";
 
-interface CalendarEventDialogProps {
+interface CalendarEventModalProps {
   open: boolean;
   onClose: () => void;
   academicCalendarId: number;
   /** Pre-fills the date when creating a new event from a clicked calendar cell. */
   defaultDate?: string;
   event: CalendarEventItem | null;
+  /** Omit to hide the delete action even when editing (e.g. an own-events-only role viewing an event it didn't create — the server would 403 anyway). */
+  canDelete?: boolean;
 }
 
-export function CalendarEventDialog({ open, onClose, academicCalendarId, defaultDate, event }: CalendarEventDialogProps) {
-  const { show } = useToast();
+/**
+ * Shared create/edit calendar-event dialog — generalized from Academic
+ * Coordinator's original CalendarEventDialog, now used by every role that
+ * can write to the shared institution calendar (Coordinator, Principal,
+ * Secretary, Media Room, Placement) instead of each maintaining its own copy.
+ */
+export function CalendarEventModal({ open, onClose, academicCalendarId, defaultDate, event, canDelete = true }: CalendarEventModalProps) {
   const createEvent = useCreateCalendarEvent();
   const updateEvent = useUpdateCalendarEvent();
   const deleteEvent = useDeleteCalendarEvent();
@@ -45,28 +51,30 @@ export function CalendarEventDialog({ open, onClose, academicCalendarId, default
     if (!eventDate) return setError("Event date is required.");
     if (endTime <= startTime) return setError("End time must be after start time.");
 
-    const base = { title: trimmedTitle, description: description.trim() || undefined, event_date: eventDate, event_type: eventType, start_time: startTime, end_time: endTime };
+    const base = {
+      title: trimmedTitle,
+      description: description.trim() || undefined,
+      event_date: eventDate,
+      event_type: eventType,
+      start_time: startTime,
+      end_time: endTime,
+    };
 
     (isEdit
-      ? updateEvent.mutateAsync({ id: event.id, academicCalendarId, input: base })
-      : createEvent.mutateAsync({ academic_calendar_id: academicCalendarId, ...base }))
-      .then(() => {
-        show(isEdit ? "Event updated" : "Event added", "success");
-        onClose();
-      })
+      ? updateEvent.mutateAsync({ id: event.id, ...base })
+      : createEvent.mutateAsync({ academic_calendar_id: academicCalendarId, ...base })
+    )
+      .then(() => onClose())
       .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again."));
   }
 
   function handleDelete() {
     if (!event || deleteEvent.isPending) return;
     deleteEvent
-      .mutateAsync({ id: event.id, academicCalendarId })
-      .then(() => {
-        show("Event deleted", "success");
-        onClose();
-      })
+      .mutateAsync(event.id)
+      .then(() => onClose())
       .catch((err: unknown) => {
-        show(err instanceof ApiError ? err.message : "Something went wrong.", "error");
+        setError(err instanceof ApiError ? err.message : "Something went wrong.");
         setConfirmingDelete(false);
       });
   }
@@ -108,8 +116,8 @@ export function CalendarEventDialog({ open, onClose, academicCalendarId, default
 
         {error && <p className="mt-1 text-[11.5px] text-danger-fg">{error}</p>}
 
-        <div className={`mt-4.5 flex items-center border-t border-border-default pt-3.5 ${isEdit ? "justify-between" : "justify-end"}`}>
-          {isEdit && (
+        <div className={`mt-4.5 flex items-center border-t border-border-default pt-3.5 ${isEdit && canDelete ? "justify-between" : "justify-end"}`}>
+          {isEdit && canDelete && (
             <Button
               variant="secondary"
               className="w-auto border-danger-border px-3.5 py-2 text-danger-fg"

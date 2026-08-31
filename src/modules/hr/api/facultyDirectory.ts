@@ -23,7 +23,7 @@ export interface HrFaculty {
   /** Faculty roll number. Nullable — not every record has one yet. */
   staff_code?: string | null;
   prefix?: string | null;
-  department_id: number;
+  /** The read endpoints only ever return the nested `department` object — never a flat id. */
   department?: HrFacultyDepartmentRef;
   date_of_joining?: string | null;
   status: HrFacultyStatus;

@@ -296,6 +296,75 @@ export default function PrincipalRoleAllocationPage() {
 
         <div className="flex min-w-0 flex-col gap-5">
           <div
+            className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
+            style={{ background: principalColors.bg, borderColor: principalColors.border }}
+          >
+            <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
+              <div className="flex items-center gap-2">
+                <Icon name="history" size={18} style={{ color: principalColors.primary }} />
+                <span
+                  className="text-[17px] font-bold"
+                  style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
+                >
+                  Appointment history
+                </span>
+              </div>
+              {selected && (
+                <span className="text-xs" style={{ color: principalColors.textSubtle }}>
+                  {selected.code} · last {Math.min(5, history.data?.length ?? 0)} changes
+                </span>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr style={{ background: principalColors.surfaceMuted }}>
+                    {["DATE", "CHANGE", "REASON", "CHANGED BY"].map((h) => (
+                      <th
+                        key={h}
+                        className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold tracking-wider first:pl-5 last:pr-5"
+                        style={{ color: principalColors.textFaint }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.isLoading && <PrincipalTableSkeleton columns={4} rows={3} />}
+                  {!history.isLoading && (history.data?.length ?? 0) === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-8 text-center text-sm" style={{ color: principalColors.textFaint }}>
+                        No appointment changes recorded for this department yet.
+                      </td>
+                    </tr>
+                  )}
+                  {history.data?.map((entry, i) => (
+                    <tr key={i} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
+                      <td className="whitespace-nowrap px-5 py-3.5" style={{ color: principalColors.body }}>
+                        {formatDate(entry.date)}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[13px]" style={{ color: principalColors.heading }}>
+                          <span style={{ color: principalColors.textFaint }}>{entry.from}</span>
+                          <Icon name="arrow_right_alt" size={16} style={{ color: principalColors.primary }} />
+                          <span className="font-semibold">{entry.to}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3.5 text-[13px]" style={{ color: principalColors.body }}>
+                        {entry.reason ?? "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-[13px]" style={{ color: principalColors.textFaint }}>
+                        {entry.changed_by}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div
             className="min-w-0 rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
             style={{ background: principalColors.bg, borderColor: principalColors.border }}
           >
@@ -395,75 +464,6 @@ export default function PrincipalRoleAllocationPage() {
                       index={index}
                       onViewProfile={() => setViewingCandidateId(candidate.id)}
                     />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div
-            className="rounded-2xl border hover-lift transition-all hover:-translate-y-[3px] hover:shadow-[0_10px_24px_rgba(13,30,79,0.14)]"
-            style={{ background: principalColors.bg, borderColor: principalColors.border }}
-          >
-            <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
-              <div className="flex items-center gap-2">
-                <Icon name="history" size={18} style={{ color: principalColors.primary }} />
-                <span
-                  className="text-[17px] font-bold"
-                  style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
-                >
-                  Appointment history
-                </span>
-              </div>
-              {selected && (
-                <span className="text-xs" style={{ color: principalColors.textSubtle }}>
-                  {selected.code} · last {Math.min(5, history.data?.length ?? 0)} changes
-                </span>
-              )}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr style={{ background: principalColors.surfaceMuted }}>
-                    {["DATE", "CHANGE", "REASON", "CHANGED BY"].map((h) => (
-                      <th
-                        key={h}
-                        className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold tracking-wider first:pl-5 last:pr-5"
-                        style={{ color: principalColors.textFaint }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.isLoading && <PrincipalTableSkeleton columns={4} rows={3} />}
-                  {!history.isLoading && (history.data?.length ?? 0) === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-5 py-8 text-center text-sm" style={{ color: principalColors.textFaint }}>
-                        No appointment changes recorded for this department yet.
-                      </td>
-                    </tr>
-                  )}
-                  {history.data?.map((entry, i) => (
-                    <tr key={i} className="border-t" style={{ borderColor: principalColors.borderMuted }}>
-                      <td className="whitespace-nowrap px-5 py-3.5" style={{ color: principalColors.body }}>
-                        {formatDate(entry.date)}
-                      </td>
-                      <td className="px-3 py-3.5">
-                        <div className="flex flex-wrap items-center gap-1.5 text-[13px]" style={{ color: principalColors.heading }}>
-                          <span style={{ color: principalColors.textFaint }}>{entry.from}</span>
-                          <Icon name="arrow_right_alt" size={16} style={{ color: principalColors.primary }} />
-                          <span className="font-semibold">{entry.to}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3.5 text-[13px]" style={{ color: principalColors.body }}>
-                        {entry.reason ?? "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-3.5 text-[13px]" style={{ color: principalColors.textFaint }}>
-                        {entry.changed_by}
-                      </td>
-                    </tr>
                   ))}
                 </tbody>
               </table>

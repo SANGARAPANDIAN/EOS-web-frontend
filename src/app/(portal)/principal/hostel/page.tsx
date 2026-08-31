@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { principalColors } from "@/modules/principal/theme";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
 import { PrincipalTableSkeleton } from "@/modules/principal/components/PrincipalTableSkeleton";
@@ -18,12 +19,27 @@ function formatRupees(amount: number): string {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
+type BlockFilter = "all" | "boys" | "girls";
+
 export default function PrincipalHostelPage() {
   const summary = useHostelSummary();
   const blocks = useHostelBlocks();
   const roomTypeFees = useHostelRoomTypeFees();
 
   const hasAnyFeeData = roomTypeFees.data?.some((r) => r.total_per_year != null) ?? false;
+
+  const [blockFilter, setBlockFilter] = useState<BlockFilter>("all");
+  const filteredBlocks = useMemo(() => {
+    if (!blocks.data) return blocks.data;
+    if (blockFilter === "all") return blocks.data;
+    return blocks.data.filter((b) => b.hostel.name.toLowerCase().includes(blockFilter === "boys" ? "boys" : "girls"));
+  }, [blocks.data, blockFilter]);
+
+  const FILTER_OPTIONS: { key: BlockFilter; label: string }[] = [
+    { key: "all", label: "All blocks" },
+    { key: "boys", label: "Boys" },
+    { key: "girls", label: "Girls" },
+  ];
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -62,9 +78,25 @@ export default function PrincipalHostelPage() {
       </div>
 
       <div className="rounded-2xl border" style={{ background: principalColors.bg, borderColor: principalColors.border }}>
-        <div className="border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4" style={{ borderColor: principalColors.borderLight }}>
           <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
             Block-wise occupancy
+          </div>
+          <div className="flex rounded-lg border p-0.5" style={{ borderColor: principalColors.border }}>
+            {FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setBlockFilter(opt.key)}
+                className="rounded-[7px] px-3 py-1.5 text-[13px] font-semibold transition-colors"
+                style={{
+                  background: blockFilter === opt.key ? principalColors.primary : "transparent",
+                  color: blockFilter === opt.key ? "#fff" : principalColors.textFaint,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -86,7 +118,7 @@ export default function PrincipalHostelPage() {
             </thead>
             <tbody>
               {blocks.isLoading && <PrincipalTableSkeleton columns={6} />}
-              {blocks.data?.map((b) => (
+              {filteredBlocks?.map((b) => (
                 <tr key={b.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {b.hostel.name} · Block {b.name}
@@ -120,9 +152,9 @@ export default function PrincipalHostelPage() {
             </tbody>
           </table>
         </div>
-        {!blocks.isLoading && (blocks.data?.length ?? 0) === 0 && (
+        {!blocks.isLoading && (filteredBlocks?.length ?? 0) === 0 && (
           <div className="px-5 py-8 text-center text-sm" style={{ color: principalColors.textFaint }}>
-            No hostel blocks on file.
+            {blockFilter === "all" ? "No hostel blocks on file." : `No ${blockFilter} blocks on file.`}
           </div>
         )}
         <div className="border-t px-5 py-3.5 text-xs" style={{ borderColor: principalColors.borderLight, color: principalColors.textSubtle }}>

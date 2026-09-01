@@ -15,7 +15,7 @@ import {
   useFacultyLessonPlan,
   useCreateLessonSession,
 } from "@/modules/advisor/api/lms";
-import { useAssignments, useAssignmentStudents, useSetAssignmentStudentStatus } from "@/modules/advisor/api/assignments";
+import { useSetAssignmentStudentStatus } from "@/modules/advisor/api/assignments";
 import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // CONNECTED FOR REAL — all three tabs (Material/Task/Lesson plan) previously
@@ -66,7 +66,7 @@ function tabButtonStyle(active: boolean) {
 export default function AdvisorCurrentSemesterPage() {
   const { data, isLoading } = useCurrentSemester();
   const [subjectId, setSubjectId] = useState<number | null>(null);
-  const [tab, setTab] = useState<"material" | "task" | "assignment" | "lesson">("material");
+  const [tab, setTab] = useState<"material" | "task" | "lesson">("material");
   const [folderId, setFolderId] = useState<number | null>(null);
   const [taskId, setTaskId] = useState<number | null>(null);
 
@@ -113,31 +113,17 @@ export default function AdvisorCurrentSemesterPage() {
   const activeTask = tasks.data?.find((t) => t.id === activeTaskId);
   const submissions = useTaskSubmissions(activeTaskId ?? undefined);
 
-  // Assignment Status, folded in here instead of its own sidebar page — a
-  // genuinely different backend feature from Task above (real `assignments`
-  // + `student_assignment_status` tables, sequence-numbered, submitted/not
-  // toggled by hand — no file/marks fields at all), so scoped to this
-  // subject+class client-side rather than merged into the Task tab's data.
-  const allAssignments = useAssignments();
-  const subjectAssignments = (allAssignments.data ?? []).filter(
-    (a) => subject && a.subject.id === subject.subject_id && a.class.id === subject.class_id,
-  );
-  const [assignmentIdOverride, setAssignmentIdOverride] = useState<number | null>(null);
-  const activeAssignmentId = assignmentIdOverride ?? subjectAssignments[0]?.id ?? null;
-  const activeAssignment = subjectAssignments.find((a) => a.id === activeAssignmentId);
-  const assignmentStudents = useAssignmentStudents(activeAssignmentId ?? undefined);
+  // "Assignment Status" was never a separate feature — Task above IS the
+  // assignments table (LmsService.createTask() writes straight into
+  // `assignments`; submitTask()/getTaskSubmissions() read/write the same
+  // `student_assignment_status` rows AssignmentsService does, including the
+  // same status_id). The old standalone page was just a second, redundant
+  // UI over these same rows. Only the "mark submitted by hand" action —
+  // absent from the Task submissions panel — is genuinely worth keeping;
+  // folded straight into that panel below instead of a whole extra tab.
   const setAssignmentStatus = useSetAssignmentStudentStatus();
-  const assignmentStudentRows = assignmentStudents.data ?? [];
-  const assignmentSubmittedCount = assignmentStudentRows.filter((r) => r.is_submitted).length;
-  const [assignmentQuery, setAssignmentQuery] = useState("");
-  const [assignmentFilter, setAssignmentFilter] = useState<"All" | "Submitted" | "Not submitted">("All");
-  const filteredAssignmentRows = assignmentStudentRows.filter((r) => {
-    const q = assignmentQuery.trim().toLowerCase();
-    if (q && !(r.name.toLowerCase().includes(q) || r.student_id_no.toLowerCase().includes(q))) return false;
-    if (assignmentFilter === "Submitted") return r.is_submitted;
-    if (assignmentFilter === "Not submitted") return !r.is_submitted;
-    return true;
-  });
+  const [submissionQuery, setSubmissionQuery] = useState("");
+  const [submissionFilter, setSubmissionFilter] = useState<"All" | "Submitted" | "Not submitted">("All");
 
   const lessonPlan = useFacultyLessonPlan(subject?.subject_id, subject?.class_id);
   const createSession = useCreateLessonSession();
@@ -277,9 +263,6 @@ export default function AdvisorCurrentSemesterPage() {
           </div>
           <div data-advisor-lift="" onClick={() => setTab("task")} style={tabButtonStyle(tab === "task")}>
             Task
-          </div>
-          <div data-advisor-lift="" onClick={() => setTab("assignment")} style={tabButtonStyle(tab === "assignment")}>
-            Assignments
           </div>
           <div data-advisor-lift="" onClick={() => setTab("lesson")} style={tabButtonStyle(tab === "lesson")}>
             Lesson
@@ -532,19 +515,53 @@ export default function AdvisorCurrentSemesterPage() {
           </div>
 
           <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
               <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{activeTask?.title ?? "No task selected"}</div>
               <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 600 }}>
                 {(submissions.data ?? []).filter((r) => r.is_submitted).length} of {(submissions.data ?? []).length} submitted
               </div>
             </div>
+            {activeTaskId && (submissions.data ?? []).length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 220px", minWidth: 180, display: "flex", alignItems: "center", gap: 8, height: 40, padding: "0 12px", border: "1px solid #E2E8F0", borderRadius: 9, background: "#F8FAFC" }}>
+                  <AdvisorIcon kind="search" width={14} height={14} style={{ color: "#94A3B8", flex: "0 0 14px" }} />
+                  <input
+                    value={submissionQuery}
+                    onChange={(e) => setSubmissionQuery(e.target.value)}
+                    placeholder="Search by name or roll number"
+                    style={{ flex: "1 1 0", minWidth: 0, border: 0, outline: 0, background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "#0F172A" }}
+                  />
+                </div>
+                {(["All", "Submitted", "Not submitted"] as const).map((f) => {
+                  const isActive = submissionFilter === f;
+                  return (
+                    <div
+                      key={f}
+                      data-advisor-lift=""
+                      onClick={() => setSubmissionFilter(f)}
+                      style={{ padding: "8px 14px", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", background: isActive ? "#1D4ED8" : "#fff", border: `1px solid ${isActive ? "#1D4ED8" : "#E2E8F0"}`, color: isActive ? "#fff" : "#475569", whiteSpace: "nowrap" }}
+                    >
+                      {f}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 14 }}>
-              {(submissions.data ?? []).map((r) => (
-                <div key={r.student_id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 0", borderBottom: "1px solid #F4F6FA" }}>
+              {(submissions.data ?? [])
+                .filter((r) => {
+                  const q = submissionQuery.trim().toLowerCase();
+                  if (q && !(r.name.toLowerCase().includes(q) || r.student_id_no.toLowerCase().includes(q))) return false;
+                  if (submissionFilter === "Submitted") return r.is_submitted;
+                  if (submissionFilter === "Not submitted") return !r.is_submitted;
+                  return true;
+                })
+                .map((r) => (
+                <div key={r.student_id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 0", borderBottom: "1px solid #F4F6FA", flexWrap: "wrap" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 11.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
                     {r.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: "1 1 120px", minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 700 }}>{r.name}</div>
                     <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{r.student_id_no}</div>
                   </div>
@@ -557,6 +574,15 @@ export default function AdvisorCurrentSemesterPage() {
                   <div style={{ padding: "5px 12px", borderRadius: 20, background: r.is_submitted ? "#EFF6FF" : "#F8FAFC", border: `1px solid ${r.is_submitted ? "#DBEAFE" : "#E2E8F0"}`, color: r.is_submitted ? "#1D4ED8" : "#94A3B8", fontSize: 11, fontWeight: 800 }}>
                     {r.is_submitted ? "SUBMITTED" : "NOT SUBMITTED"}
                   </div>
+                  <div
+                    onClick={() =>
+                      activeTaskId &&
+                      setAssignmentStatus.mutate({ assignmentId: activeTaskId, statusId: r.status_id, studentId: r.student_id, is_submitted: !r.is_submitted })
+                    }
+                    style={{ padding: "7px 12px", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 11.7, fontWeight: 700, color: "#1D4ED8", cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {r.is_submitted ? "Mark not submitted" : "Mark submitted"}
+                  </div>
                 </div>
               ))}
               {activeTaskId && (submissions.data ?? []).length === 0 && !submissions.isLoading && (
@@ -564,113 +590,6 @@ export default function AdvisorCurrentSemesterPage() {
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {tab === "assignment" && (
-        <div style={{ marginTop: 20 }}>
-          <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>ASSIGNMENT</div>
-            <select
-              value={activeAssignmentId ?? ""}
-              onChange={(e) => setAssignmentIdOverride(Number(e.target.value))}
-              disabled={subjectAssignments.length === 0}
-              style={{ width: "100%", marginTop: 9, height: 46, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 14px", fontFamily: "inherit", fontSize: 14, fontWeight: 600, color: "#0F172A", background: "#F8FAFC" }}
-            >
-              {subjectAssignments.length === 0 ? (
-                <option value="">No assignments yet</option>
-              ) : (
-                subjectAssignments.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    Assignment {a.sequence_no}{a.title ? ` · ${a.title}` : ""}
-                  </option>
-                ))
-              )}
-            </select>
-            {activeAssignment && (
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16, padding: "14px 18px", background: "#EFF6FF", borderRadius: 11 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#1D4ED8", whiteSpace: "nowrap" }}>
-                  {assignmentSubmittedCount} of {assignmentStudentRows.length} submitted
-                </div>
-                <div style={{ flex: 1, height: 8, borderRadius: 8, background: "#DBEAFE", overflow: "hidden" }}>
-                  <div style={{ width: `${assignmentStudentRows.length ? Math.round((assignmentSubmittedCount / assignmentStudentRows.length) * 100) : 0}%`, height: "100%", borderRadius: 8, background: "#1D4ED8" }} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {subjectAssignments.length === 0 && !allAssignments.isLoading ? (
-            <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 40, marginTop: 16, textAlign: "center", fontSize: 13.5, color: "#94A3B8", fontWeight: 600 }}>
-              No assignments created for this subject yet.
-            </div>
-          ) : (
-            <>
-              <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "14px 16px", marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ flex: "1 1 280px", minWidth: 220, display: "flex", alignItems: "center", gap: 10, height: 44, padding: "0 14px", border: "1px solid #E2E8F0", borderRadius: 10, background: "#F8FAFC" }}>
-                  <AdvisorIcon kind="search" width={15} height={15} style={{ color: "#94A3B8", flex: "0 0 15px" }} />
-                  <input
-                    value={assignmentQuery}
-                    onChange={(e) => setAssignmentQuery(e.target.value)}
-                    placeholder="Search by name or roll number"
-                    style={{ flex: "1 1 0", minWidth: 0, border: 0, outline: 0, background: "transparent", fontFamily: "inherit", fontSize: 14, fontWeight: 500, color: "#0F172A" }}
-                  />
-                </div>
-                {(["All", "Submitted", "Not submitted"] as const).map((f) => {
-                  const isActive = assignmentFilter === f;
-                  return (
-                    <div
-                      key={f}
-                      data-advisor-lift=""
-                      onClick={() => setAssignmentFilter(f)}
-                      style={{ padding: "9px 16px", borderRadius: 10, fontSize: 12.5, fontWeight: 700, cursor: "pointer", background: isActive ? "#1D4ED8" : "#fff", border: `1px solid ${isActive ? "#1D4ED8" : "#E2E8F0"}`, color: isActive ? "#fff" : "#475569", whiteSpace: "nowrap" }}
-                    >
-                      {f}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, marginTop: 16, overflow: "hidden" }}>
-                {filteredAssignmentRows.map((r) => (
-                  <div key={r.student_id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 22px", borderBottom: "1px solid #F4F6FA" }}>
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {r.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{r.name}</div>
-                      <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{r.student_id_no}</div>
-                    </div>
-                    <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600, width: 140, textAlign: "right" }}>
-                      {r.marked_at ? new Date(r.marked_at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
-                    </div>
-                    <div
-                      style={
-                        r.is_submitted
-                          ? { padding: "8px 16px", borderRadius: 22, background: "#1D4ED8", color: "#fff", fontSize: 12.5, fontWeight: 700, minWidth: 132, textAlign: "center" }
-                          : { padding: "8px 16px", borderRadius: 22, background: "#F8FAFC", border: "1px solid #E2E8F0", color: "#94A3B8", fontSize: 12.5, fontWeight: 700, minWidth: 132, textAlign: "center" }
-                      }
-                    >
-                      {r.is_submitted ? "Submitted" : "Not submitted"}
-                    </div>
-                    <div
-                      onClick={() =>
-                        activeAssignmentId &&
-                        setAssignmentStatus.mutate({ assignmentId: activeAssignmentId, statusId: r.status_id, studentId: r.student_id, is_submitted: !r.is_submitted })
-                      }
-                      style={{ padding: "8px 14px", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 12.5, fontWeight: 700, color: "#1D4ED8", cursor: "pointer", whiteSpace: "nowrap" }}
-                    >
-                      {r.is_submitted ? "Mark not submitted" : "Mark submitted"}
-                    </div>
-                  </div>
-                ))}
-                {filteredAssignmentRows.length === 0 && !assignmentStudents.isLoading && (
-                  <div style={{ padding: "40px 22px", textAlign: "center", fontSize: 13.5, color: "#94A3B8", fontWeight: 600 }}>
-                    {assignmentStudentRows.length === 0 ? "No students found for this assignment." : "No students match this filter."}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
       )}
 

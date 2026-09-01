@@ -122,7 +122,7 @@ export default function AdvisorCurrentSemesterPage() {
   if (!subject) {
     return (
       <div style={{ width: "100%" }}>
-        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>Current Semester</div>
+        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>LMS</div>
         <div style={{ marginTop: 6, fontSize: 14, color: "#64748B", fontWeight: 500 }}>
           {data?.academic_year ?? ""} · open a subject to manage material, tasks and lesson plan
         </div>

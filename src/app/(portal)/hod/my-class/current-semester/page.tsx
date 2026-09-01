@@ -574,7 +574,7 @@ export default function HodCurrentSemesterPage() {
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Current Semester</h1>
+        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">LMS</h1>
         <p className="mt-1 text-[13px] text-muted">
           {o ? `${o.academic_year.replace("-", "–")} · ` : ""}
           Open a subject to manage material, tasks and lesson plan

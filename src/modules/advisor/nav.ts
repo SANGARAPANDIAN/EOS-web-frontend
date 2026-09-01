@@ -41,6 +41,7 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
     label: "CLASS",
     items: [
       { key: "attendance", label: "Attendance", icon: "attendance", href: `${BASE}/attendance` },
+      { key: "current-semester", label: "LMS", icon: "subject", href: `${BASE}/current-semester` },
       { key: "subject-records", label: "Subject Records", icon: "subject", href: `${BASE}/subject-records` },
       { key: "assignments", label: "Assignment Status", icon: "assignment", href: `${BASE}/assignments` },
     ],
@@ -64,7 +65,6 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
     items: [
       { key: "my-attendance", label: "Attendance", icon: "attendance", href: `${BASE}/my-attendance` },
       { key: "timetable", label: "Timetable", icon: "attendance", href: `${BASE}/timetable` },
-      { key: "current-semester", label: "Current Semester", icon: "subject", href: `${BASE}/current-semester` },
       { key: "my-leave", label: "Leave", icon: "leave", href: `${BASE}/my-leave` },
       { key: "my-od", label: "OD", icon: "od", href: `${BASE}/my-od` },
       { key: "venue-booking", label: "Venue", icon: "venue", href: `${BASE}/venue-booking` },

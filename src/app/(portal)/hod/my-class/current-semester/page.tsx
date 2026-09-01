@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Card, Badge, Button, Input, Textarea, ProgressBar, SkeletonCardGrid } from "@/components/ui";
+import { Card, Badge, Button, Input, Select, Textarea, ProgressBar, SkeletonCardGrid, Avatar } from "@/components/ui";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useHodCurrentSemester, type HodCurrentSemesterSubject } from "@/modules/hod/api/myClassCurrentSemester";
 import {
@@ -16,7 +16,9 @@ import {
   useFacultyLessonPlan,
   useCreateLessonSession,
 } from "@/modules/advisor/api/lms";
-import { formatDisplayDate } from "@/lib/utils/date";
+import { useHodAssignmentStatus, useMarkHodAssignmentStatus, type HodAssignmentStudentRow } from "@/modules/hod/api/myClassAssignmentStatus";
+import { formatDisplayDate, formatDayAndTime } from "@/lib/utils/date";
+import { cn } from "@/lib/utils/cn";
 
 // Reuses the same real, already HOD-accessible LMS endpoints
 // (@Roles(FACULTY, HOD) on every /me/lms/* route — see that module's own
@@ -25,7 +27,7 @@ import { formatDisplayDate } from "@/lib/utils/date";
 // page's inline-style JSX. A HOD is also faculty for the subjects they
 // personally teach, so nothing on the backend needed to change.
 
-type Tab = "material" | "task" | "lesson";
+type Tab = "material" | "task" | "assignment" | "lesson";
 
 function ClassChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -435,6 +437,134 @@ function TaskTab({ subject, classOptions }: { subject: HodCurrentSemesterSubject
   );
 }
 
+function assignmentLabel(a: { sequence_no: number; title: string | null }): string {
+  return a.title ? `Assignment ${a.sequence_no} · ${a.title}` : `Assignment ${a.sequence_no}`;
+}
+
+// Assignment Status, folded in here instead of its own sidebar page — a
+// genuinely different backend feature from Task above (real `assignments` +
+// `student_assignment_status` tables, sequence-numbered, submitted/not
+// toggled by hand, no file/marks fields at all), already subject+class
+// scoped server-side via useHodAssignmentStatus's params.
+function AssignmentTab({ subject }: { subject: HodCurrentSemesterSubject }) {
+  const [assignmentId, setAssignmentId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"All" | "Submitted" | "Not submitted">("All");
+
+  const overview = useHodAssignmentStatus(subject.class_id, subject.subject_id, assignmentId ?? undefined);
+  const mark = useMarkHodAssignmentStatus();
+
+  const o = overview.data;
+  const assignments = o?.assignments ?? [];
+  const students = o?.students ?? [];
+  const submittedCount = students.filter((s) => s.is_submitted).length;
+
+  const filteredStudents = students.filter((r) => {
+    const q = query.trim().toLowerCase();
+    if (q && !(r.name.toLowerCase().includes(q) || r.student_id_no.toLowerCase().includes(q))) return false;
+    if (filter === "Submitted") return r.is_submitted;
+    if (filter === "Not submitted") return !r.is_submitted;
+    return true;
+  });
+
+  function markStudent(row: HodAssignmentStudentRow, isSubmitted: boolean) {
+    if (!o?.assignment) return;
+    mark.mutate({ assignment_id: o.assignment.id, student_id: row.student_id, status_id: row.status_id, is_submitted: isSubmitted });
+  }
+
+  return (
+    <div className="mt-5 flex flex-col gap-4">
+      <Card>
+        <label className="mb-1.5 block text-[11px] font-extrabold tracking-[.08em] text-subtle uppercase">Assignment</label>
+        <Select
+          value={assignmentId ?? o?.assignment?.id ?? ""}
+          onChange={(e) => setAssignmentId(Number(e.target.value))}
+          disabled={assignments.length === 0}
+          className="text-[15px] font-bold"
+        >
+          {assignments.length === 0 ? (
+            <option value="">No assignments yet</option>
+          ) : (
+            assignments.map((a) => (
+              <option key={a.id} value={a.id}>
+                {assignmentLabel(a)}
+              </option>
+            ))
+          )}
+        </Select>
+        {o?.assignment && (
+          <div className="mt-4 flex items-center gap-5">
+            <span className="shrink-0 text-[14px] font-extrabold text-primary">
+              {submittedCount} of {students.length} submitted
+            </span>
+            <ProgressBar percent={students.length > 0 ? (submittedCount / students.length) * 100 : 0} className="flex-1" />
+          </div>
+        )}
+      </Card>
+
+      {!o?.assignment ? (
+        <Card>
+          <div className="text-[13px] text-subtle">No assignments created for this subject yet.</div>
+        </Card>
+      ) : (
+        <>
+          <Card className="flex flex-wrap items-center gap-2.5">
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or roll number" className="min-w-[220px] flex-1" />
+            {(["All", "Submitted", "Not submitted"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "shrink-0 rounded-[10px] border px-4 py-2.5 text-[12.5px] font-bold whitespace-nowrap",
+                  filter === f ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-body hover:bg-nav-hover",
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </Card>
+
+          <div className="flex flex-col gap-3">
+            {filteredStudents.map((s) => (
+              <Card key={s.student_id} className="hod-hover-card">
+                <div className="flex items-center gap-3.5">
+                  <Avatar name={s.name} size={38} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] font-bold text-ink">{s.name}</div>
+                    <div className="truncate text-[12.5px] text-subtle">{[s.student_id_no, s.email].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  <span className="w-[92px] shrink-0 text-right text-[12.5px] text-subtle">
+                    {s.is_submitted && s.marked_at ? formatDayAndTime(s.marked_at) : "—"}
+                  </span>
+                  <span className={cn("shrink-0 rounded-[11px] px-[18px] py-[10px] text-center text-[13px] font-bold", s.is_submitted ? "bg-primary text-white" : "bg-surface-tint text-subtle")}>
+                    {s.is_submitted ? "Submitted" : "Not submitted"}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    onClick={() => markStudent(s, !s.is_submitted)}
+                    disabled={mark.isPending}
+                    loading={mark.isPending && mark.variables?.student_id === s.student_id}
+                  >
+                    {s.is_submitted ? "Mark not submitted" : "Mark submitted"}
+                  </Button>
+                </div>
+              </Card>
+            ))}
+            {filteredStudents.length === 0 && !overview.isLoading && (
+              <Card>
+                <div className="text-center text-[13px] text-subtle">
+                  {students.length === 0 ? "No students found for this assignment." : "No students match this filter."}
+                </div>
+              </Card>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function LessonPlanTab({ subject }: { subject: HodCurrentSemesterSubject }) {
   const lessonPlan = useFacultyLessonPlan(subject.subject_id, subject.class_id);
   const createSession = useCreateLessonSession();
@@ -542,6 +672,7 @@ function SubjectDetail({
           options={[
             { key: "material", label: "Material" },
             { key: "task", label: "Task" },
+            { key: "assignment", label: "Assignments" },
             { key: "lesson", label: "Lesson plan" },
           ]}
         />
@@ -549,6 +680,7 @@ function SubjectDetail({
 
       {tab === "material" && <MaterialTab subject={subject} classOptions={classOptions} />}
       {tab === "task" && <TaskTab subject={subject} classOptions={classOptions} />}
+      {tab === "assignment" && <AssignmentTab subject={subject} />}
       {tab === "lesson" && <LessonPlanTab subject={subject} />}
     </div>
   );

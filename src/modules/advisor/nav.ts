@@ -43,7 +43,6 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
       { key: "attendance", label: "Attendance", icon: "attendance", href: `${BASE}/attendance` },
       { key: "current-semester", label: "LMS", icon: "subject", href: `${BASE}/current-semester` },
       { key: "subject-records", label: "Subject Records", icon: "subject", href: `${BASE}/subject-records` },
-      { key: "assignments", label: "Assignment Status", icon: "assignment", href: `${BASE}/assignments` },
     ],
   },
   {

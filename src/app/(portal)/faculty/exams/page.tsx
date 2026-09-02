@@ -43,6 +43,7 @@ export default function AdvisorExamsPage() {
   const columns: DataTableColumn<AdvisorExaminationRow>[] = useMemo(() => {
     const deptCode = grid.data?.department.code ?? "";
     const sectionLabel = grid.data?.class.section ?? "";
+    const isExternal = grid.data?.exam_type.category === "external";
     const subjectCols: DataTableColumn<AdvisorExaminationRow>[] = (grid.data?.subjects ?? []).map((s, i) => ({
       key: `subject-${s.id}`,
       header: (
@@ -52,7 +53,7 @@ export default function AdvisorExamsPage() {
         </div>
       ),
       width: "110px",
-      render: (row) => <span className="text-[13px] text-ink">{row.marks[i] ?? "—"}</span>,
+      render: (row) => <span className="text-[13px] text-ink">{(isExternal ? row.grades?.[i] : row.marks[i]) ?? "—"}</span>,
     }));
 
     return [
@@ -71,15 +72,6 @@ export default function AdvisorExamsPage() {
       { key: "dept", header: "Dept", width: "60px", render: () => <span className="text-[13px] text-subtle">{deptCode}</span> },
       { key: "sec", header: "Sec", width: "50px", render: () => <span className="text-[13px] text-subtle">{sectionLabel}</span> },
       ...subjectCols,
-      {
-        key: "average",
-        header: "Average",
-        width: "90px",
-        align: "right",
-        render: (row) => (
-          <span className="text-[13.5px] font-extrabold text-ink">{row.average_percent != null ? `${row.average_percent}%` : "—"}</span>
-        ),
-      },
     ];
   }, [grid.data]);
 
@@ -166,7 +158,9 @@ export default function AdvisorExamsPage() {
             ) : anyError ? null : !grid.data || grid.data.papers === 0 ? (
               <EmptyState message="No examination found for this selection." />
             ) : (
-              <DataTable columns={columns} data={filteredRows} rowKey={(r) => r.student_id} rowClassName="hod-hover-row" />
+              <div className="overflow-x-auto">
+                <DataTable columns={columns} data={filteredRows} rowKey={(r) => r.student_id} rowClassName="hod-hover-row" />
+              </div>
             )}
           </Card>
         </>

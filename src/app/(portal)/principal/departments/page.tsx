@@ -232,7 +232,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
               label="Mean CGPA"
               icon="school"
               loading={detail.isLoading}
-              value="—"
+              value={detail.data.students.mean_cgpa != null ? detail.data.students.mean_cgpa.toFixed(2) : "—"}
               sub={
                 detail.data.placement.percentage != null
                   ? `${detail.data.placement.placed} placed · ${detail.data.placement.percentage}% placement`
@@ -302,8 +302,8 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
                   <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
                     {s.faculty_attendance_percentage != null ? `${s.faculty_attendance_percentage}%` : "—"}
                   </td>
-                  <td className="px-3 py-3.5 text-right tabular-nums" style={{ color: principalColors.textFaint }}>
-                    —
+                  <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: s.mean_cgpa != null ? principalColors.body : principalColors.textFaint }}>
+                    {s.mean_cgpa != null ? s.mean_cgpa.toFixed(2) : "—"}
                   </td>
                   <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
                     {s.placed} / {s.total_students}
@@ -317,9 +317,8 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
           </table>
         </div>
         <div className="border-t px-5 py-3.5 text-xs" style={{ borderColor: principalColors.borderLight, color: principalColors.textSubtle }}>
-          MEAN CGPA isn&apos;t shown: no table in this system stores it, and it can&apos;t be honestly derived from exam
-          marks. FACULTY ATT. is the class advisor&apos;s own attendance this term, not every faculty member who
-          teaches the section.
+          MEAN CGPA is the credit-weighted average across all published exam results. FACULTY ATT. is the class
+          advisor&apos;s own attendance this term, not every faculty member who teaches the section.
         </div>
       </div>
     </div>

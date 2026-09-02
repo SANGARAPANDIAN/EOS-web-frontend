@@ -26,11 +26,14 @@ function toPeriod(c: BackendAcademicCalendar): AcademicCalendarPeriod {
   return { id: c.id, batchId: c.batch_id, semester: c.semester, startDate: c.start_date, endDate: c.end_date };
 }
 
-// start_time/end_time round-trip as full ISO datetimes pinned to an
-// arbitrary reference date — only the HH:MM time-of-day part is real.
-function toTimeLabel(iso: string | null): string | null {
-  if (!iso) return null;
-  const match = /T(\d{2}:\d{2})/.exec(iso);
+// start_time/end_time have round-tripped as full ISO datetimes pinned to an
+// arbitrary reference date ("1970-01-01T09:00:00.000Z") from some backend
+// paths and a plain "09:00" from others (AcademicCalendarEventsService.
+// serializeEvent now formats it that way) — only the HH:MM time-of-day part
+// is ever real, so this matches either shape rather than assuming one.
+function toTimeLabel(value: string | null): string | null {
+  if (!value) return null;
+  const match = /(\d{2}:\d{2})/.exec(value);
   return match ? match[1] : null;
 }
 

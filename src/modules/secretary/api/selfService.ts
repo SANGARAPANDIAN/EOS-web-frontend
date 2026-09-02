@@ -47,7 +47,9 @@ export interface MyAttendanceOverview {
   full_days: number;
   half_days: number;
   absent: number;
-  on_duty_or_leave: number;
+  on_leave: number;
+  on_duty: number;
+  on_vacation: number;
   attendance_percentage: number;
   days: MyAttendanceDay[];
 }

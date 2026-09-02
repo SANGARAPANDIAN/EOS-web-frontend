@@ -47,13 +47,15 @@ export interface AdvisorExaminationRow {
   register_no: string;
   name: string | null;
   marks: (number | null)[];
+  /** Only populated for external/university exam types — letter grade per subject, replacing raw marks in the UI. */
+  grades: (string | null)[] | null;
   average_percent: number | null;
 }
 
 export interface AdvisorExaminationGrid {
   department: { id: number; name: string; code: string };
   class: { id: number; section: string; semester: number; year_label: string; batch_label: string };
-  exam_type: { id: number; name: string };
+  exam_type: { id: number; name: string; category: string };
   candidates: number;
   papers: number;
   subjects: AdvisorExaminationSubject[];

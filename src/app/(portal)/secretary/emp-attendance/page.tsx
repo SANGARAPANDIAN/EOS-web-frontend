@@ -81,7 +81,7 @@ export default function SecretaryEmpAttendancePage() {
             {[
               { value: String(data.full_days), label: "FULL DAYS", fg: "#1d4ed8" },
               { value: String(data.absent), label: "ABSENT", fg: "#dc2626" },
-              { value: String(data.on_duty_or_leave), label: "ON DUTY / LEAVE", fg: "#1d4ed8" },
+              { value: String(data.on_duty + data.on_leave), label: "ON DUTY / LEAVE", fg: "#1d4ed8" },
               { value: `${data.attendance_percentage}%`, label: "OVERALL", fg: "#0f172a" },
             ].map((st) => (
               <div key={st.label} data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "26px 20px", textAlign: "center" }}>

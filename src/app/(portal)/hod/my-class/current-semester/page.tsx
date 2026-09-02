@@ -16,6 +16,7 @@ import {
   useFacultyLessonPlan,
   useCreateLessonSession,
 } from "@/modules/advisor/api/lms";
+import { useMarkHodAssignmentStatus } from "@/modules/hod/api/myClassAssignmentStatus";
 import { formatDisplayDate } from "@/lib/utils/date";
 
 // Reuses the same real, already HOD-accessible LMS endpoints
@@ -278,6 +279,18 @@ function TaskTab({ subject, classOptions }: { subject: HodCurrentSemesterSubject
   const activeTask = tasks.data?.find((t) => t.id === activeTaskId);
   const submissions = useTaskSubmissions(activeTaskId ?? undefined);
 
+  // "Assignment Status" was never a separate feature — a Task IS an
+  // `assignments` row (LmsService.createTask() writes straight into it),
+  // and submissions above already come from the same `student_assignment_
+  // status` table the old standalone page toggled by hand. Folded that one
+  // missing action — marking a student submitted/not without a real
+  // upload — straight into this panel instead of a whole extra tab.
+  // HOD can't call the generic Faculty-only /student-assignment-status
+  // endpoint, so this still goes through its own HOD-scoped mutation.
+  const markStatus = useMarkHodAssignmentStatus();
+  const [submissionQuery, setSubmissionQuery] = useState("");
+  const [submissionFilter, setSubmissionFilter] = useState<"All" | "Submitted" | "Not submitted">("All");
+
   function toggleClass(classId: number) {
     setSelectedClassIds((prev) => (prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]));
   }
@@ -395,19 +408,45 @@ function TaskTab({ subject, classOptions }: { subject: HodCurrentSemesterSubject
       </Card>
 
       <Card>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2.5">
           <div className="text-[17px] font-extrabold text-ink">{activeTask?.title ?? "No task selected"}</div>
           <div className="text-[12.5px] text-muted">
             {(submissions.data ?? []).filter((r) => r.is_submitted).length} of {(submissions.data ?? []).length} submitted
           </div>
         </div>
+        {activeTaskId && (submissions.data ?? []).length > 0 && (
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+            <Input value={submissionQuery} onChange={(e) => setSubmissionQuery(e.target.value)} placeholder="Search by name or roll number" className="min-w-[200px] flex-1" />
+            {(["All", "Submitted", "Not submitted"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setSubmissionFilter(f)}
+                className={
+                  "shrink-0 rounded-[9px] border px-3.5 py-2 text-[12px] font-bold whitespace-nowrap " +
+                  (submissionFilter === f ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-body hover:bg-nav-hover")
+                }
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mt-3.5 flex flex-col">
-          {(submissions.data ?? []).map((r) => (
-            <div key={r.student_id} className="flex items-center gap-3.5 border-b border-divider py-3 last:border-b-0">
+          {(submissions.data ?? [])
+            .filter((r) => {
+              const q = submissionQuery.trim().toLowerCase();
+              if (q && !(r.name.toLowerCase().includes(q) || r.student_id_no.toLowerCase().includes(q))) return false;
+              if (submissionFilter === "Submitted") return r.is_submitted;
+              if (submissionFilter === "Not submitted") return !r.is_submitted;
+              return true;
+            })
+            .map((r) => (
+            <div key={r.student_id} className="flex flex-wrap items-center gap-3.5 border-b border-divider py-3 last:border-b-0">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-50 text-[11.5px] font-extrabold text-primary">
                 {r.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-[120px]">
                 <div className="text-[13.5px] font-bold text-ink">{r.name}</div>
                 <div className="mt-0.5 text-[11px] text-subtle">{r.student_id_no}</div>
               </div>
@@ -424,6 +463,17 @@ function TaskTab({ subject, classOptions }: { subject: HodCurrentSemesterSubject
               <Badge tone={r.is_submitted ? "accent" : "neutral"} className="shrink-0 uppercase">
                 {r.is_submitted ? "Submitted" : "Not submitted"}
               </Badge>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  activeTaskId &&
+                  markStatus.mutate({ assignment_id: activeTaskId, student_id: r.student_id, status_id: r.status_id, is_submitted: !r.is_submitted })
+                }
+                disabled={markStatus.isPending}
+                loading={markStatus.isPending && markStatus.variables?.student_id === r.student_id}
+              >
+                {r.is_submitted ? "Mark not submitted" : "Mark submitted"}
+              </Button>
             </div>
           ))}
           {activeTaskId && (submissions.data ?? []).length === 0 && !submissions.isLoading && (
@@ -574,7 +624,7 @@ export default function HodCurrentSemesterPage() {
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Current Semester</h1>
+        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">LMS</h1>
         <p className="mt-1 text-[13px] text-muted">
           {o ? `${o.academic_year.replace("-", "–")} · ` : ""}
           Open a subject to manage material, tasks and lesson plan

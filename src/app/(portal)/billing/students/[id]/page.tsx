@@ -353,9 +353,11 @@ export default function BillingStudentDetailPage() {
           <div data-bill-lift style={{ background: "#fff", border: "1px solid #e6e9ef", borderRadius: 12, padding: "20px 22px" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Quick Actions</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <button onClick={() => setModalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "#eef3ff", border: 0, borderRadius: 9, padding: "12px 14px", fontSize: 13.5, fontWeight: 700, color: "#1d4ed8", cursor: "pointer" }}>
-                <span style={{ fontSize: 15 }}>+</span>Receive Payment
-              </button>
+              {Number(fs.total_outstanding) > 0 && (
+                <button onClick={() => setModalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "#eef3ff", border: 0, borderRadius: 9, padding: "12px 14px", fontSize: 13.5, fontWeight: 700, color: "#1d4ed8", cursor: "pointer" }}>
+                  <span style={{ fontSize: 15 }}>+</span>Receive Payment
+                </button>
+              )}
               <button data-bill-icon onClick={() => setTab("history")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "transparent", border: 0, borderRadius: 9, padding: "12px 14px", fontSize: 13.5, fontWeight: 600, color: "#0f172a", cursor: "pointer" }}>Print Receipt</button>
               <button data-bill-icon onClick={() => setTab("concession")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "transparent", border: 0, borderRadius: 9, padding: "12px 14px", fontSize: 13.5, fontWeight: 600, color: "#0f172a", cursor: "pointer" }}>Apply Concession</button>
               <button data-bill-icon onClick={() => setTab("dd")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", background: "transparent", border: 0, borderRadius: 9, padding: "12px 14px", fontSize: 13.5, fontWeight: 600, color: "#0f172a", cursor: "pointer" }}>Add Education Loan DD</button>
@@ -377,21 +379,24 @@ export default function BillingStudentDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {ws.demand_summary.map((d) => (
-                <tr
-                  key={d.student_fee_demand_mapping_id}
-                  data-bill-rowtable
-                  onClick={() => setModalOpen(true)}
-                  style={{ borderTop: "1px solid #f1f5f9", cursor: "pointer" }}
-                  title="Receive a payment against this student's fee structures"
-                >
-                  <td style={{ padding: "13px 18px", fontSize: 13.5, fontWeight: 600 }}>{d.fee_structure_name}</td>
-                  <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{d.academic_year}</td>
-                  <td style={{ padding: "13px 10px", textAlign: "right", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>{money(d.total_amount)}</td>
-                  <td style={{ padding: "13px 10px", textAlign: "right", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>{money(d.paid_amount)}</td>
-                  <td style={{ padding: "13px 18px", textAlign: "right", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, fontWeight: 600 }}>{money(d.outstanding_amount)}</td>
-                </tr>
-              ))}
+              {ws.demand_summary.map((d) => {
+                const payable = Number(d.outstanding_amount) > 0;
+                return (
+                  <tr
+                    key={d.student_fee_demand_mapping_id}
+                    data-bill-rowtable
+                    onClick={payable ? () => setModalOpen(true) : undefined}
+                    style={{ borderTop: "1px solid #f1f5f9", cursor: payable ? "pointer" : "default" }}
+                    title={payable ? "Receive a payment against this student's fee structures" : "Fully paid"}
+                  >
+                    <td style={{ padding: "13px 18px", fontSize: 13.5, fontWeight: 600 }}>{d.fee_structure_name}</td>
+                    <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{d.academic_year}</td>
+                    <td style={{ padding: "13px 10px", textAlign: "right", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>{money(d.total_amount)}</td>
+                    <td style={{ padding: "13px 10px", textAlign: "right", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13 }}>{money(d.paid_amount)}</td>
+                    <td style={{ padding: "13px 18px", textAlign: "right", fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, fontWeight: 600 }}>{money(d.outstanding_amount)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -401,9 +406,11 @@ export default function BillingStudentDetailPage() {
         <div className="print:hidden">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ fontSize: 13.5, color: "#475569" }}>All payments recorded against this student.</div>
-            <button data-bill-primary onClick={() => setModalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 9, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
-              <span style={{ fontSize: 15 }}>+</span>Receive Payment
-            </button>
+            {Number(fs.total_outstanding) > 0 && (
+              <button data-bill-primary onClick={() => setModalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 9, padding: "10px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+                <span style={{ fontSize: 15 }}>+</span>Receive Payment
+              </button>
+            )}
           </div>
           <div style={{ background: "#fff", border: "1px solid #e6e9ef", borderRadius: 12, overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>

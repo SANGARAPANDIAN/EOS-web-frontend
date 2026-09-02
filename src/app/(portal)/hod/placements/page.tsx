@@ -95,17 +95,27 @@ type SortKey = "roll" | "companyAz" | "packageDesc" | "offersDesc";
 
 function StudentRecordsTab() {
   const [search, setSearch] = useState("");
-  const [classId, setClassId] = useState<number | null>(null);
+  const [year, setYear] = useState<string>("");
+  const [section, setSection] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("roll");
-  const students = useHodPlacementStudents(search, classId);
+  // Always fetch the full department roster — year/section are applied
+  // client-side below so either can be picked independently (the API only
+  // takes one class_id, which conflates the two).
+  const students = useHodPlacementStudents(search, null);
   const c = students.data?.counts;
   const classes = students.data?.classes ?? [];
 
-  const yearsSpanned = [...new Set(classes.map((cl) => cl.year_label))].join(", ");
+  const yearOptions = [...new Set(classes.map((cl) => cl.year_label))];
+  const sectionOptions = [
+    ...new Set(classes.filter((cl) => !year || cl.year_label === year).map((cl) => cl.section)),
+  ].sort();
 
   const rows = useMemo(() => {
+    const classInfoByLabel = new Map((students.data?.classes ?? []).map((cl) => [cl.class_label, cl]));
     let out = students.data?.rows ?? [];
+    if (year) out = out.filter((r) => r.class_label != null && classInfoByLabel.get(r.class_label)?.year_label === year);
+    if (section) out = out.filter((r) => r.class_label != null && classInfoByLabel.get(r.class_label)?.section === section);
     if (statusFilter !== "all") out = out.filter((r) => r.status === statusFilter);
     out = [...out];
     if (sort === "companyAz") {
@@ -120,7 +130,7 @@ function StudentRecordsTab() {
       out.sort((a, b) => b.offers - a.offers);
     }
     return out;
-  }, [students.data?.rows, statusFilter, sort]);
+  }, [students.data?.rows, students.data?.classes, year, section, statusFilter, sort]);
 
   const columns: DataTableColumn<HodPlacementStudentRow>[] = [
     {
@@ -200,14 +210,33 @@ function StudentRecordsTab() {
           className="max-w-[380px]"
         />
         <Select
-          value={classId ?? "all"}
-          onChange={(e) => setClassId(e.target.value === "all" ? null : Number(e.target.value))}
-          className="max-w-[260px] font-bold"
+          value={year || "all"}
+          onChange={(e) => {
+            const next = e.target.value === "all" ? "" : e.target.value;
+            setYear(next);
+            // A section chosen under the old year may not exist under the new one.
+            if (section && !classes.some((cl) => cl.year_label === next && cl.section === section)) {
+              setSection("");
+            }
+          }}
+          className="max-w-[160px] font-bold"
         >
-          <option value="all">All classes{yearsSpanned ? ` · ${yearsSpanned} year` : ""}</option>
-          {classes.map((cl) => (
-            <option key={cl.class_id} value={cl.class_id}>
-              {cl.class_label}
+          <option value="all">All years</option>
+          {yearOptions.map((y) => (
+            <option key={y} value={y}>
+              {y} year
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={section || "all"}
+          onChange={(e) => setSection(e.target.value === "all" ? "" : e.target.value)}
+          className="max-w-[160px] font-bold"
+        >
+          <option value="all">All sections</option>
+          {sectionOptions.map((s) => (
+            <option key={s} value={s}>
+              Section {s}
             </option>
           ))}
         </Select>

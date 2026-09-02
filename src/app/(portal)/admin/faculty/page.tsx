@@ -204,6 +204,7 @@ export default function FacultyListPage() {
         error={error instanceof ApiError ? error.message : error ? "Failed to load faculty." : null}
         onView={(f) => setViewTargetId(f.id)}
         onEdit={(f) => router.push(`/admin/faculty/${f.id}/edit`)}
+        onRowClick={(f) => router.push(`/admin/faculty/${f.id}`)}
         selectedIds={selectedIds}
         onToggleAll={toggleSelectAllOnPage}
         onToggleOne={toggleSelectOne}

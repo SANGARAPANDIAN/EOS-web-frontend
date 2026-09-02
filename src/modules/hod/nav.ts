@@ -56,9 +56,8 @@ export const hodModuleConfig: ModuleConfig = {
       label: "My Class",
       items: [
         { key: "my-class-attendance", label: "Attendance", icon: "fact_check", href: `${BASE}/my-class/attendance` },
-        { key: "current-semester", label: "Current Semester", icon: "date_range", href: `${BASE}/my-class/current-semester` },
+        { key: "current-semester", label: "LMS", icon: "date_range", href: `${BASE}/my-class/current-semester` },
         { key: "subject-records", label: "Subject Records", icon: "menu_book", href: `${BASE}/my-class/subject-records` },
-        { key: "assignment-status", label: "Assignment Status", icon: "assignment_turned_in", href: `${BASE}/my-class/assignment-status` },
       ],
     },
     {

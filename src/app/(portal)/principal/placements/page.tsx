@@ -124,13 +124,13 @@ function DepartmentTile({ dept, onOpen }: { dept: PlacementDepartmentCard; onOpe
         <div className="text-xs" style={{ color: principalColors.textFaint }}>
           Avg package
           <div className="font-mono text-sm font-semibold" style={{ color: principalColors.body }}>
-            {dept.average_package != null ? `₹${dept.average_package} LPA` : "—"}
+            {dept.average_package != null ? `${dept.average_package} LPA` : "—"}
           </div>
         </div>
         <div className="text-right text-xs" style={{ color: principalColors.textFaint }}>
           Highest
           <div className="font-mono text-sm font-semibold" style={{ color: principalColors.body }}>
-            {dept.highest_package != null ? `₹${dept.highest_package} LPA` : "—"}
+            {dept.highest_package != null ? `${dept.highest_package} LPA` : "—"}
           </div>
         </div>
         <span
@@ -208,13 +208,13 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
               label="Highest package"
               icon="military_tech"
               loading={detail.isLoading}
-              value={detail.data.highest_package != null ? `₹${detail.data.highest_package} LPA` : "—"}
+              value={detail.data.highest_package != null ? `${detail.data.highest_package} LPA` : "—"}
             />
             <PrincipalStatCard
               label="Average package"
               icon="payments"
               loading={detail.isLoading}
-              value={detail.data.average_package != null ? `₹${detail.data.average_package} LPA` : "—"}
+              value={detail.data.average_package != null ? `${detail.data.average_package} LPA` : "—"}
               sub="across all offers"
             />
           </div>
@@ -285,10 +285,10 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
                     {s.unplaced}
                   </td>
                   <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
-                    {s.highest_package != null ? `₹${s.highest_package}L` : "—"}
+                    {s.highest_package != null ? `${s.highest_package} LPA` : "—"}
                   </td>
                   <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
-                    {s.average_package != null ? `₹${s.average_package}L` : "—"}
+                    {s.average_package != null ? `${s.average_package} LPA` : "—"}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5" style={{ color: principalColors.body }}>
                     {s.top_recruiter ?? "—"}
@@ -388,14 +388,14 @@ export default function PrincipalPlacementsPage() {
             label="Highest package"
             icon="military_tech"
             loading={summary.isLoading}
-            value={summary.data?.highest_package ? `₹${summary.data.highest_package.value} LPA` : "—"}
+            value={summary.data?.highest_package ? `${summary.data.highest_package.value} LPA` : "—"}
             sub={summary.data?.highest_package ? [summary.data.highest_package.company_name, summary.data.highest_package.job_role].filter(Boolean).join(" · ") : undefined}
           />
           <PlacementMiniCard
             label="Average package"
             icon="request_quote"
             loading={summary.isLoading}
-            value={summary.data?.average_package != null ? `₹${summary.data.average_package} LPA` : "—"}
+            value={summary.data?.average_package != null ? `${summary.data.average_package} LPA` : "—"}
             sub={summary.data ? `across ${summary.data.offers_released} offers` : undefined}
           />
           <PlacementMiniCard

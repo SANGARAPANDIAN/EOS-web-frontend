@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMyIdentity } from "@/modules/student/api/profile";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStudentsSearch, useClassMentors, type StudentRow } from "@/modules/secretary/api/overview";
 
 // Pixel-exact layout port of the `isStudents` screen from
@@ -46,7 +47,18 @@ export default function SecretaryStudentsPage() {
   const { data: identity } = useMyIdentity();
   const myDept = useMemo(() => (identity?.department_id != null ? { id: identity.department_id } : undefined), [identity]);
 
-  const { data: roster, isLoading, error } = useStudentsSearch({ department_id: myDept?.id, below_75: lens === "Attendance below 75%" ? true : undefined, limit: 100 });
+  // search is sent to the backend (ILIKE across name/id/register, scoped to
+  // this secretary's own department server-side) rather than filtered
+  // client-side — the roster below is capped at 100 rows, so a client-side
+  // text filter could only ever search within whichever 100 of this
+  // department's 400+ students happened to load, silently missing the rest.
+  const debouncedSearch = useDebouncedValue(search);
+  const { data: roster, isLoading, error } = useStudentsSearch({
+    department_id: myDept?.id,
+    search: debouncedSearch.trim() || undefined,
+    below_75: lens === "Attendance below 75%" ? true : undefined,
+    limit: 100,
+  });
   const allStudents = roster?.students ?? [];
   const { data: classMentors } = useClassMentors(myDept?.id);
   const mentorBySection = useMemo(() => new Map((classMentors ?? []).map((m) => [m.section, m.mentor])), [classMentors]);
@@ -54,15 +66,13 @@ export default function SecretaryStudentsPage() {
   const sectionOptions = useMemo(() => ["All sections", ...Array.from(new Set(allStudents.map((r) => r.section).filter((s): s is string => !!s))).sort()], [allStudents]);
 
   const rosterList = useMemo(() => {
-    const rq = search.trim().toLowerCase();
     return allStudents.filter((r) => {
-      if (rq && !(r.name + " " + r.student_id_no + " " + (r.section ?? "")).toLowerCase().includes(rq)) return false;
       if (section !== "All sections" && r.section !== section) return false;
       if (lens === "CGPA above 8.5") return (r.cgpa ?? 0) >= 8.5;
       if (lens === "Fees due") return r.fee_status === "due";
       return true;
     });
-  }, [allStudents, search, section, lens]);
+  }, [allStudents, section, lens]);
 
   function resetRoster() {
     setLens("All students");

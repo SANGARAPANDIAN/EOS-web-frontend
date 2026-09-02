@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
@@ -23,6 +23,7 @@ function formatRupees(amount: number): string {
 }
 
 export default function PrincipalFacultyPage() {
+  const router = useRouter();
   const initialQ = useInitialQueryParam("q");
   const [q, setQ] = useState("");
   useEffect(() => {
@@ -171,21 +172,20 @@ export default function PrincipalFacultyPage() {
                       ? "#B42318"
                       : principalColors.heading;
                 return (
-                  <tr key={f.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr
+                    key={f.id}
+                    onClick={() => router.push(`/principal/faculty/${f.id}`)}
+                    className="cursor-pointer border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]"
+                    style={{ borderColor: principalColors.borderMuted }}
+                  >
                     <td
                       className="whitespace-nowrap px-5 py-3.5 font-semibold"
                       style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.primary }}
                     >
                       #{f.id}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3.5 font-semibold">
-                      <Link
-                        href={`/principal/faculty/${f.id}`}
-                        className="hover:underline"
-                        style={{ color: principalColors.heading }}
-                      >
-                        {f.name}
-                      </Link>
+                    <td className="whitespace-nowrap px-3 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
+                      {f.name}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3.5" style={{ color: principalColors.body }}>
                       {f.designation}

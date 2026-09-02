@@ -110,6 +110,6 @@ export const FACULTY = [
 // dashboard/page.tsx) per explicit instruction to remove every fake value
 // from that screen. Do not re-add fake DASHBOARD_* constants here.
 
-// REPORT_STUDENTS below is still used by attendance/page.tsx,
-// students/page.tsx and studentProfile.ts, which remain fake pending a
-// later conversion pass (out of scope for the dashboard/reports rewiring).
+// REPORT_STUDENTS below is still used by attendance/page.tsx and
+// students/page.tsx, which remain fake pending a later conversion pass
+// (out of scope for the dashboard/reports rewiring).

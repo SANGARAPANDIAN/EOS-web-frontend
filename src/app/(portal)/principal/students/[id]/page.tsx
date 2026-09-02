@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { useStudentProfile, downloadStudentProfile, type StudentProfile } from "@/modules/principal/api/students";
 import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
+import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
 
 // Every section below is backed by a real table — GET /principal-students/:id/profile
 // (EOSbackend1/src/modules/principal-students/principal-students.service.ts),
@@ -568,19 +569,14 @@ function ProfileBody({ p }: { p: StudentProfile }) {
         {p.documents.length === 0 ? (
           <div className="text-[12.6px]" style={{ color: principalColors.textFaint }}>No document register exists for this student yet.</div>
         ) : (
-          <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-            {p.documents.map((d) => (
-              <div key={d.name} className="flex items-center justify-between rounded-[10px] border px-3.5 py-2.5" style={{ borderColor: principalColors.borderLight }}>
-                <span className="text-[12.6px] font-medium" style={{ color: principalColors.body }}>{d.name}</span>
-                <span
-                  className="rounded-full px-2.5 py-1 text-[10.5px] font-bold"
-                  style={{ background: d.available ? "#F0FDF4" : "#FEF0EE", color: d.available ? "#047857" : "#B42318" }}
-                >
-                  {d.available ? "Available" : "Missing"}
-                </span>
-              </div>
-            ))}
-          </div>
+          <CertificateStatusGrid
+            items={p.documents.map((d, i) => ({
+              id: i,
+              name: d.name,
+              is_available: d.available,
+              file_url: d.file_url,
+            }))}
+          />
         )}
       </div>
     </div>

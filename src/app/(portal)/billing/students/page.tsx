@@ -346,7 +346,9 @@ export default function BillingStudentsPage() {
                 <td style={{ padding: "12px 18px" }} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <Link href={`/billing/students/${r.student_id}`} data-bill-soft style={{ background: "#f1f5f9", color: "#0f172a", border: "1px solid #e2e8f0", borderRadius: 7, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>Fee details</Link>
-                    <button data-bill-primary onClick={() => setReceiveFor(r)} style={{ background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 7, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Receive</button>
+                    {r.due_status !== "paid" && r.outstanding_amount > 0 && (
+                      <button data-bill-primary onClick={() => setReceiveFor(r)} style={{ background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 7, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Receive</button>
+                    )}
                   </div>
                 </td>
               </tr>

@@ -52,7 +52,7 @@ export interface HodStudentProfile {
   } | null;
   guardian: { relation: "father" | "mother"; name: string; mobile: string | null; email: string | null } | null;
   entrance_cutoff: { physics: number | null; chemistry: number | null; maths: number | null } | null;
-  certificates: { id: number; name: string; verified: boolean }[];
+  certificates: { id: number; name: string; is_available: boolean; verified_at: string | null; file_url: string | null }[];
   semester_wise_gpa: { semester: number; gpa: number | null; credits_earned: number; arrears: number }[];
   monthly_attendance: { month: string; percent: number }[];
   current_semester_subjects: {

@@ -7,6 +7,7 @@ import { useMenteeProfile, useMenteeReport, useMenteeDocuments, useMenteeAcademi
 import { useMenteeNoDueStudents } from "@/modules/advisor/api/no-due";
 import { AdvisorIcon } from "@/modules/advisor/icons";
 import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
+import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
 
 // Design-exact layout preserved in full (every card/section/chart below
 // matches the reference pixel-for-pixel). GET /me/mentees/:id/academic-record
@@ -178,9 +179,20 @@ export default function AdvisorStudentsPage() {
                       <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 10 }}>—</div>
                     </div>
                     <div data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 15 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 600, color: "#7C8899" }}>Percentage (CGPA × 9.5)</div>
-                      <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", marginTop: 6 }}>{student.cgpa ? `${(student.cgpa * 9.5).toFixed(1)}%` : "—"}</div>
-                      <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 10 }}>—</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: "#7C8899" }}>Fees</div>
+                      {(() => {
+                        const pendingAmt = noDueById.get(student.id)?.total_pending ?? null;
+                        return (
+                          <>
+                            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", marginTop: 6 }}>
+                              {pendingAmt == null ? "—" : pendingAmt > 0 ? `₹${pendingAmt.toLocaleString("en-IN")}` : "Paid"}
+                            </div>
+                            <div style={{ fontSize: 11, color: pendingAmt && pendingAmt > 0 ? "#DC2626" : "#94A3B8", fontWeight: 700, marginTop: 10 }}>
+                              {pendingAmt && pendingAmt > 0 ? "Pending" : "—"}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 15 }}>
                       <div style={{ fontSize: 11.5, fontWeight: 600, color: "#7C8899" }}>Arrears</div>
@@ -567,29 +579,19 @@ export default function AdvisorStudentsPage() {
             </div>
 
             {/* Real GET /me/mentees/:id/documents — student_certificates
-                rows, admin-set is_available/file_url/verified_at. This
-                table existed in schema.prisma with zero endpoints reading
-                it anywhere before this session. */}
+                rows, admin-set is_available/file_url. This table existed
+                in schema.prisma with zero endpoints reading it anywhere
+                before this session. */}
             <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22, marginTop: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Important documents</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 14, marginTop: 16 }}>
-                {(documents.data ?? []).map((doc) => (
-                  <div key={doc.certificate_type_id} data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{doc.name}</div>
-                    <div style={{ fontSize: 12, color: doc.is_available ? "#1D4ED8" : "#94A3B8", fontWeight: 600, marginTop: 6 }}>
-                      {doc.is_available ? (doc.verified_at ? "Verified" : "Received") : "Not received"}
-                    </div>
-                    {doc.is_available && doc.file_url && (
-                      <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 6, fontSize: 11.5, fontWeight: 700, color: "#1D4ED8" }}>
-                        View →
-                      </a>
-                    )}
-                  </div>
-                ))}
-                {documents.data && documents.data.length === 0 && (
-                  <div style={{ gridColumn: "1 / -1", padding: "10px 0", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>No certificate types configured.</div>
-                )}
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Important documents</div>
+              <CertificateStatusGrid
+                items={(documents.data ?? []).map((doc) => ({
+                  id: doc.certificate_type_id,
+                  name: doc.name,
+                  is_available: doc.is_available,
+                  file_url: doc.file_url,
+                }))}
+              />
             </div>
           </>
         )}

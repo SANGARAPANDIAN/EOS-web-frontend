@@ -6,6 +6,7 @@ import { useStudentsSearch, useStudentProfile } from "@/modules/secretary/api/ov
 import { tone } from "@/modules/secretary/helpers";
 import { PrintProfileStyles, PrintLetterhead } from "@/modules/secretary/PrintProfile";
 import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
+import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
 
 // Pixel-exact layout port of the `isStudentProfile` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1886-2086.
@@ -329,14 +330,14 @@ export default function StudentProfilePage() {
         {p.documents.length === 0 ? (
           <div style={{ fontSize: 12.6, color: "#94a3b8" }}>No document register exists for this student yet.</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-            {p.documents.map((d) => (
-              <div key={d.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #eef2f7", borderRadius: 10, padding: "10px 14px" }}>
-                <span style={{ fontSize: 12.6, fontWeight: 500 }}>{d.name}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, borderRadius: 999, padding: "5px 10px", background: d.available ? "#f0fdf4" : "#fef2f7", color: d.available ? "#047857" : "#b91c1c" }}>{d.available ? "Available" : "Missing"}</span>
-              </div>
-            ))}
-          </div>
+          <CertificateStatusGrid
+            items={p.documents.map((d, i) => ({
+              id: i,
+              name: d.name,
+              is_available: d.available,
+              file_url: d.file_url,
+            }))}
+          />
         )}
       </div>
       </div>

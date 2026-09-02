@@ -6,6 +6,7 @@ import { Card, Badge, Button, EmptyState, Input, Textarea, ProfilePhoto, Skeleto
 import { useHodStudentProfile, useHodMeetingNotes, useAddHodMeetingNote } from "@/modules/hod/api/studentProfile";
 import { formatDisplayDate } from "@/lib/utils/date";
 import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
+import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -218,10 +219,11 @@ export default function HodStudentProfilePage() {
                 <div className="mt-1.5 text-[32px] font-extrabold text-ink">{stats.cgpa ?? "—"}</div>
               </div>
               <div className="hod-hover-card rounded-[11px] border border-border-default p-4">
-                <div className="text-[13.5px] text-muted">Percentage (CGPA × 9.5)</div>
+                <div className="text-[13.5px] text-muted">Fees</div>
                 <div className="mt-1.5 text-[32px] font-extrabold text-ink">
-                  {stats.percentage != null ? `${stats.percentage}%` : "—"}
+                  {fees.due > 0 ? `₹${fees.due.toLocaleString("en-IN")}` : "Paid"}
                 </div>
+                {fees.due > 0 && <div className="mt-1 text-[12px] font-bold text-danger-fg">Pending</div>}
               </div>
               <div className="hod-hover-card rounded-[11px] border border-border-default p-4">
                 <div className="text-[13.5px] text-muted">Arrears</div>
@@ -471,16 +473,8 @@ export default function HodStudentProfilePage() {
 
       {certificates.length > 0 && (
         <Card>
-          <h2 className="text-[17px] font-extrabold text-ink">Certificates &amp; achievements</h2>
-          <div className="mt-3 flex flex-col gap-2">
-            {certificates.map((c) => (
-              <div key={c.id} className="flex items-center gap-2.5">
-                <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-                <span className="text-[13.5px] text-ink">{c.name}</span>
-                {c.verified && <Badge tone="accent">Verified</Badge>}
-              </div>
-            ))}
-          </div>
+          <h2 className="mb-4 text-[17px] font-extrabold text-ink">Certificates &amp; achievements</h2>
+          <CertificateStatusGrid items={certificates} />
         </Card>
       )}
 

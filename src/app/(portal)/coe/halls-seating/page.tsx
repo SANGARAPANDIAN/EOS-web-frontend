@@ -5,7 +5,8 @@ import { Card, Button, Badge, Toggle, Icon, Modal, ConfirmDialog, type BadgeTone
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonFilterBar, SkeletonRows, SkeletonBlock } from "@/components/ui/Skeleton";
 import { useExams } from "@/modules/coe/api/exams";
-import { useExamTypes, useDepartments } from "@/modules/coe/api/reference";
+import { useExamTypes } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import type { ExamSessionCode } from "@/modules/coe/api/shared";
 import { useExamTimetableVersions } from "@/modules/coe/api/examTimetableVersions";
 import { useExamTimetable } from "@/modules/coe/api/timetable";

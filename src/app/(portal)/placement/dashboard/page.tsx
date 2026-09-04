@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
+import { SkeletonStatTiles } from "@/components/ui/Skeleton";
 import { Button, PageHeader, KpiCard, useToast } from "@/modules/admin/components/ui";
 import { useDashboardSummary } from "@/modules/placement/api/dashboard";
 import { lpa } from "@/modules/placement/lib/format";
@@ -56,47 +57,51 @@ export default function PlacementDashboardPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Registered students"
-          icon="groups"
-          value={data ? data.eligibleStudentsTotal.toLocaleString("en-IN") : isLoading ? "…" : "—"}
-          sub={data ? `Across ${data.placementRateByDepartment.length} departments` : undefined}
-        />
-        <KpiCard
-          label="Students placed"
-          icon="workspace_premium"
-          value={data ? data.studentsPlaced.toLocaleString("en-IN") : isLoading ? "…" : "—"}
-          sub={data ? `of ${data.eligibleStudentsTotal.toLocaleString("en-IN")} registered` : undefined}
-          progress={eligiblePlacedPct}
-        />
-        <KpiCard
-          label="Placement percentage"
-          icon="trending_up"
-          value={data ? `${data.placementPercentage}%` : isLoading ? "…" : "—"}
-          sub={data ? `${data.studentsPlaced.toLocaleString("en-IN")} of ${data.eligibleStudentsTotal.toLocaleString("en-IN")}` : undefined}
-        />
-        <KpiCard
-          label="Active drives"
-          icon="event_available"
-          value={data ? data.activeDrives : isLoading ? "…" : "—"}
-          sub={data ? `${data.drivesClosingThisWeek} closing this week` : undefined}
-        />
-        <KpiCard
-          label="Companies onboarded"
-          icon="business_center"
-          value={data ? data.totalCompanies : isLoading ? "…" : "—"}
-          sub={data ? `${data.companiesAddedThisMonth} added this month` : undefined}
-        />
-        <KpiCard
-          label="Offers released"
-          icon="local_offer"
-          value={data ? data.funnel.offers.toLocaleString("en-IN") : isLoading ? "…" : "—"}
-          sub={data ? `${data.acceptedOffersCount.toLocaleString("en-IN")} accepted` : undefined}
-        />
-        <KpiCard label="Average package" icon="payments" value={data ? lpa(data.averagePackageLpa) : isLoading ? "…" : "—"} />
-        <KpiCard label="Highest package" icon="military_tech" value={data ? lpa(data.highestPackageLpa) : isLoading ? "…" : "—"} />
-      </div>
+      {isLoading && !data ? (
+        <SkeletonStatTiles count={8} className="sm:grid-cols-2 lg:grid-cols-4" />
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Registered students"
+            icon="groups"
+            value={data ? data.eligibleStudentsTotal.toLocaleString("en-IN") : "—"}
+            sub={data ? `Across ${data.placementRateByDepartment.length} departments` : undefined}
+          />
+          <KpiCard
+            label="Students placed"
+            icon="workspace_premium"
+            value={data ? data.studentsPlaced.toLocaleString("en-IN") : "—"}
+            sub={data ? `of ${data.eligibleStudentsTotal.toLocaleString("en-IN")} registered` : undefined}
+            progress={eligiblePlacedPct}
+          />
+          <KpiCard
+            label="Placement percentage"
+            icon="trending_up"
+            value={data ? `${data.placementPercentage}%` : "—"}
+            sub={data ? `${data.studentsPlaced.toLocaleString("en-IN")} of ${data.eligibleStudentsTotal.toLocaleString("en-IN")}` : undefined}
+          />
+          <KpiCard
+            label="Active drives"
+            icon="event_available"
+            value={data ? data.activeDrives : "—"}
+            sub={data ? `${data.drivesClosingThisWeek} closing this week` : undefined}
+          />
+          <KpiCard
+            label="Companies onboarded"
+            icon="business_center"
+            value={data ? data.totalCompanies : "—"}
+            sub={data ? `${data.companiesAddedThisMonth} added this month` : undefined}
+          />
+          <KpiCard
+            label="Offers released"
+            icon="local_offer"
+            value={data ? data.funnel.offers.toLocaleString("en-IN") : "—"}
+            sub={data ? `${data.acceptedOffersCount.toLocaleString("en-IN")} accepted` : undefined}
+          />
+          <KpiCard label="Average package" icon="payments" value={data ? lpa(data.averagePackageLpa) : "—"} />
+          <KpiCard label="Highest package" icon="military_tech" value={data ? lpa(data.highestPackageLpa) : "—"} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-5">

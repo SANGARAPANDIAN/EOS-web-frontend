@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
+import { Skeleton, SkeletonBlock } from "@/components/ui/Skeleton";
 import { Badge, Button, useToast } from "@/modules/admin/components/ui";
 import { friendlyError } from "@/lib/utils/errors";
 import { generateStudentProfileReport } from "@/modules/admin/lib/student-profile-report";
@@ -199,7 +200,29 @@ export default function StudentDetailPage() {
   }
 
   if (isLoading) {
-    return <p className="text-sm text-admin-muted">Loading student…</p>;
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="rounded-admin-card border border-admin-border bg-admin-canvas p-5">
+          <div className="flex flex-wrap items-start gap-5">
+            <Skeleton className="h-[92px] w-[92px] shrink-0 rounded-admin-lg" />
+            <div className="min-w-[280px] flex-1">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="mt-3 h-4 w-80" />
+              <div className="mt-4 flex flex-wrap gap-6">
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-24" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-[232px_minmax(0,1fr)] items-start gap-6">
+          <SkeletonBlock className="h-[420px]" />
+          <SkeletonBlock className="h-[420px]" />
+        </div>
+      </div>
+    );
   }
   if (error || !student) {
     return <p className="text-sm text-admin-danger">Student not found.</p>;

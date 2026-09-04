@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
 export interface LibraryBook {
@@ -49,6 +49,27 @@ export function useMyBorrowRecords(status?: BorrowRecordStatus) {
   return useQuery({
     queryKey: ["me", "library", "borrow-records", status],
     queryFn: () => apiClient.get<MyBorrowRecord[]>("/me/library/borrow-records", { status }),
+  });
+}
+
+/**
+ * POST /library/borrow-records — same endpoint the librarian's Issue page
+ * uses, already role-gated to allow 'student' as a self-service caller (see
+ * BorrowRecordsService.create): the backend resolves the student from the
+ * JWT itself, so only book_id is sent here — no student_id, no due_date
+ * (the service defaults that from library_settings.default_borrowing_days
+ * when a student omits it). Surfaces the backend's real ConflictException
+ * messages (overdue block, duplicate borrow, per-student cap, no copies
+ * left) as-is; see error handling in the Library page.
+ */
+export function useBorrowBook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookId: number) => apiClient.post("/library/borrow-records", { book_id: bookId, borrower_type: "student" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["library", "books"] });
+      queryClient.invalidateQueries({ queryKey: ["me", "library"] });
+    },
   });
 }
 

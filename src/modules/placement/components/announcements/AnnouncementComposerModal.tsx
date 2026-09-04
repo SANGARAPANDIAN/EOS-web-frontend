@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Modal, Button, FormField, Input, Select, Textarea, Checkbox, useToast } from "@/modules/admin/components/ui";
 import { friendlyError } from "@/lib/utils/errors";
-import { useDepartments, useClasses } from "@/modules/admin/api/refData";
+import { useClasses } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useBatches } from "@/modules/placement/api/refData";
 import {
   ANNOUNCEMENT_CATEGORIES,

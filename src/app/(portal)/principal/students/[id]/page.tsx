@@ -8,6 +8,7 @@ import { principalColors } from "@/modules/principal/theme";
 import { useStudentProfile, downloadStudentProfile, type StudentProfile } from "@/modules/principal/api/students";
 import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
 import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
+import { SkeletonBlock, SkeletonCardGrid, SkeletonTable } from "@/components/ui/Skeleton";
 
 // Every section below is backed by a real table — GET /principal-students/:id/profile
 // (EOSbackend1/src/modules/principal-students/principal-students.service.ts),
@@ -113,7 +114,15 @@ export default function PrincipalStudentProfilePage() {
   const { data: p, isLoading, error } = useStudentProfile(Number.isFinite(id) ? id : undefined);
 
   if (isLoading) {
-    return <div className="py-16 text-center text-sm" style={{ color: principalColors.textFaint }}>Loading student…</div>;
+    return (
+      <div className="flex flex-col gap-4.5">
+        <SkeletonBlock className="h-[190px]" />
+        <SkeletonCardGrid count={3} columns={3} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonTable rows={6} />
+        <SkeletonCardGrid count={4} columns={4} />
+      </div>
+    );
   }
   if (error || !p) {
     return (

@@ -224,19 +224,22 @@ export default function CoeExamManagementPage() {
           icon="fact_check"
           delta={counts.yearDelta != null ? `${counts.yearDelta >= 0 ? "+" : ""}${counts.yearDelta}` : undefined}
           sub={counts.yearDelta != null ? "vs last year" : undefined}
+          loading={exams.isLoading}
         />
-        <StatCard label="Active exams" value={counts.active} icon="play_circle" sub={`${counts.conductWindow} in conduct window`} />
+        <StatCard label="Active exams" value={counts.active} icon="play_circle" sub={`${counts.conductWindow} in conduct window`} loading={exams.isLoading} />
         <StatCard
           label="Registration open"
           value={counts.registrationOpen}
           icon="how_to_reg"
           sub={counts.nearestClose != null ? `closes in ${counts.nearestClose} day${counts.nearestClose === 1 ? "" : "s"}` : undefined}
+          loading={exams.isLoading}
         />
         <StatCard
           label="Fee demand raised"
           value={counts.feeRaised > 0 ? currencyShort(counts.feeRaised) : "—"}
           icon="payments"
           sub={counts.feeCollectedPct != null ? `${counts.feeCollectedPct}% collected` : "fee data pending"}
+          loading={exams.isLoading || registrations.isLoading}
         />
       </div>
 

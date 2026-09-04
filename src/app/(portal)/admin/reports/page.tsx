@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils/cn";
 import { friendlyError } from "@/lib/utils/errors";
 import { ADMIN_REPORT_CATALOG, type AdminReportEntry } from "@/modules/admin/types/reports";
 import { REPORT_DEFS, useReportPreview, useReportDownload, useHostelOptions, type ReportFilters } from "@/modules/admin/api/reports";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 
 const DEFAULT_ENTRY = ADMIN_REPORT_CATALOG[0].entries[0];
 

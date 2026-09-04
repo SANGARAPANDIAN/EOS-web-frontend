@@ -7,6 +7,7 @@ import { tone } from "@/modules/secretary/helpers";
 import { PrintProfileStyles, PrintLetterhead } from "@/modules/secretary/PrintProfile";
 import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
 import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
+import { SkeletonBlock, SkeletonCardGrid, SkeletonTable } from "@/components/ui/Skeleton";
 
 // Pixel-exact layout port of the `isStudentProfile` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 1886-2086.
@@ -66,7 +67,15 @@ export default function StudentProfilePage() {
   const error = searchError || profileError;
 
   if (isLoading) {
-    return <div style={{ padding: 60, textAlign: "center", fontSize: 12.6, color: "#94a3b8" }}>Loading student…</div>;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <SkeletonBlock className="h-[190px]" />
+        <SkeletonCardGrid count={3} columns={3} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonTable rows={6} />
+        <SkeletonCardGrid count={4} columns={4} />
+      </div>
+    );
   }
   if (error || !rec || !p) {
     return (

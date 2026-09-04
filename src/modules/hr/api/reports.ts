@@ -56,6 +56,9 @@ export function usePayrollYears() {
     queryKey: ["hr", "reports", "payroll-years"],
     queryFn: () => apiClient.get<PayrollYearOption[]>("/hr/reports/annual-statement/available-years"),
     staleTime: 5 * 60 * 1000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 10 * 60 * 1000,
   });
 }
 

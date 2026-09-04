@@ -6,7 +6,8 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonRows, SkeletonTable, SkeletonFilterBar } from "@/components/ui/Skeleton";
 import { useExams, useCreateExam, useExamSubjectMappings, type ExamSubjectMapping } from "@/modules/coe/api/exams";
 import { useCreateTimetableEntry, useDeleteTimetableEntry, useUpdateTimetableEntry, useExamTimetable, type TimetableEntry } from "@/modules/coe/api/timetable";
-import { useExamTypes, useBatches, useSubjects, useClasses, useDepartments } from "@/modules/coe/api/reference";
+import { useExamTypes, useBatches, useSubjects, useClasses } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import type { ExamSessionCode } from "@/modules/coe/api/shared";
 import {
   useExamTimetableVersions,

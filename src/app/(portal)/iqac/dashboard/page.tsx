@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SegmentedTabs } from "@/components/ui";
+import { SegmentedTabs, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import { useIqacDashboard } from "@/modules/iqac/api/dashboard";
 import { QUALITY_DOMAINS } from "@/modules/iqac/qualityDomains";
 
@@ -99,6 +99,20 @@ export default function IqacDashboardPage() {
     },
     { label: "Patents", value: d?.patents_total ?? "—", real: true, onClick: () => router.push("/iqac/quality/faculty/patents") },
   ];
+
+  if (overview.isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <SkeletonBlock className="h-[74px]" />
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+        <SkeletonBlock />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-pop-in">

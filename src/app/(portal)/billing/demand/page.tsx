@@ -24,6 +24,7 @@ import {
   monoSx,
 } from "@/modules/billing/PageHeader";
 import { useDemandCategorySummary } from "@/modules/billing/api/fees";
+import { SkeletonFilterBar, SkeletonTable } from "@/components/ui/Skeleton";
 
 function fmtMoney(s: string): string {
   return `₹${Math.round(Number(s)).toLocaleString("en-IN")}`;
@@ -44,7 +45,14 @@ export default function DemandPage() {
     });
   }, [rows, q, applies]);
 
-  if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading demand categories…</div>;
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SkeletonFilterBar />
+        <SkeletonTable rows={6} />
+      </div>
+    );
+  }
   if (error) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load demand categories."}</div>;
 
   return (

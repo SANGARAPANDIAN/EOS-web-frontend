@@ -75,6 +75,9 @@ export function useCertificateTypes() {
     queryKey: ["coe", "certificate-types"],
     queryFn: () => apiClient.get<CertificateType[]>("/certificate-requests/types"),
     staleTime: 5 * 60 * 1000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 10 * 60 * 1000,
   });
 }
 

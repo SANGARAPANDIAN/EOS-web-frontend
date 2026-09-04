@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { useFacultyProfile, downloadFacultyProfile, type FacultyProfile } from "@/modules/principal/api/faculty";
+import { SkeletonBlock, SkeletonCardGrid, SkeletonTable } from "@/components/ui/Skeleton";
 
 // Every section below is backed by a real table — GET /principal-faculty/:id/profile
 // (EOSbackend1/src/modules/principal-faculty/principal-faculty.service.ts), the
@@ -65,7 +66,15 @@ export default function PrincipalFacultyProfilePage() {
   const { data: p, isLoading, error } = useFacultyProfile(Number.isFinite(id) ? id : undefined);
 
   if (isLoading) {
-    return <div className="py-16 text-center text-sm" style={{ color: principalColors.textFaint }}>Loading faculty…</div>;
+    return (
+      <div className="flex flex-col gap-4.5">
+        <SkeletonBlock className="h-[190px]" />
+        <SkeletonCardGrid count={3} columns={3} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonTable rows={5} />
+        <SkeletonCardGrid count={2} columns={2} />
+      </div>
+    );
   }
   if (error || !p) {
     return (

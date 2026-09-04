@@ -1,7 +1,7 @@
 "use client";
 
 import { FilterBar, Checkbox, Select } from "@/modules/admin/components/ui";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useCategories } from "@/modules/library/api/categories";
 import { useRacks } from "@/modules/library/api/racks";
 

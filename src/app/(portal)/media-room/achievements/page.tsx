@@ -11,7 +11,7 @@ import {
   useAddAchievementComment,
   type AchievementMediaType,
 } from "@/modules/media-room/api/achievements";
-import { useDepartments } from "@/modules/media-room/api/departments";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useUploadAttachment } from "@/modules/media-room/api/upload";
 import { useMyIdentity } from "@/modules/media-room/api/identity";
 import { formatDisplayDate, formatDayAndTime } from "@/lib/utils/date";

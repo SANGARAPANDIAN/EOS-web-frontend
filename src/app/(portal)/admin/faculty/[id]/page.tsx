@@ -4,6 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
+import { Skeleton, SkeletonBlock } from "@/components/ui/Skeleton";
 import { Badge, Button, Modal, useToast } from "@/modules/admin/components/ui";
 import { fetchFacultyById, useFacultyActivity, useFacultyAttendance, useFacultyById, useNotifyFaculty } from "@/modules/admin/api/faculty";
 import { useFacultyIdCardBulkStatus, useIssueFacultyIdCard } from "@/modules/admin/api/facultyIdCard";
@@ -165,7 +166,28 @@ function FacultyDetailPageInner() {
   }
 
   if (isLoading) {
-    return <p className="text-sm text-admin-muted">Loading faculty…</p>;
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="rounded-admin-card border border-admin-border bg-admin-canvas p-5">
+          <div className="flex flex-wrap items-start gap-5">
+            <Skeleton className="h-20 w-20 shrink-0 rounded-full" />
+            <div className="min-w-[280px] flex-1">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="mt-3 h-4 w-80" />
+              <div className="mt-4 flex flex-wrap gap-6">
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-24" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-[232px_minmax(0,1fr)] items-start gap-6">
+          <SkeletonBlock className="h-[420px]" />
+          <SkeletonBlock className="h-[420px]" />
+        </div>
+      </div>
+    );
   }
   if (error || !faculty) {
     return <p className="text-sm text-admin-danger">Couldn&apos;t load this faculty record.</p>;

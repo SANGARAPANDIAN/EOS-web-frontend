@@ -8,7 +8,7 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { formatDate, formatNumber, formatCompactCurrency } from "@/lib/utils/format";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useExamMarks } from "@/modules/coe/api/marks";
 import { useLookupStudentByRegisterNo, isNotFound } from "@/modules/coe/api/malpractice";
 import { useRevaluationWindow } from "@/modules/coe/api/revaluationWindow";

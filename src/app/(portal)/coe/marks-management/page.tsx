@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils/cn";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { usePassRules } from "@/modules/coe/api/settings";
 import { useFacultyDirectory, type FacultyDirectoryEntry } from "@/modules/coe/api/faculty";
 import { useMarksRoster } from "@/modules/coe/api/marksRoster";
@@ -134,20 +134,23 @@ export default function CoeMarksManagementPage() {
           value={`${lockedMain} / ${mainRows.length}`}
           icon="lock"
           sub={mainRows.length ? `${Math.round((lockedMain / mainRows.length) * 1000) / 10}% signed off` : undefined}
+          loading={status.isLoading}
         />
         <StatCard
           label="Internal marks"
           value={internalEntered}
           icon="edit_note"
           sub={internalTotal ? `${Math.round((internalEntered / internalTotal) * 1000) / 10}% uploaded` : undefined}
+          loading={status.isLoading}
         />
         <StatCard
           label="Practical marks"
           value={`${practicalEntered} / ${practicalTotal}`}
           icon="science"
           sub={practicalPending > 0 ? `${practicalPending} pending labs` : undefined}
+          loading={status.isLoading}
         />
-        <StatCard label="Awaiting verification" value={tabCounts.awaiting_verification} icon="fact_check" sub="submitted, not yet verified" />
+        <StatCard label="Awaiting verification" value={tabCounts.awaiting_verification} icon="fact_check" sub="submitted, not yet verified" loading={status.isLoading} />
       </div>
 
       <Card className="p-0">

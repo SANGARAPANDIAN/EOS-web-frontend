@@ -74,3 +74,25 @@ export function useMyAcademicCalendar() {
     queryFn: () => apiClient.get<MyAcademicCalendar>("/me/academic-calendar"),
   });
 }
+
+export type CareerPath = "placement" | "venture" | "higher_studies";
+
+/**
+ * GET /me/career-path — which one path (Placement/Venture/Higher Studies)
+ * the Placement Officer has marked this student as, null if not set yet.
+ * Read-only — set from the Placement Students page, not by the student.
+ *
+ * Polled (unlike every other query in this app, which relies on the default
+ * 30s staleTime + refetch-on-mount) because the value the sidebar depends on
+ * is changed by someone else entirely, in a different browser session, with
+ * no realtime push between them. StudentShell mounts once per session and
+ * never remounts on in-app navigation, so without polling a staff change
+ * would never reach an already-open student session short of a hard reload.
+ */
+export function useMyCareerPath() {
+  return useQuery({
+    queryKey: ["me", "career-path"],
+    queryFn: () => apiClient.get<{ career_path: CareerPath | null }>("/me/career-path"),
+    refetchInterval: 30_000,
+  });
+}

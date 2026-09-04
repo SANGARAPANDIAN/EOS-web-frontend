@@ -62,6 +62,9 @@ export function useAcademicCalendarPeriods() {
       return rows.map(toPeriod);
     },
     staleTime: 5 * 60 * 1000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be well above staleTime — same reasoning, same reference-data tier.
+    gcTime: 10 * 60 * 1000,
   });
 }
 

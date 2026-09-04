@@ -218,6 +218,9 @@ export function useTransportStages(enabled: boolean) {
     queryKey: ["transport-stages"],
     queryFn: () => apiClient.get<TransportStage[]>("/transport-stages"),
     staleTime: 5 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 10 * 60_000,
     enabled,
   });
 }
@@ -227,6 +230,7 @@ export function useHostelRoomTypes(enabled: boolean) {
     queryKey: ["hostel-room-types"],
     queryFn: () => apiClient.get<HostelRoomType[]>("/hostel-room-types"),
     staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     enabled,
   });
 }
@@ -236,6 +240,7 @@ export function useCertificateTypes(enabled: boolean) {
     queryKey: ["certificate-types"],
     queryFn: () => apiClient.get<CertificateType[]>("/certificate-types"),
     staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     enabled,
   });
 }

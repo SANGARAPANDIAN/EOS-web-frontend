@@ -17,10 +17,14 @@ export function useBatches() {
     queryKey: placementKeys.batches(),
     queryFn: () => apiClient.get<Batch[]>("/drives/batches"),
     staleTime: 5 * 60 * 1000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be well above staleTime — same reasoning, same reference-data tier.
+    gcTime: 10 * 60 * 1000,
   });
 }
 
-// Departments and classes hit the same /departments and /classes endpoints
-// admin already calls — reuse those hooks (@/modules/admin/api/refData)
-// instead of duplicating them here.
-export { useDepartments, useClasses } from "@/modules/admin/api/refData";
+// Classes hits the same /classes endpoint admin already calls — reuse that
+// hook (@/modules/admin/api/refData) instead of duplicating it here.
+export { useClasses } from "@/modules/admin/api/refData";
+// Departments is the app-wide shared lookup — reuse it here too.
+export { useDepartments } from "@/modules/shared/api/departments";

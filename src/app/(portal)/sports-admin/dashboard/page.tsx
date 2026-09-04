@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, StatCard, Badge, SegmentedTabs, EmptyState, Icon } from "@/components/ui";
+import { Card, StatCard, Badge, SegmentedTabs, EmptyState, Icon, Skeleton, SkeletonStatTiles, SkeletonTable, SkeletonRows } from "@/components/ui";
 import { useSportsDashboard, type DashboardTimeframe } from "@/modules/sports-admin/api/dashboard";
 import { useSportsAdminIdentity } from "@/modules/sports-admin/api/me";
 import { useMarkSessionDone } from "@/modules/sports-admin/api/sessions";
@@ -46,6 +46,27 @@ export default function SportsDashboardPage() {
             : d.kpis.coaches.on_duty) / d.kpis.coaches.value * 100,
         )
       : undefined;
+
+  if (dashboard.isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div>
+          <Skeleton className="h-7 w-64" />
+          <Skeleton className="mt-2 h-3.5 w-80" />
+        </div>
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-[1.4fr_1fr] items-start gap-4">
+          <SkeletonTable rows={4} />
+          <SkeletonRows count={3} />
+        </div>
+        <div className="grid grid-cols-[1.4fr_1fr] items-start gap-4">
+          <SkeletonTable rows={4} />
+          <SkeletonTable rows={4} />
+        </div>
+        <SkeletonRows count={3} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -140,7 +161,7 @@ export default function SportsDashboardPage() {
           <div className="border-t border-divider">
             {!d || d.todays_sessions.length === 0 ? (
               <div className="px-5">
-                <EmptyState message={dashboard.isLoading ? "Loading…" : "No sessions scheduled today."} />
+                <EmptyState message="No sessions scheduled today." />
               </div>
             ) : (
               d.todays_sessions.map((s) => (
@@ -180,9 +201,7 @@ export default function SportsDashboardPage() {
           </div>
           <div className="mt-3 flex flex-col gap-3">
             {!d || flags.length === 0 ? (
-              <div className="text-[13px] text-muted">
-                {dashboard.isLoading ? "Loading…" : "All flags cleared for today."}
-              </div>
+              <div className="text-[13px] text-muted">All flags cleared for today.</div>
             ) : (
               flags.map((f) => (
                 <div key={`${f.route}:${f.title}`} className="flex items-start gap-2.5">
@@ -216,7 +235,7 @@ export default function SportsDashboardPage() {
           <div className="border-t border-divider">
             {!d || d.recent_achievements.length === 0 ? (
               <div className="px-5">
-                <EmptyState message={dashboard.isLoading ? "Loading…" : "No results recorded yet."} />
+                <EmptyState message="No results recorded yet." />
               </div>
             ) : (
               d.recent_achievements.map((a) => (
@@ -247,7 +266,7 @@ export default function SportsDashboardPage() {
           <div className="border-t border-divider">
             {!d || d.upcoming_fixtures.length === 0 ? (
               <div className="px-5">
-                <EmptyState message={dashboard.isLoading ? "Loading…" : "No fixtures in the next week."} />
+                <EmptyState message="No fixtures in the next week." />
               </div>
             ) : (
               d.upcoming_fixtures.map((fx) => (
@@ -284,7 +303,7 @@ export default function SportsDashboardPage() {
         <h2 className="text-[15px] font-extrabold tracking-[-.02em] text-ink">Facility use today</h2>
         <div className="mt-3 flex flex-col gap-3">
           {!d || d.facility_use.length === 0 ? (
-            <div className="text-[13px] text-muted">{dashboard.isLoading ? "Loading…" : "No facilities recorded yet."}</div>
+            <div className="text-[13px] text-muted">No facilities recorded yet.</div>
           ) : (
             d.facility_use.map((v) => (
               <div key={v.id}>

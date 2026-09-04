@@ -1,4 +1,5 @@
 import type { ApplicationStatus, OfferResponseStatus } from "@/modules/placement/api/types";
+import type { CareerPath } from "@/modules/placement/api/studentReport";
 import type { RecruiterStatus } from "@/modules/placement/api/companies";
 import type { DriveDisplayStatus, DriveMode } from "@/modules/placement/api/drives";
 import type { InterviewStatus } from "@/modules/placement/api/interviews";
@@ -85,6 +86,14 @@ export function eligibilityLabel(r: { placementEligible: boolean | null; placeme
   if (r.placementEligible === true) return "Eligible";
   if (r.placementEligible === false) return "Not eligible";
   return "Not assessed";
+}
+
+/** Officer-set path — drives which one of Placement/My Venture/Higher Studies shows in the student's own sidebar. */
+export function careerPathLabel(path: CareerPath | null): string {
+  if (path === "placement") return "Placement";
+  if (path === "venture") return "Venture";
+  if (path === "higher_studies") return "Higher Studies";
+  return "Not set";
 }
 
 /** Per-round stage label — used by the drive detail student list and the student profile's application history. */

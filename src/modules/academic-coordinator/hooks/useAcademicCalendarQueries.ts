@@ -7,6 +7,7 @@ export function useAcademicCalendarPeriods() {
     queryKey: coordinatorKeys.academicCalendar.periods(),
     queryFn: academicCalendarService.listPeriods,
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 

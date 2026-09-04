@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader, KpiCard, SectionCard, PendingNotice, EmptyState, QueueRow } from "@/modules/admin/components/ui";
+import { SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import { useDashboardSummary } from "@/modules/library/api/dashboard";
 import type { RecentActivityEvent, DepartmentAvailability } from "@/modules/library/api/dashboard";
 import { formatDisplayDate } from "@/lib/utils/date";
@@ -66,7 +67,20 @@ export default function LibraryDashboardPage() {
 
   const errorMessage = error instanceof ApiError ? error.message : error ? "Failed to load the library dashboard." : null;
 
-  const val = (n: number | undefined) => (n !== undefined ? n : isLoading ? "…" : "—");
+  const val = (n: number | undefined) => (n !== undefined ? n : "—");
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <PageHeader title="Library dashboard" description="Institution overview · Library Module" />
+        <SkeletonStatTiles count={6} className="sm:grid-cols-2 lg:grid-cols-3" />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -124,7 +138,7 @@ export default function LibraryDashboardPage() {
           className="min-h-[180px]"
           label="Lost & damaged"
           icon="report"
-          value={data ? data.lost_books + data.damaged_books : isLoading ? "…" : "—"}
+          value={data ? data.lost_books + data.damaged_books : "—"}
           sub={data ? `${data.lost_books} lost · ${data.damaged_books} damaged` : undefined}
           href="/library/lost"
         />
@@ -135,10 +149,7 @@ export default function LibraryDashboardPage() {
           {data && data.department_availability.length > 0 ? (
             <DepartmentAvailabilityChart data={data.department_availability} />
           ) : (
-            <PendingNotice
-              reason={isLoading ? "Loading…" : "No books linked to a department yet."}
-              height={200}
-            />
+            <PendingNotice reason="No books linked to a department yet." height={200} />
           )}
         </SectionCard>
 
@@ -154,8 +165,6 @@ export default function LibraryDashboardPage() {
                 />
               ))}
             </div>
-          ) : isLoading ? (
-            <PendingNotice reason="Loading…" height={200} />
           ) : (
             <EmptyState icon="history" title="No activity yet" description="Issues and returns will show up here as they happen." />
           )}

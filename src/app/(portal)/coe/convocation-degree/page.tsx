@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils/cn";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useLookupStudentByRegisterNo, isNotFound } from "@/modules/coe/api/malpractice";
 import {
   useConvocationRegistrations,
@@ -134,20 +134,23 @@ export default function CoeConvocationDegreePage() {
           value={stats.data?.provisionally_eligible ?? 0}
           icon="verified"
           sub={stats.data ? `of ${stats.data.final_year_strength} final year strength` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="With shortfall"
           value={stats.data?.with_shortfall ?? 0}
           icon="trending_down"
           sub={stats.data ? `${stats.data.shortfall_arrears} arrears · ${stats.data.shortfall_dues_or_records} dues or records` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Convocation registered"
           value={stats.data?.convocation_registered ?? 0}
           icon="how_to_reg"
           sub={stats.data?.registered_pct_of_eligible != null ? `${stats.data.registered_pct_of_eligible}% of eligible` : undefined}
+          loading={stats.isLoading}
         />
-        <StatCard label="Gold medal candidates" value={stats.data?.gold_medal_candidates ?? 0} icon="workspace_premium" sub="CGPA 9.5 and above" />
+        <StatCard label="Gold medal candidates" value={stats.data?.gold_medal_candidates ?? 0} icon="workspace_premium" sub="CGPA 9.5 and above" loading={stats.isLoading} />
       </div>
 
       <Card className="p-0">

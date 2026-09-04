@@ -16,6 +16,13 @@ export interface AcademicCalendarEventLike {
   event_type: string;
 }
 
+/** A private, single-user calendar note — see `personalEvents` below. Deliberately minimal (no description/type) since these are added directly on the grid, not through a full form. */
+export interface PersonalCalendarEventLike {
+  id: number | string;
+  entry_date: string; // "YYYY-MM-DD"
+  title: string;
+}
+
 function defaultEventTypeLabel(eventType: string): string {
   return eventType.charAt(0).toUpperCase() + eventType.slice(1);
 }
@@ -48,6 +55,19 @@ export interface AcademicCalendarViewProps<E extends AcademicCalendarEventLike> 
   /** Defaults to "sunday", matching the majority of existing portals. */
   weekStart?: "sunday" | "monday";
   className?: string;
+
+  /**
+   * A caller's own private notes, merged into the same grid/list as
+   * `events` but rendered with a distinct (violet) tone and never
+   * read-only-locked the way institution `events` are — omit entirely for
+   * callers that don't have a personal-notes concept (HOD/Faculty today),
+   * which leaves every day cell exactly as it renders now.
+   */
+  personalEvents?: PersonalCalendarEventLike[];
+  /** Called when an empty (no institution event) day cell is clicked — only wired when personal notes are supported; day cells stay non-interactive otherwise, exactly as today. */
+  onDayClick?: (iso: string) => void;
+  /** Rendered as the delete action on a personal-note row in the event list — separate from `renderEventActions`, since institution events must stay fully read-only through this component. */
+  onDeletePersonalNote?: (note: PersonalCalendarEventLike) => void;
 }
 
 const WEEKDAY_LABELS_BY_START = {
@@ -89,6 +109,9 @@ export function AcademicCalendarView<E extends AcademicCalendarEventLike>({
   legend,
   weekStart = "sunday",
   className,
+  personalEvents = [],
+  onDayClick,
+  onDeletePersonalNote,
 }: AcademicCalendarViewProps<E>) {
   // Callers' `event_date` isn't uniformly "YYYY-MM-DD" — some backends
   // return the full ISO datetime a Postgres `date` column serializes to
@@ -108,6 +131,17 @@ export function AcademicCalendarView<E extends AcademicCalendarEventLike>({
     return map;
   }, [events]);
 
+  const personalByDate = useMemo(() => {
+    const map = new Map<string, PersonalCalendarEventLike[]>();
+    for (const p of personalEvents) {
+      const key = dateOnly(p.entry_date);
+      const list = map.get(key) ?? [];
+      list.push(p);
+      map.set(key, list);
+    }
+    return map;
+  }, [personalEvents]);
+
   const weeks = useMemo(() => getMonthGrid(viewYear, viewMonth, weekStart), [viewYear, viewMonth, weekStart]);
   const weekdayLabels = WEEKDAY_LABELS_BY_START[weekStart];
   const todayIso = toIsoDateString(new Date());
@@ -122,6 +156,29 @@ export function AcademicCalendarView<E extends AcademicCalendarEventLike>({
         .sort((a, b) => dateOnly(a.event_date).localeCompare(dateOnly(b.event_date))),
     [events, viewYear, viewMonth],
   );
+
+  const personalInMonth = useMemo(
+    () =>
+      personalEvents
+        .filter((p) => {
+          const d = new Date(dateOnly(p.entry_date) + "T00:00:00");
+          return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
+        })
+        .sort((a, b) => dateOnly(a.entry_date).localeCompare(dateOnly(b.entry_date))),
+    [personalEvents, viewYear, viewMonth],
+  );
+
+  // Merged, date-sorted render list for the "Events in [Month]" card — each
+  // row keeps its own type so it renders with the right badge/actions
+  // (institution events stay fully read-only; personal notes get a delete
+  // action and the violet tone).
+  const combinedInMonth = useMemo(() => {
+    const rows: ({ kind: "event"; date: string; item: E } | { kind: "personal"; date: string; item: PersonalCalendarEventLike })[] = [
+      ...eventsInMonth.map((item) => ({ kind: "event" as const, date: dateOnly(item.event_date), item })),
+      ...personalInMonth.map((item) => ({ kind: "personal" as const, date: dateOnly(item.entry_date), item })),
+    ];
+    return rows.sort((a, b) => a.date.localeCompare(b.date));
+  }, [eventsInMonth, personalInMonth]);
 
   return (
     <div className={cn("flex flex-col gap-5", className)}>
@@ -145,7 +202,7 @@ export function AcademicCalendarView<E extends AcademicCalendarEventLike>({
             <div className="text-center">
               <div className="text-[18px] font-extrabold tracking-[-.02em] text-ink">{monthLabel(viewYear, viewMonth)}</div>
               <div className="mt-0.5 text-[11.5px] font-semibold text-muted">
-                {eventsInMonth.length} calendar event{eventsInMonth.length === 1 ? "" : "s"}
+                {combinedInMonth.length} calendar event{combinedInMonth.length === 1 ? "" : "s"}
               </div>
             </div>
             <IconButton icon="chevron_right" size={34} onClick={onNextMonth} aria-label="Next month" />
@@ -159,23 +216,53 @@ export function AcademicCalendarView<E extends AcademicCalendarEventLike>({
           <div className="mt-1.5 grid grid-cols-7 gap-1.5">
             {weeks.flat().map((cell, i) => {
               if (!cell.iso) return <div key={i} className="h-12" />;
-              const hasEvent = (eventsByDate.get(cell.iso) ?? []).length > 0;
-              const special = !hasEvent && isSpecialDay?.(new Date(cell.iso + "T00:00:00"));
-              const isToday = cell.iso === todayIso;
+              const iso = cell.iso;
+              const hasEvent = (eventsByDate.get(iso) ?? []).length > 0;
+              const hasPersonal = (personalByDate.get(iso) ?? []).length > 0;
+              const special = !hasEvent && !hasPersonal && isSpecialDay?.(new Date(iso + "T00:00:00"));
+              const isToday = iso === todayIso;
               return (
                 <div
-                  key={cell.iso}
+                  key={iso}
+                  role={onDayClick ? "button" : undefined}
+                  tabIndex={onDayClick ? 0 : undefined}
+                  aria-label={onDayClick ? `Add a personal note on ${iso}` : undefined}
+                  onClick={onDayClick ? () => onDayClick(iso) : undefined}
+                  onKeyDown={
+                    onDayClick
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onDayClick(iso);
+                          }
+                        }
+                      : undefined
+                  }
                   className={cn(
-                    "hod-hover-card flex h-12 items-center justify-center rounded-[10px] border text-[14px] font-bold",
+                    "hod-hover-card group relative flex h-12 items-center justify-center rounded-[10px] border text-[14px] font-bold",
                     hasEvent
                       ? "border-border-accent bg-accent-50 text-primary"
-                      : special
-                        ? "border-danger-border bg-danger-bg text-danger-fg"
-                        : "border-border-default bg-surface text-ink",
+                      : hasPersonal
+                        ? "border-personal-border bg-personal-bg text-personal-fg"
+                        : special
+                          ? "border-danger-border bg-danger-bg text-danger-fg"
+                          : "border-border-default bg-surface text-ink",
                     isToday && "ring-2 ring-primary",
+                    onDayClick && "cursor-pointer",
                   )}
                 >
                   {cell.day}
+                  {hasPersonal && hasEvent && (
+                    <span className="absolute right-1 top-1 size-[7px] rounded-full bg-personal-fg" aria-hidden />
+                  )}
+                  {onDayClick && (
+                    <span
+                      className="pointer-events-none absolute bottom-0.5 right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[11px] font-extrabold leading-none text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-hidden
+                    >
+                      +
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -197,21 +284,51 @@ export function AcademicCalendarView<E extends AcademicCalendarEventLike>({
           <h2 className="text-[16px] font-extrabold text-ink">Events in {monthLabel(viewYear, viewMonth).split(" ")[0]}</h2>
           {isLoading ? (
             <SkeletonRows count={4} className="mt-2" />
-          ) : isError ? null : eventsInMonth.length === 0 ? (
+          ) : isError ? null : combinedInMonth.length === 0 ? (
             <EmptyState message="No calendar events recorded for this month." />
           ) : (
             <div className="mt-2 flex flex-col gap-2.5">
-              {eventsInMonth.map((event) => {
-                const d = new Date(dateOnly(event.event_date) + "T00:00:00");
+              {combinedInMonth.map((row) => {
+                const d = new Date(row.date + "T00:00:00");
+                const dateBlock = (
+                  <div className="flex w-[52px] shrink-0 flex-col items-center rounded-[9px] border border-border-default bg-surface-input py-1.5">
+                    <span className="text-[14px] font-extrabold leading-none text-ink">{d.getDate()}</span>
+                    <span className="text-[9.5px] font-bold tracking-[.06em] text-muted">{DOW_LABELS[d.getDay()]}</span>
+                  </div>
+                );
+                if (row.kind === "personal") {
+                  const note = row.item;
+                  return (
+                    <div
+                      key={`personal-${note.id}`}
+                      className="hod-hover-row flex items-center gap-3.5 rounded-[11px] border border-personal-border px-3.5 py-3"
+                    >
+                      {dateBlock}
+                      <div className="flex-1">
+                        <div className="text-[13.5px] font-bold leading-[1.35] text-ink">{note.title}</div>
+                        <div className="mt-0.5 text-[12px] text-muted">
+                          {d.toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" })}
+                        </div>
+                      </div>
+                      <Badge tone="accentDark">Personal</Badge>
+                      {onDeletePersonalNote && (
+                        <IconButton
+                          icon="delete"
+                          size={30}
+                          onClick={() => onDeletePersonalNote(note)}
+                          aria-label="Delete personal note"
+                        />
+                      )}
+                    </div>
+                  );
+                }
+                const event = row.item;
                 return (
                   <div
                     key={event.id}
                     className="hod-hover-row flex items-center gap-3.5 rounded-[11px] border border-border-default px-3.5 py-3"
                   >
-                    <div className="flex w-[52px] shrink-0 flex-col items-center rounded-[9px] border border-border-default bg-surface-input py-1.5">
-                      <span className="text-[14px] font-extrabold leading-none text-ink">{d.getDate()}</span>
-                      <span className="text-[9.5px] font-bold tracking-[.06em] text-muted">{DOW_LABELS[d.getDay()]}</span>
-                    </div>
+                    {dateBlock}
                     <div className="flex-1">
                       <div className="text-[13.5px] font-bold leading-[1.35] text-ink">{event.title}</div>
                       <div className="mt-0.5 text-[12px] text-muted">

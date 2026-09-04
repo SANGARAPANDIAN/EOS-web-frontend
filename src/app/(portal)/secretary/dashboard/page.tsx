@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SegmentedTabs } from "@/components/ui";
+import { SegmentedTabs, Skeleton, SkeletonStatTiles, SkeletonCardGrid } from "@/components/ui";
 import { SecretaryIcon } from "@/modules/secretary/icons";
 import { tone as noticeTone } from "@/modules/secretary/helpers";
 import { useAnnouncements } from "@/modules/secretary/api/announcements";
@@ -58,14 +58,19 @@ export default function SecretaryDashboardPage() {
     setTimeout(() => setToast(""), 2600);
   }
 
-  const { data: attOverview } = useStudentAttendanceOverview();
+  const { data: attOverview, isLoading: attLoading } = useStudentAttendanceOverview();
   const { data: rollCount } = useRollCount();
-  const { data: facOverview } = useFacultyOverview();
-  const { data: examsOverview } = useExamsOverview();
-  const { data: placementsOverview } = usePlacementsOverview();
+  const { data: facOverview, isLoading: facLoading } = useFacultyOverview();
+  const { data: examsOverview, isLoading: examsLoading } = useExamsOverview();
+  const { data: placementsOverview, isLoading: placementsLoading } = usePlacementsOverview();
   const { data: announcements } = useAnnouncements();
   const { data: identity } = useMyIdentity();
   const deptName = identity?.department ?? "your department";
+
+  // True only until every query behind this dashboard has resolved at least
+  // once (React Query's isLoading, not isFetching) — a background refresh of
+  // already-cached data never re-triggers the skeleton.
+  const isLoading = attLoading || facLoading || examsLoading || placementsLoading;
 
   const facAttendancePct = useMemo(() => {
     if (!facOverview || facOverview.total_employees === 0) return null;
@@ -156,6 +161,19 @@ export default function SecretaryDashboardPage() {
     }
     return items.slice(0, 5);
   }, [attOverview, examsOverview]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-[22px]">
+        <div>
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="mt-2.5 h-3.5 w-96" />
+        </div>
+        <SkeletonStatTiles count={4} />
+        <SkeletonCardGrid count={3} columns={3} />
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -10,6 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { SkeletonStatTiles } from "@/components/ui/Skeleton";
 
 export default function AcademicCoordinatorDashboardPage() {
   const router = useRouter();
@@ -69,12 +70,16 @@ export default function AcademicCoordinatorDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-3.5">
-        <StatCard label="Total courses" value={totalCourses} icon="menu_book" href="/academic-coordinator/create" />
-        <StatCard label="Total departments" value={totalDepartments} icon="layers" href="/academic-coordinator/structure" />
-        <StatCard label="Total credits" value={totalCredits} icon="military_tech" />
-        <StatCard label="Recently added courses" value={recentCount} icon="schedule" href="/academic-coordinator/create" />
-      </div>
+      {subjects.isLoading && !subjects.data ? (
+        <SkeletonStatTiles count={4} />
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-3.5">
+          <StatCard label="Total courses" value={totalCourses} icon="menu_book" href="/academic-coordinator/create" />
+          <StatCard label="Total departments" value={totalDepartments} icon="layers" href="/academic-coordinator/structure" />
+          <StatCard label="Total credits" value={totalCredits} icon="military_tech" />
+          <StatCard label="Recently added courses" value={recentCount} icon="schedule" href="/academic-coordinator/create" />
+        </div>
+      )}
 
       <DataTable
         title={

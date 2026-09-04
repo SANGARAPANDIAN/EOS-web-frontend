@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader, filterBarSx, inputSx, selectSx, clearBtnSx, tableWrapSx, thSx, thRightSx } from "@/modules/billing/PageHeader";
+import { SkeletonCardGrid, SkeletonFilterBar, SkeletonTable } from "@/components/ui/Skeleton";
 import { ReceivePaymentModal, toastSx } from "@/modules/billing/ReceivePaymentModal";
 import { useFeePaymentsDashboard, groupDashboardByStudent, type BillingStudentRow } from "@/modules/billing/api/fees";
 import { money, initialsOf } from "@/modules/billing/fakeData";
@@ -210,7 +211,14 @@ export default function BillingStudentsPage() {
     window.setTimeout(() => setToast(""), 2400);
   }
 
-  if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading students…</div>;
+  if (isLoading)
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SkeletonCardGrid count={6} columns={3} />
+        <SkeletonFilterBar />
+        <SkeletonTable rows={8} />
+      </div>
+    );
   if (error) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load students."}</div>;
 
   return (

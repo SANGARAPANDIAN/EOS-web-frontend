@@ -199,6 +199,7 @@ export default function CoeInvigilationPage() {
           value={stats.data?.assigned ?? 0}
           icon="groups"
           sub={stats.data?.required ? `${Math.round((stats.data.assigned / stats.data.required) * 1000) / 10}% of required` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Unfilled duty slots"
@@ -209,9 +210,10 @@ export default function CoeInvigilationPage() {
               ? `${shortDate(stats.data.next_unfilled_date)} ${stats.data.next_unfilled_session === "FN" ? "forenoon" : "afternoon"} session`
               : "none"
           }
+          loading={stats.isLoading}
         />
-        <StatCard label="Acknowledged" value={stats.data?.acknowledged ?? 0} icon="task_alt" sub={stats.data ? `${stats.data.acknowledged_pct}% of assigned` : undefined} />
-        <StatCard label="Relief invigilators" value={stats.data?.relief_invigilators ?? 0} icon="swap_horiz" sub="on standby" />
+        <StatCard label="Acknowledged" value={stats.data?.acknowledged ?? 0} icon="task_alt" sub={stats.data ? `${stats.data.acknowledged_pct}% of assigned` : undefined} loading={stats.isLoading} />
+        <StatCard label="Relief invigilators" value={stats.data?.relief_invigilators ?? 0} icon="swap_horiz" sub="on standby" loading={stats.isLoading} />
       </div>
 
       <Card className="p-0">

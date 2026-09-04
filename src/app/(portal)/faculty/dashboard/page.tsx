@@ -9,6 +9,7 @@ import { useStudentLeaves, useStudentOds } from "@/modules/advisor/api/requests"
 import { useAnnouncements } from "@/modules/advisor/api/announcements";
 import { useMentoredStudents, useAllMenteesPlacementHistory } from "@/modules/advisor/api/placements";
 import { AdvisorIcon, type AdvisorIconKind } from "@/modules/advisor/icons";
+import { SkeletonStatTiles, SkeletonBlock } from "@/components/ui/Skeleton";
 
 // Structural port of the `isDashboard` block in
 // "Advisor (Final) - Web/Faculty Portal.dc.html", now driven end-to-end by
@@ -150,6 +151,17 @@ export default function AdvisorDashboardPage() {
         {todayClasses.length > 0 ? ` · ${todayClasses.length} classes today` : ""} · attendance window closes at 4.15 pm
       </div>
 
+      {(myProfile.isLoading && !myProfile.data) || (today.isLoading && !today.data) ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 22 }}>
+          <SkeletonStatTiles count={4} />
+          <div style={{ display: "grid", gridTemplateColumns: "1.15fr minmax(0,1fr) minmax(0,1fr)", gap: 16 }}>
+            <SkeletonBlock />
+            <SkeletonBlock />
+            <SkeletonBlock />
+          </div>
+        </div>
+      ) : (
+        <>
       <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
         {/* Only "My class attendance" below responds to this scope, and that
             card only exists for a class mentor — for any other faculty
@@ -331,6 +343,8 @@ export default function AdvisorDashboardPage() {
               })}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

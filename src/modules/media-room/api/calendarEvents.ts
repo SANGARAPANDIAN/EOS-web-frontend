@@ -21,5 +21,8 @@ export function useAcademicCalendarEvents() {
     queryKey: ["academic-calendar-events"],
     queryFn: () => apiClient.get<CalendarEvent[]>("/academic-calendar-events"),
     staleTime: 5 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be well above staleTime — same reasoning, same reference-data tier.
+    gcTime: 10 * 60_000,
   });
 }

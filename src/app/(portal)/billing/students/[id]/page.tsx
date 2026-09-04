@@ -24,6 +24,7 @@ import {
 
 type WorkspaceConcessionRow = StudentWorkspace["fee_concessions"][number];
 type WorkspaceEducationLoanDdRow = StudentWorkspace["education_loan_dd"][number];
+import { SkeletonBlock, SkeletonStatTiles, SkeletonTable } from "@/components/ui/Skeleton";
 import { ReceivePaymentModal, toastSx } from "@/modules/billing/ReceivePaymentModal";
 import { ConcessionModal } from "@/modules/billing/ConcessionModal";
 import { EducationLoanDDModal } from "@/modules/billing/EducationLoanDDModal";
@@ -172,7 +173,14 @@ export default function BillingStudentDetailPage() {
     );
   }
 
-  if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading student…</div>;
+  if (isLoading)
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SkeletonBlock className="h-[100px]" />
+        <SkeletonStatTiles count={4} />
+        <SkeletonTable rows={6} />
+      </div>
+    );
 
   if (error || !ws) {
     return (

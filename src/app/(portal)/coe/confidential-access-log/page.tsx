@@ -132,19 +132,21 @@ export default function CoeConfidentialAccessLogPage() {
       />
 
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Events logged" value={stats.data?.events_logged ?? 0} icon="history" sub={`${cycleEventsCount} this cycle`} />
+        <StatCard label="Events logged" value={stats.data?.events_logged ?? 0} icon="history" sub={`${cycleEventsCount} this cycle`} loading={stats.isLoading} />
         <StatCard
           label="Strong room entries"
           value={stats.data?.strong_room_entries ?? 0}
           icon="lock"
           sub={strongRoomRows.length > 0 ? (strongRoomAllVerified ? "all two-person verified" : "some unverified") : undefined}
+          loading={stats.isLoading}
         />
-        <StatCard label="Sealed papers" value={stats.data?.sealed_papers ?? 0} icon="inventory_2" sub="vaulted" />
+        <StatCard label="Sealed papers" value={stats.data?.sealed_papers ?? 0} icon="inventory_2" sub="vaulted" loading={stats.isLoading} />
         <StatCard
           label="Exceptions raised"
           value={stats.data?.exceptions_raised ?? 0}
           icon="report"
           sub={lastException ? `last ${new Date(lastException.occurred_at).toLocaleDateString()}` : undefined}
+          loading={stats.isLoading}
         />
       </div>
 

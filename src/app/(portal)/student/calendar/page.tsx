@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useMyAcademicCalendar } from "@/modules/student/api/profile";
 import { academicYearLabel } from "@/lib/utils/date";
 import { AcademicCalendarView } from "@/modules/shared/academic-calendar-view/AcademicCalendarView";
+import { usePersonalCalendarEntries, useDeletePersonalCalendarEntry } from "@/modules/student/api/personalCalendar";
+import { AddPersonalNoteModal } from "@/modules/student/components/AddPersonalNoteModal";
 
 // The real schema only distinguishes `holiday` vs a generic `event` — the
 // design reference's richer Examination/Placement/Institution/Finance tags
@@ -17,9 +19,12 @@ const EVENT_TYPE_LABEL: Record<string, string> = {
 
 export default function StudentAcademicCalendarPage() {
   const academicCalendar = useMyAcademicCalendar();
+  const personalNotes = usePersonalCalendarEntries();
+  const deleteNote = useDeletePersonalCalendarEntry();
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [addNoteDate, setAddNoteDate] = useState<string | null>(null);
 
   const yearLabel = academicYearLabel(academicCalendar.data?.start_date ?? null, academicCalendar.data?.semester);
 
@@ -46,8 +51,13 @@ export default function StudentAcademicCalendarPage() {
         legend={[
           { label: "Holiday", toneClassName: "border-border-accent bg-accent-50" },
           { label: "Instruction", toneClassName: "border-border-accent bg-accent-50" },
+          { label: "Your personal notes", toneClassName: "border-personal-border bg-personal-bg" },
         ]}
+        personalEvents={personalNotes.data ?? []}
+        onDayClick={(iso) => setAddNoteDate(iso)}
+        onDeletePersonalNote={(note) => deleteNote.mutate(Number(note.id))}
       />
+      <AddPersonalNoteModal date={addNoteDate} onClose={() => setAddNoteDate(null)} />
     </div>
   );
 }

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Card, StatCard, Button, Badge, EmptyState, Icon, DateTile, NavTile } from "@/components/ui";
+import { Card, StatCard, Button, Badge, EmptyState, Icon, DateTile, NavTile, Skeleton, SkeletonStatTiles, SkeletonRows, SkeletonCardGrid } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
-import { useMyIdentity, useMyAcademicCalendar } from "@/modules/student/api/profile";
+import { useMyIdentity, useMyAcademicCalendar, useMyCareerPath } from "@/modules/student/api/profile";
 import { useMyAttendance } from "@/modules/student/api/attendance";
 import { useMyCgpa } from "@/modules/student/api/examResults";
 import { useMyFees } from "@/modules/student/api/fees";
@@ -12,6 +12,8 @@ import { useMyExamSchedule } from "@/modules/student/api/examSchedule";
 import { useMyTimetableForDay, displayPeriodNumbers } from "@/modules/student/api/timetable";
 import { usePendingLmsTasks } from "@/modules/student/api/lms";
 import { useUpcomingDrives } from "@/modules/student/api/placements";
+import { useMyEntrepreneurship } from "@/modules/student/api/entrepreneurship";
+import { useMyHigherEducation } from "@/modules/student/api/higherEducation";
 import { useFeedbackForms } from "@/modules/student/api/feedback";
 import { useMyBorrowRecords } from "@/modules/student/api/library";
 import { useMyHostelRoom } from "@/modules/student/api/hostel";
@@ -66,6 +68,9 @@ export default function StudentDashboardPage() {
   const announcements = useAnnouncements();
   const pendingLms = usePendingLmsTasks();
   const upcomingDrives = useUpcomingDrives();
+  const careerPath = useMyCareerPath();
+  const venture = useMyEntrepreneurship();
+  const higherEd = useMyHigherEducation();
   const feedbackForms = useFeedbackForms();
   const borrowedBooks = useMyBorrowRecords("borrowed");
   const hostelRoom = useMyHostelRoom();
@@ -173,6 +178,40 @@ export default function StudentDashboardPage() {
 
   const nextDrive = upcomingDrives.data?.[0];
 
+  // Same card slot, different content by declared path (set by the
+  // Placement Officer — see StudentShell's identical declaredPath read) —
+  // "placement" and undeclared both fall through to the original,
+  // unconditional placement-drive behavior so nothing changes for a student
+  // whose path hasn't been set yet.
+  const declaredPath = careerPath.data?.career_path ?? null;
+  const careerCard = useMemo(() => {
+    if (declaredPath === "venture") {
+      return {
+        label: "My venture",
+        icon: "rocket_launch",
+        href: "/student/my-venture",
+        value: <span className="text-[20px]">{venture.data?.business_name ?? "Not registered yet"}</span>,
+        sub: venture.data ? [venture.data.stage, venture.data.growth_stage].filter(Boolean).join(" · ") || undefined : undefined,
+      };
+    }
+    if (declaredPath === "higher_studies") {
+      return {
+        label: "Higher studies",
+        icon: "school",
+        href: "/student/higher-studies",
+        value: <span className="text-[20px]">{higherEd.data?.preferred_course ?? "Not recorded yet"}</span>,
+        sub: higherEd.data ? [higherEd.data.preferred_university, higherEd.data.preferred_country].filter(Boolean).join(", ") || undefined : undefined,
+      };
+    }
+    return {
+      label: "Next placement drive",
+      icon: "work",
+      href: "/student/placements",
+      value: <span className="text-[20px]">{nextDrive?.company_name ?? "None scheduled"}</span>,
+      sub: nextDrive ? `${formatDisplayDate(nextDrive.scheduled_date)} · ${APPLICATION_STATUS_LABEL[nextDrive.application_status] ?? nextDrive.application_status}` : undefined,
+    };
+  }, [declaredPath, venture.data, higherEd.data, nextDrive]);
+
   const timeline = useMemo<TimelineItem[]>(() => {
     const items: TimelineItem[] = [];
     if (pendingLms.pending.length > 0) {
@@ -210,6 +249,42 @@ export default function StudentDashboardPage() {
     : null;
 
   const openRequestsCount = pendingLeaves.length + pendingOd.length;
+
+  // Gates only the above-the-fold greeting + stat-tile row — the four
+  // queries those actually read from. Everything below (timetable,
+  // announcements, needs-attention, my campus) has its own lighter,
+  // section-scoped loading state further down, so a slow secondary query
+  // never holds up the whole page.
+  const heroLoading =
+    identity.isLoading ||
+    attendance.isLoading ||
+    cgpa.isLoading ||
+    fees.isLoading ||
+    upcomingDrives.isLoading ||
+    careerPath.isLoading ||
+    (declaredPath === "venture" && venture.isLoading) ||
+    (declaredPath === "higher_studies" && higherEd.isLoading);
+
+  if (heroLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="mt-2 h-3.5 w-56" />
+        </div>
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-[1.35fr_1fr] gap-4">
+          <SkeletonRows count={2} />
+          <SkeletonRows count={3} />
+        </div>
+        <div className="grid grid-cols-[1.1fr_1.1fr_1fr] gap-4">
+          <SkeletonRows count={2} />
+          <SkeletonRows count={2} />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -263,15 +338,7 @@ export default function StudentDashboardPage() {
                 : undefined
           }
         />
-        <StatCard
-          label="Next placement drive"
-          icon="work"
-          href="/student/placements"
-          value={
-            <span className="text-[20px]">{nextDrive?.company_name ?? (upcomingDrives.isLoading ? "—" : "None scheduled")}</span>
-          }
-          sub={nextDrive ? `${formatDisplayDate(nextDrive.scheduled_date)} · ${APPLICATION_STATUS_LABEL[nextDrive.application_status] ?? nextDrive.application_status}` : undefined}
-        />
+        <StatCard label={careerCard.label} icon={careerCard.icon} href={careerCard.href} value={careerCard.value} sub={careerCard.sub} />
         <StatCard
           label="Fee outstanding"
           icon="payments"
@@ -288,10 +355,12 @@ export default function StudentDashboardPage() {
             <h2 className="text-[16px] font-extrabold text-ink">Up next today</h2>
             <Button variant="text">Full timetable</Button>
           </div>
-          {todayDay === null ? (
+          {todayTimetable.isLoading ? (
+            <SkeletonRows count={2} />
+          ) : todayDay === null ? (
             <EmptyState message="No classes scheduled on Sunday." />
           ) : shownSlots.length === 0 ? (
-            <EmptyState message={todayTimetable.isLoading ? "Loading…" : "No more periods left today."} />
+            <EmptyState message="No more periods left today." />
           ) : (
             <div className="flex flex-col gap-2.5">
               {shownSlots.map((slot) => (
@@ -413,50 +482,54 @@ export default function StudentDashboardPage() {
           <h2 className="text-[16px] font-extrabold text-ink">My campus</h2>
           <span className="text-[12px] text-subtle">status today</span>
         </div>
-        <div className="grid grid-cols-6 gap-3">
-          <NavTile
-            icon="assignment"
-            label="Assignments"
-            value={pendingLms.isLoading ? "—" : pendingLms.pending.length}
-            sub={pendingLms.pending[0]?.due_date ? `nearest ${formatDisplayDate(pendingLms.pending[0].due_date)}` : "All caught up"}
-            href="/student/lms"
-          />
-          <NavTile
-            icon="event_note"
-            label="Exams"
-            value={daysUntilNextExam !== null ? `${daysUntilNextExam} day${daysUntilNextExam === 1 ? "" : "s"}` : "—"}
-            sub={nextExamGroup ? `${nextExamGroup.examType} from ${formatDisplayDate(nextExamGroup.firstDate)}` : "None scheduled"}
-            href="/student/exam-schedule"
-          />
-          <NavTile
-            icon="local_library"
-            label="Library"
-            value={borrowedBooks.isLoading ? "—" : (borrowedBooks.data?.length ?? 0)}
-            sub={overdueBooks.length > 0 ? `${overdueBooks.length} overdue` : "On time"}
-            href="/student/library"
-          />
-          <NavTile
-            icon="apartment"
-            label="Hostel"
-            value={hostelRoom.isLoading ? "—" : hostelRoom.data?.is_hostel_resident ? hostelRoom.data.room_number ?? "—" : "Day scholar"}
-            sub={hostelRoom.data?.is_hostel_resident ? hostelRoom.data.hostel_name : "Not a hostel resident"}
-            href="/student/hostel"
-          />
-          <NavTile
-            icon="task_alt"
-            label="No due"
-            value={clearances.isLoading ? "—" : pendingClearances.length}
-            sub={pendingClearances.length > 0 ? "clearances pending" : "All clear"}
-            href="/student/no-due"
-          />
-          <NavTile
-            icon="inbox"
-            label="Requests"
-            value={leaves.isLoading || odRequests.isLoading ? "—" : openRequestsCount}
-            sub={`${pendingLeaves.length} leave · ${pendingOd.length} OD`}
-            href="/student/leave"
-          />
-        </div>
+        {pendingLms.isLoading || borrowedBooks.isLoading || hostelRoom.isLoading || clearances.isLoading || leaves.isLoading || odRequests.isLoading ? (
+          <SkeletonCardGrid count={6} columns={6} />
+        ) : (
+          <div className="grid grid-cols-6 gap-3">
+            <NavTile
+              icon="assignment"
+              label="Assignments"
+              value={pendingLms.pending.length}
+              sub={pendingLms.pending[0]?.due_date ? `nearest ${formatDisplayDate(pendingLms.pending[0].due_date)}` : "All caught up"}
+              href="/student/lms"
+            />
+            <NavTile
+              icon="event_note"
+              label="Exams"
+              value={daysUntilNextExam !== null ? `${daysUntilNextExam} day${daysUntilNextExam === 1 ? "" : "s"}` : "—"}
+              sub={nextExamGroup ? `${nextExamGroup.examType} from ${formatDisplayDate(nextExamGroup.firstDate)}` : "None scheduled"}
+              href="/student/exam-schedule"
+            />
+            <NavTile
+              icon="local_library"
+              label="Library"
+              value={borrowedBooks.data?.length ?? 0}
+              sub={overdueBooks.length > 0 ? `${overdueBooks.length} overdue` : "On time"}
+              href="/student/library"
+            />
+            <NavTile
+              icon="apartment"
+              label="Hostel"
+              value={hostelRoom.data?.is_hostel_resident ? hostelRoom.data.room_number ?? "—" : "Day scholar"}
+              sub={hostelRoom.data?.is_hostel_resident ? hostelRoom.data.hostel_name : "Not a hostel resident"}
+              href="/student/hostel"
+            />
+            <NavTile
+              icon="task_alt"
+              label="No due"
+              value={pendingClearances.length}
+              sub={pendingClearances.length > 0 ? "clearances pending" : "All clear"}
+              href="/student/no-due"
+            />
+            <NavTile
+              icon="inbox"
+              label="Requests"
+              value={openRequestsCount}
+              sub={`${pendingLeaves.length} leave · ${pendingOd.length} OD`}
+              href="/student/leave"
+            />
+          </div>
+        )}
       </Card>
     </div>
   );

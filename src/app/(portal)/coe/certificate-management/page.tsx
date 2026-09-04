@@ -8,8 +8,9 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { formatDate } from "@/lib/utils/format";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useLookupStudentByRegisterNo, isNotFound } from "@/modules/coe/api/malpractice";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import {
   useCertificateRequests,
   useCertificateRequestStats,
@@ -79,10 +80,11 @@ export default function CoeCertificateManagementPage() {
   const [showNew, setShowNew] = useState(false);
   const [reprintRow, setReprintRow] = useState<CertificateRequest | null>(null);
 
+  const debouncedSearch = useDebouncedValue(search);
   const stats = useCertificateRequestStats();
   const certificateTypes = useCertificateTypes();
   const allRows = useCertificateRequests({
-    search: search.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
     certificate_type_id: certificateTypeId === "all" ? undefined : certificateTypeId,
     department_id: departmentId === "all" ? undefined : departmentId,
     status: status === "all" ? undefined : status,
@@ -151,13 +153,15 @@ export default function CoeCertificateManagementPage() {
           value={stats.data?.issued ?? 0}
           icon="workspace_premium"
           sub={stats.data?.issued_pct_of_requests != null ? `${stats.data.issued_pct_of_requests}% of requests` : undefined}
+          loading={stats.isLoading}
         />
-        <StatCard label="Awaiting signature" value={stats.data?.awaiting_signature ?? 0} icon="draw" sub="COE & Principal" />
+        <StatCard label="Awaiting signature" value={stats.data?.awaiting_signature ?? 0} icon="draw" sub="COE & Principal" loading={stats.isLoading} />
         <StatCard
           label="Duplicate requests"
           value={stats.data?.duplicate_requests ?? 0}
           icon="content_copy"
           sub={stats.data?.duplicate_avg_fee != null ? `~₹${stats.data.duplicate_avg_fee} fee each` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Average turnaround"
@@ -168,6 +172,7 @@ export default function CoeCertificateManagementPage() {
               ? `${stats.data.avg_turnaround_delta_days >= 0 ? "+" : ""}${stats.data.avg_turnaround_delta_days}d vs previous`
               : undefined
           }
+          loading={stats.isLoading}
         />
       </div>
 

@@ -10,6 +10,7 @@ import { useEdcAnnouncements, type EdcAnnouncementRow } from "@/modules/edc/api/
 import { useEdcEvents } from "@/modules/edc/api/events";
 import { useEdcDocuments } from "@/modules/edc/api/documents";
 import { barSx, pillSx } from "@/modules/edc/genericPage";
+import { SkeletonStatTiles, SkeletonCardGrid, SkeletonBlock } from "@/components/ui/Skeleton";
 
 // Rebuilt from real EOSbackend1 data — the design's DASHBOARD fake-data
 // object (fakeData.ts) is no longer used anywhere on this page. Every
@@ -155,13 +156,26 @@ export default function EdcDashboardPage() {
         </p>
       </div>
 
-      {loading && <div style={{ color: "#94A3B8", fontSize: 14 }}>Loading real-time data…</div>}
       {ventures.isError && (
         <div style={{ padding: "12px 16px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, color: "#DC2626", fontWeight: 600, fontSize: 13.5 }}>
           {ventures.error instanceof Error ? ventures.error.message : "Failed to load dashboard data."}
         </div>
       )}
 
+      {loading && !ventures.data ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <SkeletonStatTiles count={4} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 18 }}>
+            <SkeletonBlock />
+            <SkeletonBlock />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,2.1fr) minmax(0,1fr)", gap: 18 }}>
+            <SkeletonBlock />
+            <SkeletonCardGrid count={2} columns={1} />
+          </div>
+        </div>
+      ) : (
+        <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 16 }}>
         {kpis.map((k) => (
           <Link
@@ -301,6 +315,8 @@ export default function EdcDashboardPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

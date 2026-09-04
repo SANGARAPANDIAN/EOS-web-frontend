@@ -17,5 +17,11 @@ export function useDepartments() {
     queryKey: ["departments", "lookup"],
     queryFn: () => apiClient.get<DepartmentRow[]>("/departments"),
     staleTime: 30 * 60_000,
+    // Without this, the cache entry is garbage-collected 5 minutes (React
+    // Query's default gcTime) after the last component using it unmounts —
+    // silently defeating the 30-minute staleTime above the moment a user
+    // navigates away and back after that. Set well above staleTime so the
+    // long staleTime actually pays off across normal navigation.
+    gcTime: 60 * 60_000,
   });
 }

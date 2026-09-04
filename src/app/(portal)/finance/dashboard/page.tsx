@@ -22,6 +22,7 @@ import {
   Funnel,
 } from "@/modules/finance/ui";
 import { FinanceIcon } from "@/modules/finance/icons";
+import { SkeletonStatTiles, SkeletonCardGrid } from "@/components/ui";
 
 // Every figure comes from GET /finance/dashboard, derived from real rows.
 // Presentation follows the Secretary dashboard exactly: same card, same type
@@ -40,7 +41,13 @@ export default function FinanceDashboardPage() {
   }, []);
 
   if (isLoading) {
-    return <div style={{ padding: 70, textAlign: "center", fontSize: 13.1, color: GREY.faint }}>Loading dashboard…</div>;
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonStatTiles count={4} />
+        <SkeletonCardGrid count={6} columns={3} />
+        <SkeletonCardGrid count={3} columns={3} />
+      </div>
+    );
   }
   if (isError) {
     return (

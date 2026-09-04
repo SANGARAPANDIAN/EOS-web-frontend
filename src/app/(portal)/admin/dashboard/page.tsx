@@ -8,6 +8,7 @@ import { ApiError } from "@/types/api";
 import { Button, Dropdown, PageHeader, KpiCard, SectionCard, PendingNotice, SegmentedPillToggle } from "@/modules/admin/components/ui";
 import { DonutChart, VerticalBarChart, HorizontalBarChart } from "@/modules/admin/components/ui/charts";
 import { Icon } from "@/components/ui/Icon";
+import { Skeleton, SkeletonStatTiles } from "@/components/ui/Skeleton";
 import {
   useActiveStudentCount,
   useAdmissionsPipeline,
@@ -178,83 +179,91 @@ export default function AdminDashboardPage() {
       )}
 
       {/* ---- Core institution KPIs ---- */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Active students"
-          icon="groups"
-          value={activeStudents.data !== undefined ? activeStudents.data : activeStudents.isLoading ? "…" : "—"}
-          href="/admin/students"
-        />
-        <KpiCard
-          label="Fee collected"
-          icon="account_balance_wallet"
-          value={kpis?.collectedInRange !== undefined ? currencyShort(kpis.collectedInRange) : finance.isLoading ? "…" : "—"}
-          delta={kpis?.paymentCountInRange !== undefined ? String(kpis.paymentCountInRange) : undefined}
-          sub={kpis?.paymentCountInRange !== undefined ? `payment${kpis.paymentCountInRange === 1 ? "" : "s"} ${range.label}` : undefined}
-        />
-        <KpiCard
-          label="Fee outstanding"
-          icon="warning"
-          value={kpis ? currencyShort(kpis.totalOutstanding) : finance.isLoading ? "…" : "—"}
-          delta={kpis ? String(kpis.pendingEducationLoanDD) : undefined}
-          sub={kpis ? "loan DDs pending" : undefined}
-        />
-        <KpiCard
-          label="Faculty on roll"
-          icon="badge"
-          value={facultyCount.data ? facultyCount.data.meta.total : facultyCount.isLoading ? "…" : "—"}
-          href="/admin/faculty"
-        />
-      </div>
+      {(activeStudents.isLoading && activeStudents.data === undefined) ||
+      (finance.isLoading && !finance.data) ||
+      (facultyCount.isLoading && !facultyCount.data) ? (
+        <SkeletonStatTiles count={4} />
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Active students"
+            icon="groups"
+            value={activeStudents.data !== undefined ? activeStudents.data : "—"}
+            href="/admin/students"
+          />
+          <KpiCard
+            label="Fee collected"
+            icon="account_balance_wallet"
+            value={kpis?.collectedInRange !== undefined ? currencyShort(kpis.collectedInRange) : "—"}
+            delta={kpis?.paymentCountInRange !== undefined ? String(kpis.paymentCountInRange) : undefined}
+            sub={kpis?.paymentCountInRange !== undefined ? `payment${kpis.paymentCountInRange === 1 ? "" : "s"} ${range.label}` : undefined}
+          />
+          <KpiCard
+            label="Fee outstanding"
+            icon="warning"
+            value={kpis ? currencyShort(kpis.totalOutstanding) : "—"}
+            delta={kpis ? String(kpis.pendingEducationLoanDD) : undefined}
+            sub={kpis ? "loan DDs pending" : undefined}
+          />
+          <KpiCard
+            label="Faculty on roll"
+            icon="badge"
+            value={facultyCount.data ? facultyCount.data.meta.total : "—"}
+            href="/admin/faculty"
+          />
+        </div>
+      )}
 
       {/* ---- Cross-module KPIs — each backed by a real endpoint another admin page
           already relies on (admissions pipeline, faculty attendance overview,
           placement stats, hostel summary), surfaced here as the at-a-glance layer. ---- */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Admissions this cycle"
-          icon="person_add"
-          value={pipeline ? pipeline.total : admissions.isLoading ? "…" : "—"}
-          delta={pipeline ? String(pipeline.admissionConfirmed) : undefined}
-          sub={pipeline ? "confirmed" : undefined}
-          href="/admin/students/admit"
-        />
-        <KpiCard
-          label="Average cutoff"
-          icon="calculate"
-          value={
-            cutoffSummary?.average_cutoff != null
-              ? cutoffSummary.average_cutoff
-              : admittedCutoff.isLoading
-                ? "…"
-                : "—"
-          }
-          delta={cutoffSummary ? String(cutoffSummary.admitted_count) : undefined}
-          sub={cutoffSummary ? "students admitted" : undefined}
-          href="/admin/students/admit"
-        />
-        <KpiCard
-          label="Placement rate"
-          icon="work"
-          value={placement.data ? percent1(placement.data.placementRate) : placement.isLoading ? "…" : "—"}
-          delta={placement.data ? String(placement.data.studentsPlaced) : undefined}
-          sub={placement.data ? "students placed" : undefined}
-        />
-        <KpiCard
-          label="Hostel occupancy"
-          icon="bed"
-          value={hostel.data ? percent1(hostel.data.occupancy_pct) : hostel.isLoading ? "…" : "—"}
-          delta={hostel.data ? String(hostel.data.beds_occupied) : undefined}
-          sub={hostel.data ? `of ${hostel.data.beds_total} beds` : undefined}
-        />
-        <KpiCard
-          label="SOP requests"
-          icon="handyman"
-          value={pendingSop.data !== undefined ? pendingSop.data : pendingSop.isLoading ? "…" : "—"}
-          sub="awaiting review"
-          href="/admin/sop-requests"
-        />
-      </div>
+      {(admissions.isLoading && !admissions.data) ||
+      (admittedCutoff.isLoading && !admittedCutoff.data) ||
+      (placement.isLoading && !placement.data) ||
+      (hostel.isLoading && !hostel.data) ||
+      (pendingSop.isLoading && pendingSop.data === undefined) ? (
+        <SkeletonStatTiles count={5} />
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Admissions this cycle"
+            icon="person_add"
+            value={pipeline ? pipeline.total : "—"}
+            delta={pipeline ? String(pipeline.admissionConfirmed) : undefined}
+            sub={pipeline ? "confirmed" : undefined}
+            href="/admin/students/admit"
+          />
+          <KpiCard
+            label="Average cutoff"
+            icon="calculate"
+            value={cutoffSummary?.average_cutoff != null ? cutoffSummary.average_cutoff : "—"}
+            delta={cutoffSummary ? String(cutoffSummary.admitted_count) : undefined}
+            sub={cutoffSummary ? "students admitted" : undefined}
+            href="/admin/students/admit"
+          />
+          <KpiCard
+            label="Placement rate"
+            icon="work"
+            value={placement.data ? percent1(placement.data.placementRate) : "—"}
+            delta={placement.data ? String(placement.data.studentsPlaced) : undefined}
+            sub={placement.data ? "students placed" : undefined}
+          />
+          <KpiCard
+            label="Hostel occupancy"
+            icon="bed"
+            value={hostel.data ? percent1(hostel.data.occupancy_pct) : "—"}
+            delta={hostel.data ? String(hostel.data.beds_occupied) : undefined}
+            sub={hostel.data ? `of ${hostel.data.beds_total} beds` : undefined}
+          />
+          <KpiCard
+            label="SOP requests"
+            icon="handyman"
+            value={pendingSop.data !== undefined ? pendingSop.data : "—"}
+            sub="awaiting review"
+            href="/admin/sop-requests"
+          />
+        </div>
+      )}
 
       {/* ---- Enrolment by batch + status distribution ---- */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -342,7 +351,11 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-admin-body">New applications — {range.label}</span>
                   <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">
-                    {newApplications.data !== undefined ? newApplications.data : newApplications.isLoading ? "…" : "—"}
+                    {newApplications.isLoading ? (
+                      <Skeleton className="inline-block h-5 w-8 align-middle" />
+                    ) : (
+                      (newApplications.data ?? "—")
+                    )}
                   </span>
                 </div>
               </div>

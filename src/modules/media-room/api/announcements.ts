@@ -47,6 +47,9 @@ export function useAllClassIds() {
     queryKey: ["announcements", "lookup", "all-classes"],
     queryFn: () => apiClient.get<number[]>("/announcements/lookup/all-classes"),
     staleTime: 30 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be well above staleTime — same reasoning, same reference-data tier.
+    gcTime: 60 * 60_000,
   });
 }
 

@@ -8,7 +8,7 @@ import { apiClient } from "@/lib/api/client";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { friendlyError } from "@/lib/utils/errors";
 import { Button, DataTable, Input, PageHeader, Select, useToast, type DataTableColumn } from "@/modules/admin/components/ui";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import {
   facultyKeys,
   type Faculty,

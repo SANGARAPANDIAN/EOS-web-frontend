@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, SearchBar, Select } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useStudentExamRecordList } from "@/modules/coe/api/studentExamRecord";
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];

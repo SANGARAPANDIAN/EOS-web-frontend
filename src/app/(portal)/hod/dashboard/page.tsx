@@ -95,7 +95,7 @@ export default function HodDashboardPage() {
           className="hod-hover-card"
           href="/hod/class-records"
           label="Average CGPA"
-          value={d?.average_cgpa.value ?? (dashboard.isLoading ? "—" : "N/A")}
+          value={d?.average_cgpa.value ?? "N/A"}
           delta={
             d?.average_cgpa.change != null
               ? `${d.average_cgpa.change >= 0 ? "+" : ""}${d.average_cgpa.change}`
@@ -107,7 +107,7 @@ export default function HodDashboardPage() {
           className="hod-hover-card"
           href="/hod/placements"
           label="Placements"
-          value={d?.placements.placed_count ?? (dashboard.isLoading ? "—" : "—")}
+          value={d?.placements.placed_count ?? "—"}
           sub={
             d
               ? d.placements.placed_count === 0

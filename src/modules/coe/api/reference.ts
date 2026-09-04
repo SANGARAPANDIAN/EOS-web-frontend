@@ -5,19 +5,9 @@ import { apiClient } from "@/lib/api/client";
 // (subjects/classes/departments/batches expose an unguarded GET; exam-types
 // GET has no @Roles at all) — confirmed against each controller directly.
 
-export interface Department {
-  id: number;
-  name: string;
-  code: string;
-}
-
-export function useDepartments() {
-  return useQuery({
-    queryKey: ["coe", "departments"],
-    queryFn: () => apiClient.get<Department[]>("/departments"),
-    staleTime: 5 * 60 * 1000,
-  });
-}
+// Departments moved to the app-wide shared lookup at
+// @/modules/shared/api/departments — every consumer here now imports from
+// there instead of this file duplicating the same GET /departments query.
 
 export interface Batch {
   id: number;
@@ -31,6 +21,9 @@ export function useBatches() {
     queryKey: ["coe", "batches"],
     queryFn: () => apiClient.get<Batch[]>("/batches"),
     staleTime: 5 * 60 * 1000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -48,6 +41,7 @@ export function useClasses() {
     queryKey: ["coe", "classes"],
     queryFn: () => apiClient.get<ClassRecord[]>("/classes"),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -64,6 +58,7 @@ export function useSubjects() {
     queryKey: ["coe", "subjects"],
     queryFn: () => apiClient.get<Subject[]>("/subjects"),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -80,6 +75,7 @@ export function useExamTypes() {
     queryKey: ["coe", "exam-types"],
     queryFn: () => apiClient.get<ExamType[]>("/exam-types"),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -110,5 +106,6 @@ export function useVenues() {
       return result.data;
     },
     staleTime: 60 * 1000,
+    gcTime: 120 * 1000,
   });
 }

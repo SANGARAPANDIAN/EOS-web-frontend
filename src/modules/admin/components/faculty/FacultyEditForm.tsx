@@ -20,7 +20,7 @@ import {
 import { friendlyError } from "@/lib/utils/errors";
 import { numberFieldOptions, textFieldOptions } from "@/lib/utils/rhf-helpers";
 import { OtpVerifyDialog } from "@/modules/admin/components/faculty/OtpVerifyDialog";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useUpdateFaculty, type Faculty, type UpdateFacultyInput } from "@/modules/admin/api/faculty";
 import { useRemoveFacultyPhoto, useUploadFacultyPhoto } from "@/modules/admin/api/facultyFiles";
 import { facultyEditSchema, type FacultyEditValues } from "@/modules/admin/schemas/faculty-edit.schema";

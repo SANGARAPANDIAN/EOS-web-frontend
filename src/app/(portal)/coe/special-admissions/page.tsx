@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, StatCard, PillTabs, SearchBar, Select, Input, Textarea, Button, Badge, Modal } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonFilterBar, SkeletonTable } from "@/components/ui/Skeleton";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import {
   useSpecialAdmissionStudents,
   useNotifySpecialAdmissionStudent,
@@ -40,9 +40,9 @@ export default function CoeSpecialAdmissionsPage() {
       <CoePageHeader title="Lateral entry & transfer students" subtitle="Monitor non-regular admissions and their exam readiness" />
 
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Total tracked" value={stats?.total ?? (students.isLoading ? "…" : 0)} icon="groups" />
-        <StatCard label="Lateral entry" value={stats?.lateral_entry_count ?? (students.isLoading ? "…" : 0)} icon="move_up" />
-        <StatCard label="Transfer" value={stats?.transfer_count ?? (students.isLoading ? "…" : 0)} icon="swap_horiz" />
+        <StatCard label="Total tracked" value={stats?.total ?? 0} icon="groups" loading={students.isLoading} />
+        <StatCard label="Lateral entry" value={stats?.lateral_entry_count ?? 0} icon="move_up" loading={students.isLoading} />
+        <StatCard label="Transfer" value={stats?.transfer_count ?? 0} icon="swap_horiz" loading={students.isLoading} />
       </div>
 
       {departments.isLoading ? (

@@ -19,5 +19,8 @@ export function useSubjectsLookup() {
     queryKey: ["subjects", "lookup"],
     queryFn: () => apiClient.get<SubjectRow[]>("/subjects"),
     staleTime: 30 * 60_000,
+    // See departments.ts's useDepartments() for why this needs to be well
+    // above staleTime — same reasoning, same reference-data tier.
+    gcTime: 60 * 60_000,
   });
 }

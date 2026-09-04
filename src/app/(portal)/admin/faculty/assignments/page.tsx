@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { apiClient } from "@/lib/api/client";
 import { friendlyError } from "@/lib/utils/errors";
 import { Button, DataTable, Input, NumberedPagination, PageHeader, Select, type DataTableColumn } from "@/modules/admin/components/ui";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { facultyKeys, type Faculty, type FacultyListResponse } from "@/modules/admin/api/faculty";
 import { useFacultyMappingsBrowse, type FacultyMapping } from "@/modules/admin/api/facultyMapping";
 import { fetchAllPages } from "@/modules/admin/lib/report-export";

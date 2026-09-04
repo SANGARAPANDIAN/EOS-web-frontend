@@ -99,22 +99,25 @@ export default function CoeRegulationGradingPage() {
       <div className="grid grid-cols-4 gap-4">
         <StatCard
           label="Active regulations"
-          value={stats.data?.active_count ?? (stats.isLoading ? "…" : 0)}
+          value={stats.data?.active_count ?? 0}
           icon="verified"
           sub={rows.find((r) => r.status === "active") ? `${rows.find((r) => r.status === "active")!.code} current intake` : undefined}
+          loading={stats.isLoading}
         />
-        <StatCard label="Programmes mapped" value={stats.data?.programmes_mapped ?? (stats.isLoading ? "…" : 0)} icon="school" sub="courses linked to a regulation" />
+        <StatCard label="Programmes mapped" value={stats.data?.programmes_mapped ?? 0} icon="school" sub="courses linked to a regulation" loading={stats.isLoading} />
         <StatCard
           label="Grade bands"
-          value={stats.data?.grade_bands_count ?? (stats.isLoading ? "…" : 0)}
+          value={stats.data?.grade_bands_count ?? 0}
           icon="workspace_premium"
           sub="O to U, 10-point scale"
+          loading={stats.isLoading}
         />
         <StatCard
           label="Moderation ceiling"
           value={stats.data?.moderation_ceiling_marks != null ? `±${stats.data.moderation_ceiling_marks} marks` : "—"}
           icon="tune"
           sub={stats.data?.moderation_ceiling_candidate_pct != null ? `${Number(stats.data.moderation_ceiling_candidate_pct)}% of candidates per course` : undefined}
+          loading={stats.isLoading}
         />
       </div>
 

@@ -21,6 +21,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/modules/billing/PageHeader";
 import { useFinanceOverview, useFinanceBatches } from "@/modules/billing/api/fees";
+import { SkeletonStatTiles, SkeletonCardGrid } from "@/components/ui/Skeleton";
 
 const cardSx = {
   transition: "transform .16s ease,border-color .16s ease,box-shadow .16s ease",
@@ -69,7 +70,16 @@ export default function BillingOverviewPage() {
   const recentPayments = useMemo(() => overview?.operationalInsights.recentPayments.slice(0, 5) ?? [], [overview]);
   const topOutstanding = useMemo(() => overview?.operationalInsights.topOutstandingStudents.slice(0, 5) ?? [], [overview]);
 
-  if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading finance overview…</div>;
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SkeletonStatTiles count={4} />
+        <SkeletonStatTiles count={3} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonCardGrid count={2} columns={2} />
+      </div>
+    );
+  }
   if (error || !overview) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load the finance overview."}</div>;
 
   const kpi = overview.executiveKPIs;

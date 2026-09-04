@@ -1,10 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, SegmentedTabs, Input, EmptyState, Icon, DataTable } from "@/components/ui";
+import { Card, Badge, SegmentedTabs, Button, Input, EmptyState, Icon, DataTable, ConfirmDialog } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
-import { useLibraryBooks, useMyBorrowRecords, useEResources, type LibraryBook, type MyBorrowRecord } from "@/modules/student/api/library";
+import {
+  useLibraryBooks,
+  useMyBorrowRecords,
+  useEResources,
+  useBorrowBook,
+  type LibraryBook,
+  type MyBorrowRecord,
+} from "@/modules/student/api/library";
 import { formatDisplayDate, todayDateOnly } from "@/lib/utils/date";
+import { ApiError } from "@/types/api";
 
 type Tab = "mine" | "catalog" | "eresources" | "history";
 
@@ -29,18 +37,27 @@ function BorrowedBookRow({ record }: { record: MyBorrowRecord }) {
   );
 }
 
-// Read-only browsing only — no self-checkout here, per the "no borrowing
-// from the catalog" requirement. Only ever fetched with available_only=true.
-function CatalogRow({ book }: { book: LibraryBook }) {
+// Self-checkout: only ever fetched with available_only=true, so every row
+// here has at least one copy free. Borrowing itself goes through the same
+// POST /library/borrow-records the librarian's Issue page uses — the
+// backend resolves the caller's own student record from the JWT and applies
+// the real business rules (overdue block, duplicate borrow, per-student
+// cap, race-safe copy decrement) — see useBorrowBook().
+function CatalogRow({ book, borrowing, onBorrow }: { book: LibraryBook; borrowing: boolean; onBorrow: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 border-t border-divider py-3 first:border-0 first:pt-0">
-      <div>
+      <div className="min-w-0">
         <div className="text-[13.5px] font-bold text-ink">{book.title}</div>
         <div className="text-[12px] text-muted">
           {book.author ?? "Unknown author"} {book.rack && `· Shelf ${book.rack.rack_code}`}
         </div>
       </div>
-      <Badge tone="accent">{book.available_copies} available</Badge>
+      <div className="flex shrink-0 items-center gap-2.5">
+        <Badge tone="accent">{book.available_copies} available</Badge>
+        <Button variant="primarySmall" className="w-auto" loading={borrowing} onClick={onBorrow}>
+          Borrow
+        </Button>
+      </div>
     </div>
   );
 }
@@ -53,6 +70,19 @@ export default function LibraryPage() {
   const history = useMyBorrowRecords();
   const catalog = useLibraryBooks(query, true);
   const eResources = useEResources();
+  const borrowBook = useBorrowBook();
+  const [borrowTarget, setBorrowTarget] = useState<LibraryBook | null>(null);
+  const [borrowError, setBorrowError] = useState<string | null>(null);
+
+  function confirmBorrow() {
+    if (!borrowTarget) return;
+    const bookId = borrowTarget.id;
+    setBorrowError(null);
+    borrowBook.mutate(bookId, {
+      onError: (err) => setBorrowError(err instanceof ApiError ? err.message : "Could not borrow this book. Please try again."),
+    });
+    setBorrowTarget(null);
+  }
 
   const historyColumns: DataTableColumn<MyBorrowRecord>[] = [
     { key: "title", header: "Title", width: "2fr", render: (r) => r.title },
@@ -107,6 +137,11 @@ export default function LibraryPage() {
             placeholder="Search by title or author"
             className="mb-3 max-w-[360px]"
           />
+          {borrowError && (
+            <div className="mb-3 rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+              {borrowError}
+            </div>
+          )}
           {catalog.isLoading ? (
             <EmptyState message="Loading…" />
           ) : !catalog.data || catalog.data.data.length === 0 ? (
@@ -114,7 +149,12 @@ export default function LibraryPage() {
           ) : (
             <div className="flex flex-col">
               {catalog.data.data.map((b) => (
-                <CatalogRow key={b.id} book={b} />
+                <CatalogRow
+                  key={b.id}
+                  book={b}
+                  borrowing={borrowBook.isPending && borrowBook.variables === b.id}
+                  onBorrow={() => setBorrowTarget(b)}
+                />
               ))}
             </div>
           )}
@@ -162,6 +202,15 @@ export default function LibraryPage() {
         ) : (
           <DataTable columns={historyColumns} data={history.data ?? []} rowKey={(r) => r.id} emptyMessage="You haven't borrowed any books yet." />
         ))}
+
+      <ConfirmDialog
+        open={borrowTarget !== null}
+        title="Borrow this book?"
+        description={borrowTarget ? `You're about to borrow "${borrowTarget.title}". You can return it at the library desk before the due date.` : undefined}
+        confirmLabel="Borrow"
+        onConfirm={confirmBorrow}
+        onCancel={() => setBorrowTarget(null)}
+      />
     </div>
   );
 }

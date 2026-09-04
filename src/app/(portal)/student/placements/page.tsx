@@ -10,9 +10,11 @@ import {
   useUpdatePlacementProfile,
   useAddStudentProject,
   useRemoveStudentProject,
+  useApplyToDrive,
 } from "@/modules/student/api/placements";
 import { formatDisplayDate } from "@/lib/utils/date";
 import { APPLICATION_STATUS_LABEL } from "@/lib/config";
+import { ApiError } from "@/types/api";
 
 type Tab = "upcoming" | "history" | "profile";
 
@@ -47,12 +49,29 @@ function ProgressLine({ status, lastClearedRound }: { status: string; lastCleare
   return null;
 }
 
-// Drives the placement cell has posted but hasn't shortlisted this student
-// for yet — read-only ("Not shortlisted yet"), no apply action. Shortlisting
-// stays a placement-cell decision (they add students via the drive's own
-// Applications tab); this just makes a posted drive visible in the meantime
-// instead of it being invisible until that step happens.
-function PostedDriveCard({ d }: { d: import("@/modules/student/api/placements").PostedDrive }) {
+function registrationWindowLabel(d: import("@/modules/student/api/placements").PostedDrive): string | null {
+  if (!d.registration_start && !d.registration_end) return null;
+  const open = d.registration_start ? `opens ${formatDisplayDate(d.registration_start)}` : null;
+  const close = d.registration_end ? `closes ${formatDisplayDate(d.registration_end)}` : null;
+  return `Applications ${[open, close].filter(Boolean).join(" · ")}`;
+}
+
+// Drives the placement cell has posted, within their registration window,
+// that this student hasn't applied/been shortlisted for yet. Applying
+// creates the same student_drive_applications row a placement-cell
+// shortlist would — this card just lets the student create it themselves.
+function PostedDriveCard({
+  d,
+  hasResume,
+  applying,
+  onApply,
+}: {
+  d: import("@/modules/student/api/placements").PostedDrive;
+  hasResume: boolean;
+  applying: boolean;
+  onApply: () => void;
+}) {
+  const windowLabel = registrationWindowLabel(d);
   return (
     <Card key={d.drive_id}>
       <div className="flex items-start justify-between gap-3">
@@ -63,8 +82,15 @@ function PostedDriveCard({ d }: { d: import("@/modules/student/api/placements").
           {!d.is_disclosed && d.disclosed_reveal_date && (
             <div className="mt-1.5 text-[12px] text-subtle">Company reveals on {formatDisplayDate(d.disclosed_reveal_date)}</div>
           )}
+          {windowLabel && <div className="mt-1.5 text-[12px] text-subtle">{windowLabel}</div>}
+          {d.eligibility_cgpa !== null && <div className="mt-1 text-[12px] text-subtle">Eligibility: CGPA ≥ {d.eligibility_cgpa}</div>}
         </div>
-        <Badge tone="neutral">Not shortlisted yet</Badge>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <Button variant="primarySmall" className="w-auto" disabled={!hasResume || applying} onClick={onApply}>
+            {applying ? "Applying…" : "Apply"}
+          </Button>
+          {!hasResume && <span className="max-w-[160px] text-right text-[11px] text-subtle">Add a resume link in My profile first</span>}
+        </div>
       </div>
     </Card>
   );
@@ -73,14 +99,29 @@ function PostedDriveCard({ d }: { d: import("@/modules/student/api/placements").
 function UpcomingTab() {
   const drives = useUpcomingDrives();
   const posted = usePostedDrives();
+  const profile = useMyPlacementProfile();
+  const applyToDrive = useApplyToDrive();
+  const [applyTarget, setApplyTarget] = useState<{ drive_id: number; company_name: string } | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   if (drives.isLoading) return <Card><EmptyState message="Loading…" /></Card>;
 
   const hasShortlisted = !!drives.data && drives.data.length > 0;
   const hasPosted = !!posted.data && posted.data.length > 0;
+  const hasResume = !!profile.data?.profile?.resume_url;
 
   if (!hasShortlisted && !hasPosted && !posted.isLoading) {
     return <Card><EmptyState message="No drives posted right now." /></Card>;
+  }
+
+  function confirmApply() {
+    if (!applyTarget) return;
+    const driveId = applyTarget.drive_id;
+    setApplyError(null);
+    applyToDrive.mutate(driveId, {
+      onError: (err) => setApplyError(err instanceof ApiError ? err.message : "Could not apply to this drive. Please try again."),
+    });
+    setApplyTarget(null);
   }
 
   return (
@@ -112,10 +153,29 @@ function UpcomingTab() {
         <div className="flex flex-col gap-3">
           <h2 className="text-[14px] font-bold text-ink">Other posted drives</h2>
           {posted.data!.map((d) => (
-            <PostedDriveCard key={d.drive_id} d={d} />
+            <PostedDriveCard
+              key={d.drive_id}
+              d={d}
+              hasResume={hasResume}
+              applying={applyToDrive.isPending && applyToDrive.variables === d.drive_id}
+              onApply={() => setApplyTarget({ drive_id: d.drive_id, company_name: d.company_name })}
+            />
           ))}
         </div>
       )}
+
+      {applyError && (
+        <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">{applyError}</div>
+      )}
+
+      <ConfirmDialog
+        open={applyTarget !== null}
+        title="Apply to this drive?"
+        description={applyTarget ? `You're about to apply to ${applyTarget.company_name}. This can't be undone from here.` : undefined}
+        confirmLabel="Apply"
+        onConfirm={confirmApply}
+        onCancel={() => setApplyTarget(null)}
+      />
     </div>
   );
 }
@@ -152,10 +212,12 @@ function ProfileTab() {
   const addProject = useAddStudentProject();
   const removeProject = useRemoveStudentProject();
 
+  const [isEditingLinks, setIsEditingLinks] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [linksSaved, setLinksSaved] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [linksSaved, setLinksSaved] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ id: number; title: string } | null>(null);
 
   if (profile.isLoading) return <Card><EmptyState message="Loading…" /></Card>;
@@ -173,42 +235,102 @@ function ProfileTab() {
     setLinksSaved(false);
   }
 
-  // Only enabled once a field's value actually differs from what's saved —
-  // prevents an accidental click re-submitting unchanged links.
-  const hasUnsavedChanges = PROFILE_FIELDS.some((f) => fieldValue(f.key) !== savedValue(f.key));
+  function startEditingLinks() {
+    setForm({});
+    setSaveError(null);
+    setLinksSaved(false);
+    setIsEditingLinks(true);
+  }
+
+  function cancelEditingLinks() {
+    setForm({});
+    setSaveError(null);
+    setIsEditingLinks(false);
+  }
+
+  function handleSaveLinks() {
+    setSaveError(null);
+    // A field left blank means "clear this link" — send null so
+    // @IsOptional() on the backend DTO skips URL validation for it
+    // (an empty string instead would fail @IsUrl() and 400).
+    const payload: Record<string, string | null> = {};
+    for (const f of PROFILE_FIELDS) {
+      const value = fieldValue(f.key).trim();
+      payload[f.key] = value || null;
+    }
+    updateProfile.mutate(payload, {
+      onSuccess: () => {
+        setForm({});
+        setLinksSaved(true);
+        setIsEditingLinks(false);
+      },
+      onError: (err) => {
+        setSaveError(err instanceof ApiError ? err.message : "Could not save your links. Please try again.");
+      },
+    });
+  }
+
+  const hasAnyLink = PROFILE_FIELDS.some((f) => savedValue(f.key));
 
   return (
     <div className="grid grid-cols-2 gap-4">
       <Card>
-        <h2 className="mb-3 text-[15px] font-bold text-ink">Links</h2>
-        <div className="flex flex-col gap-3">
-          {PROFILE_FIELDS.map((f) => (
-            <div key={f.key} className="flex flex-col gap-1.5">
-              <label className="text-[11.5px] font-bold text-muted">{f.label}</label>
-              <Input
-                value={fieldValue(f.key)}
-                onChange={(e) => handleFieldChange(f.key, e.target.value)}
-                placeholder="https://…"
-              />
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[15px] font-bold text-ink">Links</h2>
+          {!isEditingLinks && (
+            <button onClick={startEditingLinks} className="flex items-center gap-1 text-[12.5px] font-bold text-primary hover:underline">
+              <Icon name="edit" size={14} />
+              Edit
+            </button>
+          )}
+        </div>
+
+        {isEditingLinks ? (
+          <div className="flex flex-col gap-3">
+            {PROFILE_FIELDS.map((f) => (
+              <div key={f.key} className="flex flex-col gap-1.5">
+                <label className="text-[11.5px] font-bold text-muted">{f.label}</label>
+                <Input
+                  value={fieldValue(f.key)}
+                  onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                  placeholder="https://…"
+                />
+              </div>
+            ))}
+            {saveError && <p className="text-[12px] text-danger-fg">{saveError}</p>}
+            <div className="flex items-center gap-3">
+              <Button variant="primarySmall" className="self-start" disabled={updateProfile.isPending} onClick={handleSaveLinks}>
+                {updateProfile.isPending ? "Saving…" : "Save"}
+              </Button>
+              <Button variant="secondary" className="w-auto self-start" disabled={updateProfile.isPending} onClick={cancelEditingLinks}>
+                Cancel
+              </Button>
             </div>
-          ))}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="primarySmall"
-              className="self-start"
-              disabled={updateProfile.isPending || !hasUnsavedChanges}
-              onClick={() => updateProfile.mutate(form, { onSuccess: () => setLinksSaved(true) })}
-            >
-              {updateProfile.isPending ? "Saving…" : "Save links"}
-            </Button>
-            {linksSaved && !updateProfile.isPending && (
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {!hasAnyLink && <EmptyState message="No links added yet — click Edit to add one." />}
+            {PROFILE_FIELDS.filter((f) => savedValue(f.key)).map((f) => (
+              <div key={f.key} className="flex flex-col gap-1">
+                <span className="text-[11.5px] font-bold text-muted">{f.label}</span>
+                <a
+                  href={savedValue(f.key)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate text-[13.5px] font-semibold text-primary hover:underline"
+                >
+                  {savedValue(f.key)}
+                </a>
+              </div>
+            ))}
+            {linksSaved && (
               <span className="flex items-center gap-1 text-[12.5px] font-semibold text-primary">
                 <Icon name="check_circle" size={16} />
                 Saved
               </span>
             )}
           </div>
-        </div>
+        )}
       </Card>
 
       <Card>

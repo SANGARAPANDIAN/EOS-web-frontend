@@ -20,9 +20,16 @@ import {
   useToast,
   type DataTableColumn,
 } from "@/modules/admin/components/ui";
-import { useStudentReport, useStudentReportDownload, useUpdatePlacementStatus, type StudentReportRow } from "@/modules/placement/api/studentReport";
+import {
+  useStudentReport,
+  useStudentReportDownload,
+  useUpdatePlacementStatus,
+  useSetStudentCareerPath,
+  type StudentReportRow,
+  type CareerPath,
+} from "@/modules/placement/api/studentReport";
 import { useBatches } from "@/modules/placement/api/refData";
-import { eligibilityLabel as sharedEligibilityLabel, rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
+import { eligibilityLabel as sharedEligibilityLabel, careerPathLabel, rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
 import { generateStudentReportPdf } from "@/modules/placement/lib/student-report-pdf";
 import {
   StudentFilters,
@@ -48,6 +55,18 @@ function eligibilityTone(label: string): BadgeTone {
   return "neutral";
 }
 
+const CAREER_PATH_OPTIONS: { value: CareerPath; label: string }[] = [
+  { value: "placement", label: "Placement" },
+  { value: "venture", label: "Venture" },
+  { value: "higher_studies", label: "Higher Studies" },
+];
+
+function careerPathTone(path: CareerPath | null): BadgeTone {
+  if (path === "placement") return "success";
+  if (path === "venture" || path === "higher_studies") return "warning";
+  return "neutral";
+}
+
 export default function StudentsPage() {
   const router = useRouter();
   const [filters, setFilters] = useState<StudentFiltersValue>(DEFAULT_STUDENT_FILTERS);
@@ -61,6 +80,7 @@ export default function StudentsPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const excelDownload = useStudentReportDownload();
   const updatePlacementStatus = useUpdatePlacementStatus();
+  const setStudentCareerPath = useSetStudentCareerPath();
 
   const rows = useMemo(() => data ?? [], [data]);
 
@@ -121,6 +141,16 @@ export default function StudentsPage() {
       { studentId: r.id, input: { placementOptedOut: optedOut } },
       {
         onSuccess: () => show(optedOut ? "Marked opted out." : "Cleared opt-out.", "success"),
+        onError: (err: unknown) => show(friendlyError(err), "error"),
+      },
+    );
+  }
+
+  function setCareerPath(r: StudentReportRow, careerPath: CareerPath) {
+    setStudentCareerPath.mutate(
+      { studentId: r.id, careerPath },
+      {
+        onSuccess: () => show(`Marked as ${careerPathLabel(careerPath)}.`, "success"),
         onError: (err: unknown) => show(friendlyError(err), "error"),
       },
     );
@@ -190,6 +220,11 @@ export default function StudentsPage() {
         return <Badge tone={eligibilityTone(label)}>{label}</Badge>;
       },
     },
+    {
+      key: "careerPath",
+      header: "Career path",
+      render: (r) => <Badge tone={careerPathTone(r.careerPath)}>{careerPathLabel(r.careerPath)}</Badge>,
+    },
     { key: "apps", header: "Applied", mono: true, render: (r) => r.drivesApplied },
     { key: "offers", header: "Offers", mono: true, render: (r) => r.offersCount },
     {
@@ -215,6 +250,11 @@ export default function StudentsPage() {
               r.placementOptedOut
                 ? { key: "clear-opt-out", label: "Clear opt-out", onSelect: () => setOptedOut(r, false) }
                 : { key: "opt-out", label: "Mark opted out", onSelect: () => setOptedOut(r, true) },
+              ...CAREER_PATH_OPTIONS.filter((o) => o.value !== r.careerPath).map((o) => ({
+                key: `career-path-${o.value}`,
+                label: `Mark as ${o.label}`,
+                onSelect: () => setCareerPath(r, o.value),
+              })),
             ]}
           />
         </div>

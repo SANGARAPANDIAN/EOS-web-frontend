@@ -36,6 +36,9 @@ export function useVenues() {
       });
     },
     staleTime: 10 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be well above staleTime — same reasoning, same reference-data tier.
+    gcTime: 20 * 60_000,
     select: (res) => res.data,
   });
 }

@@ -5,7 +5,8 @@ import { Card, Select, Button } from "@/components/ui";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonBlock, SkeletonFilterBar } from "@/components/ui/Skeleton";
 import { useExams } from "@/modules/coe/api/exams";
-import { useExamTypes, useDepartments, useClasses, useBatches } from "@/modules/coe/api/reference";
+import { useExamTypes, useClasses, useBatches } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useGradeMatrix } from "@/modules/coe/api/marksRoster";
 import { downloadCsv, type CsvColumn } from "@/lib/utils/csv";
 

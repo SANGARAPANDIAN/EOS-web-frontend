@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import {
   useResultPublications,
   useResultPublicationStats,
@@ -138,24 +138,27 @@ export default function CoeResultPublicationPage() {
       )}
 
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Sets published" value={stats.data?.sets_published ?? 0} icon="publish" sub="live on the student portal" />
+        <StatCard label="Sets published" value={stats.data?.sets_published ?? 0} icon="publish" sub="live on the student portal" loading={stats.isLoading} />
         <StatCard
           label="Under embargo"
           value={stats.data?.under_embargo ?? 0}
           icon="lock_clock"
           sub={stats.data?.nearest_embargo_release ? `releases ${new Date(stats.data.nearest_embargo_release).toLocaleString()}` : "none scheduled"}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Withheld results"
           value={stats.data?.withheld_total ?? 0}
           icon="block"
           sub={`${stats.data?.withheld_malpractice ?? 0} UFM · ${stats.data?.withheld_dues ?? 0} dues`}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Candidates covered"
           value={stats.data?.candidates_covered ?? 0}
           icon="groups"
           sub={`across ${stats.data?.live_set_count ?? 0} live set${stats.data?.live_set_count === 1 ? "" : "s"}`}
+          loading={stats.isLoading}
         />
       </div>
 

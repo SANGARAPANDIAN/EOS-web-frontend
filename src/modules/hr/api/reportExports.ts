@@ -27,6 +27,9 @@ export function useHrReportCatalogue() {
     queryKey: [...hrKeys.all, "reports", "catalogue"],
     queryFn: () => apiClient.get<HrReportCatalogueEntry[]>("/hr/reports/catalogue"),
     staleTime: 10 * 60 * 1000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 20 * 60 * 1000,
   });
 }
 

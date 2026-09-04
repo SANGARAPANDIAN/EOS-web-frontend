@@ -91,13 +91,28 @@ export interface PostedDrive {
   disclosed_reveal_date: string | null;
   job_role: string | null;
   package_lpa: number | null;
+  eligibility_cgpa: number | null;
+  registration_start: string | null;
+  registration_end: string | null;
 }
 
-/** GET /drives/student/posted — open drives not yet shortlisted for, informational only (no self-apply). */
+/** GET /drives/student/posted — open drives in their registration window, not yet shortlisted/applied for. */
 export function usePostedDrives() {
   return useQuery({
     queryKey: ["drives", "student", "posted"],
     queryFn: () => apiClient.get<PostedDrive[]>("/drives/student/posted"),
+  });
+}
+
+/** POST /drives/student/:id/apply — self-service application; moves the drive from "posted" to "upcoming". */
+export function useApplyToDrive() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (driveId: number) => apiClient.post(`/drives/student/${driveId}/apply`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["drives", "student", "posted"] });
+      queryClient.invalidateQueries({ queryKey: ["drives", "student", "upcoming"] });
+    },
   });
 }
 

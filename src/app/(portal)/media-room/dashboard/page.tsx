@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Card, Badge, Icon, EmptyState } from "@/components/ui";
+import { Card, Badge, Icon, EmptyState, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import { useNow } from "@/lib/hooks/useNow";
 import { useMyIdentity } from "@/modules/media-room/api/identity";
 import { useMediaRequests, useReviewMediaRequest } from "@/modules/media-room/api/mediaRequests";
@@ -81,8 +81,6 @@ export default function MediaRoomDashboardPage() {
   const deliveredCount = delivered.data?.meta.total ?? 0;
   const achievementsCount = achievements.data?.meta.total ?? 0;
 
-  const isLoading = pending.isLoading;
-
   const todayIso = new Date().toISOString().slice(0, 10);
   const shootRows = shoots.data?.ready ? shoots.data.data : [];
   const todayShoots = shootRows
@@ -103,6 +101,19 @@ export default function MediaRoomDashboardPage() {
     ...pendingIndents.map((i) => ({ title: `Indent awaiting review · ${i.title}`, sub: `₹${Number(i.estimated_cost ?? 0).toLocaleString("en-IN")} · raised ${formatDayAndTime(i.created_at)}` })),
     ...needsRepair.map((e) => ({ title: `${e.name} flagged for repair`, sub: e.asset_tag ?? "No asset tag" })),
   ].slice(0, 5);
+
+  if (identity.isLoading || pending.isLoading || achievements.isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonBlock className="h-[70px]" />
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-[1.35fr_1fr] gap-4">
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -129,7 +140,7 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-primary-dark">
-            {isLoading ? "—" : pendingCount}
+            {pendingCount}
           </div>
           <div className="mt-3 text-[13px] font-bold text-primary-dark">Review the queue</div>
         </Link>
@@ -142,7 +153,7 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : approvedCount}
+            {approvedCount}
           </div>
           <div className="mt-3 text-[13px] font-bold text-primary">View approved</div>
         </Link>
@@ -155,7 +166,7 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : deliveredCount}
+            {deliveredCount}
           </div>
           <div className="mt-3 text-[13px] text-muted">Completed coverage requests</div>
         </Link>
@@ -168,7 +179,7 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {achievements.isLoading ? "—" : achievementsCount}
+            {achievementsCount}
           </div>
           <div className="mt-3 text-[13px] font-bold text-primary">Open achievements</div>
         </Link>
@@ -240,9 +251,7 @@ export default function MediaRoomDashboardPage() {
               Open queue
             </Link>
           </div>
-          {pending.isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !pending.data || pending.data.data.length === 0 ? (
+          {!pending.data || pending.data.data.length === 0 ? (
             <EmptyState message="Nothing waiting on you." />
           ) : (
             <div className="flex flex-col">
@@ -281,9 +290,7 @@ export default function MediaRoomDashboardPage() {
             <h2 className="text-[17px] font-extrabold text-ink">Recent achievements</h2>
             <Badge tone="neutral">{achievementsCount} total</Badge>
           </div>
-          {achievements.isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !achievements.data || achievements.data.data.length === 0 ? (
+          {!achievements.data || achievements.data.data.length === 0 ? (
             <EmptyState message="Nothing posted yet." />
           ) : (
             <div className="flex flex-col">

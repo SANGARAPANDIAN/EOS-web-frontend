@@ -5,11 +5,11 @@ import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import {
   useClasses,
-  useDepartments,
   useCreateAnnouncement,
   useUploadAnnouncementAttachment,
   type CreateAnnouncementInput,
 } from "@/modules/principal/api/announcements";
+import { useDepartments } from "@/modules/shared/api/departments";
 
 interface AudienceGroup {
   key: string;

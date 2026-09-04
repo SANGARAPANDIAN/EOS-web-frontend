@@ -9,7 +9,7 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { useExams } from "@/modules/coe/api/exams";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useAllScriptBundles } from "@/modules/coe/api/scriptBundles";
 import {
   useEligibility,
@@ -183,20 +183,23 @@ export default function CoeAttendanceEligibilityPage() {
           value={stats.data?.eligible_count ?? 0}
           icon="verified"
           sub={stats.data?.total ? `${Math.round((stats.data.eligible_count / stats.data.total) * 1000) / 10}% of registered` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label={`Below ${stats.data?.threshold_pct ?? 75}% attendance`}
           value={stats.data?.below_threshold_count ?? 0}
           icon="trending_down"
           sub={stats.data?.total ? `${Math.round((stats.data.below_threshold_count / stats.data.total) * 1000) / 10}% of registered` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Detained"
           value={stats.data?.detained_count ?? 0}
           icon="block"
           sub={stats.data?.total ? `${Math.round((stats.data.detained_count / stats.data.total) * 1000) / 10}% of strength` : undefined}
+          loading={stats.isLoading}
         />
-        <StatCard label="Condonation pending" value={stats.data?.condonation_pending_count ?? 0} icon="hourglass_empty" sub="awaiting review" />
+        <StatCard label="Condonation pending" value={stats.data?.condonation_pending_count ?? 0} icon="hourglass_empty" sub="awaiting review" loading={stats.isLoading} />
       </div>
 
       <Card className="p-0">

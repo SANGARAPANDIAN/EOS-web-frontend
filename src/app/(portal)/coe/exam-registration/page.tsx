@@ -5,7 +5,7 @@ import { Card, StatCard, PillTabs, SearchBar, Select, Input, Button, Badge, Moda
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonFilterBar, SkeletonTable } from "@/components/ui/Skeleton";
 import { useExams, type Exam } from "@/modules/coe/api/exams";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useLookupStudentByRegisterNo, isNotFound } from "@/modules/coe/api/malpractice";
 import { downloadCsv } from "@/lib/utils/csv";
 import { currencyShort } from "@/modules/admin/lib/format";
@@ -191,28 +191,32 @@ export default function CoeExamRegistrationPage() {
       <div className="grid grid-cols-4 gap-4">
         <StatCard
           label="Registered students"
-          value={stats.data?.registered ?? (stats.isLoading ? "…" : 0)}
+          value={stats.data?.registered ?? 0}
           icon="how_to_reg"
           delta={registeredDelta != null ? `${registeredDelta >= 0 ? "+" : ""}${registeredDelta}` : undefined}
           sub={registeredDelta != null ? "vs last cycle" : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Eligible students"
-          value={stats.data?.eligible ?? (stats.isLoading ? "…" : 0)}
+          value={stats.data?.eligible ?? 0}
           icon="verified"
           sub={stats.data && stats.data.registered > 0 ? `${Math.round((stats.data.eligible / stats.data.registered) * 100)}% of registered` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Pending registrations"
-          value={stats.data?.pending_registrations ?? (stats.isLoading ? "…" : 0)}
+          value={stats.data?.pending_registrations ?? 0}
           icon="hourglass_empty"
           sub={stats.data?.registration_window_closes_in_days != null ? `${stats.data.registration_window_closes_in_days} days to window close` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Fee not paid"
-          value={stats.data?.fee_not_paid ?? (stats.isLoading ? "…" : 0)}
+          value={stats.data?.fee_not_paid ?? 0}
           icon="payments"
           sub={stats.data?.fee_outstanding_amount != null ? `${currencyShort(stats.data.fee_outstanding_amount)} outstanding` : undefined}
+          loading={stats.isLoading}
         />
       </div>
 

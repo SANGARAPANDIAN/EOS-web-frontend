@@ -37,25 +37,22 @@ export interface Quota {
 }
 
 /**
- * These reference lists are small and fixed (departments, courses, batches,
- * classes, quotas) — the old repo fetches each in full and filters
- * client-side rather than passing server-side filter params, so these hooks
- * mirror that exactly rather than inventing query params the backend may
- * not support.
+ * These reference lists are small and fixed (courses, batches, classes,
+ * quotas) — the old repo fetches each in full and filters client-side
+ * rather than passing server-side filter params, so these hooks mirror that
+ * exactly rather than inventing query params the backend may not support.
+ * (departments moved to the shared `useDepartments` in
+ * `@/modules/shared/api/departments` — the `Department` type above stays
+ * here since other modules still import it for annotation purposes.)
  */
-export function useDepartments() {
-  return useQuery({
-    queryKey: ["departments", "list"],
-    queryFn: () => apiClient.get<Department[]>("/departments"),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
 export function useCourses() {
   return useQuery({
     queryKey: ["courses", "list"],
     queryFn: () => apiClient.get<Course[]>("/courses"),
     staleTime: 5 * 60 * 1000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -64,6 +61,7 @@ export function useBatches() {
     queryKey: ["batches", "list"],
     queryFn: () => apiClient.get<Batch[]>("/batches"),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -72,6 +70,7 @@ export function useClasses() {
     queryKey: ["classes", "list"],
     queryFn: () => apiClient.get<SchoolClass[]>("/classes"),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -80,6 +79,7 @@ export function useQuotas() {
     queryKey: ["quotas", "list"],
     queryFn: () => apiClient.get<Quota[]>("/quotas"),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -93,5 +93,6 @@ export function useBonafideReasons() {
     queryKey: ["bonafide-reasons", "list"],
     queryFn: () => apiClient.get<BonafideReasonRef[]>("/bonafide-reasons"),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Badge, Card, DataTable, Icon, ProgressBar, StatCard, type DataTableColumn } from "@/components/ui";
+import { Badge, Card, DataTable, Icon, ProgressBar, StatCard, SkeletonStatTiles, type DataTableColumn } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { useHrDashboard, type DepartmentAppraisalRollupStatus, type HrDepartmentRollup } from "@/modules/hr/api/dashboard";
 import { monthLabel } from "@/lib/utils/date";
@@ -61,42 +61,46 @@ export default function HrDashboardPage() {
         <p className="mt-1 text-[13px] text-muted">Faculty, leave/OD, appraisal and payroll activity across every department.</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard
-          label="Pending requests"
-          icon="inbox"
-          value={isLoading ? "—" : data?.pending_requests_count ?? 0}
-          sub="Leave + OD awaiting your decision"
-          href="/hr/requests"
-        />
-        <StatCard
-          label="Today's leave & OD"
-          icon="event_available"
-          value={isLoading ? "—" : data?.todays_leave_count ?? 0}
-          delta={!isLoading ? `${data?.todays_od_count ?? 0} OD` : undefined}
-          sub="faculty on leave today"
-          href="/hr/vacation-management"
-        />
-        <StatCard
-          label="Pending appraisals"
-          icon="military_tech"
-          value={isLoading ? "—" : data?.pending_appraisals_count ?? 0}
-          sub="reviews awaiting HR"
-          href="/hr/employee-reviews"
-        />
-        <StatCard
-          label="Payroll completion"
-          icon="payments"
-          value={isLoading ? "—" : `${payroll?.completion_percent ?? 0}%`}
-          sub={
-            payroll
-              ? `${payroll.processed_count} of ${payroll.total_active_faculty} faculty · ${monthLabel(payroll.year, payroll.month - 1)}`
-              : undefined
-          }
-          barPercent={isLoading ? 0 : payroll?.completion_percent ?? 0}
-          href="/hr/payroll"
-        />
-      </div>
+      {isLoading ? (
+        <SkeletonStatTiles count={4} />
+      ) : (
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard
+            label="Pending requests"
+            icon="inbox"
+            value={data?.pending_requests_count ?? 0}
+            sub="Leave + OD awaiting your decision"
+            href="/hr/requests"
+          />
+          <StatCard
+            label="Today's leave & OD"
+            icon="event_available"
+            value={data?.todays_leave_count ?? 0}
+            delta={`${data?.todays_od_count ?? 0} OD`}
+            sub="faculty on leave today"
+            href="/hr/vacation-management"
+          />
+          <StatCard
+            label="Pending appraisals"
+            icon="military_tech"
+            value={data?.pending_appraisals_count ?? 0}
+            sub="reviews awaiting HR"
+            href="/hr/employee-reviews"
+          />
+          <StatCard
+            label="Payroll completion"
+            icon="payments"
+            value={`${payroll?.completion_percent ?? 0}%`}
+            sub={
+              payroll
+                ? `${payroll.processed_count} of ${payroll.total_active_faculty} faculty · ${monthLabel(payroll.year, payroll.month - 1)}`
+                : undefined
+            }
+            barPercent={payroll?.completion_percent ?? 0}
+            href="/hr/payroll"
+          />
+        </div>
+      )}
 
       <Card>
         <div className="mb-1 flex items-center justify-between">

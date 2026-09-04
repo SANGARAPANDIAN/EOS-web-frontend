@@ -141,24 +141,28 @@ export default function CoeExamFinancePage() {
           value={stats.data ? currencyShort(stats.data.collected) : "₹0"}
           icon="payments"
           sub={stats.data?.collected_pct_of_demand != null ? `${stats.data.collected_pct_of_demand}% of demand` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Outstanding"
           value={stats.data ? currencyShort(stats.data.outstanding) : "₹0"}
           icon="hourglass_empty"
           sub={stats.data ? `${stats.data.outstanding_students} students` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Revaluation fees"
           value={stats.data ? currencyShort(stats.data.revaluation_fees) : "₹0"}
           icon="difference"
           sub={stats.data ? `${stats.data.revaluation_applications} applications` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Refunds processed"
           value={stats.data ? currencyShort(stats.data.refunds_processed) : "₹0"}
           icon="undo"
           sub={stats.data ? `${stats.data.refunds_cases} cases` : undefined}
+          loading={stats.isLoading}
         />
       </div>
 

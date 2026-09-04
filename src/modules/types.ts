@@ -79,6 +79,8 @@ export interface NavItem {
   badgeKey?: NavBadgeKey;
   /** Only relevant to hostel residents — the consuming Shell filters this out of the config it passes to AppShell for a day scholar. Omit for items every student should see. */
   hostellerOnly?: boolean;
+  /** Tags a nav item as belonging to one declared student career path (Placement/Venture/Higher Studies). The consuming Shell shows it only when the student's own declared path matches, or hasn't declared one yet. Omit for items every student should see regardless of path. */
+  careerPath?: "placement" | "venture" | "higher_studies";
 }
 
 export interface NavGroup {

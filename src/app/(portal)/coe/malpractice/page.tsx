@@ -9,7 +9,8 @@ import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { useExamTimetable } from "@/modules/coe/api/timetable";
 import { useExamSubjectMappings } from "@/modules/coe/api/exams";
-import { useSubjects, useDepartments } from "@/modules/coe/api/reference";
+import { useSubjects } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import {
   useMalpracticeIncidents,
   useCreateMalpracticeIncident,
@@ -142,10 +143,10 @@ export default function CoeMalpracticePage() {
       />
 
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Cases this cycle" value={casesThisCycle} icon="gavel" />
-        <StatCard label="Under enquiry" value={tabCounts.under_enquiry} icon="hourglass_empty" sub={underEnquiryOlderThan7Days > 0 ? `${underEnquiryOlderThan7Days} open >7 days` : undefined} />
-        <StatCard label="Committee sittings" value={sittingDates.length} icon="groups" sub={nextSitting ? `next ${new Date(nextSitting).toLocaleDateString()}` : undefined} />
-        <StatCard label="Appeals pending" value={appealsPending} icon="balance" sub={appealsPending > 0 ? "with the Registrar" : undefined} />
+        <StatCard label="Cases this cycle" value={casesThisCycle} icon="gavel" loading={incidents.isLoading} />
+        <StatCard label="Under enquiry" value={tabCounts.under_enquiry} icon="hourglass_empty" sub={underEnquiryOlderThan7Days > 0 ? `${underEnquiryOlderThan7Days} open >7 days` : undefined} loading={incidents.isLoading} />
+        <StatCard label="Committee sittings" value={sittingDates.length} icon="groups" sub={nextSitting ? `next ${new Date(nextSitting).toLocaleDateString()}` : undefined} loading={incidents.isLoading} />
+        <StatCard label="Appeals pending" value={appealsPending} icon="balance" sub={appealsPending > 0 ? "with the Registrar" : undefined} loading={incidents.isLoading} />
       </div>
 
       <Card className="p-0">

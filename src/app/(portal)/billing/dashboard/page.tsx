@@ -5,6 +5,7 @@ import Link from "next/link";
 import { cardSx } from "@/modules/billing/PageHeader";
 import { useAnnouncements, REAL_TO_TAG, announcementTagColors } from "@/modules/billing/api/announcements";
 import { useFinanceOverview } from "@/modules/billing/api/fees";
+import { SkeletonStatTiles, SkeletonCardGrid } from "@/components/ui/Skeleton";
 
 // Pixel-exact port of the `isDashboard` screen from
 // "Billing Module - Web/Billing Admin.dc.html", lines 190-339.
@@ -68,7 +69,16 @@ export default function BillingDashboardPage() {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
 
-  if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading finance overview…</div>;
+  if (isLoading && !overview) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SkeletonStatTiles count={4} />
+        <SkeletonCardGrid count={3} columns={3} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonCardGrid count={2} columns={2} />
+      </div>
+    );
+  }
   if (error || !overview) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load the finance overview."}</div>;
 
   const kpi = overview.executiveKPIs;

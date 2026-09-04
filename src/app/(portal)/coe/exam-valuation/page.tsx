@@ -9,7 +9,8 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { useExams, useExamSubjectMappings } from "@/modules/coe/api/exams";
-import { useSubjects, useDepartments, useClasses } from "@/modules/coe/api/reference";
+import { useSubjects, useClasses } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useFacultyDirectory, type FacultyDirectoryEntry } from "@/modules/coe/api/faculty";
 import {
   useScriptBundles,
@@ -137,10 +138,11 @@ export default function CoeExamValuationPage() {
           value={stats.data?.scripts_valued ?? 0}
           icon="fact_check"
           sub={stats.data?.total_scripts ? `${Math.round((stats.data.scripts_valued / stats.data.total_scripts) * 1000) / 10}% of ${stats.data.total_scripts}` : undefined}
+          loading={stats.isLoading}
         />
-        <StatCard label="Valuators on camp" value={stats.data?.valuators_on_camp ?? 0} icon="groups" sub={stats.data ? `${stats.data.bundles_count} bundles assigned` : undefined} />
-        <StatCard label="Daily throughput" value={stats.data?.daily_throughput ?? 0} icon="trending_up" sub="scripts entered today" />
-        <StatCard label="Second valuation" value={stats.data?.second_valuation_count ?? 0} icon="difference" sub="bundles flagged for re-check" />
+        <StatCard label="Valuators on camp" value={stats.data?.valuators_on_camp ?? 0} icon="groups" sub={stats.data ? `${stats.data.bundles_count} bundles assigned` : undefined} loading={stats.isLoading} />
+        <StatCard label="Daily throughput" value={stats.data?.daily_throughput ?? 0} icon="trending_up" sub="scripts entered today" loading={stats.isLoading} />
+        <StatCard label="Second valuation" value={stats.data?.second_valuation_count ?? 0} icon="difference" sub="bundles flagged for re-check" loading={stats.isLoading} />
       </div>
 
       <Card className="p-0">

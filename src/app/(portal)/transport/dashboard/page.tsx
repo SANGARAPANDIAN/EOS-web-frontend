@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, Badge, Button, Icon, ProgressBar, EmptyState, Input, Select, SegmentedTabs, type BadgeTone } from "@/components/ui";
+import { Card, Badge, Button, Icon, ProgressBar, EmptyState, Input, Select, SegmentedTabs, SkeletonStatTiles, SkeletonBlock, type BadgeTone } from "@/components/ui";
 import { useTransportDashboard, type TransportDashboardPeriod } from "@/modules/transport/api/dashboard";
 import { useCreateTransportNotice } from "@/modules/transport/api/notices";
 import { formatLongDate, formatDayAndTime, greetingForHour } from "@/lib/utils/date";
@@ -117,6 +117,19 @@ export default function TransportDashboardPage() {
     );
   }
 
+  if (isLoading && !data) {
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-[1.1fr_1fr_1fr] gap-4">
+          <SkeletonBlock />
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
@@ -147,13 +160,13 @@ export default function TransportDashboardPage() {
                 </div>
               </div>
               <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-                {isLoading ? "—" : tile.value}
+                {tile.value}
               </div>
               <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-                <span className="text-[14px] font-extrabold text-primary">{isLoading ? "—" : tile.subA}</span>
+                <span className="text-[14px] font-extrabold text-primary">{tile.subA}</span>
                 <span className="text-[13px] text-muted">{tile.subB}</span>
               </div>
-              <ProgressBar percent={isLoading ? 0 : tile.barPercent} height={6} className="mt-3" />
+              <ProgressBar percent={tile.barPercent} height={6} className="mt-3" />
               <div className="mt-3 text-[12.5px] text-subtle">{tile.foot}</div>
             </div>
           );
@@ -179,29 +192,27 @@ export default function TransportDashboardPage() {
             <div>
               <div className="text-[13px] font-semibold text-muted">Buses reporting {PERIOD_LABEL[period]}</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading ? "—" : data?.fleet_command.buses_reporting ?? 0}
+                {data?.fleet_command.buses_reporting ?? 0}
               </div>
             </div>
             <div>
               <div className="text-[13px] font-semibold text-muted">GPS online now</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading ? "—" : data?.fleet_command.gps_online_now ?? 0}
+                {data?.fleet_command.gps_online_now ?? 0}
               </div>
             </div>
             <div>
               <div className="text-[13px] font-semibold text-muted">Diesel cost {PERIOD_LABEL[period]}</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading
-                  ? "—"
-                  : extended?.fuel_tracking
-                    ? `₹${(data?.fleet_command.diesel_cost ?? 0).toLocaleString("en-IN")}`
-                    : "Not tracked"}
+                {extended?.fuel_tracking
+                  ? `₹${(data?.fleet_command.diesel_cost ?? 0).toLocaleString("en-IN")}`
+                  : "Not tracked"}
               </div>
             </div>
             <div>
               <div className="text-[13px] font-semibold text-muted">Fee collected {PERIOD_LABEL[period]}</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading ? "—" : `₹${(data?.fleet_command.transport_fee_collected ?? 0).toLocaleString("en-IN")}`}
+                {`₹${(data?.fleet_command.transport_fee_collected ?? 0).toLocaleString("en-IN")}`}
               </div>
             </div>
           </div>
@@ -229,9 +240,7 @@ export default function TransportDashboardPage() {
             <h2 className="text-[17px] font-extrabold text-ink">Needs attention</h2>
             <Badge tone="accentDark">{data?.needs_attention.length ?? 0} flags</Badge>
           </div>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.needs_attention.length === 0 ? (
+          {!data || data.needs_attention.length === 0 ? (
             <EmptyState
               message={
                 extended?.fleet_status || extended?.documents
@@ -267,7 +276,7 @@ export default function TransportDashboardPage() {
             </button>
           </div>
 
-          {!extended?.notices && !isLoading && (
+          {!extended?.notices && (
             <p className="mb-3 text-[12px] text-subtle">Noticeboard not set up yet — see setup notes below.</p>
           )}
 
@@ -296,9 +305,7 @@ export default function TransportDashboardPage() {
             </div>
           )}
 
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.notices.length === 0 ? (
+          {!data || data.notices.length === 0 ? (
             <EmptyState message="No notices yet." />
           ) : (
             <div className="flex flex-col gap-3">

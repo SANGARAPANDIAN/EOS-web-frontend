@@ -8,22 +8,21 @@ import { useMyAcademicCalendar } from "@/modules/student/api/profile";
 const SESSION_LABEL: Record<ExamScheduleRow["session"], string> = { FN: "Forenoon", AN: "Afternoon" };
 const SEMESTERS = Array.from({ length: 8 }, (_, i) => i + 1);
 
-// Fixed, always-shown buckets matching the design reference's "Internal 1 /
-// Internal 2 / Semester" buttons, mapped onto the real exam_types.name
-// values — confirmed directly against the live exam_types table
-// (CIA1/CIA2/CIA3/"University End Semester Exam"), which do NOT match the
-// made-up "Internal Assessment I"/"University Semester Examination" strings
-// this used to have. That mismatch meant these 3 buttons (including the
-// default-selected one on first load) always filtered to zero rows, while
-// the real data only ever surfaced through a same-looking but separate
-// auto-generated "University End Semester Exam" button below — two buttons
-// for the same exam, one dead. A real exam type outside this map — e.g. a
+// Fixed, always-shown buckets mapped onto the real exam_types.name values —
+// confirmed directly against the live exam_types table
+// (CIA1/CIA2/CIA3/"University End Semester Exam"). The button label is the
+// real exam-type name itself (what's actually published/assigned) rather
+// than an invented "Internal 1/2/3" gloss — a student comparing this screen
+// against the Performance page's own CIA1/CIA2 labels would otherwise see
+// two different names for the same exam. "Semester" is kept short rather
+// than spelling out the full exam-type name, since that one was never part
+// of the CIA-naming mismatch. A real exam type outside this map — e.g. a
 // future "Model Examination" — still gets its own button, appended after
 // the fixed four, rather than being silently hidden.
 const FIXED_EXAM_TYPE_BUCKETS: { label: string; realType: string }[] = [
-  { label: "Internal 1", realType: "CIA1" },
-  { label: "Internal 2", realType: "CIA2" },
-  { label: "Internal 3", realType: "CIA3" },
+  { label: "CIA1", realType: "CIA1" },
+  { label: "CIA2", realType: "CIA2" },
+  { label: "CIA3", realType: "CIA3" },
   { label: "Semester", realType: "University End Semester Exam" },
 ];
 
@@ -82,7 +81,7 @@ export default function ExamSchedulePage() {
     })
     .join(" · ");
 
-  const gridCols = "1fr 2.6fr 1fr 1fr";
+  const gridCols = "1fr 2.4fr 1fr 1fr 0.8fr";
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -134,6 +133,7 @@ export default function ExamSchedulePage() {
             <div>COURSE</div>
             <div>SESSION</div>
             <div className="text-right">HALL</div>
+            <div className="text-right">SEAT</div>
           </div>
           {filtered.length === 0 ? (
             <EmptyState message="No published exam schedule yet." className="px-5" />
@@ -149,6 +149,7 @@ export default function ExamSchedulePage() {
                   <Badge tone="accent">{SESSION_LABEL[r.session]}</Badge>
                 </div>
                 <div className="text-right text-[13px] text-muted">{r.venue_name ?? "—"}</div>
+                <div className="text-right font-mono text-[13px] font-bold text-ink">{r.seat_number ?? "—"}</div>
               </div>
             ))
           )}

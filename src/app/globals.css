@@ -208,6 +208,13 @@ a:has(> [data-sec-nav-item]) {
   --color-danger-fg: #d1483c;
   --color-danger-border: #f5c7c1;
 
+  /* second non-blue accent: a student's own personal calendar notes, kept
+     visually distinct from institution-posted calendar_events (accent blue)
+     and from danger/absent (red) — nothing else in the system uses violet. */
+  --color-personal-bg: #f5f0fd;
+  --color-personal-fg: #7c3aed;
+  --color-personal-border: #ddd0f7;
+
   /* calendar day-cell blocks only (badges/pills keep using accent-50/primary) */
   --color-on-duty-bg: #dbeafe;
   --color-on-duty-border: #bfdbfe;

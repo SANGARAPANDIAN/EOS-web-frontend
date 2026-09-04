@@ -8,7 +8,7 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { useExams } from "@/modules/coe/api/exams";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useRegulations, type Regulation } from "@/modules/coe/api/regulations";
 import { useAllScriptBundles } from "@/modules/coe/api/scriptBundles";
 import {
@@ -157,18 +157,21 @@ export default function CoeResultsManagementPage() {
           value={stats.data?.published_count ?? 0}
           icon="workspace_premium"
           sub={stats.data?.total_courses ? `${Math.round((stats.data.published_count / stats.data.total_courses) * 1000) / 10}% of courses` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Overall pass %"
           value={`${stats.data?.overall_pass_pct ?? 0}%`}
           icon="trending_up"
           sub={stats.data?.pass_pct_delta != null ? `${stats.data.pass_pct_delta >= 0 ? "+" : ""}${stats.data.pass_pct_delta} vs last cycle` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Awaiting approval"
           value={stats.data?.awaiting_approval_count ?? 0}
           icon="hourglass_empty"
           sub={stats.data?.board_meeting_at ? `board on ${new Date(stats.data.board_meeting_at).toLocaleDateString()}` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Withheld results"
@@ -179,6 +182,7 @@ export default function CoeResultsManagementPage() {
               ? [stats.data.withheld_malpractice_count > 0 && "malpractice", stats.data.withheld_other_count > 0 && "other holds"].filter(Boolean).join(" & ")
               : undefined
           }
+          loading={stats.isLoading}
         />
       </div>
 

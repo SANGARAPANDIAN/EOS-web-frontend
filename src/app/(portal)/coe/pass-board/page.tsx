@@ -69,14 +69,15 @@ export default function CoePassBoardPage() {
       />
 
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Courses on the sheet" value={data?.courses.length ?? 0} icon="fact_check" sub={data ? `${data.sheet.phase} · ${data.departments_represented.join(", ") || "—"}` : undefined} />
-        <StatCard label="Candidates" value={data?.overall_appeared ?? 0} icon="groups" sub="appeared across all courses" />
-        <StatCard label="Overall pass" value={`${data?.overall_pass_pct_before ?? 0}%`} icon="trending_up" sub="before any moderation" />
+        <StatCard label="Courses on the sheet" value={data?.courses.length ?? 0} icon="fact_check" sub={data ? `${data.sheet.phase} · ${data.departments_represented.join(", ") || "—"}` : undefined} loading={board.isLoading} />
+        <StatCard label="Candidates" value={data?.overall_appeared ?? 0} icon="groups" sub="appeared across all courses" loading={board.isLoading} />
+        <StatCard label="Overall pass" value={`${data?.overall_pass_pct_before ?? 0}%`} icon="trending_up" sub="before any moderation" loading={board.isLoading} />
         <StatCard
           label="Courses graced"
           value={data?.courses_graced_count ?? 0}
           icon="edit"
           sub={data?.courses_graced_count ? "moderation applied" : "no moderation applied yet"}
+          loading={board.isLoading}
         />
       </div>
 

@@ -8,7 +8,7 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { useExams, type Exam } from "@/modules/coe/api/exams";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useFacultyDirectory, type FacultyDirectoryEntry } from "@/modules/coe/api/faculty";
 import {
   useQuestionPapers,
@@ -126,12 +126,13 @@ export default function CoeQuestionPapersPage() {
       )}
 
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Papers required" value={stats.data?.required ?? 0} icon="description" sub="Set A+B per course" />
+        <StatCard label="Papers required" value={stats.data?.required ?? 0} icon="description" sub="Set A+B per course" loading={stats.isLoading} />
         <StatCard
           label="Sealed & vaulted"
           value={stats.data?.sealed ?? 0}
           icon="lock"
           sub={stats.data?.required ? `${Math.round((stats.data.sealed / stats.data.required) * 1000) / 10}% complete` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Awaiting setter upload"
@@ -144,12 +145,14 @@ export default function CoeQuestionPapersPage() {
                 : `${stats.data.awaiting_without_setter} without a setter`
               : undefined
           }
+          loading={stats.isLoading}
         />
         <StatCard
           label="Distribution ready"
           value={stats.data?.distribution_ready ?? 0}
           icon="local_shipping"
           sub={stats.data?.distribution_total ? `of ${stats.data.distribution_total} sessions` : undefined}
+          loading={stats.isLoading}
         />
       </div>
 

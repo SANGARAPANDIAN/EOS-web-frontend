@@ -111,9 +111,13 @@ function InternalsAccordion({ groups }: { groups: ExamResultGroup[] }) {
               <div className="flex-1">
                 <div className="text-[14.5px] font-bold text-ink">{group.title}</div>
               </div>
-              <Badge tone="accent">
-                {group.marks_obtained}/{group.marks_total} marks
-              </Badge>
+              <div className="text-right">
+                <div className="text-[16px] font-extrabold leading-none text-ink">
+                  {group.marks_obtained}
+                  <span className="font-semibold text-muted">/{group.marks_total}</span>
+                </div>
+                <div className="mt-0.5 text-[10.5px] font-semibold uppercase tracking-[.04em] text-subtle">marks</div>
+              </div>
               <Icon name={isOpen ? "expand_less" : "chevron_right"} size={20} className="text-subtle" />
             </button>
             {isOpen && (

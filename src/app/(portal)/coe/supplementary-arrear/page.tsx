@@ -8,7 +8,7 @@ import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { downloadCsv } from "@/lib/utils/csv";
 import { formatDate } from "@/lib/utils/format";
-import { useDepartments } from "@/modules/coe/api/reference";
+import { useDepartments } from "@/modules/shared/api/departments";
 import {
   useArrearOverview,
   useArrearStudentHistory,
@@ -116,24 +116,28 @@ export default function CoeSupplementaryArrearPage() {
           value={stats?.arrear_students ?? 0}
           icon="event_repeat"
           sub={stats?.arrear_students_pct_of_strength != null ? `${stats.arrear_students_pct_of_strength}% of strength` : undefined}
+          loading={overview.isLoading}
         />
         <StatCard
           label="Standing arrears"
           value={stats?.standing_arrears_total ?? 0}
           icon="layers"
           sub={stats?.standing_arrears_avg_per_student != null ? `${stats.standing_arrears_avg_per_student} avg per student` : undefined}
+          loading={overview.isLoading}
         />
         <StatCard
           label="Registered for arrear"
           value={stats?.registered_for_arrear ?? 0}
           icon="how_to_reg"
           sub={stats?.registered_pct_of_eligible != null ? `${stats.registered_pct_of_eligible}% of eligible` : undefined}
+          loading={overview.isLoading}
         />
         <StatCard
           label="Cleared last cycle"
           value={stats?.cleared_last_cycle ?? 0}
           icon="task_alt"
           sub={stats ? `${stats.cleared_last_cycle_delta >= 0 ? "+" : ""}${stats.cleared_last_cycle_delta} vs previous` : undefined}
+          loading={overview.isLoading}
         />
       </div>
 

@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Button, Modal, Select, useToast } from "@/modules/admin/components/ui";
 import { friendlyError } from "@/lib/utils/errors";
 import { useCreateFaculty, facultyKeys } from "@/modules/admin/api/faculty";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import {
   IMPORT_FIELDS,
   IMPORT_MAX_ROWS,

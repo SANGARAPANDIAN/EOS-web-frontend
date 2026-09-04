@@ -174,10 +174,11 @@ export default function CoeHallTicketsPage() {
           value={ticketed}
           icon="badge"
           sub={allRows.length > 0 ? `${Math.round((ticketed / allRows.length) * 100)}% of registered` : undefined}
+          loading={roster.isLoading}
         />
-        <StatCard label="Withheld" value={withheld} icon="block" sub="fee dues and attendance" />
-        <StatCard label="Downloaded" value={downloaded} icon="download" sub={ticketed > 0 ? `${Math.round((downloaded / ticketed) * 100)}% of issued` : undefined} />
-        <StatCard label="Mismatch reports" value={mismatches} icon="report" sub="photo and name errors" />
+        <StatCard label="Withheld" value={withheld} icon="block" sub="fee dues and attendance" loading={roster.isLoading} />
+        <StatCard label="Downloaded" value={downloaded} icon="download" sub={ticketed > 0 ? `${Math.round((downloaded / ticketed) * 100)}% of issued` : undefined} loading={roster.isLoading} />
+        <StatCard label="Mismatch reports" value={mismatches} icon="report" sub="photo and name errors" loading={roster.isLoading} />
       </div>
 
       <div className="grid grid-cols-[1fr_1.4fr] gap-4 items-start">

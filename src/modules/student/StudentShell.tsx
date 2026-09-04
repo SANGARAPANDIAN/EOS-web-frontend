@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { studentModuleConfig } from "@/modules/student/nav";
-import { useMyIdentity, useMyAcademicProfile, useMyAcademicCalendar } from "@/modules/student/api/profile";
+import { useMyIdentity, useMyAcademicProfile, useMyAcademicCalendar, useMyCareerPath } from "@/modules/student/api/profile";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
 import { useMyFees } from "@/modules/student/api/fees";
@@ -17,6 +17,7 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   const identity = useMyIdentity();
   const academicProfile = useMyAcademicProfile();
   const academicCalendar = useMyAcademicCalendar();
+  const careerPath = useMyCareerPath();
   const unread = useUnreadNotificationCount();
   const announcements = useAnnouncements();
   const fees = useMyFees();
@@ -58,15 +59,30 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   // loaded, so a hosteller never sees a one-frame flash of these items
   // disappearing.
   const isHosteller = academicProfile.data?.student_type === "hosteller";
+  // Same "held back until loaded" reasoning as isHosteller above, not just
+  // "undeclared shows everything": while careerPath is still fetching, every
+  // path-tagged item was showing (declaredPath defaults to null exactly
+  // like "not declared"), then the moment the real value arrived the two
+  // wrong ones would vanish out from under the user — a visible flash,
+  // worse than the hosteller case since here 1-2 whole nav items disappear
+  // rather than a boolean flipping once. Once genuinely loaded, an actually
+  // undeclared path still shows every item unchanged (still the intended
+  // fallback — see MeCareerPathService).
+  const declaredPath = careerPath.data?.career_path ?? null;
+  const careerPathLoaded = !careerPath.isLoading;
   const moduleConfig = useMemo(
     () => ({
       ...studentModuleConfig,
       navGroups: studentModuleConfig.navGroups.map((group) => ({
         ...group,
-        items: group.items.filter((item) => !item.hostellerOnly || isHosteller),
+        items: group.items.filter(
+          (item) =>
+            (!item.hostellerOnly || isHosteller) &&
+            (!item.careerPath || (careerPathLoaded && (!declaredPath || item.careerPath === declaredPath))),
+        ),
       })),
     }),
-    [isHosteller],
+    [isHosteller, declaredPath, careerPathLoaded],
   );
 
   return (

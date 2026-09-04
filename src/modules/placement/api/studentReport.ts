@@ -30,7 +30,11 @@ export interface StudentReportRow {
   placementEligible: boolean | null;
   /** Real once query.md #17 runs — false until the officer marks it, never inferred. */
   placementOptedOut: boolean;
+  /** Officer-set (Placement / Venture / Higher Studies) — drives which one tab shows in the student's own sidebar. null until set. */
+  careerPath: CareerPath | null;
 }
+
+export type CareerPath = "placement" | "venture" | "higher_studies";
 
 export type UpdatePlacementStatusInput = Partial<{
   placementEligible: boolean;
@@ -54,6 +58,7 @@ interface BackendStudentReportRow {
   company_name: string | null;
   placement_eligible: boolean | null;
   placement_opted_out: boolean;
+  career_path: CareerPath | null;
 }
 
 function toRow(r: BackendStudentReportRow): StudentReportRow {
@@ -74,6 +79,7 @@ function toRow(r: BackendStudentReportRow): StudentReportRow {
     companyName: r.company_name ?? undefined,
     placementEligible: r.placement_eligible,
     placementOptedOut: r.placement_opted_out,
+    careerPath: r.career_path,
   };
 }
 
@@ -147,6 +153,25 @@ export function useUpdatePlacementStatus() {
     onSuccess: () => {
       // Partial key (no batchId suffix) so every batch-filtered variant of
       // the student report invalidates, not just the "all batches" one.
+      queryClient.invalidateQueries({ queryKey: [...placementKeys.all, "student-report"] });
+    },
+  });
+}
+
+// Officer-set path (Placement / Venture / Higher Studies) — replaces what
+// used to be a student self-service toggle on their own profile page; the
+// Placement Officer now marks it here instead, same "not interested in
+// placement → Venture or Higher Studies" call the Students page already
+// makes via eligibility/opt-out. Drives which one tab shows in that
+// student's own sidebar (GET /me/career-path, read-only student-side).
+export function useSetStudentCareerPath() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, careerPath }: { studentId: number; careerPath: CareerPath }) =>
+      apiClient.patch<{ id: number; career_path: CareerPath }>(`/drives/students/${studentId}/career-path`, {
+        career_path: careerPath,
+      }),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...placementKeys.all, "student-report"] });
     },
   });

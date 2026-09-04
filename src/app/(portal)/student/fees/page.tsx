@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, Badge, SegmentedTabs, Button, Input, Select, EmptyState, DataTable } from "@/components/ui";
+import { Card, Badge, SegmentedTabs, Button, Input, Select, EmptyState, Icon, DataTable } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import { useMyFees, type FeeDemand, type FeeDemandItem, type FeePayment } from "@/modules/student/api/fees";
 import { usePayFeeCart, downloadFeeReceipt } from "@/modules/student/api/feePayment";
@@ -64,14 +64,21 @@ function ItemRow({
       } ${selected ? "!border-border-accent bg-accent-50" : ""}`}
     >
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="checkbox"
-          checked={selected}
-          disabled={disabled}
-          onChange={onToggle}
-          onClick={(e) => e.stopPropagation()}
-          className="size-4 shrink-0 accent-primary"
-        />
+        {/* No checkbox for an item with nothing due — there's nothing it could
+            let the student select to pay, so a (necessarily disabled) checkbox
+            here reads as broken/confusing rather than as "already handled".
+            A same-width blank spacer keeps every row's label column aligned. */}
+        {disabled ? (
+          <span className="size-4 shrink-0" />
+        ) : (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            onClick={(e) => e.stopPropagation()}
+            className="size-4 shrink-0 accent-primary"
+          />
+        )}
         <div className="min-w-[140px] flex-1 text-[13.5px] font-bold text-ink">{item.label}</div>
         <div className="flex gap-2 font-mono text-[12px] text-muted">
           <span>₹{item.total.toLocaleString("en-IN")} total</span>
@@ -319,7 +326,11 @@ export default function FeesPage() {
       width: "1fr",
       align: "right",
       render: (p) => (
-        <button onClick={() => handleDownloadReceipt(p)} className="font-mono text-[12.5px] font-bold text-primary hover:text-primary-dark">
+        <button
+          onClick={() => handleDownloadReceipt(p)}
+          className="inline-flex items-center gap-1.5 font-mono text-[12.5px] font-bold text-primary hover:text-primary-dark"
+        >
+          <Icon name="download" size={14} />
           {p.receipt_no}
         </button>
       ),
@@ -334,6 +345,13 @@ export default function FeesPage() {
     }),
     [demandsInSemester],
   );
+
+  // Universal, not Malar-specific — whenever a semester's demands are all
+  // fully settled there is nothing left to select, so the "Payment summary"
+  // cart sidebar (every item already renders checkbox-free per ItemRow
+  // above) is replaced with a plain paid confirmation instead of a payment
+  // form with nothing payable in it.
+  const semesterFullyPaid = demandsInSemester.length > 0 && totals.due === 0;
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -390,6 +408,24 @@ export default function FeesPage() {
           <Card>
             <EmptyState message="No fee demands recorded for this semester." />
           </Card>
+        ) : semesterFullyPaid ? (
+          <div className="flex flex-col gap-3">
+            <p className="flex items-center gap-1.5 px-0.5 text-[13px] text-subtle">
+              <Icon name="check_circle" size={15} className="text-primary" />
+              All fees paid for this semester — see Payment history for receipts.
+            </p>
+            {demandsInSemester.map((d) => (
+              <DemandCard
+                key={d.id}
+                demand={d}
+                selectedKeys={selectedKeys}
+                amounts={amounts}
+                onToggleItem={(item) => toggleItem(d, item)}
+                onAmountChange={(item, value) => setAmounts((a) => ({ ...a, [cartKey(d.id, item.id)]: value }))}
+                onToggleAll={(items, select) => toggleAll(d, items, select)}
+              />
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-4">
             <div className="flex flex-col gap-3">

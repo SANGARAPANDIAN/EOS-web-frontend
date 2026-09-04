@@ -120,19 +120,21 @@ export default function CoeAnswerScriptArchivePage() {
       />
 
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Bundles archived" value={stats.data?.archived ?? 0} icon="inventory_2" sub={stats.data ? `+${stats.data.archived_this_cycle} this cycle` : undefined} />
-        <StatCard label="Retention period" value={stats.data ? `${stats.data.retention_months} months` : "—"} icon="lock_clock" sub="policy after publication" />
+        <StatCard label="Bundles archived" value={stats.data?.archived ?? 0} icon="inventory_2" sub={stats.data ? `+${stats.data.archived_this_cycle} this cycle` : undefined} loading={stats.isLoading} />
+        <StatCard label="Retention period" value={stats.data ? `${stats.data.retention_months} months` : "—"} icon="lock_clock" sub="policy after publication" loading={stats.isLoading} />
         <StatCard
           label="RTI / photocopy"
           value={stats.data?.open_retrieval_requests ?? 0}
           icon="find_in_page"
           sub={stats.data ? `${stats.data.pending_beyond_30_days} pending beyond 30 days` : undefined}
+          loading={stats.isLoading}
         />
         <StatCard
           label="Due for disposal"
           value={stats.data?.due_disposal ?? 0}
           icon="delete_sweep"
           sub={stats.data?.due_disposal_next ? `${formatDate(stats.data.due_disposal_next)} awaiting COE order` : undefined}
+          loading={stats.isLoading}
         />
       </div>
 

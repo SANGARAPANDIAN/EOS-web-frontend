@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/utils/cn";
 
 interface StatCardProps {
@@ -17,10 +18,12 @@ interface StatCardProps {
   className?: string;
   /** One card per row gets this in the reference design — a solid primary border/shadow instead of the plain gray one, drawing the eye to whichever KPI needs it most (e.g. equipment not yet returned). */
   accent?: boolean;
+  /** True while the query backing this tile is still in flight — renders skeleton bars instead of `value`/`sub`/`delta`/the progress bar, so nothing flashes placeholder text before real data arrives. Mirrors PrincipalStatCard's loading prop. */
+  loading?: boolean;
 }
 
 /** Same optional href -> Link-wrap pattern as NavTile: renders as a plain div when href is omitted. */
-export function StatCard({ label, value, icon, sub, delta, barPercent, thresholdPercent, href, className, accent }: StatCardProps) {
+export function StatCard({ label, value, icon, sub, delta, barPercent, thresholdPercent, href, className, accent, loading }: StatCardProps) {
   const content = (
     <div
       className={cn(
@@ -49,15 +52,24 @@ export function StatCard({ label, value, icon, sub, delta, barPercent, threshold
           </div>
         )}
       </div>
-      <div className="mt-2.5 truncate text-[32px] font-extrabold tracking-[-.03em] text-ink">{value}</div>
-      {(delta || sub) && (
-        <div className="mt-0.5 text-[12.5px] text-muted">
-          {delta && <span className="font-semibold text-primary">{delta} </span>}
-          {sub}
-        </div>
-      )}
-      {barPercent !== undefined && (
-        <ProgressBar percent={barPercent} thresholdPercent={thresholdPercent} className="mt-3.5" />
+      {loading ? (
+        <>
+          <Skeleton className="mt-2.5 h-8 w-20" />
+          <Skeleton className="mt-2 h-3 w-28" />
+        </>
+      ) : (
+        <>
+          <div className="mt-2.5 truncate text-[32px] font-extrabold tracking-[-.03em] text-ink">{value}</div>
+          {(delta || sub) && (
+            <div className="mt-0.5 text-[12.5px] text-muted">
+              {delta && <span className="font-semibold text-primary">{delta} </span>}
+              {sub}
+            </div>
+          )}
+          {barPercent !== undefined && (
+            <ProgressBar percent={barPercent} thresholdPercent={thresholdPercent} className="mt-3.5" />
+          )}
+        </>
       )}
     </div>
   );

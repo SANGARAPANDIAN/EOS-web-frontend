@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import { useBatches, useDepartments } from "@/modules/admin/api/refData";
+import { useBatches } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useStudentCount, type StudentsListResponse } from "@/modules/admin/api/students";
 import type { SoaApplicationsListResponse, SoaStatus } from "@/modules/admin/api/admissions";
 import { EMPLOYMENT_STATUS_TO_ENUM } from "@/modules/admin/lib/faculty-wizard-config";

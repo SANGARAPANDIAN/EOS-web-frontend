@@ -29,6 +29,7 @@ export type NavBadgeKey =
   | "studentCount"
   | "facultyCount"
   | "totalBooks"
+  | "libraryPendingRequests"
   | "leaveRequestsPending"
   | "odRequestsPending"
   | "mrPendingRequests"

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useStudentLeaves, useFacultyApproveLeave, type StudentLeaveRow } from "@/modules/advisor/api/requests";
 import { useIsClassAdvisor } from "@/modules/advisor/api/profile";
 import { AdvisorIcon } from "@/modules/advisor/icons";
+import { Button } from "@/components/ui/Button";
 
 // Backed by GET /me/student-leaves + PATCH /me/student-leaves/:id/faculty-approve
 // (StudentLeavesController). Backend has no separate "days" or "duration"
@@ -142,18 +143,22 @@ export default function AdvisorLeavePage() {
             {r.reason && <div style={{ fontSize: 13.5, color: "#475569", fontWeight: 500, marginTop: 14, lineHeight: 1.55 }}>{r.reason}</div>}
             {r.statusLabel === "Pending" && (
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <div
+                <Button
+                  variant="primarySmall"
                   onClick={() => approve.mutate({ id: r.id, decision: "approved" })}
-                  style={{ padding: "10px 22px", background: "#fff", border: "1px solid #93C5FD", color: "#1D4ED8", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}
+                  disabled={approve.isPending}
+                  loading={approve.isPending && approve.variables?.id === r.id && approve.variables?.decision === "approved"}
                 >
                   Approve
-                </div>
-                <div
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => approve.mutate({ id: r.id, decision: "rejected" })}
-                  style={{ padding: "10px 22px", background: "#fff", border: "1px solid #E2E8F0", color: "#475569", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}
+                  disabled={approve.isPending}
+                  loading={approve.isPending && approve.variables?.id === r.id && approve.variables?.decision === "rejected"}
                 >
                   Reject
-                </div>
+                </Button>
               </div>
             )}
           </div>

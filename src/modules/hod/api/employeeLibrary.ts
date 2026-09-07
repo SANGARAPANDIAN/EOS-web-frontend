@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
 export interface HodLibraryRecord {
@@ -33,23 +33,14 @@ export function useHodLibraryOverview() {
   });
 }
 
-/** PATCH /hod/employee/library/:id/renew */
-export function useRenewHodLibraryBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => apiClient.patch<HodLibraryRecord>(`/hod/employee/library/${id}/renew`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hod", "employee", "library"] }),
-  });
-}
-
-/** POST /hod/employee/library/request — self-issues the book to the caller, same mechanism students use to borrow. */
-export function useRequestHodLibraryBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (bookId: number) => apiClient.post<HodLibraryRecord>("/hod/employee/library/request", { book_id: bookId }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hod", "employee", "library"] }),
-  });
-}
+// No self-service renew for HoD/faculty — PATCH /library/borrow-records/:id
+// (the only real renew/return/damage/lost mutation on this resource) is
+// @Roles('library','admin') only, confirmed via BorrowRecordsController.
+// The previous /hod/employee/library/:id/renew route this page called never
+// existed on the backend (dead code, always 404'd) — removed rather than
+// pointed at a route that would just 403 instead. A HoD wanting to renew
+// visits the library desk, same as Faculty's own (already-correct) library
+// page states explicitly for that role.
 
 // The catalogue endpoints below (/library/books, /library/e-resources) have
 // no @Roles guard on their GET routes — any authenticated user may read

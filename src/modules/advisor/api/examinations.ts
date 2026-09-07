@@ -25,6 +25,8 @@ export interface AdvisorExaminationClass {
 
 export interface AdvisorExaminationFilters {
   classes: AdvisorExaminationClass[];
+  /** Real semesters with actual exam data for the advisor's mentee class(es) — not just "today's" semester, which is all classes[].semester ever reflects. */
+  semesters: { semester: number; year_label: string }[];
   exam_types: { id: number; name: string; category: string }[];
 }
 
@@ -62,16 +64,17 @@ export interface AdvisorExaminationGrid {
   rows: AdvisorExaminationRow[];
 }
 
-/** GET /me/advisor-examinations/grid?class_id=&exam_type_id= */
-export function useAdvisorExaminationGrid(classId: number | null, examTypeId: number | null) {
+/** GET /me/advisor-examinations/grid?class_id=&exam_type_id=&semester= */
+export function useAdvisorExaminationGrid(classId: number | null, examTypeId: number | null, semester: number | null) {
   return useQuery({
-    queryKey: ["advisor", "examinations", "grid", classId, examTypeId],
+    queryKey: ["advisor", "examinations", "grid", classId, examTypeId, semester],
     queryFn: () =>
       apiClient.get<AdvisorExaminationGrid>("/me/advisor-examinations/grid", {
         class_id: classId ?? undefined,
         exam_type_id: examTypeId ?? undefined,
+        semester: semester ?? undefined,
       }),
-    enabled: classId !== null && examTypeId !== null,
+    enabled: classId !== null && examTypeId !== null && semester !== null,
   });
 }
 
@@ -81,11 +84,12 @@ export function useAdvisorExaminationGrid(classId: number | null, examTypeId: nu
  * so this fetches it as a blob with the auth header attached, then triggers
  * a normal browser download from an in-memory object URL.
  */
-export async function downloadAdvisorExaminationGrid(classId: number, examTypeId: number, filename: string): Promise<void> {
+export async function downloadAdvisorExaminationGrid(classId: number, examTypeId: number, semester: number, filename: string): Promise<void> {
   const token = getToken();
   const url = new URL(`${API_BASE_URL}/me/advisor-examinations/grid/export`);
   url.searchParams.set("class_id", String(classId));
   url.searchParams.set("exam_type_id", String(examTypeId));
+  url.searchParams.set("semester", String(semester));
 
   const res = await fetch(url.toString(), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

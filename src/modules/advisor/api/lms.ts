@@ -80,6 +80,15 @@ export function useAddLinkResource() {
   });
 }
 
+/** DELETE /me/lms/resources/:id */
+export function useDeleteResource() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ resourceId }: { resourceId: number; folderId: number }) => apiClient.delete(`/me/lms/resources/${resourceId}`),
+    onSuccess: (_data, vars) => queryClient.invalidateQueries({ queryKey: ["me", "lms", "folders", vars.folderId, "resources"] }),
+  });
+}
+
 export interface LmsTask {
   id: number;
   title: string;

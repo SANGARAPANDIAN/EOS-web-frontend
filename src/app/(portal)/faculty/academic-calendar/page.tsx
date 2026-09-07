@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useFacultyAcademicCalendar } from "@/modules/advisor/api/employee";
 import { AcademicCalendarView } from "@/modules/shared/academic-calendar-view/AcademicCalendarView";
+import { usePersonalCalendarEntries, useDeletePersonalCalendarEntry } from "@/modules/shared/api/personalCalendar";
+import { AddPersonalNoteModal } from "@/modules/shared/components/AddPersonalNoteModal";
 
 // Backed by GET /me/faculty-academic-calendar (MeFacultyAcademicCalendarController).
 
@@ -34,6 +36,10 @@ export default function AdvisorAcademicCalendarPage() {
     [calendar.data],
   );
 
+  const personalNotes = usePersonalCalendarEntries();
+  const deleteNote = useDeletePersonalCalendarEntry();
+  const [addNoteDate, setAddNoteDate] = useState<string | null>(null);
+
   return (
     <div style={{ width: "100%" }}>
       <AcademicCalendarView
@@ -57,8 +63,13 @@ export default function AdvisorAcademicCalendarPage() {
         legend={[
           { label: "Published event", toneClassName: "border-border-accent bg-accent-50" },
           { label: "Weekend off (Sun · 2nd/4th Sat)", toneClassName: "border-danger-border bg-danger-bg" },
+          { label: "Your personal notes", toneClassName: "border-personal-border bg-personal-bg" },
         ]}
+        personalEvents={personalNotes.data ?? []}
+        onDayClick={(iso) => setAddNoteDate(iso)}
+        onDeletePersonalNote={(note) => deleteNote.mutate(Number(note.id))}
       />
+      <AddPersonalNoteModal date={addNoteDate} onClose={() => setAddNoteDate(null)} />
     </div>
   );
 }

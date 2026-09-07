@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Select, Input, Button, EmptyState, SkeletonTable } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { useDragScroll } from "@/lib/hooks/useDragScroll";
 import {
   useHodExaminationFilters,
   useHodExaminationGrid,
@@ -14,6 +15,7 @@ import {
 export default function HodExaminationsResultsPage() {
   const filters = useHodExaminationFilters();
   const router = useRouter();
+  const dragScrollRef = useDragScroll<HTMLDivElement>();
 
   const [batchId, setBatchId] = useState<number | null>(null);
   const [semester, setSemester] = useState<number | null>(null);
@@ -26,29 +28,31 @@ export default function HodExaminationsResultsPage() {
 
   const effectiveBatchId = batchId ?? filters.data?.batches[0]?.id ?? null;
 
-  const semesterOptions = useMemo(
-    () =>
-      [...new Set(classes.filter((c) => c.batch_id === effectiveBatchId).map((c) => c.semester))].sort(
-        (a, b) => a - b,
-      ),
+  // A class keeps the same id for its whole run — classes[].semester is
+  // only ever *today's* semester for it, so Section is resolved from batch
+  // alone (every section of a batch normally sits at the same current
+  // semester anyway). Semester itself is a fully independent selector below,
+  // driven by filters.data.semesters (every semester with real exam data),
+  // not by which classes currently happen to be at that semester — the same
+  // fix as the Advisor/Faculty view, for the same reason: current_semester
+  // can never surface an earlier semester's results.
+  const sectionOptions = useMemo(
+    () => classes.filter((c) => c.batch_id === effectiveBatchId).sort((a, b) => a.section.localeCompare(b.section)),
     [classes, effectiveBatchId],
   );
-  const effectiveSemester = semester ?? semesterOptions[0] ?? null;
-
-  const sectionOptions = useMemo(
-    () =>
-      classes
-        .filter((c) => c.batch_id === effectiveBatchId && c.semester === effectiveSemester)
-        .sort((a, b) => a.section.localeCompare(b.section)),
-    [classes, effectiveBatchId, effectiveSemester],
-  );
   const effectiveSection = section ?? sectionOptions[0]?.section ?? null;
+  const selectedClass = sectionOptions.find((c) => c.section === effectiveSection) ?? null;
+
+  const availableSemesters = filters.data?.semesters ?? [];
+  const effectiveSemester =
+    semester ??
+    (selectedClass && availableSemesters.some((s) => s.semester === selectedClass.semester) ? selectedClass.semester : null) ??
+    availableSemesters[availableSemesters.length - 1]?.semester ??
+    null;
 
   const effectiveExamTypeId = examTypeId ?? filters.data?.exam_types[0]?.id ?? null;
 
-  const selectedClass = sectionOptions.find((c) => c.section === effectiveSection) ?? null;
-
-  const grid = useHodExaminationGrid(selectedClass?.class_id ?? null, effectiveExamTypeId);
+  const grid = useHodExaminationGrid(selectedClass?.class_id ?? null, effectiveExamTypeId, effectiveSemester);
 
   const filteredRows = useMemo(() => {
     const rows = grid.data?.rows ?? [];
@@ -67,12 +71,12 @@ export default function HodExaminationsResultsPage() {
       (s, i) => ({
         key: `subject-${s.id}`,
         header: (
-          <div className="max-w-[160px]" title={s.name}>
+          <div title={s.name}>
             <div className="font-extrabold text-ink normal-case tracking-normal">{s.code}</div>
-            <div className="mt-0.5 truncate font-medium text-subtle normal-case tracking-normal">{s.name}</div>
+            <div className="mt-0.5 whitespace-normal break-words font-medium leading-[1.25] text-subtle normal-case tracking-normal">{s.name}</div>
           </div>
         ),
-        width: "110px",
+        width: "130px",
         render: (row) => <span className="text-[13px] text-ink">{(isExternal ? row.grades?.[i] : row.marks[i]) ?? "—"}</span>,
       }),
     );
@@ -92,10 +96,17 @@ export default function HodExaminationsResultsPage() {
         ),
       },
       {
+        // Fixed px, not a flexible fr unit — same fix as the Faculty
+        // Examinations & Results page (identical shared ExamResultsGridService
+        // grid). DataTable renders every row as its own independent CSS
+        // grid, so a flexible column's width is computed per-row from that
+        // row's own content — a name with one long unbreakable word (no
+        // space to wrap at) pushed just that row's column wider than its
+        // siblings, desyncing Dept/Sec/marks row-to-row.
         key: "name",
         header: "Candidate",
-        width: "1.6fr",
-        render: (row) => <span className="text-[13.5px] font-bold text-ink">{row.name ?? "—"}</span>,
+        width: "170px",
+        render: (row) => <span className="block break-words text-[13.5px] font-bold text-ink">{row.name ?? "—"}</span>,
       },
       {
         key: "dept",
@@ -114,13 +125,13 @@ export default function HodExaminationsResultsPage() {
   }, [grid.data, router]);
 
   async function handleDownload() {
-    if (!selectedClass || !effectiveExamTypeId || !grid.data) return;
+    if (!selectedClass || !effectiveExamTypeId || !effectiveSemester || !grid.data) return;
     setDownloading(true);
     try {
       const filename = `examinations-${grid.data.department.code}-${grid.data.class.year_label}${grid.data.class.section}-${grid.data.exam_type.name}`
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-");
-      await downloadHodExaminationGrid(selectedClass.class_id, effectiveExamTypeId, `${filename}.xlsx`);
+      await downloadHodExaminationGrid(selectedClass.class_id, effectiveExamTypeId, effectiveSemester, `${filename}.xlsx`);
     } finally {
       setDownloading(false);
     }
@@ -152,7 +163,6 @@ export default function HodExaminationsResultsPage() {
               value={effectiveBatchId ?? ""}
               onChange={(e) => {
                 setBatchId(Number(e.target.value));
-                setSemester(null);
                 setSection(null);
               }}
             >
@@ -171,16 +181,10 @@ export default function HodExaminationsResultsPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-[13px] font-bold text-ink">Semester</label>
-            <Select
-              value={effectiveSemester ?? ""}
-              onChange={(e) => {
-                setSemester(Number(e.target.value));
-                setSection(null);
-              }}
-            >
-              {semesterOptions.map((s) => (
-                <option key={s} value={s}>
-                  Semester {s}
+            <Select value={effectiveSemester ?? ""} onChange={(e) => setSemester(Number(e.target.value))}>
+              {availableSemesters.map((s) => (
+                <option key={s.semester} value={s.semester}>
+                  Semester {s.semester}
                 </option>
               ))}
             </Select>
@@ -238,8 +242,24 @@ export default function HodExaminationsResultsPage() {
         ) : anyError ? null : !grid.data || grid.data.papers === 0 ? (
           <EmptyState message="No examination found for this selection." />
         ) : (
-          <div className="overflow-x-auto">
-            <DataTable columns={columns} data={filteredRows} rowKey={(r) => r.student_id} rowClassName="hod-hover-row" />
+          <div ref={dragScrollRef} className="cursor-grab overflow-x-auto">
+            {/* Every column here is a fixed px width (no flexible `fr` track
+                to absorb a narrow viewport, since Candidate's own column was
+                deliberately made fixed-px too — see its comment below), so
+                the table's real width can exceed the card. `width:
+                max-content` makes DataTable's wrapper (and every row inside
+                it, which fills its parent) genuinely that wide instead of
+                being squeezed to the card and silently clipping the last
+                subject columns — the drag-scrollable div above then makes
+                the excess reachable instead of invisible. `minWidth: 100%`
+                keeps a few-subject exam from looking oddly narrow. */}
+            <DataTable
+              columns={columns}
+              data={filteredRows}
+              rowKey={(r) => r.student_id}
+              rowClassName="hod-hover-row"
+              style={{ width: "max-content", minWidth: "100%" }}
+            />
           </div>
         )}
       </Card>

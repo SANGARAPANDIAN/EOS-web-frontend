@@ -206,7 +206,7 @@ export default function AdvisorAnnouncementsPage() {
                   onChange={(e) => setClassId(e.target.value === "all" ? "all" : Number(e.target.value))}
                   style={{ width: "100%", marginTop: 8, height: 46, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 12px", fontFamily: "inherit", fontSize: 13.5, fontWeight: 600, background: "#F8FAFC" }}
                 >
-                  <option value="all">All classes I teach</option>
+                  <option value="all">All Class</option>
                   {classOptions.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label}

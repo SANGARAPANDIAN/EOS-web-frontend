@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useMyAcademicCalendar } from "@/modules/student/api/profile";
 import { academicYearLabel } from "@/lib/utils/date";
 import { AcademicCalendarView } from "@/modules/shared/academic-calendar-view/AcademicCalendarView";
-import { usePersonalCalendarEntries, useDeletePersonalCalendarEntry } from "@/modules/student/api/personalCalendar";
-import { AddPersonalNoteModal } from "@/modules/student/components/AddPersonalNoteModal";
+import { usePersonalCalendarEntries, useDeletePersonalCalendarEntry } from "@/modules/shared/api/personalCalendar";
+import { AddPersonalNoteModal } from "@/modules/shared/components/AddPersonalNoteModal";
 
 // The real schema only distinguishes `holiday` vs a generic `event` — the
 // design reference's richer Examination/Placement/Institution/Finance tags

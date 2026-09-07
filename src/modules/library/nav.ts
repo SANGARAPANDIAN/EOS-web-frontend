@@ -22,6 +22,7 @@ export const libraryModuleConfig: ModuleConfig = {
     {
       label: "Circulation",
       items: [
+        { key: "requests", label: "Requests", icon: "hourglass_top", href: `${BASE}/requests`, badgeKey: "libraryPendingRequests" },
         { key: "issue", label: "Issue books", icon: "assignment_turned_in", href: `${BASE}/issue` },
         { key: "returns", label: "Returns & renewals", icon: "assignment_return", href: `${BASE}/returns` },
         { key: "overdue", label: "Overdue & fines", icon: "schedule", href: `${BASE}/overdue` },

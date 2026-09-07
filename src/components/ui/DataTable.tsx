@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils/cn";
 
@@ -26,6 +26,18 @@ interface DataTableProps<T> {
   /** Shows the spinner in place of the empty-state row/message while data is still loading. */
   loading?: boolean;
   className?: string;
+  /**
+   * Forwarded straight onto the outer wrapper div — every existing consumer
+   * omits this (no behavior change for them). Exists for the rare table
+   * whose columns are all fixed px (no flexible `fr` track to absorb a
+   * narrow viewport): pass `{ width: "max-content", minWidth: "100%" }` so
+   * the wrapper genuinely widens to its columns' real total width instead
+   * of being squeezed to the container and silently clipping columns via
+   * the wrapper's own `overflow-hidden` — then wrap this DataTable in your
+   * own `overflow-x-auto` div so the excess becomes scrollable instead of
+   * invisible.
+   */
+  style?: CSSProperties;
   /** Extra className applied to each row div — omit for the default no-hover row (Student reference). Pass "hod-hover-row" etc. for modules whose reference does show a per-row hover lift. */
   rowClassName?: string;
   /** Lifts + outlines + tints the row under the cursor, matching the design reference's list-row hover. Uses `outline` (not `border`) so hovering never shifts layout. */
@@ -59,6 +71,7 @@ export function DataTable<T>({
   emptyMessage = "No records found.",
   loading,
   className,
+  style,
   rowClassName,
   hoverableRows = false,
   onRowClick,
@@ -91,7 +104,7 @@ export function DataTable<T>({
   };
 
   return (
-    <div className={cn("overflow-hidden rounded-card border border-border-default bg-surface", className)}>
+    <div className={cn("overflow-hidden rounded-card border border-border-default bg-surface", className)} style={style}>
       {(title || titleNote) && (
         <div className="flex items-center justify-between gap-4 border-b border-divider px-5 py-3.5">
           <span className="text-[15px] font-extrabold text-ink">{title}</span>
@@ -130,7 +143,15 @@ export function DataTable<T>({
             key={rowKey(row)}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             className={cn(
-              "relative grid items-center gap-2 border-t border-divider px-5 py-3.5 text-[13px] text-ink",
+              // items-start, not items-center: when one cell wraps onto
+              // multiple lines (e.g. a long candidate name) while its
+              // row-mates are single-line, centering makes every cell's
+              // content sit at a different vertical offset row-to-row —
+              // top-aligning keeps a consistent, scannable baseline
+              // regardless of how tall any one row's tallest cell gets.
+              // No visible difference for the common case (every cell in
+              // the row the same height).
+              "relative grid items-start gap-2 border-t border-divider px-5 py-3.5 text-[13px] text-ink",
               hoverableRows &&
                 "outline outline-1 -outline-offset-1 outline-transparent transition-all duration-150 hover:z-10 hover:-translate-y-0.5 hover:bg-accent-50 hover:outline-primary hover:shadow-hover-lift",
               onRowClick && "cursor-pointer",

@@ -185,7 +185,7 @@ export interface VenueBookingRow {
   accommodating_strength: number | null;
   status: string | null;
   created_at: string;
-  venues_venue_bookings_venue_idTovenues: { id: number; name: string; location: string | null; capacity: number | null };
+  venue: { id: number; name: string; location: string | null; capacity: number | null };
 }
 
 export function useMyVenueBookings() {

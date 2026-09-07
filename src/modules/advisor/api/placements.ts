@@ -36,6 +36,10 @@ export interface MentoredStudent {
   name: string;
   section: string | null;
   department_name: string | null;
+  /** Real count of every student_drive_applications row for this mentee,
+   * any status — includes still-in-progress applications, unlike the
+   * concluded-only (placed/rejected) placement-history endpoints. */
+  total_applications: number;
 }
 
 /** GET /me/mentored-students (Faculty) — every student in a class this

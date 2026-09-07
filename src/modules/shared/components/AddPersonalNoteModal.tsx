@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Modal, Button, Input } from "@/components/ui";
-import { useAddPersonalCalendarEntry } from "@/modules/student/api/personalCalendar";
+import { useAddPersonalCalendarEntry } from "@/modules/shared/api/personalCalendar";
 
 interface AddPersonalNoteModalProps {
   /** "YYYY-MM-DD" of the day clicked on the calendar grid, or null when the modal is closed. */
@@ -15,6 +15,10 @@ interface AddPersonalNoteModalProps {
  * was clicked — no date picker, just a title. Deliberately simpler than the
  * institution CalendarEventModal (no type/start-time/end-time — a personal
  * note has none of that), matching how little the user actually asked for.
+ *
+ * Role-generic — used by Student, Principal, HoD and Faculty academic
+ * calendar pages alike, since a personal note is only ever visible to
+ * whoever created it (see usePersonalCalendarEntries).
  *
  * The full-screen Modal backdrop makes clicking a different day cell
  * impossible while this is open, so `date` only ever transitions

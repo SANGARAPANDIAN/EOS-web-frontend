@@ -3,12 +3,18 @@
 import { useState } from "react";
 import { useHodAcademicCalendarMonth } from "@/modules/hod/api/academicCalendar";
 import { AcademicCalendarView } from "@/modules/shared/academic-calendar-view/AcademicCalendarView";
+import { usePersonalCalendarEntries, useDeletePersonalCalendarEntry } from "@/modules/shared/api/personalCalendar";
+import { AddPersonalNoteModal } from "@/modules/shared/components/AddPersonalNoteModal";
 
 export default function HodAcademicCalendarPage() {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-indexed
   const calendar = useHodAcademicCalendarMonth(viewYear, viewMonth + 1);
+
+  const personalNotes = usePersonalCalendarEntries();
+  const deleteNote = useDeletePersonalCalendarEntry();
+  const [addNoteDate, setAddNoteDate] = useState<string | null>(null);
 
   return (
     <div className="animate-pop-in">
@@ -29,7 +35,12 @@ export default function HodAcademicCalendarPage() {
           setViewYear(d.getFullYear());
           setViewMonth(d.getMonth());
         }}
+        legend={[{ label: "Your personal notes", toneClassName: "border-personal-border bg-personal-bg" }]}
+        personalEvents={personalNotes.data ?? []}
+        onDayClick={(iso) => setAddNoteDate(iso)}
+        onDeletePersonalNote={(note) => deleteNote.mutate(Number(note.id))}
       />
+      <AddPersonalNoteModal date={addNoteDate} onClose={() => setAddNoteDate(null)} />
     </div>
   );
 }

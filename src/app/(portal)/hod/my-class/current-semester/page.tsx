@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Card, Badge, Button, Input, Textarea, ProgressBar, SkeletonCardGrid } from "@/components/ui";
+import { Card, Badge, Button, Input, Textarea, ProgressBar, SkeletonCardGrid, ConfirmDialog, IconButton } from "@/components/ui";
+import { cn } from "@/lib/utils/cn";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useHodCurrentSemester, type HodCurrentSemesterSubject } from "@/modules/hod/api/myClassCurrentSemester";
 import {
@@ -10,6 +11,7 @@ import {
   useFolderResources,
   useAddLinkResource,
   useAddFileResource,
+  useDeleteResource,
   useFacultyTasks,
   useCreateLmsTask,
   useTaskSubmissions,
@@ -96,6 +98,8 @@ function MaterialTab({ subject, classOptions }: { subject: HodCurrentSemesterSub
   const [linkUrl, setLinkUrl] = useState("");
   const addFile = useAddFileResource();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const deleteResource = useDeleteResource();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
 
   function toggleClass(classId: number) {
     setSelectedClassIds((prev) => (prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]));
@@ -216,10 +220,28 @@ function MaterialTab({ subject, classOptions }: { subject: HodCurrentSemesterSub
                 e.target.value = "";
               }}
             />
-            <Button variant="secondary" className="flex-1 border-border-accent text-primary" onClick={() => fileInputRef.current?.click()} loading={addFile.isPending}>
+            <Button
+              variant="secondary"
+              className={cn(
+                "flex-1",
+                showAddLink ? "border-border-default bg-surface text-ink" : "border-border-accent bg-accent-50 text-primary",
+              )}
+              onClick={() => {
+                setShowAddLink(false);
+                fileInputRef.current?.click();
+              }}
+              loading={addFile.isPending}
+            >
               Upload file
             </Button>
-            <Button variant="secondary" className="flex-1" onClick={() => setShowAddLink((v) => !v)}>
+            <Button
+              variant="secondary"
+              className={cn(
+                "flex-1",
+                showAddLink ? "border-border-accent bg-accent-50 text-primary" : "border-border-default bg-surface text-ink",
+              )}
+              onClick={() => setShowAddLink((v) => !v)}
+            >
               Add link
             </Button>
           </div>
@@ -253,6 +275,13 @@ function MaterialTab({ subject, classOptions }: { subject: HodCurrentSemesterSub
               >
                 Open
               </a>
+              <IconButton
+                icon="close"
+                size={34}
+                iconSize={16}
+                title="Remove"
+                onClick={() => setDeleteTarget({ id: item.id, title: item.title })}
+              />
             </div>
           ))}
           {activeFolderId && (resources.data ?? []).length === 0 && !resources.isLoading && (
@@ -260,6 +289,21 @@ function MaterialTab({ subject, classOptions }: { subject: HodCurrentSemesterSub
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Remove this item?"
+        description={deleteTarget ? `"${deleteTarget.title}" will be removed from this folder. This can't be undone.` : undefined}
+        confirmLabel="Remove"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget && activeFolderId) {
+            deleteResource.mutate({ resourceId: deleteTarget.id, folderId: activeFolderId });
+          }
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

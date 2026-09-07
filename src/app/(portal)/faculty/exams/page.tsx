@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, Select, Input, Button, EmptyState, SkeletonTable } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { useDragScroll } from "@/lib/hooks/useDragScroll";
 import {
   useAdvisorExaminationFilters,
   useAdvisorExaminationGrid,
@@ -20,8 +21,10 @@ import {
 // AdvisorExaminationsService on the backend for that gap now being closed).
 export default function AdvisorExamsPage() {
   const filters = useAdvisorExaminationFilters();
+  const dragScrollRef = useDragScroll<HTMLDivElement>();
 
   const [classId, setClassId] = useState<number | null>(null);
+  const [semester, setSemester] = useState<number | null>(null);
   const [examTypeId, setExamTypeId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -31,7 +34,17 @@ export default function AdvisorExamsPage() {
   const effectiveExamTypeId = examTypeId ?? filters.data?.exam_types[0]?.id ?? null;
   const selectedClass = classes.find((c) => c.class_id === effectiveClassId) ?? null;
 
-  const grid = useAdvisorExaminationGrid(effectiveClassId, effectiveExamTypeId);
+  // Defaults to the selected class's own current semester when that
+  // semester actually has exam data, otherwise the most recent semester
+  // that does — never silently lands on an empty grid on first load.
+  const availableSemesters = filters.data?.semesters ?? [];
+  const effectiveSemester =
+    semester ??
+    (selectedClass && availableSemesters.some((s) => s.semester === selectedClass.semester) ? selectedClass.semester : null) ??
+    availableSemesters[availableSemesters.length - 1]?.semester ??
+    null;
+
+  const grid = useAdvisorExaminationGrid(effectiveClassId, effectiveExamTypeId, effectiveSemester);
 
   const filteredRows = useMemo(() => {
     const rows = grid.data?.rows ?? [];
@@ -47,12 +60,12 @@ export default function AdvisorExamsPage() {
     const subjectCols: DataTableColumn<AdvisorExaminationRow>[] = (grid.data?.subjects ?? []).map((s, i) => ({
       key: `subject-${s.id}`,
       header: (
-        <div className="max-w-[160px]" title={s.name}>
+        <div title={s.name}>
           <div className="font-extrabold text-ink normal-case tracking-normal">{s.code}</div>
-          <div className="mt-0.5 truncate font-medium text-subtle normal-case tracking-normal">{s.name}</div>
+          <div className="mt-0.5 whitespace-normal break-words font-medium leading-[1.25] text-subtle normal-case tracking-normal">{s.name}</div>
         </div>
       ),
-      width: "110px",
+      width: "130px",
       render: (row) => <span className="text-[13px] text-ink">{(isExternal ? row.grades?.[i] : row.marks[i]) ?? "—"}</span>,
     }));
 
@@ -64,10 +77,19 @@ export default function AdvisorExamsPage() {
         render: (row) => <span className="text-[13.5px] font-extrabold text-ink">{row.register_no}</span>,
       },
       {
+        // Fixed px, not a flexible fr unit — DataTable renders every row as
+        // its own independent CSS grid, so a flexible column's actual width
+        // is computed per-row from that row's own content. A name with one
+        // long unbreakable word (no space to wrap at, e.g. a surname like
+        // "Balasubramanian") pushed just THAT row's flexible column wider
+        // than its siblings, desyncing every column after it row-to-row. A
+        // fixed width can't be grown by content — every row gets the exact
+        // same track size, so Dept/Sec/marks columns line up regardless of
+        // any one candidate's name length.
         key: "name",
         header: "Candidate",
-        width: "1.6fr",
-        render: (row) => <span className="text-[13.5px] font-bold text-ink">{row.name ?? "—"}</span>,
+        width: "170px",
+        render: (row) => <span className="block break-words text-[13.5px] font-bold text-ink">{row.name ?? "—"}</span>,
       },
       { key: "dept", header: "Dept", width: "60px", render: () => <span className="text-[13px] text-subtle">{deptCode}</span> },
       { key: "sec", header: "Sec", width: "50px", render: () => <span className="text-[13px] text-subtle">{sectionLabel}</span> },
@@ -76,13 +98,13 @@ export default function AdvisorExamsPage() {
   }, [grid.data]);
 
   async function handleDownload() {
-    if (!selectedClass || !effectiveExamTypeId || !grid.data) return;
+    if (!selectedClass || !effectiveExamTypeId || !effectiveSemester || !grid.data) return;
     setDownloading(true);
     try {
       const filename = `examinations-${grid.data.department.code}-${grid.data.class.year_label}${grid.data.class.section}-${grid.data.exam_type.name}`
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-");
-      await downloadAdvisorExaminationGrid(selectedClass.class_id, effectiveExamTypeId, `${filename}.xlsx`);
+      await downloadAdvisorExaminationGrid(selectedClass.class_id, effectiveExamTypeId, effectiveSemester, `${filename}.xlsx`);
     } finally {
       setDownloading(false);
     }
@@ -114,13 +136,23 @@ export default function AdvisorExamsPage() {
       ) : (
         <>
           <Card className="hod-hover-card">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="mb-1.5 block text-[13px] font-bold text-ink">Class</label>
                 <Select value={effectiveClassId ?? ""} onChange={(e) => setClassId(Number(e.target.value))}>
                   {classes.map((c) => (
                     <option key={c.class_id} value={c.class_id}>
                       {c.year_label}-{c.section} · {c.department?.code ?? "—"} · {c.batch_label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[13px] font-bold text-ink">Semester</label>
+                <Select value={effectiveSemester ?? ""} onChange={(e) => setSemester(Number(e.target.value))}>
+                  {availableSemesters.map((s) => (
+                    <option key={s.semester} value={s.semester}>
+                      Semester {s.semester}
                     </option>
                   ))}
                 </Select>
@@ -158,8 +190,25 @@ export default function AdvisorExamsPage() {
             ) : anyError ? null : !grid.data || grid.data.papers === 0 ? (
               <EmptyState message="No examination found for this selection." />
             ) : (
-              <div className="overflow-x-auto">
-                <DataTable columns={columns} data={filteredRows} rowKey={(r) => r.student_id} rowClassName="hod-hover-row" />
+              <div ref={dragScrollRef} className="cursor-grab overflow-x-auto">
+                {/* Every column here is a fixed px width (no flexible `fr`
+                    track to absorb a narrow viewport, since Candidate's own
+                    column was deliberately made fixed-px too — see its
+                    comment below), so the table's real width can exceed the
+                    card. `width: max-content` makes DataTable's wrapper (and
+                    every row inside it, which fills its parent) genuinely
+                    that wide instead of being squeezed to the card and
+                    silently clipping the last subject columns — the
+                    drag-scrollable div above then makes the excess reachable
+                    instead of invisible. `minWidth: 100%` keeps a
+                    few-subject exam from looking oddly narrow. */}
+                <DataTable
+                  columns={columns}
+                  data={filteredRows}
+                  rowKey={(r) => r.student_id}
+                  rowClassName="hod-hover-row"
+                  style={{ width: "max-content", minWidth: "100%" }}
+                />
               </div>
             )}
           </Card>

@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, Button, SkeletonRows } from "@/components/ui";
+import { Card, Badge, Button, ConfirmDialog, SkeletonRows } from "@/components/ui";
 import { SearchBar } from "@/components/ui/SearchBar";
 import {
   useHodLibraryOverview,
-  useRenewHodLibraryBook,
-  useRequestHodLibraryBook,
   useLibraryBookSearch,
   useLibraryEResources,
 } from "@/modules/hod/api/employeeLibrary";
+import { useMyBorrowRequests, useCreateBorrowRequest } from "@/modules/shared/api/libraryRequests";
 import { formatDisplayDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
+import { ApiError } from "@/types/api";
 
 type Tab = "borrowed" | "search" | "e-resources" | "history";
 
@@ -79,9 +79,9 @@ export default function HodEmployeeLibraryPage() {
 }
 
 function BorrowedTab({ overview }: { overview: ReturnType<typeof useHodLibraryOverview> }) {
-  const renew = useRenewHodLibraryBook();
   const rows = overview.data?.borrowed ?? [];
-  const maxRenewals = overview.data?.max_renewals ?? 0;
+  const myRequests = useMyBorrowRequests();
+  const pendingRequests = (myRequests.data ?? []).filter((r) => r.status === "pending");
 
   if (overview.isLoading) {
     return <SkeletonRows count={3} />;
@@ -89,20 +89,31 @@ function BorrowedTab({ overview }: { overview: ReturnType<typeof useHodLibraryOv
   if (overview.isError) {
     return null;
   }
-  if (rows.length === 0) {
+  if (rows.length === 0 && pendingRequests.length === 0) {
     return (
       <Card>
-        <div className="text-[13px] text-subtle">No books currently borrowed.</div>
+        <div className="text-[13px] text-subtle">No books currently borrowed or requested.</div>
       </Card>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {pendingRequests.map((r) => (
+        <Card key={`req-${r.id}`} className="hod-hover-card">
+          <div className="flex items-center gap-4">
+            <div className="size-12 shrink-0 rounded-[10px] bg-accent-50" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[16px] font-extrabold text-ink">{r.book?.title ?? "—"}</div>
+              <div className="mt-0.5 text-[12px] text-subtle">Requested {formatDisplayDate(r.requested_at)}</div>
+            </div>
+            <Badge tone="accent">AWAITING LIBRARIAN</Badge>
+          </div>
+        </Card>
+      ))}
       {rows.map((r) => {
         const left = daysLeft(r.due_date);
         const overdue = r.is_overdue || left < 0;
-        const canRenew = !overdue && r.renewal_count < maxRenewals;
         return (
           <Card key={r.id} className="hod-hover-card">
             <div className="flex items-center gap-4">
@@ -119,15 +130,6 @@ function BorrowedTab({ overview }: { overview: ReturnType<typeof useHodLibraryOv
               <Badge tone={overdue ? "danger" : "accent"}>
                 {overdue ? "OVERDUE" : `${left} DAY${left === 1 ? "" : "S"} LEFT`}
               </Badge>
-              <Button
-                variant="secondary"
-                onClick={() => renew.mutate(r.id)}
-                disabled={!canRenew}
-                loading={renew.isPending}
-                title={!canRenew ? (overdue ? "Overdue books cannot be renewed" : "Renewal limit reached") : undefined}
-              >
-                Renew
-              </Button>
             </div>
           </Card>
         );
@@ -146,8 +148,23 @@ const AVAILABILITY_TONE_CLASS = {
 function SearchTab() {
   const [q, setQ] = useState("");
   const search = useLibraryBookSearch(q);
-  const request = useRequestHodLibraryBook();
   const rows = search.data?.data ?? [];
+
+  const myRequests = useMyBorrowRequests();
+  const createRequest = useCreateBorrowRequest();
+  const pendingBookIds = new Set((myRequests.data ?? []).filter((r) => r.status === "pending").map((r) => r.book?.id));
+  const [requestTarget, setRequestTarget] = useState<{ id: number; title: string } | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+
+  function confirmRequest() {
+    if (!requestTarget) return;
+    const bookId = requestTarget.id;
+    setRequestError(null);
+    createRequest.mutate(bookId, {
+      onError: (err) => setRequestError(err instanceof ApiError ? err.message : "Could not submit this request. Please try again."),
+    });
+    setRequestTarget(null);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -162,6 +179,11 @@ function SearchTab() {
           Couldn&apos;t load the catalogue — please try again.
         </div>
       )}
+      {requestError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          {requestError}
+        </div>
+      )}
       {search.isLoading ? (
         <SkeletonRows count={3} />
       ) : search.isError ? null : rows.length === 0 ? (
@@ -174,6 +196,7 @@ function SearchTab() {
         <div className="flex flex-col gap-3">
           {rows.map((b) => {
             const available = b.available_copies > 0;
+            const alreadyPending = pendingBookIds.has(b.id);
             return (
               <Card key={b.id} className="hod-hover-card">
                 <div className="flex items-center gap-4">
@@ -196,19 +219,33 @@ function SearchTab() {
                   >
                     {available ? "AVAILABLE" : "RESERVE"}
                   </span>
-                  <Button
-                    variant="secondary"
-                    onClick={() => request.mutate(b.id)}
-                    loading={request.isPending}
-                  >
-                    Request
-                  </Button>
+                  {alreadyPending ? (
+                    <Badge tone="accent">PENDING</Badge>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setRequestTarget({ id: b.id, title: b.title })}
+                      disabled={!available}
+                      loading={createRequest.isPending && createRequest.variables === b.id}
+                    >
+                      Request
+                    </Button>
+                  )}
                 </div>
               </Card>
             );
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={requestTarget !== null}
+        title="Request this book?"
+        description={requestTarget ? `You're about to request "${requestTarget.title}". A librarian needs to accept it before it's borrowed — you'll see it under "Borrowed" once they do.` : undefined}
+        confirmLabel="Request"
+        onConfirm={confirmRequest}
+        onCancel={() => setRequestTarget(null)}
+      />
     </div>
   );
 }

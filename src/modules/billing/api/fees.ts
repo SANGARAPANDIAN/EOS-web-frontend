@@ -407,6 +407,8 @@ export interface FeeStructureRow {
   quota_id: number | null;
   academic_year: string;
   created_at: string;
+  /** Universal — one date covers every student demanded against this structure. Null until set. */
+  due_date: string | null;
   fee_structure_items: FeeStructureItemRow[];
   fee_concessions: FeeConcessionRow[];
 }
@@ -431,6 +433,8 @@ export interface CreateFeeStructureInput {
   applies_to: FeeStructureAppliesTo;
   quota_id?: number;
   academic_year: string;
+  /** YYYY-MM-DD. Optional — an undated structure never triggers a reminder. */
+  due_date?: string;
   items: CreateFeeStructureItemInput[];
 }
 
@@ -448,6 +452,8 @@ export interface UpdateFeeStructureInput {
   applies_to: FeeStructureAppliesTo;
   quota_id?: number;
   academic_year: string;
+  /** YYYY-MM-DD. See CreateFeeStructureInput.due_date. */
+  due_date?: string;
 }
 
 /** PUT /fee-structures/:id — simpler than Create: no items array (old-frontend-exact). */

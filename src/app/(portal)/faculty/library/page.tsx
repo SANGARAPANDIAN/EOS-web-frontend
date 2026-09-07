@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useMyBorrowRecords, useSearchBooks, useEResources } from "@/modules/advisor/api/library";
+import { useMyBorrowRequests, useCreateBorrowRequest } from "@/modules/shared/api/libraryRequests";
 import { AdvisorIcon } from "@/modules/advisor/icons";
+import { ConfirmDialog } from "@/components/ui";
+import { ApiError } from "@/types/api";
 
 // Design-exact 4-tab layout, reordered per instruction: Search / E-resources
 // / Borrowed / History (Search first, so the catalogue is the landing tab).
@@ -14,8 +17,11 @@ import { AdvisorIcon } from "@/modules/advisor/icons";
 // named external vendor/database like "IEEE Xplore"/"Springer Link"; those
 // specific names have zero backing anywhere in schema.prisma and are never
 // hardcoded here — this renders whatever real rows a librarian entered).
-// Faculty have no borrow/renew/return actions — read-only, per the real
-// @Roles guards (those mutations are library-staff/admin only).
+// Faculty have no direct borrow/renew/return actions — those mutations stay
+// library-staff/admin only, per the real @Roles guards — but CAN now
+// self-service Request a book (POST /me/library/borrow-requests, same
+// request→librarian-accept flow Student uses), which a librarian reviews
+// on the Library "Requests" queue exactly like a student's request.
 //
 // Fixed bug: the Search tab previously only fired its query once the user
 // typed something and pressed Enter (`enabled: q.length > 0` on the hook) —
@@ -58,6 +64,23 @@ export default function AdvisorLibraryPage() {
   const eResources = useEResources();
 
   const overdueCount = borrowedRows.filter((r) => r.is_overdue).length;
+
+  const myRequests = useMyBorrowRequests();
+  const createRequest = useCreateBorrowRequest();
+  const pendingRequests = (myRequests.data ?? []).filter((r) => r.status === "pending");
+  const pendingBookIds = new Set(pendingRequests.map((r) => r.book?.id));
+  const [requestTarget, setRequestTarget] = useState<{ id: number; title: string } | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+
+  function confirmRequest() {
+    if (!requestTarget) return;
+    const bookId = requestTarget.id;
+    setRequestError(null);
+    createRequest.mutate(bookId, {
+      onError: (err) => setRequestError(err instanceof ApiError ? err.message : "Could not submit this request. Please try again."),
+    });
+    setRequestTarget(null);
+  }
 
   return (
     <div style={{ width: "100%" }}>
@@ -110,32 +133,64 @@ export default function AdvisorLibraryPage() {
             </div>
           </div>
 
+          {requestError && (
+            <div style={{ marginTop: 16, padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, color: "#DC2626", fontSize: 12.5, fontWeight: 600 }}>
+              {requestError}
+            </div>
+          )}
+
           <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, marginTop: 16, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 1.1fr 1fr", padding: "15px 22px", borderBottom: "1px solid #EEF1F6", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1.1fr 1fr 1fr 1fr 1fr 0.9fr", padding: "15px 22px", borderBottom: "1px solid #EEF1F6", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>
               <div>TITLE</div>
               <div>AUTHOR</div>
               <div>CATEGORY</div>
               <div>ISBN</div>
               <div>RACK</div>
               <div>AVAILABILITY</div>
+              <div />
             </div>
-            {books.map((b) => (
-              <div key={b.id} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 1fr 1fr 1.1fr 1fr", padding: "14px 22px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.title}</div>
-                  {b.publisher && <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{b.publisher}{b.edition ? ` · ${b.edition}` : ""}</div>}
+            {books.map((b) => {
+              const alreadyPending = pendingBookIds.has(b.id);
+              const canRequest = b.available_copies > 0 && !alreadyPending;
+              return (
+                <div key={b.id} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "1.6fr 1.1fr 1fr 1fr 1fr 1fr 0.9fr", padding: "14px 22px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.title}</div>
+                    {b.publisher && <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{b.publisher}{b.edition ? ` · ${b.edition}` : ""}</div>}
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.author ?? "—"}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{b.category_name}</div>
+                  <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{b.isbn ?? "—"}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{b.rack?.rack_code ?? "—"}</div>
+                  <div>
+                    <span style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800, background: b.available_copies > 0 ? "#EFF6FF" : "#F1F5F9", border: `1px solid ${b.available_copies > 0 ? "#DBEAFE" : "#CBD5E1"}`, color: b.available_copies > 0 ? "#1D4ED8" : "#94A3B8" }}>
+                      {b.available_copies > 0 ? `${b.available_copies}/${b.total_copies}` : "NOT AVAILABLE"}
+                    </span>
+                  </div>
+                  <div>
+                    {alreadyPending ? (
+                      <span style={{ padding: "5px 10px", borderRadius: 20, fontSize: 10.5, fontWeight: 800, background: "#FFFBEB", border: "1px solid #FDE68A", color: "#92400E" }}>PENDING</span>
+                    ) : (
+                      <div
+                        onClick={() => canRequest && setRequestTarget({ id: b.id, title: b.title })}
+                        style={{
+                          textAlign: "center",
+                          padding: "7px 4px",
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: canRequest ? "pointer" : "not-allowed",
+                          background: canRequest ? "#1D4ED8" : "#E2E8F0",
+                          color: canRequest ? "#fff" : "#94A3B8",
+                        }}
+                      >
+                        {createRequest.isPending && createRequest.variables === b.id ? "…" : "Request"}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.author ?? "—"}</div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{b.category_name}</div>
-                <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600, fontFamily: "ui-monospace, monospace" }}>{b.isbn ?? "—"}</div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{b.rack?.rack_code ?? "—"}</div>
-                <div>
-                  <span style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800, background: b.available_copies > 0 ? "#EFF6FF" : "#F1F5F9", border: `1px solid ${b.available_copies > 0 ? "#DBEAFE" : "#CBD5E1"}`, color: b.available_copies > 0 ? "#1D4ED8" : "#94A3B8" }}>
-                    {b.available_copies > 0 ? `${b.available_copies}/${b.total_copies}` : "NOT AVAILABLE"}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {books.length === 0 && !search.isLoading && (
               <div style={{ padding: "40px 22px", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 14 }}>
                 {query ? `No books match "${query}".` : "No books in the catalogue yet."}
@@ -175,6 +230,18 @@ export default function AdvisorLibraryPage() {
 
       {tab === "Borrowed" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+          {pendingRequests.map((r) => (
+            <div key={`req-${r.id}`} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ width: 44, height: 58, borderRadius: 6, background: "#FFFBEB", border: "1px solid #FDE68A", flex: "0 0 44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <AdvisorIcon kind="library" width={18} height={18} style={{ color: "#92400E" }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em" }}>{r.book?.title ?? "—"}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600, marginTop: 4 }}>Requested {fmtDate(r.requested_at)}</div>
+              </div>
+              <span style={{ padding: "6px 12px", borderRadius: 20, background: "#FFFBEB", border: "1px solid #FDE68A", color: "#92400E", fontSize: 11.5, fontWeight: 800 }}>AWAITING LIBRARIAN</span>
+            </div>
+          ))}
           {borrowedRows.map((r) => (
             <div key={r.id} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
               <div style={{ width: 44, height: 58, borderRadius: 6, background: "#EFF6FF", border: "1px solid #DBEAFE", flex: "0 0 44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -192,8 +259,8 @@ export default function AdvisorLibraryPage() {
               </span>
             </div>
           ))}
-          {borrowedRows.length === 0 && !borrowed.isLoading && (
-            <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 54, textAlign: "center", color: "#94A3B8", fontWeight: 600 }}>No books currently borrowed.</div>
+          {borrowedRows.length === 0 && pendingRequests.length === 0 && !borrowed.isLoading && (
+            <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 54, textAlign: "center", color: "#94A3B8", fontWeight: 600 }}>No books currently borrowed or requested.</div>
           )}
         </div>
       )}
@@ -223,6 +290,15 @@ export default function AdvisorLibraryPage() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={requestTarget !== null}
+        title="Request this book?"
+        description={requestTarget ? `You're about to request "${requestTarget.title}". A librarian needs to accept it before it's borrowed — you'll see it under "Borrowed" once they do.` : undefined}
+        confirmLabel="Request"
+        onConfirm={confirmRequest}
+        onCancel={() => setRequestTarget(null)}
+      />
     </div>
   );
 }

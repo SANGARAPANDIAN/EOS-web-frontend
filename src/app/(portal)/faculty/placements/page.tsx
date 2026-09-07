@@ -44,24 +44,100 @@ function tabButtonStyle(active: boolean) {
   };
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  applied: "Applied",
-  r1_cleared: "Cleared round 1",
-  r2_cleared: "Cleared round 2",
-  r3_cleared: "Cleared round 3",
-  rejected: "Not cleared",
-  placed: "Selected",
-};
+// User-facing status is collapsed to exactly these 3 buckets everywhere on
+// this page (drive applicant lists, history selections) — the underlying
+// DriveApplicationStatus keeps its finer r1/r2/r3_cleared granularity in the
+// data, but nothing on this page needs to surface round-by-round status.
+type DriveStatusBucket = "Applied" | "Selected" | "Not selected";
 
-function statusRowStyle(status: string) {
-  if (status === "placed") return { bg: "#EFF6FF", border: "#DBEAFE", color: "#1D4ED8" };
-  if (status === "rejected") return { bg: "#F1F5F9", border: "#CBD5E1", color: "#475569" };
+function driveStatusBucket(status: string): DriveStatusBucket {
+  if (status === "placed") return "Selected";
+  if (status === "rejected") return "Not selected";
+  return "Applied";
+}
+
+function driveStatusStyle(bucket: DriveStatusBucket) {
+  if (bucket === "Selected") return { bg: "#EFF6FF", border: "#DBEAFE", color: "#1D4ED8" };
+  if (bucket === "Not selected") return { bg: "#F1F5F9", border: "#CBD5E1", color: "#475569" };
   return { bg: "#FFFBEB", border: "#FDE68A", color: "#92400E" };
+}
+
+interface DriveApplicantRow {
+  student_id: number;
+  student_id_no: string;
+  name: string;
+  status: string;
+}
+
+/** Shared STUDENT | CGPA | STATUS list — reused by both the Upcoming
+ * drives "View student list" expander and the History tab's per-drive
+ * selected-students expander, so a fix/redesign here covers both. */
+function DriveApplicantsTable({
+  rows,
+  cgpaByStudentId,
+  loading,
+  emptyMessage,
+}: {
+  rows: DriveApplicantRow[];
+  cgpaByStudentId: Map<number, number | null>;
+  loading?: boolean;
+  emptyMessage: string;
+}) {
+  return (
+    <div style={{ marginTop: 14, border: "1px solid #EEF1F6", borderRadius: 12, overflow: "hidden" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2.4fr 1fr 1.2fr",
+          padding: "12px 16px",
+          background: "#F8FAFC",
+          borderBottom: "1px solid #EEF1F6",
+          fontSize: 10.5,
+          fontWeight: 800,
+          letterSpacing: "0.09em",
+          color: "#94A3B8",
+        }}
+      >
+        <div>STUDENT</div>
+        <div>CGPA</div>
+        <div>STATUS</div>
+      </div>
+      {rows.map((s) => {
+        const bucket = driveStatusBucket(s.status);
+        const style = driveStatusStyle(bucket);
+        return (
+          <div key={s.student_id} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr 1.2fr", padding: "12px 16px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 32px" }}>
+                {initialsOf(s.name)}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{s.name}</div>
+                <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{s.student_id_no}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{cgpaByStudentId.get(s.student_id)?.toFixed(2) ?? "—"}</div>
+            <div>
+              <span style={{ padding: "5px 12px", borderRadius: 20, background: style.bg, border: `1px solid ${style.border}`, color: style.color, fontSize: 11, fontWeight: 800 }}>
+                {bucket}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+      {rows.length === 0 && !loading && (
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>{emptyMessage}</div>
+      )}
+    </div>
+  );
 }
 
 /** Own component (not inlined in a .map()) so useDriveApplications can be
  * called per-drive without violating Rules of Hooks over a variable-length
- * drives list — only fetches once its own drive card is expanded. */
+ * drives list. Fetches unconditionally (not gated on isOpen) — the
+ * Applied/Selected/Not-selected counts need to show on the collapsed card
+ * too, and each drive's application list is already scoped to just this
+ * advisor's own mentees, so the fetch stays small regardless. */
 function DriveCard({
   drive: d,
   isOpen,
@@ -73,9 +149,8 @@ function DriveCard({
   onToggle: () => void;
   cgpaByStudentId: Map<number, number | null>;
 }) {
-  const applications = useDriveApplications(isOpen ? d.drive_id : undefined);
+  const applications = useDriveApplications(d.drive_id);
   const rows = applications.data ?? [];
-  const clearedCount = rows.filter((r) => r.status !== "applied" && r.status !== "rejected").length;
 
   return (
     <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "20px 22px" }}>
@@ -100,77 +175,35 @@ function DriveCard({
           {d.status ? d.status.toUpperCase() : "—"}
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, paddingTop: 15, borderTop: "1px solid #F1F4F9" }}>
-        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.1em", color: "#94A3B8" }}>YOUR MENTEES IN THIS DRIVE</div>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#475569" }}>
-          {isOpen ? `${clearedCount} of ${rows.length} progressing` : `${d.registered_count ?? "—"} registered institution-wide`}
-        </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 14, paddingTop: 14, borderTop: "1px solid #F1F4F9", fontSize: 12.5, fontWeight: 600, color: "#7C8899", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 22, marginTop: 18, paddingTop: 15, borderTop: "1px solid #F1F4F9", fontSize: 12.5, fontWeight: 600, color: "#7C8899", flexWrap: "wrap" }}>
         <div>Eligibility {d.eligibility_cgpa != null ? `CGPA ${d.eligibility_cgpa}+` : "—"}</div>
-        <div>{d.registered_count ?? "—"} registered</div>
         <div onClick={onToggle} style={{ color: "#1D4ED8", fontWeight: 700, cursor: "pointer" }}>
           {isOpen ? "Hide student list ↑" : "View student list →"}
         </div>
       </div>
       {isOpen && (
-        <div style={{ marginTop: 14, border: "1px solid #EEF1F6", borderRadius: 12, overflow: "hidden" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2.2fr 1fr 1.4fr 1fr",
-              padding: "12px 16px",
-              background: "#F8FAFC",
-              borderBottom: "1px solid #EEF1F6",
-              fontSize: 10.5,
-              fontWeight: 800,
-              letterSpacing: "0.09em",
-              color: "#94A3B8",
-            }}
-          >
-            <div>STUDENT</div>
-            <div>CGPA</div>
-            <div>CURRENT ROUND</div>
-            <div>STATUS</div>
-          </div>
-          {rows.map((s) => {
-            const style = statusRowStyle(s.status);
-            return (
-              <div key={s.student_id} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1.4fr 1fr", padding: "12px 16px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 32px" }}>
-                    {initialsOf(s.name)}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{s.student_id_no}</div>
-                  </div>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{cgpaByStudentId.get(s.student_id)?.toFixed(2) ?? "—"}</div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-                  {s.last_cleared_round !== null ? `Round ${s.last_cleared_round} cleared` : "Not yet started"}
-                </div>
-                <div>
-                  <span style={{ padding: "5px 12px", borderRadius: 20, background: style.bg, border: `1px solid ${style.border}`, color: style.color, fontSize: 11, fontWeight: 800 }}>
-                    {STATUS_LABEL[s.status] ?? s.status.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-          {rows.length === 0 && !applications.isLoading && (
-            <div style={{ padding: "20px 16px", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>None of your mentees have applied to this drive.</div>
-          )}
-        </div>
+        <DriveApplicantsTable
+          rows={rows}
+          cgpaByStudentId={cgpaByStudentId}
+          loading={applications.isLoading}
+          emptyMessage="None of your mentees have applied to this drive."
+        />
       )}
     </div>
   );
 }
 
+type CgpaFilterOp = "" | "above" | "below" | "equal";
+
 export default function AdvisorPlacementsPage() {
-  const [tab, setTab] = useState<"upcoming" | "students" | "history">("upcoming");
+  const [tab, setTab] = useState<"upcoming" | "students" | "history">("students");
   const [openDrive, setOpenDrive] = useState<number | null>(null);
+  const [openHistoryDrive, setOpenHistoryDrive] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [arrearsFilter, setArrearsFilter] = useState<"all" | "has_arrears">("all");
+  const [cgpaOp, setCgpaOp] = useState<CgpaFilterOp>("");
+  const [cgpaValue, setCgpaValue] = useState("");
 
   const { classes } = useIsClassAdvisor();
   const primaryClass = classes[0];
@@ -180,6 +213,25 @@ export default function AdvisorPlacementsPage() {
   const students = mentees.data ?? [];
   const roster = useMenteeRoster(primaryClass?.class_id);
   const cgpaByStudentId = new Map((roster.data?.students ?? []).map((s) => [s.id, s.cgpa]));
+  const arrearsByStudentId = new Map((roster.data?.students ?? []).map((s) => [s.id, s.arrears]));
+
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    const targetCgpa = cgpaValue.trim() === "" ? null : Number(cgpaValue);
+    return students.filter((r) => {
+      if (q && !r.name.toLowerCase().includes(q) && !r.student_id_no.toLowerCase().includes(q)) return false;
+      if (arrearsFilter === "has_arrears" && (arrearsByStudentId.get(r.student_id) ?? 0) <= 0) return false;
+      if (cgpaOp && targetCgpa !== null && !Number.isNaN(targetCgpa)) {
+        const cgpa = cgpaByStudentId.get(r.student_id);
+        if (cgpa == null) return false;
+        if (cgpaOp === "above" && !(cgpa > targetCgpa)) return false;
+        if (cgpaOp === "below" && !(cgpa < targetCgpa)) return false;
+        if (cgpaOp === "equal" && Math.abs(cgpa - targetCgpa) >= 0.005) return false;
+      }
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students, studentSearch, arrearsFilter, cgpaOp, cgpaValue, roster.data?.students]);
 
   const selected = students.find((s) => s.student_id === selectedId);
   const selectedHistory = useStudentPlacementHistory(selectedId ?? undefined);
@@ -201,27 +253,37 @@ export default function AdvisorPlacementsPage() {
   const packages = placedRows.map((r) => r.package_lpa).filter((p): p is number => p !== null);
   const highestPackage = packages.length ? Math.max(...packages) : null;
   const avgPackage = packages.length ? packages.reduce((a, b) => a + b, 0) / packages.length : null;
-  const avgDrivesAttended = historyLoaded && students.length ? (flatHistory.length / students.length).toFixed(1) : "—";
+  // Real total-applications count (any status) per mentee, from
+  // useMentoredStudents itself — unlike flatHistory (concluded-only:
+  // placed/rejected), this includes still-in-progress applications, so it's
+  // the correct base for "drives attended" and "in process" counts.
+  const totalApplications = students.reduce((sum, s) => sum + s.total_applications, 0);
+  const avgDrivesAttended = students.length ? (totalApplications / students.length).toFixed(1) : "—";
+  const inProcessCount = historyLoaded ? Math.max(0, totalApplications - flatHistory.length) : null;
 
   const PLACE_STATS = [
     { label: "Placed", value: students.length ? `${placedStudentIds.size} / ${students.length}` : "—", sub: students.length ? `${Math.round((placedStudentIds.size / students.length) * 100)}% of the class` : "—" },
-    { label: "In process", value: "—", sub: "active in at least one drive" },
+    { label: "In process", value: inProcessCount !== null ? String(inProcessCount) : "—", sub: "active in at least one drive" },
     { label: "Yet to be placed", value: students.length ? String(students.length - placedStudentIds.size) : "—", sub: "eligible for upcoming drives" },
     { label: "Avg drives attended", value: avgDrivesAttended, sub: "per student this year" },
   ];
 
-  // Grouped by company, matching the original design's history table —
-  // "selected" is the real count of this class's students placed there.
-  const historyByCompany = useMemo(() => {
-    const map = new Map<string, { company: string; role: string | null; date: string; pkg: number | null; selected: number }>();
+  // Grouped by drive (not company name — a company can run more than one
+  // drive), keeping the individual selected students per drive so the
+  // History row can be clicked open into the same STUDENT/CGPA/STATUS list
+  // used on the Upcoming drives tab.
+  const historyByDrive = useMemo(() => {
+    const map = new Map<number, { drive_id: number; company: string; role: string | null; date: string; pkg: number | null; selectedRows: DriveApplicantRow[] }>();
     for (const h of flatHistory) {
-      const key = h.company_name;
-      const existing = map.get(key);
-      const selectedInc = h.application_status === "placed" ? 1 : 0;
+      const existing = map.get(h.drive_id);
+      const row: DriveApplicantRow | null =
+        h.application_status === "placed"
+          ? { student_id: h.student.student_id, student_id_no: h.student.student_id_no, name: h.student.name, status: h.application_status }
+          : null;
       if (existing) {
-        existing.selected += selectedInc;
+        if (row) existing.selectedRows.push(row);
       } else {
-        map.set(key, { company: h.company_name, role: h.job_role, date: h.scheduled_date, pkg: h.package_lpa, selected: selectedInc });
+        map.set(h.drive_id, { drive_id: h.drive_id, company: h.company_name, role: h.job_role, date: h.scheduled_date, pkg: h.package_lpa, selectedRows: row ? [row] : [] });
       }
     }
     return Array.from(map.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -231,7 +293,7 @@ export default function AdvisorPlacementsPage() {
     { label: "Placed from class", value: students.length ? `${placedStudentIds.size} / ${students.length}` : "—", sub: students.length ? `${Math.round((placedStudentIds.size / students.length) * 100)}% of the class` : "—" },
     { label: "Highest package", value: highestPackage !== null ? `₹${highestPackage} LPA` : "—", sub: "—" },
     { label: "Average package", value: avgPackage !== null ? `₹${avgPackage.toFixed(1)} LPA` : "—", sub: `across ${packages.length} drive${packages.length === 1 ? "" : "s"}` },
-    { label: "Drives attended", value: historyLoaded ? String(historyByCompany.length) : "—", sub: "this academic year" },
+    { label: "Drives attended", value: historyLoaded ? String(historyByDrive.length) : "—", sub: "this academic year" },
   ];
 
   return (
@@ -244,15 +306,15 @@ export default function AdvisorPlacementsPage() {
           </div>
         </div>
         <div style={{ display: "flex", background: "#EEF1F7", borderRadius: 11, padding: 4, gap: 4 }}>
-          <div data-advisor-lift="" onClick={() => setTab("upcoming")} style={tabButtonStyle(tab === "upcoming")}>
-            Upcoming
-            <br />
-            drives
-          </div>
           <div data-advisor-lift="" onClick={() => setTab("students")} style={tabButtonStyle(tab === "students")}>
             Student
             <br />
             records
+          </div>
+          <div data-advisor-lift="" onClick={() => setTab("upcoming")} style={tabButtonStyle(tab === "upcoming")}>
+            Upcoming
+            <br />
+            drives
           </div>
           <div data-advisor-lift="" onClick={() => setTab("history")} style={tabButtonStyle(tab === "history")}>
             History
@@ -289,6 +351,48 @@ export default function AdvisorPlacementsPage() {
             ))}
           </div>
 
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+            <input
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              placeholder="Search student or register no."
+              style={{ flex: "1 1 220px", minWidth: 200, padding: "9px 14px", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 13, fontWeight: 500, color: "#1E293B", outline: "none" }}
+            />
+            <select
+              value={arrearsFilter}
+              onChange={(e) => setArrearsFilter(e.target.value as "all" | "has_arrears")}
+              style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 12.5, fontWeight: 700, color: "#475569", background: "#fff" }}
+            >
+              <option value="all">All students</option>
+              <option value="has_arrears">Has arrears</option>
+            </select>
+            <select
+              value={cgpaOp}
+              onChange={(e) => setCgpaOp(e.target.value as CgpaFilterOp)}
+              style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #E2E8F0", fontSize: 12.5, fontWeight: 700, color: "#475569", background: "#fff" }}
+            >
+              <option value="">CGPA</option>
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+              <option value="equal">Equal</option>
+            </select>
+            <input
+              value={cgpaValue}
+              onChange={(e) => setCgpaValue(e.target.value)}
+              placeholder="e.g. 8.6"
+              inputMode="decimal"
+              style={{
+                width: 74,
+                padding: "9px 10px",
+                borderRadius: 9,
+                border: "1px solid #E2E8F0",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#1E293B",
+              }}
+            />
+          </div>
+
           <div style={{ display: "flex", gap: 16, marginTop: 16, alignItems: "flex-start" }}>
             <div style={{ flex: 1, minWidth: 0, background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, overflow: "hidden" }}>
               <div style={{ display: "grid", gridTemplateColumns: "2.2fr 0.9fr 1fr 1.4fr 1.1fr", padding: "15px 22px", borderBottom: "1px solid #EEF1F6", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>
@@ -298,7 +402,7 @@ export default function AdvisorPlacementsPage() {
                 <div>OFFERS</div>
                 <div>STATUS</div>
               </div>
-              {students.map((r) => {
+              {filteredStudents.map((r) => {
                 const isSelected = r.student_id === selectedId;
                 const hist = historyByStudentId.get(r.student_id) ?? [];
                 const offers = hist.filter((h) => h.application_status === "placed");
@@ -329,7 +433,7 @@ export default function AdvisorPlacementsPage() {
                       </div>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{cgpaByStudentId.get(r.student_id)?.toFixed(2) ?? "—"}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>{historyLoaded ? hist.length : "—"}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>{r.total_applications}</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: offers.length ? "#1D4ED8" : "#94A3B8" }}>{offers.length ? offers.map((o) => o.company_name).join(", ") : "—"}</div>
                     <div>
                       <span
@@ -351,6 +455,9 @@ export default function AdvisorPlacementsPage() {
               })}
               {students.length === 0 && !mentees.isLoading && (
                 <div style={{ padding: "40px 22px", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 13.5 }}>You are not the mentor for any class.</div>
+              )}
+              {students.length > 0 && filteredStudents.length === 0 && (
+                <div style={{ padding: "40px 22px", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 13.5 }}>No students match these filters.</div>
               )}
             </div>
 
@@ -374,19 +481,27 @@ export default function AdvisorPlacementsPage() {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
-                  {[
-                    { label: "DRIVES ATTENDED", value: String((selectedHistory.data ?? []).length) },
-                    { label: "OFFERS", value: String((selectedHistory.data ?? []).filter((h) => h.application_status === "placed").length) },
-                    { label: "IN PROCESS", value: "—" },
-                    { label: "STATUS", value: (selectedHistory.data ?? []).some((h) => h.application_status === "placed") ? "Placed" : "Unplaced" },
-                  ].map((t) => (
-                    <div key={t.label} style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 14 }}>
-                      <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>{t.label}</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, marginTop: 6 }}>{t.value}</div>
+                {(() => {
+                  const concluded = selectedHistory.data ?? [];
+                  const offersCount = concluded.filter((h) => h.application_status === "placed").length;
+                  const rejectedCount = concluded.filter((h) => h.application_status === "rejected").length;
+                  const inProcess = Math.max(0, selected.total_applications - offersCount - rejectedCount);
+                  return (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
+                      {[
+                        { label: "DRIVES ATTENDED", value: String(selected.total_applications) },
+                        { label: "OFFERS", value: String(offersCount) },
+                        { label: "IN PROCESS", value: String(inProcess) },
+                        { label: "STATUS", value: offersCount > 0 ? "Placed" : "Unplaced" },
+                      ].map((t) => (
+                        <div key={t.label} style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 14 }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>{t.label}</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, marginTop: 6 }}>{t.value}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
 
                 <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8", marginTop: 22 }}>DRIVE HISTORY</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
@@ -476,18 +591,38 @@ export default function AdvisorPlacementsPage() {
               <div>ROLE</div>
               <div>DRIVE DATE</div>
               <div>PACKAGE</div>
-              <div>SELECTED</div>
+              <div>STATUS</div>
             </div>
-            {historyByCompany.map((h) => (
-              <div key={h.company} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "1.6fr 1.6fr 1.1fr 1fr 1.2fr", padding: "14px 22px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{h.company}</div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{h.role ?? "—"}</div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#7C8899" }}>{fmtDate(h.date)}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>{h.pkg !== null ? `₹${h.pkg} LPA` : "—"}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>{h.selected} student{h.selected === 1 ? "" : "s"}</div>
-              </div>
-            ))}
-            {historyLoaded && historyByCompany.length === 0 && (
+            {historyByDrive.map((h) => {
+              const isOpen = openHistoryDrive === h.drive_id;
+              return (
+                <div key={h.drive_id}>
+                  <div
+                    data-advisor-lift=""
+                    onClick={() => setOpenHistoryDrive(isOpen ? null : h.drive_id)}
+                    style={{ display: "grid", gridTemplateColumns: "1.6fr 1.6fr 1.1fr 1fr 1.2fr", padding: "14px 22px", borderBottom: "1px solid #F4F6FA", alignItems: "center", cursor: "pointer" }}
+                  >
+                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{h.company}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>{h.role ?? "—"}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "#7C8899" }}>{fmtDate(h.date)}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>{h.pkg !== null ? `₹${h.pkg} LPA` : "—"}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1D4ED8" }}>
+                      {h.selectedRows.length} student{h.selectedRows.length === 1 ? "" : "s"} {isOpen ? "↑" : "→"}
+                    </div>
+                  </div>
+                  {isOpen && (
+                    <div style={{ padding: "0 22px 16px", borderBottom: "1px solid #F4F6FA" }}>
+                      <DriveApplicantsTable
+                        rows={h.selectedRows}
+                        cgpaByStudentId={cgpaByStudentId}
+                        emptyMessage="No mentees were selected in this drive."
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {historyLoaded && historyByDrive.length === 0 && (
               <div style={{ padding: "40px 22px", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 13.5 }}>No concluded drives yet for your mentoring class.</div>
             )}
           </div>

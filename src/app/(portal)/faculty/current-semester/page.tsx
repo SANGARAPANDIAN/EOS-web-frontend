@@ -3,12 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { apiClient } from "@/lib/api/client";
+import { ConfirmDialog } from "@/components/ui";
 import {
   useFacultyFolders,
   useCreateFolder,
   useFolderResources,
   useAddLinkResource,
   useAddFileResource,
+  useDeleteResource,
   useFacultyTasks,
   useCreateLmsTask,
   useTaskSubmissions,
@@ -97,6 +99,8 @@ export default function AdvisorCurrentSemesterPage() {
   const [showAddLink, setShowAddLink] = useState(false);
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const deleteResource = useDeleteResource();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
 
   const addFile = useAddFileResource();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -374,12 +378,40 @@ export default function AdvisorCurrentSemesterPage() {
                   }}
                 />
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ flex: 1, textAlign: "center", padding: 12, background: "#EFF6FF", border: "1px solid #DBEAFE", borderRadius: 10, color: addFile.isPending ? "#93C5FD" : "#1D4ED8", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}
+                  onClick={() => {
+                    setShowAddLink(false);
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    padding: 12,
+                    background: showAddLink ? "#fff" : "#EFF6FF",
+                    border: showAddLink ? "1px solid #E2E8F0" : "1px solid #DBEAFE",
+                    borderRadius: 10,
+                    color: addFile.isPending ? "#93C5FD" : showAddLink ? "#475569" : "#1D4ED8",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
                 >
                   {addFile.isPending ? "Uploading…" : "Upload file"}
                 </div>
-                <div onClick={() => setShowAddLink((v) => !v)} style={{ flex: 1, textAlign: "center", padding: 12, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 10, color: "#475569", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+                <div
+                  onClick={() => setShowAddLink((v) => !v)}
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    padding: 12,
+                    background: showAddLink ? "#EFF6FF" : "#fff",
+                    border: showAddLink ? "1px solid #DBEAFE" : "1px solid #E2E8F0",
+                    borderRadius: 10,
+                    color: showAddLink ? "#1D4ED8" : "#475569",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
                   Add link
                 </div>
               </div>
@@ -407,6 +439,13 @@ export default function AdvisorCurrentSemesterPage() {
                   <a href={item.link_url ?? item.file_url ?? "#"} target="_blank" rel="noreferrer" style={{ padding: "8px 15px", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 12.5, fontWeight: 700, color: "#475569" }}>
                     Open
                   </a>
+                  <div
+                    onClick={() => setDeleteTarget({ id: item.id, title: item.title })}
+                    title="Remove"
+                    style={{ width: 30, height: 30, flex: "0 0 30px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 9, border: "1px solid #E2E8F0", color: "#94A3B8", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    ×
+                  </div>
                 </div>
               ))}
               {activeFolderId && (resources.data ?? []).length === 0 && !resources.isLoading && (
@@ -655,6 +694,21 @@ export default function AdvisorCurrentSemesterPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Remove this item?"
+        description={deleteTarget ? `"${deleteTarget.title}" will be removed from this folder. This can't be undone.` : undefined}
+        confirmLabel="Remove"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget && activeFolderId) {
+            deleteResource.mutate({ resourceId: deleteTarget.id, folderId: activeFolderId });
+          }
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

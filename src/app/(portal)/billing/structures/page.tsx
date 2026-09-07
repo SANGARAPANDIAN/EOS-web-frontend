@@ -97,11 +97,13 @@ export default function FeeStructuresPage() {
   const [editGroup, setEditGroup] = useState<FeeStructureAppliesTo>("quota");
   const [editQuota, setEditQuota] = useState<string>("None");
   const [editYear, setEditYear] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
 
   const [formName, setFormName] = useState("");
   const [formGroup, setFormGroup] = useState<FeeStructureAppliesTo>("quota");
   const [formQuota, setFormQuota] = useState<string>("None");
   const [formYear, setFormYear] = useState("");
+  const [formDueDate, setFormDueDate] = useState("");
   const [formHostelRoomType, setFormHostelRoomType] = useState<string>("");
   const [formTransportStage, setFormTransportStage] = useState<string>("");
   const [formAmount, setFormAmount] = useState("");
@@ -149,11 +151,17 @@ export default function FeeStructuresPage() {
     return items.reduce((sum, it) => sum + Number(it.amount), 0);
   }
 
+  function formatDueDate(dueDate: string | null) {
+    if (!dueDate) return "—";
+    return new Date(`${dueDate}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
   function openModal() {
     setFormName("");
     setFormGroup(sectionFilter);
     setFormQuota("None");
     setFormYear("");
+    setFormDueDate("");
     setFormQuotaItems([{ demandCategory: "", amount: "" }]);
     setFormHostelRoomType("");
     setFormTransportStage("");
@@ -186,6 +194,7 @@ export default function FeeStructuresPage() {
     setEditGroup(s.applies_to);
     setEditQuota(quotaName(s.quota_id));
     setEditYear(s.academic_year);
+    setEditDueDate(s.due_date ?? "");
   }
 
   function submitEdit() {
@@ -195,7 +204,16 @@ export default function FeeStructuresPage() {
     }
     const quotaId = quotas?.find((qz) => qz.name === editQuota)?.id;
     updateFeeStructure.mutate(
-      { id: editStructure.id, input: { name: editName.trim(), applies_to: editGroup, quota_id: quotaId, academic_year: editYear.trim() } },
+      {
+        id: editStructure.id,
+        input: {
+          name: editName.trim(),
+          applies_to: editGroup,
+          quota_id: quotaId,
+          academic_year: editYear.trim(),
+          due_date: editDueDate || undefined,
+        },
+      },
       {
         onSuccess: () => {
           setEditStructure(null);
@@ -252,7 +270,14 @@ export default function FeeStructuresPage() {
 
     const quotaId = quotas?.find((qz) => qz.name === formQuota)?.id;
     createFeeStructure.mutate(
-      { name: formName.trim(), applies_to: formGroup, quota_id: quotaId, academic_year: formYear.trim(), items },
+      {
+        name: formName.trim(),
+        applies_to: formGroup,
+        quota_id: quotaId,
+        academic_year: formYear.trim(),
+        due_date: formDueDate || undefined,
+        items,
+      },
       {
         onSuccess: () => {
           setModalOpen(false);
@@ -314,6 +339,7 @@ export default function FeeStructuresPage() {
                 <th style={thMidSx}>ITEMS</th>
                 <th style={thRightSx}>TOTAL AMOUNT</th>
                 <th style={thMidSx}>ACADEMIC YEAR</th>
+                <th style={thMidSx}>DUE DATE</th>
                 <th style={thActionsSx}>ACTIONS</th>
               </tr>
             </thead>
@@ -330,6 +356,7 @@ export default function FeeStructuresPage() {
                   </td>
                   <td style={tdRightMonoSx}>{money(totalAmount(s.fee_structure_items))}</td>
                   <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{s.academic_year}</td>
+                  <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{formatDueDate(s.due_date)}</td>
                   <td style={tdActionsSx}>
                     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       <button data-bill-icon onClick={() => openEdit(s)} style={delBtnSx}>Edit</button>
@@ -350,7 +377,7 @@ export default function FeeStructuresPage() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No education fee structures yet.</td></tr>
+                <tr><td colSpan={7} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No education fee structures yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -371,6 +398,7 @@ export default function FeeStructuresPage() {
                 <th style={thMidSx}>ROOM TYPES</th>
                 <th style={thRightSx}>TOTAL AMOUNT</th>
                 <th style={thMidSx}>ACADEMIC YEAR</th>
+                <th style={thMidSx}>DUE DATE</th>
                 <th style={thActionsSx}>ACTIONS</th>
               </tr>
             </thead>
@@ -386,6 +414,7 @@ export default function FeeStructuresPage() {
                   </td>
                   <td style={tdRightMonoSx}>{money(totalAmount(r.fee_structure_items))}</td>
                   <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{r.academic_year}</td>
+                  <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{formatDueDate(r.due_date)}</td>
                   <td style={tdActionsSx}>
                     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       <button data-bill-icon onClick={() => openEdit(r)} style={delBtnSx}>Edit</button>
@@ -406,7 +435,7 @@ export default function FeeStructuresPage() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={5} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No hostel fee structures yet.</td></tr>
+                <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No hostel fee structures yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -428,6 +457,7 @@ export default function FeeStructuresPage() {
                   <th style={thMidSx}>STAGES</th>
                   <th style={thRightSx}>TOTAL AMOUNT</th>
                   <th style={thMidSx}>ACADEMIC YEAR</th>
+                  <th style={thMidSx}>DUE DATE</th>
                   <th style={thActionsSx}>ACTIONS</th>
                 </tr>
               </thead>
@@ -443,6 +473,7 @@ export default function FeeStructuresPage() {
                     </td>
                     <td style={tdRightMonoSx}>{money(totalAmount(s.fee_structure_items))}</td>
                     <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{s.academic_year}</td>
+                    <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{formatDueDate(s.due_date)}</td>
                     <td style={tdActionsSx}>
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         <button data-bill-icon onClick={() => openEdit(s)} style={delBtnSx}>Edit</button>
@@ -463,7 +494,7 @@ export default function FeeStructuresPage() {
                   </tr>
                 ))}
                 {rows.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No bus fee structures yet.</td></tr>
+                  <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No bus fee structures yet.</td></tr>
                 )}
               </tbody>
             </table>
@@ -699,21 +730,33 @@ export default function FeeStructuresPage() {
         {/* Education-Fees structures carry their amounts per item above, so
             only the single-source sections show a standalone Amount field. */}
         {formGroup === "quota" ? (
-          <div>
-            <div style={fieldLabelSx}>Academic Year</div>
-            <input value={formYear} onChange={(e) => setFormYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
-          </div>
-        ) : (
           <div style={fieldRow2Sx}>
             <div>
               <div style={fieldLabelSx}>Academic Year</div>
               <input value={formYear} onChange={(e) => setFormYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
             </div>
             <div>
-              <div style={fieldLabelSx}>Amount</div>
-              <input value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="e.g. 60000" style={fieldMonoSx} />
+              <div style={fieldLabelSx}>Due Date</div>
+              <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} style={fieldMonoSx} />
             </div>
           </div>
+        ) : (
+          <>
+            <div style={fieldRow2Sx}>
+              <div>
+                <div style={fieldLabelSx}>Academic Year</div>
+                <input value={formYear} onChange={(e) => setFormYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+              </div>
+              <div>
+                <div style={fieldLabelSx}>Amount</div>
+                <input value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="e.g. 60000" style={fieldMonoSx} />
+              </div>
+            </div>
+            <div>
+              <div style={fieldLabelSx}>Due Date</div>
+              <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} style={fieldMonoSx} />
+            </div>
+          </>
         )}
       </BillingModal>
 
@@ -750,9 +793,15 @@ export default function FeeStructuresPage() {
             </select>
           </div>
         </div>
-        <div>
-          <div style={fieldLabelSx}>Academic Year</div>
-          <input value={editYear} onChange={(e) => setEditYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+        <div style={fieldRow2Sx}>
+          <div>
+            <div style={fieldLabelSx}>Academic Year</div>
+            <input value={editYear} onChange={(e) => setEditYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+          </div>
+          <div>
+            <div style={fieldLabelSx}>Due Date</div>
+            <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} style={fieldMonoSx} />
+          </div>
         </div>
       </BillingModal>
     </div>

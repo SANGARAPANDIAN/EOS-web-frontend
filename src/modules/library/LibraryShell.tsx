@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import type { TopbarSearchResult } from "@/components/layout/Topbar";
 import { libraryModuleConfig } from "@/modules/library/nav";
 import { useDashboardSummary } from "@/modules/library/api/dashboard";
+import { useBorrowRequests } from "@/modules/library/api/borrowRequests";
 
 export function LibraryShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -13,6 +14,9 @@ export function LibraryShell({ children }: { children: React.ReactNode }) {
   // Live catalogue size, not a static number — a nav badge that disagreed
   // with the page it links to would erode trust in every other figure here.
   const dashboard = useDashboardSummary();
+  // Silently returns [] until query.md's table exists — no badge, not an error.
+  const borrowRequests = useBorrowRequests();
+  const pendingRequests = (borrowRequests.data ?? []).filter((r) => r.status === "pending").length;
 
   const [query, setQuery] = useState("");
 
@@ -50,6 +54,7 @@ export function LibraryShell({ children }: { children: React.ReactNode }) {
       }}
       navBadges={{
         totalBooks: dashboard.data?.total_books,
+        libraryPendingRequests: pendingRequests || undefined,
       }}
     >
       {children}

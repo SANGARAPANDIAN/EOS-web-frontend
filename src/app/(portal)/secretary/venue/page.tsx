@@ -51,7 +51,7 @@ export default function SecretaryVenuePage() {
   }
 
   const windowFrom = useMemo(() => new Date().toISOString(), []);
-  const windowTo = useMemo(() => new Date(Date.now() + 90 * 86400000).toISOString(), []);
+  const windowTo = useMemo(() => new Date(new Date(windowFrom).getTime() + 90 * 86400000).toISOString(), [windowFrom]);
   const { data: venues, isLoading: venuesLoading } = useVenues(windowFrom, windowTo);
   const { data: bookings, isLoading: bookingsLoading, error: bookingsError } = useVenueBookings();
   const createMutation = useCreateVenueBooking();
@@ -171,7 +171,7 @@ export default function SecretaryVenuePage() {
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.7, color: "#94a3b8", letterSpacing: 0.5 }}>VB-{v.id}</div>
-                    <div style={{ fontSize: 16.5, fontWeight: 700, margin: "10px 0 6px", letterSpacing: -0.3 }}>{v.venues_venue_bookings_venue_idTovenues?.name ?? "—"}</div>
+                    <div style={{ fontSize: 16.5, fontWeight: 700, margin: "10px 0 6px", letterSpacing: -0.3 }}>{v.venue?.name ?? "—"}</div>
                     <div style={{ fontSize: 12.6, color: "#475569" }}>{fmtRange(v.from_datetime, v.to_datetime)} · capacity {v.accommodating_strength ?? "—"}</div>
                     <div style={{ fontSize: 12.6, color: "#64748b", marginTop: 6 }}>{v.purpose}</div>
                   </div>

@@ -13,10 +13,12 @@ export interface PersonalCalendarEntry {
 
 /**
  * GET /me/personal-calendar-entries — private notes, scoped to the logged-in
- * student's own user_id. No other role or student ever sees these rows —
- * unlike the institution academic calendar (calendar_events), which every
- * student in the batch reads the same copy of. Same generic module Principal
- * already uses (src/modules/personal-calendar), just newly opened to Student.
+ * caller's own user_id. No other role or user ever sees these rows — unlike
+ * the institution academic calendar (calendar_events), which every viewer in
+ * scope reads the same copy of. Role-generic by construction: the backend
+ * (src/modules/personal-calendar) scopes every query to the caller's JWT
+ * user_id, never a client-supplied one — Principal, Student, HoD and Faculty
+ * (Advisor uses the same faculty role/login) all share this exact module.
  */
 export function usePersonalCalendarEntries() {
   return useQuery({
@@ -41,7 +43,7 @@ export function useAddPersonalCalendarEntry() {
   });
 }
 
-/** DELETE /me/personal-calendar-entries/:id — only the owner (this student) may delete their own entry. */
+/** DELETE /me/personal-calendar-entries/:id — only the owner (this caller) may delete their own entry. */
 export function useDeletePersonalCalendarEntry() {
   const queryClient = useQueryClient();
   return useMutation({

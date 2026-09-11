@@ -23,6 +23,26 @@ import { iqacModuleConfig } from "@/modules/iqac/nav";
 import { financeModuleConfig } from "@/modules/finance/nav";
 
 /**
+ * Roles with real backend support (a working `/me/...` API, confirmed by the
+ * backend's own `ROLES` constant) but no dedicated portal built yet — no
+ * `nav.ts`, no `(portal)/<role>/dashboard` page. Without an entry here,
+ * `getModuleConfig()` returns null and any page that calls it generically
+ * (MessagesShell, the root redirect) renders blank instead of a real shell —
+ * this is exactly the "sidebar disappears" bug these three plug. `homeHref`
+ * sends them straight to the one real feature they do have (messaging)
+ * instead of a dashboard route that doesn't exist.
+ */
+function messagingOnlyModuleConfig(role: string, moduleLabel: string): ModuleConfig {
+  return {
+    role,
+    basePath: "/messages",
+    homeHref: "/messages",
+    moduleLabel,
+    navGroups: [{ label: "Menu", items: [] }],
+  };
+}
+
+/**
  * Single lookup point from JWT role -> module shell config (nav groups, base
  * path). Adding a new module (e.g. faculty) means creating
  * `modules/faculty/nav.ts` and registering it here — the shell (Sidebar,
@@ -52,6 +72,9 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   coe: coeModuleConfig,
   iqac: iqacModuleConfig,
   finance: financeModuleConfig,
+  parent: messagingOnlyModuleConfig("parent", "Parent"),
+  alumni: messagingOnlyModuleConfig("alumni", "Alumni"),
+  non_teaching_staff: messagingOnlyModuleConfig("non_teaching_staff", "Staff"),
 };
 
 export function getModuleConfig(role: string | undefined | null): ModuleConfig | null {

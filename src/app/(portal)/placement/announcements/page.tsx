@@ -111,7 +111,7 @@ export default function PlacementAnnouncementsPage() {
     if (!deleteTarget) return;
     deleteAnnouncement.mutate(deleteTarget.id, {
       onSuccess: () => {
-        show("Announcement deleted.", "success");
+        show("Notice deleted.", "success");
         setDeleteTarget(null);
       },
       onError: (err: unknown) => show(friendlyError(err), "error"),
@@ -121,11 +121,11 @@ export default function PlacementAnnouncementsPage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title="Announcements"
+        title="Notices"
         description="Circulars from the institution and posts you publish to your department."
         actions={
           <Button variant="primary" onClick={() => setComposerTarget("new")}>
-            New announcement
+            New notice
           </Button>
         }
       />
@@ -133,7 +133,7 @@ export default function PlacementAnnouncementsPage() {
       <FilterBar>
         <Input
           leadingIcon="search"
-          placeholder="Search announcements"
+          placeholder="Search notices"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="max-w-xs"
@@ -172,7 +172,7 @@ export default function PlacementAnnouncementsPage() {
       <div className="flex flex-col gap-3.5">
         {isLoading && <PendingNotice reason="Loading…" height={100} />}
         {!isLoading && error && <PendingNotice reason={friendlyError(error)} height={100} />}
-        {!isLoading && !error && filtered.length === 0 && <EmptyState icon="campaign" title="No announcements match these filters" />}
+        {!isLoading && !error && filtered.length === 0 && <EmptyState icon="campaign" title="No notices match these filters" />}
         {filtered.map((a) => (
           <AnnouncementCard
             key={a.id}
@@ -192,7 +192,7 @@ export default function PlacementAnnouncementsPage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete announcement"
+        title="Delete notice"
         message={`Delete "${deleteTarget?.title}"? This can't be undone.`}
         confirmLabel="Delete"
         destructive

@@ -37,7 +37,16 @@ const ROLE_LABEL: Record<string, string> = {
 // real route segments today rather than a speculative exhaustive list.
 const ACRONYM_WORDS = new Set(["sop", "pop", "od", "hod", "iqac", "edc", "coe", "hr"]);
 
+// Route segments whose URL still reads "announcements" (unchanged, so
+// existing links/bookmarks keep working) but whose UI text was renamed to
+// "Notice(s)" — humanize() would otherwise title-case the raw segment back
+// to "Announcements" for the browser tab title.
+const SEGMENT_LABEL_OVERRIDES: Record<string, string> = {
+  announcements: "Notices",
+};
+
 function humanize(segment: string): string {
+  if (SEGMENT_LABEL_OVERRIDES[segment]) return SEGMENT_LABEL_OVERRIDES[segment];
   return segment
     .split(/[-_]/)
     .map((word) => (ACRONYM_WORDS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)))

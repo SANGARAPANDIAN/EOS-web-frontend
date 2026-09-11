@@ -96,7 +96,7 @@ export default function AdvisorAnnouncementsPage() {
       class_ids: targetClassIds,
     };
     const onSuccess = () => setOpen(false);
-    const onError = (e: unknown) => setFormError(e instanceof Error ? e.message : "Failed to save announcement.");
+    const onError = (e: unknown) => setFormError(e instanceof Error ? e.message : "Failed to save notice.");
     if (editingId) {
       updateAnnouncement.mutate({ id: editingId, input }, { onSuccess, onError });
     } else {
@@ -105,10 +105,10 @@ export default function AdvisorAnnouncementsPage() {
   }
 
   function remove(id: number) {
-    if (!confirm("Delete this announcement? This cannot be undone.")) return;
+    if (!confirm("Delete this notice? This cannot be undone.")) return;
     setDeleteError(null);
     deleteAnnouncement.mutate(id, {
-      onError: (e) => setDeleteError(e instanceof Error ? e.message : "Failed to delete announcement."),
+      onError: (e) => setDeleteError(e instanceof Error ? e.message : "Failed to delete notice."),
     });
   }
 
@@ -118,7 +118,7 @@ export default function AdvisorAnnouncementsPage() {
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>Announcements</div>
+          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>Notices</div>
           <div style={{ marginTop: 6, fontSize: 14, color: "#64748B", fontWeight: 500 }}>
             Circulars from the institution and your department
           </div>
@@ -127,7 +127,7 @@ export default function AdvisorAnnouncementsPage() {
           onClick={openCreate}
           style={{ padding: "11px 18px", background: "#1D4ED8", color: "#fff", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}
         >
-          New announcement
+          New notice
         </div>
       </div>
 
@@ -139,8 +139,8 @@ export default function AdvisorAnnouncementsPage() {
 
       <div style={{ display: "flex", gap: 8, marginTop: 20, borderBottom: "1px solid #E6EAF0" }}>
         {[
-          { key: "all" as const, label: "All announcements" },
-          { key: "mine" as const, label: "My announcements" },
+          { key: "all" as const, label: "All notices" },
+          { key: "mine" as const, label: "My notices" },
         ].map((t) => (
           <div
             key={t.key}
@@ -176,7 +176,7 @@ export default function AdvisorAnnouncementsPage() {
         >
           <div style={{ width: "100%", maxWidth: 720, background: "#fff", borderRadius: 16, boxShadow: "0 24px 60px rgba(15,23,42,0.22)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "22px 26px", borderBottom: "1px solid #EEF1F6" }}>
-              <div style={{ flex: 1, fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em" }}>{editingId ? "Edit announcement" : "New announcement"}</div>
+              <div style={{ flex: 1, fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em" }}>{editingId ? "Edit notice" : "New notice"}</div>
               <div
                 onClick={() => setOpen(false)}
                 style={{ width: 34, height: 34, border: "1px solid #E2E8F0", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "#64748B", cursor: "pointer" }}
@@ -220,7 +220,7 @@ export default function AdvisorAnnouncementsPage() {
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="Write the announcement in full"
+                  placeholder="Write the notice in full"
                   style={{ width: "100%", marginTop: 8, height: 110, border: "1px solid #DDE3EC", borderRadius: 10, padding: "12px 14px", fontFamily: "inherit", fontSize: 14, fontWeight: 500, background: "#fff", resize: "vertical" }}
                 />
               </div>
@@ -286,7 +286,7 @@ export default function AdvisorAnnouncementsPage() {
         ))}
         {rows.length === 0 && !announcements.isLoading && (
           <div style={{ padding: "40px 0", textAlign: "center", fontSize: 14, color: "#94A3B8", fontWeight: 600 }}>
-            {tab === "mine" ? "You haven't posted any announcements yet." : "No announcements yet."}
+            {tab === "mine" ? "You haven't posted any notices yet." : "No notices yet."}
           </div>
         )}
       </div>

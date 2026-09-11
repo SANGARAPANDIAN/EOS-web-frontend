@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SegmentedTabs } from "@/components/ui";
+import { SegmentedTabs, SkeletonBlock, SkeletonRows } from "@/components/ui";
 import { useTodaySlots, useFacultyTimetable } from "@/modules/advisor/api/employee";
 import { useMyFacultyProfile } from "@/modules/advisor/api/profile";
 
@@ -176,6 +176,7 @@ export default function AdvisorTimetablePage() {
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
+            {(isToday ? today.isLoading : week.isLoading) && displayRows.length === 0 && <SkeletonRows count={5} />}
             {displayRows.map((r) => {
               const done = isToday && r.end_time < nowHm;
               const isNext = isToday && !done && displayRows.find((s) => s.end_time >= nowHm)?.id === r.id;
@@ -206,7 +207,8 @@ export default function AdvisorTimetablePage() {
         </>
       )}
 
-      {tab === "week" && (
+      {tab === "week" && week.isLoading && weekDays.length === 0 && <SkeletonBlock className="mt-5" />}
+      {tab === "week" && !(week.isLoading && weekDays.length === 0) && (
         <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 20, marginTop: 20, overflowX: "auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: `56px repeat(${TIME_COLUMNS.length}, minmax(120px,1fr))`, gap: 10 }}>
             <div />

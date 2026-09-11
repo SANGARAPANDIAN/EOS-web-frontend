@@ -183,43 +183,43 @@ export default function BillingAnnouncementsPage() {
     try {
       if (editingId !== null) {
         await updateMutation.mutateAsync({ id: editingId, input: { title: form.title, content: form.body || "—", category: CATEGORY_TO_REAL[form.tag], ...req } });
-        showToast("Announcement updated.");
+        showToast("Notice updated.");
       } else {
         await createMutation.mutateAsync({ title: form.title, content: form.body || "—", status: "published", category: CATEGORY_TO_REAL[form.tag], ...req });
-        showToast("Announcement published.");
+        showToast("Notice published.");
       }
       setOpen(false);
       setEditingId(null);
       setForm(EMPTY_ANN);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not save the announcement.");
+      setFormError(err instanceof Error ? err.message : "Could not save the notice.");
     }
   }
 
   async function onDelete(id: number) {
     try {
       await deleteMutation.mutateAsync(id);
-      showToast("Announcement deleted.");
+      showToast("Notice deleted.");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not delete the announcement.");
+      showToast(err instanceof Error ? err.message : "Could not delete the notice.");
     }
   }
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800, letterSpacing: -0.025 }}>Announcements</h1>
+        <h1 style={{ margin: 0, fontSize: 32, fontWeight: 800, letterSpacing: -0.025 }}>Notices</h1>
         <button
           data-bill-primary
           onClick={openComposer}
           style={{ display: "flex", alignItems: "center", gap: 8, background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 9, padding: "11px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 2px rgba(15,23,42,.16)" }}
         >
-          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span><span>New announcement</span>
+          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span><span>New notice</span>
         </button>
       </div>
 
-      {isLoading && <div style={{ padding: 40, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading announcements…</div>}
-      {error && <div style={{ padding: 40, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load announcements."}</div>}
+      {isLoading && <div style={{ padding: 40, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading notices…</div>}
+      {error && <div style={{ padding: 40, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load notices."}</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {(rows ?? []).map((a) => {
@@ -251,15 +251,15 @@ export default function BillingAnnouncementsPage() {
           );
         })}
         {!isLoading && !error && (rows ?? []).length === 0 && (
-          <div data-bill-lift style={{ background: "#fff", border: "1px solid #e6e9ef", borderRadius: 12, padding: 44, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>No announcements yet.</div>
+          <div data-bill-lift style={{ background: "#fff", border: "1px solid #e6e9ef", borderRadius: 12, padding: 44, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>No notices yet.</div>
         )}
       </div>
 
       <BillingModal
         open={open}
-        title={editingId !== null ? "Edit announcement" : "New announcement"}
+        title={editingId !== null ? "Edit notice" : "New notice"}
         sub={editingId !== null ? "Changing the audience re-targets it for real" : "Published instantly to the real audience below"}
-        cta={editingId !== null ? "Save changes" : "Publish announcement"}
+        cta={editingId !== null ? "Save changes" : "Publish notice"}
         onClose={() => { setOpen(false); setEditingId(null); }}
         onSubmit={submit}
         error={formError}

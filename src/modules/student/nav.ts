@@ -13,7 +13,7 @@ export const studentModuleConfig: ModuleConfig = {
         { key: "dashboard", label: "Dashboard", icon: "grid_view", href: `${BASE}/dashboard` },
         {
           key: "announcements",
-          label: "Announcements",
+          label: "Notices",
           icon: "campaign",
           href: `${BASE}/announcements`,
           badgeKey: "announcementsRecent",

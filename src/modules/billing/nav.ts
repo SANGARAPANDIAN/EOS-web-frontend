@@ -25,7 +25,7 @@ export const BILLING_NAV: BillingNavGroup[] = [
     label: "Overview",
     items: [
       { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/billing/dashboard" },
-      { id: "announcements", label: "Announcements", icon: "megaphone", href: "/billing/announcements" },
+      { id: "announcements", label: "Notices", icon: "megaphone", href: "/billing/announcements" },
     ],
   },
   {

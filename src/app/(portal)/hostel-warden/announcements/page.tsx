@@ -35,7 +35,7 @@ function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
       await create.mutateAsync({ title: title.trim(), content: content.trim(), category });
       onClose();
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message ?? "Could not publish this announcement.");
+      setError((err as { message?: string })?.message ?? "Could not publish this notice.");
     }
   }
 
@@ -43,7 +43,7 @@ function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
       <div className="w-full max-w-[520px] rounded-modal bg-surface">
         <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
-          <div className="text-[19px] font-extrabold text-ink">New announcement</div>
+          <div className="text-[19px] font-extrabold text-ink">New notice</div>
           <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
             ✕
           </button>
@@ -93,11 +93,11 @@ export default function AnnouncementsPage() {
     <div className="flex flex-col gap-5 animate-pop-in">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Announcements</h1>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Notices</h1>
           <p className="mt-1 text-[13px] text-muted">Circulars from the hostel wardens, shared with residents.</p>
         </div>
         <Button variant="primarySmall" className="w-auto" onClick={() => setShowNew(true)}>
-          New announcement
+          New notice
         </Button>
       </div>
 
@@ -106,7 +106,7 @@ export default function AnnouncementsPage() {
       {announcements.isLoading ? (
         <EmptyState message="Loading…" />
       ) : rows.length === 0 ? (
-        <EmptyState message="No announcements published yet." />
+        <EmptyState message="No notices published yet." />
       ) : (
         <div className="flex flex-col gap-3">
           {rows.map((a) => (

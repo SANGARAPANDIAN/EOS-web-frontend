@@ -49,7 +49,7 @@ interface DataTableProps<T> {
    * extra prop to look interactive.
    */
   onRowClick?: (row: T) => void;
-  /** Optional title bar rendered inside the same bordered card, above the column headers — e.g. "Announcements register". */
+  /** Optional title bar rendered inside the same bordered card, above the column headers — e.g. "Notices register". */
   title?: ReactNode;
   /** Optional right-aligned footnote next to the title — e.g. "Showing 4 of 4 loaded records". */
   titleNote?: ReactNode;

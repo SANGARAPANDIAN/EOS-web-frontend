@@ -68,7 +68,8 @@ export type NavBadgeKey =
   | "secretaryDocs"
   | "secretaryEmpLeave"
   | "secretaryEmpOd"
-  | "adminSopPending";
+  | "adminSopPending"
+  | "messagesUnread";
 
 export interface NavItem {
   key: string;
@@ -94,4 +95,6 @@ export interface ModuleConfig {
   basePath: string;
   moduleLabel: string;
   navGroups: NavGroup[];
+  /** Where the root page sends this role after login — defaults to `${basePath}/dashboard`. Set this for a role with no dashboard page yet (e.g. messaging-only access). */
+  homeHref?: string;
 }

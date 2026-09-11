@@ -75,11 +75,11 @@ export default function CoeNotificationsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
-      <CoePageHeader title="Notifications" subtitle="Exam announcements, timetable updates, hall ticket availability, results and revaluation alerts" />
+      <CoePageHeader title="Notifications" subtitle="Exam notices, timetable updates, hall ticket availability, results and revaluation alerts" />
 
       <div className="grid grid-cols-[1fr_1.3fr] gap-4 items-start">
         <Card>
-          <div className="text-[15px] font-extrabold text-ink">Compose announcement</div>
+          <div className="text-[15px] font-extrabold text-ink">Compose notice</div>
           <p className="mt-0.5 text-[12px] text-subtle">Sent to the student portal, and optionally by email and SMS.</p>
 
           <div className="mt-4 flex flex-col gap-3.5">
@@ -210,7 +210,7 @@ export default function CoeNotificationsPage() {
           ) : broadcasts.isError ? (
             <p className="px-5 py-6 text-[13px] text-danger-fg">{(broadcasts.error as Error).message}</p>
           ) : rows.length === 0 ? (
-            <p className="px-5 py-6 text-[13px] text-subtle">No announcements sent or scheduled yet.</p>
+            <p className="px-5 py-6 text-[13px] text-subtle">No notices sent or scheduled yet.</p>
           ) : (
             <div className="flex flex-col">
               {rows.map((b) => {

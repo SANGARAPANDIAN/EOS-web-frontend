@@ -23,7 +23,7 @@ const BASE_GROUPS: AudienceGroup[] = [
   {
     key: "institution",
     label: "Entire institution (all students + faculty + staff)",
-    note: "Reaches all students and all faculty across every department. Non-teaching staff see every Principal announcement automatically — there's no separate way to target them individually.",
+    note: "Reaches all students and all faculty across every department. Non-teaching staff see every Principal notice automatically — there's no separate way to target them individually.",
     buildRequests: (allClassIds) => [
       { target_audience: "students", class_ids: allClassIds },
       { target_audience: "teachers", class_ids: allClassIds },
@@ -144,7 +144,7 @@ export function PrincipalAnnouncementComposer({ onClose }: PrincipalAnnouncement
       >
         <div className="flex items-center gap-3 border-b px-6 py-4" style={{ borderColor: principalColors.borderLight }}>
           <div className="text-[22px] font-extrabold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
-            New announcement
+            New notice
           </div>
           <button
             type="button"
@@ -281,7 +281,7 @@ export function PrincipalAnnouncementComposer({ onClose }: PrincipalAnnouncement
               rows={5}
               className="w-full rounded-[10px] border px-3 py-2 text-sm outline-none"
               style={{ borderColor: principalColors.border, background: principalColors.surfaceMuted, color: principalColors.heading }}
-              placeholder="Write the announcement in full"
+              placeholder="Write the notice in full"
             />
           </div>
 
@@ -331,7 +331,7 @@ export function PrincipalAnnouncementComposer({ onClose }: PrincipalAnnouncement
 
           {publishError && (
             <div className="text-sm" style={{ color: "#B42318" }}>
-              Could not publish this announcement. Please try again.
+              Could not publish this notice. Please try again.
             </div>
           )}
         </div>

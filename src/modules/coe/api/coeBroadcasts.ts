@@ -18,7 +18,7 @@ export type BroadcastCategory =
   | "fee_due_reminder";
 
 export const BROADCAST_CATEGORY_OPTIONS: { value: BroadcastCategory; label: string }[] = [
-  { value: "announcement_new", label: "Exam announcement" },
+  { value: "announcement_new", label: "Exam notice" },
   { value: "exam_timetable_updated", label: "Timetable" },
   { value: "hall_ticket_issued", label: "Hall tickets" },
   { value: "revaluation_status_updated", label: "Revaluation" },

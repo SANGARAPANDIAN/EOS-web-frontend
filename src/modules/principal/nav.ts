@@ -14,7 +14,7 @@ export const principalModuleConfig: ModuleConfig = {
         { key: "reports", label: "Reports & Analytics", icon: "insights", href: `${BASE}/reports` },
         {
           key: "announcements",
-          label: "Announcements",
+          label: "Notices",
           icon: "campaign",
           href: `${BASE}/announcements`,
           badgeKey: "announcementsRecent",

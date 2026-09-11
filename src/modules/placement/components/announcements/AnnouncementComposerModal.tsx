@@ -132,7 +132,7 @@ function AnnouncementComposerForm({ announcement, onClose }: { announcement: Ann
 
     mutation
       .then(() => {
-        show(isEditing ? "Announcement updated." : "Announcement published.", "success");
+        show(isEditing ? "Notice updated." : "Notice published.", "success");
         onClose();
       })
       .catch((err: unknown) => show(friendlyError(err), "error"));
@@ -170,7 +170,7 @@ function AnnouncementComposerForm({ announcement, onClose }: { announcement: Ann
       </div>
 
       <FormField label="Message" error={errors.content?.message}>
-        <Textarea rows={4} placeholder="Write the announcement in full" {...register("content")} />
+        <Textarea rows={4} placeholder="Write the notice in full" {...register("content")} />
       </FormField>
 
       <div className="flex flex-col gap-1.5">
@@ -233,7 +233,7 @@ function AnnouncementComposerForm({ announcement, onClose }: { announcement: Ann
           Cancel
         </Button>
         <Button type="submit" variant="primary" disabled={isPending}>
-          {isPending ? "Saving…" : isEditing ? "Save changes" : "Publish announcement"}
+          {isPending ? "Saving…" : isEditing ? "Save changes" : "Publish notice"}
         </Button>
       </div>
     </form>
@@ -245,7 +245,7 @@ export function AnnouncementComposerModal({ open, announcement, onClose }: Annou
     <Modal
       open={open}
       onClose={onClose}
-      title={announcement ? "Edit announcement" : "New announcement"}
+      title={announcement ? "Edit notice" : "New notice"}
       subtitle="Circulars and posts reach the classes you select below."
       widthClassName="max-w-2xl"
     >

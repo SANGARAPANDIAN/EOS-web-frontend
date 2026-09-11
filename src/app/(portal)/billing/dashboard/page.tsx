@@ -188,7 +188,7 @@ export default function BillingDashboardPage() {
 
         <div data-bill-lift style={cardSx}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Announcements</div>
+            <div style={{ fontSize: 17, fontWeight: 800 }}>Notices</div>
             <Link href="/billing/announcements" data-bill-primary style={{ background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 8, padding: "8px 15px", fontSize: 13, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>New</Link>
           </div>
           {(announcementRows ?? []).slice(0, 4).map((a) => {
@@ -205,9 +205,9 @@ export default function BillingDashboardPage() {
             );
           })}
           {(announcementRows ?? []).length === 0 && (
-            <div style={{ padding: "14px 0", fontSize: 12.5, color: "#94a3b8" }}>No announcements yet.</div>
+            <div style={{ padding: "14px 0", fontSize: 12.5, color: "#94a3b8" }}>No notices yet.</div>
           )}
-          <Link href="/billing/announcements" style={{ marginTop: 14, background: "transparent", border: 0, color: "#1d4ed8", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, display: "inline-block", textDecoration: "none" }}>View all announcements</Link>
+          <Link href="/billing/announcements" style={{ marginTop: 14, background: "transparent", border: 0, color: "#1d4ed8", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, display: "inline-block", textDecoration: "none" }}>View all notices</Link>
         </div>
       </div>
 

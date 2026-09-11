@@ -47,7 +47,7 @@ export function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
       await createAnnouncement.mutateAsync({ title: title.trim(), content: content.trim(), category });
       onClose();
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message ?? "Could not post this announcement.");
+      setError((err as { message?: string })?.message ?? "Could not post this notice.");
     }
   }
 
@@ -55,7 +55,7 @@ export function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
       <div className="max-h-[88vh] w-full max-w-[560px] overflow-auto rounded-modal bg-surface">
         <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
-          <div className="text-[19px] font-extrabold text-ink">New announcement</div>
+          <div className="text-[19px] font-extrabold text-ink">New notice</div>
           <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
             ✕
           </button>
@@ -85,7 +85,7 @@ export function NewAnnouncementModal({ onClose }: { onClose: () => void }) {
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Message</label>
-            <Textarea className="mt-1.5" rows={4} placeholder="Write the announcement in full" value={content} onChange={(e) => setContent(e.target.value)} />
+            <Textarea className="mt-1.5" rows={4} placeholder="Write the notice in full" value={content} onChange={(e) => setContent(e.target.value)} />
           </div>
 
           {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
@@ -143,7 +143,7 @@ export function EditAnnouncementModal({
       });
       onClose();
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message ?? "Could not save this announcement.");
+      setError((err as { message?: string })?.message ?? "Could not save this notice.");
     }
   }
 
@@ -151,7 +151,7 @@ export function EditAnnouncementModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
       <div className="w-full max-w-[560px] rounded-modal bg-surface">
         <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
-          <div className="text-[19px] font-extrabold text-ink">Edit announcement</div>
+          <div className="text-[19px] font-extrabold text-ink">Edit notice</div>
           <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
             ✕
           </button>

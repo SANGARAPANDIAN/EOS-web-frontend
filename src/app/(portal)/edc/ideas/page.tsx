@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useStartupIdeas, useCreateStartupIdea, useDeleteStartupIdea, type ReviewStatus } from "@/modules/edc/api/startupIdeas";
 import { useSearchStudentsForEdc, type StudentSearchResult } from "@/modules/edc/api/entrepreneurship";
 import { pillSx, toneOf } from "@/modules/edc/genericPage";
+import { SkeletonFilterBar, SkeletonStatTiles, SkeletonTable } from "@/components/ui";
 
 // Real backend connection — replaces the fake PAGE_DEFS.ideas. GET/POST/
 // PATCH/DELETE /me/startup-ideas (real table + module, see
@@ -83,6 +84,14 @@ export default function EdcIdeasPage() {
         </div>
       </div>
 
+      {isLoading && rows.length === 0 ? (
+        <>
+          <SkeletonStatTiles count={4} />
+          <SkeletonFilterBar />
+          <SkeletonTable rows={8} />
+        </>
+      ) : (
+        <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 16 }}>
         {kpis.map((k) => (
           <div key={k.label} data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "18px 20px 16px", display: "flex", flexDirection: "column", gap: 11 }}>
@@ -149,6 +158,8 @@ export default function EdcIdeasPage() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {modalOpen && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>

@@ -389,11 +389,11 @@ export default function StudentDashboardPage() {
         <Link href="/student/announcements">
         <Card className={CARD_LINK_HOVER}>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[16px] font-extrabold text-ink">Announcements</h2>
+            <h2 className="text-[16px] font-extrabold text-ink">Notices</h2>
             <Button variant="text">View all</Button>
           </div>
           {!announcements.data || announcements.data.length === 0 ? (
-            <EmptyState message={announcements.isLoading ? "Loading…" : "No announcements yet."} />
+            <EmptyState message={announcements.isLoading ? "Loading…" : "No notices yet."} />
           ) : (
             <div className="flex flex-col gap-3">
               {announcements.data.slice(0, 4).map((a) => (

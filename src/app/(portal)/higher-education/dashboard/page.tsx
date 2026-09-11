@@ -224,7 +224,7 @@ export default function HigherEducationDashboardPage() {
 
         <Card className={HOVERABLE}>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[17px] font-extrabold text-ink">Announcements</h2>
+            <h2 className="text-[17px] font-extrabold text-ink">Notices</h2>
             <Button variant="primarySmall" className="w-auto" onClick={() => setShowNewAnnouncement(true)}>
               New
             </Button>
@@ -236,7 +236,7 @@ export default function HigherEducationDashboardPage() {
               <Skeleton className="h-14 w-full" />
             </div>
           ) : recentAnnouncements.length === 0 ? (
-            <EmptyState message="No announcements yet." />
+            <EmptyState message="No notices yet." />
           ) : (
             <div className="flex flex-col gap-2.5 -mx-1">
               {recentAnnouncements.map((a) => (

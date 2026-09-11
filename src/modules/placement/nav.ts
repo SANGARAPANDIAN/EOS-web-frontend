@@ -15,7 +15,7 @@ export const placementModuleConfig: ModuleConfig = {
       label: "Overview",
       items: [
         { key: "dashboard", label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard` },
-        { key: "announcements", label: "Announcements", icon: "campaign", href: `${BASE}/announcements` },
+        { key: "announcements", label: "Notices", icon: "campaign", href: `${BASE}/announcements` },
         { key: "academic-calendar", label: "Academic calendar", icon: "calendar_month", href: `${BASE}/academic-calendar` },
       ],
     },

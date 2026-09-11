@@ -141,6 +141,21 @@ export default function AdvisorDashboardPage() {
 
   const recentAnnouncements = (announcements.data ?? []).slice(0, 3);
 
+  // Every KPI/section below reads from one of these — the skeleton must
+  // stay up until all of them have data, not just the first two. Letting it
+  // drop early was why "Pending approvals", "Class placements", and the
+  // Notices card would each briefly render a false "0"/"—"/"nothing here"
+  // before quietly correcting themselves once their own query resolved.
+  const isInitialLoading =
+    (myProfile.isLoading && !myProfile.data) ||
+    (today.isLoading && !today.data) ||
+    (leaves.isLoading && !leaves.data) ||
+    (ods.isLoading && !ods.data) ||
+    (roster.isLoading && !roster.data) ||
+    (announcements.isLoading && !announcements.data) ||
+    (mentees.isLoading && !mentees.data) ||
+    (menteeIds.length > 0 && !placementsLoaded);
+
   return (
     <div>
       <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em" }}>
@@ -151,7 +166,7 @@ export default function AdvisorDashboardPage() {
         {todayClasses.length > 0 ? ` · ${todayClasses.length} classes today` : ""} · attendance window closes at 4.15 pm
       </div>
 
-      {(myProfile.isLoading && !myProfile.data) || (today.isLoading && !today.data) ? (
+      {isInitialLoading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 22 }}>
           <SkeletonStatTiles count={4} />
           <div style={{ display: "grid", gridTemplateColumns: "1.15fr minmax(0,1fr) minmax(0,1fr)", gap: 16 }}>
@@ -283,7 +298,7 @@ export default function AdvisorDashboardPage() {
 
         <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>Announcements</div>
+            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>Notices</div>
             <Link href="/faculty/announcements" style={{ padding: "7px 14px", background: "#1D4ED8", color: "#fff", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>
               View all
             </Link>
@@ -301,7 +316,7 @@ export default function AdvisorDashboardPage() {
               </div>
             ))}
             {recentAnnouncements.length === 0 && (
-              <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>No announcements yet.</div>
+              <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>No notices yet.</div>
             )}
           </div>
           <div style={{ flex: 1 }} />

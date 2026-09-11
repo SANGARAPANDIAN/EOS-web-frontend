@@ -45,7 +45,7 @@ export default function PrincipalAnnouncementsPage() {
             className="text-[34px] font-extrabold tracking-tight"
             style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
           >
-            Announcements
+            Notices
           </h1>
           <p className="mt-1.5 text-[15px]" style={{ color: principalColors.textFaint }}>
             Circulars from the institution and posts you publish to your department
@@ -58,7 +58,7 @@ export default function PrincipalAnnouncementsPage() {
           style={{ background: principalColors.primary }}
         >
           <Icon name="campaign" size={18} />
-          New announcement
+          New notice
         </button>
       </div>
 
@@ -78,7 +78,7 @@ export default function PrincipalAnnouncementsPage() {
 
         {announcements.data?.length === 0 && (
           <div className="rounded-2xl border p-6 text-sm" style={{ background: principalColors.bg, borderColor: principalColors.border, color: principalColors.textFaint }}>
-            No announcements have been posted to the Principal role yet — publish one, or wait for
+            No notices have been posted to the Principal role yet — publish one, or wait for
             one addressed to you.
           </div>
         )}

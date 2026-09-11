@@ -25,7 +25,7 @@ export const secretaryModuleConfig: ModuleConfig = {
       label: "Overview",
       items: [
         { key: "dashboard", label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard` },
-        { key: "notices", label: "Announcements", icon: "campaign", href: `${BASE}/announcements` },
+        { key: "notices", label: "Notices", icon: "campaign", href: `${BASE}/announcements` },
         { key: "reports", label: "Reports", icon: "monitoring", href: `${BASE}/reports` },
         { key: "calendar", label: "Academic Calendar", icon: "calendar_month", href: `${BASE}/calendar` },
       ],

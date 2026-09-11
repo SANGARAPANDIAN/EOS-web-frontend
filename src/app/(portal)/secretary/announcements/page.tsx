@@ -190,9 +190,9 @@ export default function SecretaryAnnouncementsPage() {
       setOpen(false);
       setAttached(false);
       setForm(EMPTY_ANN);
-      flash(scheduled ? "Announcement saved as a draft — publish it later from the board." : "Announcement published to the department.");
+      flash(scheduled ? "Notice saved as a draft — publish it later from the board." : "Notice published to the department.");
     } catch (err) {
-      flash(err instanceof Error ? err.message : "Could not save the announcement.");
+      flash(err instanceof Error ? err.message : "Could not save the notice.");
     }
   }
 
@@ -201,7 +201,7 @@ export default function SecretaryAnnouncementsPage() {
       await updateMutation.mutateAsync({ id: n.id, input: { status: n.status === "published" ? "draft" : "published" } });
       flash(n.status === "published" ? "Notice moved back to drafts." : "Notice published to the board.");
     } catch (err) {
-      flash(err instanceof Error ? err.message : "Could not update the announcement.");
+      flash(err instanceof Error ? err.message : "Could not update the notice.");
     }
   }
   function onPin(n: AnnouncementRow) {
@@ -218,7 +218,7 @@ export default function SecretaryAnnouncementsPage() {
       await deleteMutation.mutateAsync(n.id);
       flash("Notice deleted.");
     } catch (err) {
-      flash(err instanceof Error ? err.message : "Could not delete the announcement.");
+      flash(err instanceof Error ? err.message : "Could not delete the notice.");
     }
   }
 
@@ -236,14 +236,14 @@ export default function SecretaryAnnouncementsPage() {
     <div>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24, marginBottom: 26 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Announcements</h1>
+          <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Notices</h1>
           <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>Circulars from the institution and posts you publish to the department</p>
         </div>
-        <button onClick={openNotice} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 13.5, fontWeight: 600, borderRadius: 12, padding: "16px 28px", cursor: "pointer" }}>New announcement</button>
+        <button onClick={openNotice} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 13.5, fontWeight: 600, borderRadius: 12, padding: "16px 28px", cursor: "pointer" }}>New notice</button>
       </div>
 
-      {isLoading && <div style={{ padding: 40, textAlign: "center", fontSize: 12.6, color: "#94a3b8" }}>Loading announcements…</div>}
-      {error && <div style={{ padding: 40, textAlign: "center", fontSize: 12.6, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load announcements."}</div>}
+      {isLoading && <div style={{ padding: 40, textAlign: "center", fontSize: 12.6, color: "#94a3b8" }}>Loading notices…</div>}
+      {error && <div style={{ padding: 40, textAlign: "center", fontSize: 12.6, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load notices."}</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {sortedRows.map((n) => {
@@ -274,7 +274,7 @@ export default function SecretaryAnnouncementsPage() {
           );
         })}
         {!isLoading && !error && sortedRows.length === 0 && (
-          <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: 44, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No announcements yet.</div>
+          <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: 44, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No notices yet.</div>
         )}
       </div>
 
@@ -282,7 +282,7 @@ export default function SecretaryAnnouncementsPage() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.42)", display: "flex", alignItems: "center", justifyContent: "center", padding: 40, zIndex: 90 }}>
           <div style={{ width: 1000, maxWidth: "100%", maxHeight: "88vh", overflowY: "auto", background: "#ffffff", borderRadius: 18, boxShadow: "0 30px 70px rgba(15,23,42,0.28)" }}>
             <div data-sec-row="" style={{ padding: "26px 32px 22px", borderBottom: "1px solid #eef2f7", display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ fontSize: 22.6, fontWeight: 700, letterSpacing: -0.6 }}>New announcement</div>
+              <div style={{ fontSize: 22.6, fontWeight: 700, letterSpacing: -0.6 }}>New notice</div>
               <button data-sec-lift="" onClick={() => setOpen(false)} style={{ marginLeft: "auto", width: 40, height: 40, borderRadius: 10, border: "1px solid #e5e9f2", background: "#ffffff", color: "#475569", fontSize: 13.1, cursor: "pointer" }}>×</button>
             </div>
             <div style={{ padding: "26px 32px" }}>
@@ -306,7 +306,7 @@ export default function SecretaryAnnouncementsPage() {
               </div>
               <label style={{ display: "block", marginTop: 22 }}>
                 <span style={labelSx}>Message</span>
-                <textarea data-sec-lift="" value={form.body} onChange={(e) => set("body", e.target.value)} placeholder="Write the announcement in full" style={{ width: "100%", minHeight: 150, border: "1px solid #e5e9f2", borderRadius: 10, padding: "14px 16px", fontSize: 13.5, lineHeight: 1.6, background: "#fbfcfe", resize: "vertical" }} />
+                <textarea data-sec-lift="" value={form.body} onChange={(e) => set("body", e.target.value)} placeholder="Write the notice in full" style={{ width: "100%", minHeight: 150, border: "1px solid #e5e9f2", borderRadius: 10, padding: "14px 16px", fontSize: 13.5, lineHeight: 1.6, background: "#fbfcfe", resize: "vertical" }} />
               </label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 26, marginTop: 22 }}>
                 <label style={{ display: "block" }}>
@@ -322,7 +322,7 @@ export default function SecretaryAnnouncementsPage() {
             </div>
             <div style={{ padding: "20px 32px 26px", borderTop: "1px solid #eef2f7", display: "flex", gap: 14, justifyContent: "flex-end" }}>
               <button data-sec-lift="" onClick={() => setOpen(false)} style={{ border: "1px solid #e5e9f2", background: "#ffffff", color: "#475569", fontSize: 12.6, fontWeight: 600, borderRadius: 10, padding: "13px 24px", cursor: "pointer" }}>Cancel</button>
-              <button onClick={submit} disabled={createMutation.isPending} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 12.6, fontWeight: 600, borderRadius: 10, padding: "13px 28px", cursor: "pointer", opacity: createMutation.isPending ? 0.7 : 1 }}>{form.schedule ? "Save as draft" : "Publish announcement"}</button>
+              <button onClick={submit} disabled={createMutation.isPending} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 12.6, fontWeight: 600, borderRadius: 10, padding: "13px 28px", cursor: "pointer", opacity: createMutation.isPending ? 0.7 : 1 }}>{form.schedule ? "Save as draft" : "Publish notice"}</button>
             </div>
           </div>
         </div>

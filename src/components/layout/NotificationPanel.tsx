@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   useNotificationsPanel,
   useMarkNotificationRead,
@@ -9,6 +10,17 @@ import {
   useUnpinNotification,
   type NotificationRow,
 } from "@/modules/shared/api/notifications";
+
+// Every other notification type has no defined target screen today (a
+// pre-existing gap, not something to fix here) — a direct message is the
+// one type with an unambiguous destination, so it's the only one wired to
+// navigate on click.
+function notificationHref(row: NotificationRow): string | null {
+  if (row.related_entity_type === "message_conversation" && row.related_entity_id != null) {
+    return `/messages?c=${row.related_entity_id}`;
+  }
+  return null;
+}
 
 // Bell-icon dropdown — pinned rows always shown first, everything else
 // unread-only (see useNotificationsPanel / GET /me/notifications/panel).
@@ -27,14 +39,20 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
-function NotificationRowItem({ row }: { row: NotificationRow }) {
+function NotificationRowItem({ row, onNavigate }: { row: NotificationRow; onNavigate: (href: string) => void }) {
   const markRead = useMarkNotificationRead();
   const pin = usePinNotification();
   const unpin = useUnpinNotification();
 
+  function handleClick() {
+    if (!markRead.isPending) markRead.mutate(row.id);
+    const href = notificationHref(row);
+    if (href) onNavigate(href);
+  }
+
   return (
     <div
-      onClick={() => !markRead.isPending && markRead.mutate(row.id)}
+      onClick={handleClick}
       style={{
         display: "flex",
         alignItems: "flex-start",
@@ -86,6 +104,12 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   const panel = useNotificationsPanel();
   const markAllRead = useMarkAllNotificationsRead();
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  function handleNavigate(href: string) {
+    onClose();
+    router.push(href);
+  }
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -146,7 +170,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
           <div style={{ padding: 20, fontSize: 12.5, color: "#94A3B8" }}>You&apos;re all caught up.</div>
         )}
         {rows.map((row) => (
-          <NotificationRowItem key={row.id} row={row} />
+          <NotificationRowItem key={row.id} row={row} onNavigate={handleNavigate} />
         ))}
       </div>
     </div>

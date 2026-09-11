@@ -20,7 +20,7 @@ const CATEGORY_OPTIONS: { value: AnnouncementCategory; label: string }[] = [
 export default function HrAnnouncementsPage() {
   return (
     <AnnouncementManager
-      title="Announcements"
+      title="Notices"
       subtitle="Circulars from the institution, and notices you publish to faculty or specific roles."
       emptyMessage="Nothing here yet."
       audienceOptions={AUDIENCE_OPTIONS}

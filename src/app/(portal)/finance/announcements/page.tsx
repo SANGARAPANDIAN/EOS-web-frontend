@@ -123,9 +123,9 @@ export default function FinanceAnnouncementsPage() {
       createAnn.mutate(input, {
         onSuccess: () => {
           setModal(null);
-          showToast(publish ? "Announcement published" : "Draft saved");
+          showToast(publish ? "Notice published" : "Draft saved");
         },
-        onError: (e) => setErr(e instanceof Error ? e.message : "Could not post that announcement"),
+        onError: (e) => setErr(e instanceof Error ? e.message : "Could not post that notice"),
       });
     } else if (modal?.row) {
       updateAnn.mutate(
@@ -133,9 +133,9 @@ export default function FinanceAnnouncementsPage() {
         {
           onSuccess: () => {
             setModal(null);
-            showToast("Announcement updated");
+            showToast("Notice updated");
           },
-          onError: (e) => setErr(e instanceof Error ? e.message : "Could not update that announcement"),
+          onError: (e) => setErr(e instanceof Error ? e.message : "Could not update that notice"),
         },
       );
     }
@@ -146,17 +146,17 @@ export default function FinanceAnnouncementsPage() {
     const row = confirmDelete;
     setConfirmDelete(null);
     deleteAnn.mutate(row.id, {
-      onSuccess: () => showToast("Announcement deleted"),
-      onError: (e) => showToast(e instanceof Error ? e.message : "Could not delete that announcement"),
+      onSuccess: () => showToast("Notice deleted"),
+      onError: (e) => showToast(e instanceof Error ? e.message : "Could not delete that notice"),
     });
   }
 
   return (
     <div>
       <PageHead
-        title="Announcements"
+        title="Notices"
         sub="Post and manage notices from the Finance office"
-        actionLabel="New announcement"
+        actionLabel="New notice"
         onAction={openCreate}
       />
 
@@ -168,7 +168,7 @@ export default function FinanceAnnouncementsPage() {
       </div>
 
       <div style={{ ...filterBarSx, marginTop: 22 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search announcements…" style={inputSx} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search notices…" style={inputSx} />
         <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={selectSx}>
           <option value="">All categories</option>
           {CATEGORY_OPTIONS.map((c) => (
@@ -186,11 +186,11 @@ export default function FinanceAnnouncementsPage() {
       </div>
 
       {isLoading ? (
-        <div style={{ padding: 70, textAlign: "center", fontSize: 13.1, color: GREY.faint }}>Loading announcements…</div>
+        <div style={{ padding: 70, textAlign: "center", fontSize: 13.1, color: GREY.faint }}>Loading notices…</div>
       ) : rows.length === 0 ? (
         <div style={cardSx}>
           <Empty
-            title="No announcements to show"
+            title="No notices to show"
             hint={(announcements ?? []).length === 0 ? "Post the first Finance notice." : "Try clearing the filters."}
           />
         </div>
@@ -265,7 +265,7 @@ export default function FinanceAnnouncementsPage() {
 
       <FinanceModal
         open={modal !== null}
-        title={modal?.mode === "create" ? "New announcement" : "Edit announcement"}
+        title={modal?.mode === "create" ? "New notice" : "Edit notice"}
         sub="Posted as the Finance office, institution-wide."
         cta={modal?.mode === "create" ? (publish ? "Publish" : "Save draft") : "Save changes"}
         busy={createAnn.isPending || updateAnn.isPending}
@@ -351,7 +351,7 @@ export default function FinanceAnnouncementsPage() {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Delete this announcement?"
+        title="Delete this notice?"
         description={`"${confirmDelete?.title ?? ""}" will be removed for everyone. This cannot be undone.`}
         confirmLabel="Delete"
         cancelLabel="Cancel"

@@ -38,7 +38,7 @@ export const FINANCE_NAV: FinanceNavGroup[] = [
     items: [
       { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/finance/dashboard" },
       { id: "overview", label: "Finance Overview", icon: "overview", href: "/finance/overview" },
-      { id: "announcements", label: "Announcements", icon: "megaphone", href: "/finance/announcements" },
+      { id: "announcements", label: "Notices", icon: "megaphone", href: "/finance/announcements" },
     ],
   },
   {

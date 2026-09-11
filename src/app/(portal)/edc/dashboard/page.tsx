@@ -300,11 +300,11 @@ export default function EdcDashboardPage() {
 
           <div data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Announcements</h3>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Notices</h3>
               <Link href="/edc/announcements" style={{ fontSize: 12.5, fontWeight: 600 }}>View all</Link>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {recentAnnouncements.length === 0 && <div style={{ fontSize: 13, color: "#94A3B8" }}>No announcements yet.</div>}
+              {recentAnnouncements.length === 0 && <div style={{ fontSize: 13, color: "#94A3B8" }}>No notices yet.</div>}
               {recentAnnouncements.map((a: EdcAnnouncementRow) => (
                 <div key={a.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ fontSize: 12, color: "#94A3B8" }}>{timeAgo(a.created_at)}</div>

@@ -6,6 +6,7 @@ import { useMenteeRoster, type MenteeRosterStudent } from "@/modules/advisor/api
 import { useMenteeProfile, useMenteeReport, useMenteeDocuments, useMenteeAcademicRecord, useMenteePlacements } from "@/modules/advisor/api/mentees";
 import { useMenteeNoDueStudents } from "@/modules/advisor/api/no-due";
 import { AdvisorIcon } from "@/modules/advisor/icons";
+import { SkeletonTable } from "@/components/ui";
 import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
 import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
 
@@ -660,6 +661,9 @@ export default function AdvisorStudentsPage() {
       </div>
 
       <div style={{ display: "flex", gap: 16, marginTop: 16, alignItems: "start" }}>
+        {roster.isLoading && students.length === 0 ? (
+          <SkeletonTable rows={8} className="flex-1" />
+        ) : (
         <div style={{ flex: 1, minWidth: 0, background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 0.7fr 0.7fr 0.8fr 0.9fr 1fr", padding: "15px 22px", borderBottom: "1px solid #EEF1F6", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>
             <div>STUDENT</div>
@@ -723,6 +727,7 @@ export default function AdvisorStudentsPage() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

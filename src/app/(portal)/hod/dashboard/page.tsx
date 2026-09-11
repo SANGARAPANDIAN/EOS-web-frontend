@@ -203,7 +203,7 @@ export default function HodDashboardPage() {
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-[16px] font-extrabold text-ink">Announcements</h2>
+              <h2 className="text-[16px] font-extrabold text-ink">Notices</h2>
               {/* Background refresh (e.g. a new announcement just got posted) — the
                   previous list stays fully visible underneath, this is just a cue
                   that it's being brought up to date, not a full-list replacement. */}
@@ -214,7 +214,7 @@ export default function HodDashboardPage() {
             </Link>
           </div>
           {!d || d.announcements.length === 0 ? (
-            <EmptyState loading={dashboard.isLoading} size={32} message="No announcements yet." />
+            <EmptyState loading={dashboard.isLoading} size={32} message="No notices yet." />
           ) : (
             <div className="flex flex-col gap-2.5">
               {d.announcements.map((a) => (

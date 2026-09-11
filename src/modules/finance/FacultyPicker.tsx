@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useFacultySearch, type FacultyOption } from "./api/finance";
 import { BLUE, GREY } from "./ui";
 import { FinanceIcon } from "./icons";
@@ -29,7 +30,8 @@ export function FacultyPicker({
   hint?: string;
 }) {
   const [query, setQuery] = useState("");
-  const { data: results, isFetching } = useFacultySearch(query);
+  const debouncedQuery = useDebouncedValue(query);
+  const { data: results, isFetching } = useFacultySearch(debouncedQuery);
 
   return (
     <div>

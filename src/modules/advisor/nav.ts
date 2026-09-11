@@ -34,7 +34,7 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
     items: [
       { key: "dashboard", label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard` },
       { key: "reports", label: "Reports & Analytics", icon: "reports", href: `${BASE}/reports` },
-      { key: "announcements", label: "Announcements", icon: "announcements", href: `${BASE}/announcements` },
+      { key: "announcements", label: "Notices", icon: "announcements", href: `${BASE}/announcements` },
     ],
   },
   {

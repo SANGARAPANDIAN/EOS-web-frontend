@@ -10,6 +10,7 @@ import {
   type AttendanceMarkStatus,
 } from "@/modules/advisor/api/attendance";
 import { ApiError } from "@/types/api";
+import { SkeletonRows } from "@/components/ui";
 import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // Backed by GET /me/classes/today (class+subject dropdown — only the
@@ -329,6 +330,7 @@ export default function AdvisorAttendancePage() {
           </div>
           <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 600, whiteSpace: "nowrap" }}>{students.length} students</div>
         </div>
+        {roster.isLoading && students.length === 0 && <SkeletonRows count={8} className="p-4" />}
         {filteredStudents.map((s) => {
           const m = marks[s.student_id] ?? null;
           return (

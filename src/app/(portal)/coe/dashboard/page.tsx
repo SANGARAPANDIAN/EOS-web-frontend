@@ -21,7 +21,7 @@ const QUICK_ACTIONS = [
   { label: "New exam", href: "/coe/exam-management" },
   { label: "New timetable", href: "/coe/timetables" },
   { label: "Allocate halls", href: "/coe/halls-seating" },
-  { label: "Compose announcement", href: "/coe/notifications" },
+  { label: "Compose notice", href: "/coe/notifications" },
   { label: "Publish results", href: "/coe/results-management" },
 ];
 

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { apiClient } from "@/lib/api/client";
-import { ConfirmDialog } from "@/components/ui";
+import { ConfirmDialog, SkeletonCardGrid } from "@/components/ui";
 import {
   useFacultyFolders,
   useCreateFolder,
@@ -143,6 +143,9 @@ export default function AdvisorCurrentSemesterPage() {
         <div style={{ marginTop: 6, fontSize: 14, color: "#64748B", fontWeight: 500 }}>
           {data?.academic_year ?? ""} · open a subject to manage material, tasks and lesson plan
         </div>
+        {isLoading && subjects.length === 0 ? (
+          <SkeletonCardGrid count={6} columns={3} className="mt-5" />
+        ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px,1fr))", gap: 16, marginTop: 20 }}>
           {subjects.map((s) => (
             <div key={`${s.class_id}-${s.subject_id}`} data-advisor-lift="" onClick={() => setSubjectId(s.subject_id)} style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 20, cursor: "pointer" }}>
@@ -170,6 +173,7 @@ export default function AdvisorCurrentSemesterPage() {
             <div style={{ padding: "40px 0", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 14 }}>No subjects mapped for the current semester.</div>
           )}
         </div>
+        )}
       </div>
     );
   }

@@ -16,7 +16,7 @@ const EDC_NAV_GROUPS: NavGroup[] = [
     label: "Overview",
     items: [
       { key: "dashboard", label: "Dashboard", icon: "dashboard", href: "/edc/dashboard" },
-      { key: "announcements", label: "Announcements", icon: "campaign", href: "/edc/announcements", badgeKey: "edcAnnouncements" },
+      { key: "announcements", label: "Notices", icon: "campaign", href: "/edc/announcements", badgeKey: "edcAnnouncements" },
       { key: "calendar", label: "Academic Calendar", icon: "calendar_month", href: "/edc/calendar" },
     ],
   },

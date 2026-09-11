@@ -13,9 +13,9 @@ const PRIORITY_OPTIONS = ["High Priority", "Medium Priority", "Normal Priority"]
 export default function EdcAnnouncementsPage() {
   return (
     <AnnouncementManager
-      title="Entrepreneurship Announcements"
-      subtitle="Publish and manage announcements for student entrepreneurs."
-      emptyMessage="No announcements yet — publish one to reach founders."
+      title="Entrepreneurship Notices"
+      subtitle="Publish and manage notices for student entrepreneurs."
+      emptyMessage="No notices yet — publish one to reach founders."
       audienceOptions={AUDIENCE_OPTIONS}
       priorityOptions={PRIORITY_OPTIONS}
     />

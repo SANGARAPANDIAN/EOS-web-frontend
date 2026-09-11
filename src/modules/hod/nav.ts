@@ -12,7 +12,7 @@ export const hodModuleConfig: ModuleConfig = {
       items: [
         { key: "dashboard", label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard` },
         { key: "reports-analytics", label: "Reports & Analytics", icon: "monitoring", href: `${BASE}/reports-analytics` },
-        { key: "announcements", label: "Announcements", icon: "campaign", href: `${BASE}/announcements` },
+        { key: "announcements", label: "Notices", icon: "campaign", href: `${BASE}/announcements` },
         { key: "academic-calendar", label: "Academic Calendar", icon: "calendar_month", href: `${BASE}/academic-calendar` },
       ],
     },

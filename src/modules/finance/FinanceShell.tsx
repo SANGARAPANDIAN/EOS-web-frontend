@@ -64,7 +64,7 @@ export function FinanceShell({ children }: { children: React.ReactNode }) {
           { label: "Track POP deliveries", onSelect: () => router.push("/finance/pop-tracking") },
           { label: "Fees overview", onSelect: () => router.push("/finance/fees") },
           { label: "Student fee records", onSelect: () => router.push("/finance/fees/students") },
-          { label: "Post an announcement", onSelect: () => router.push("/finance/announcements") },
+          { label: "Post a notice", onSelect: () => router.push("/finance/announcements") },
         ],
       }}
     >

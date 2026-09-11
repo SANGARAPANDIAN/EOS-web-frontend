@@ -12,7 +12,7 @@ export const higherEducationModuleConfig: ModuleConfig = {
       items: [
         { key: "dashboard", label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard` },
         { key: "reports", label: "Reports & analytics", icon: "monitoring", href: `${BASE}/reports` },
-        { key: "announcements", label: "Announcements", icon: "campaign", href: `${BASE}/announcements` },
+        { key: "announcements", label: "Notices", icon: "campaign", href: `${BASE}/announcements` },
         { key: "calendar", label: "Academic calendar", icon: "calendar_month", href: `${BASE}/calendar` },
       ],
     },

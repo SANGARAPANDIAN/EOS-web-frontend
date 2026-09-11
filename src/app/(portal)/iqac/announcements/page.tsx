@@ -23,11 +23,11 @@ const CATEGORY_OPTIONS: { value: AnnouncementCategory; label: string }[] = [
 export default function IqacAnnouncementsPage() {
   return (
     <div className="flex flex-col gap-5">
-      <PageCrumbs items={["IQAC", "Announcements"]} />
+      <PageCrumbs items={["IQAC", "Notices"]} />
       <AnnouncementManager
-        title="Announcements"
-        subtitle="Every real institution-wide announcement — oversight view, same broadcast tier as Admin/Principal."
-        emptyMessage="No announcements yet."
+        title="Notices"
+        subtitle="Every real institution-wide notice — oversight view, same broadcast tier as Admin/Principal."
+        emptyMessage="No notices yet."
         audienceOptions={AUDIENCE_OPTIONS}
         categoryOptions={CATEGORY_OPTIONS}
         supportsDraft

@@ -48,9 +48,9 @@ export function PrincipalShell({ children }: { children: React.ReactNode }) {
         onSelect: () => router.push(`/principal/approvals?q=${encodeURIComponent(a.faculty_name)}`),
       })),
       ...data.announcements.map((a) => ({
-        section: "Announcement",
+        section: "Notice",
         title: a.title,
-        sub: "Announcement",
+        sub: "Notice",
         onSelect: () => router.push("/principal/announcements"),
       })),
     ];
@@ -70,7 +70,7 @@ export function PrincipalShell({ children }: { children: React.ReactNode }) {
         showNotifications: true,
       }}
       search={{
-        placeholder: "Search students, faculty, departments, approvals, announcements…",
+        placeholder: "Search students, faculty, departments, approvals, notices…",
         query,
         onQueryChange: setQuery,
         results,
@@ -83,7 +83,7 @@ export function PrincipalShell({ children }: { children: React.ReactNode }) {
       quickCreate={{
         items: [
           { label: "Add event", onSelect: () => router.push("/principal/calendar?action=add-event") },
-          { label: "New announcement", onSelect: () => router.push("/principal/announcements?action=new") },
+          { label: "New notice", onSelect: () => router.push("/principal/announcements?action=new") },
         ],
       }}
       navBadges={{

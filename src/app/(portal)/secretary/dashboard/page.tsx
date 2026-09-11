@@ -253,7 +253,7 @@ export default function SecretaryDashboardPage() {
 
         <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <h2 style={{ margin: 0, fontSize: 15.7, fontWeight: 700 }}>Announcements</h2>
+            <h2 style={{ margin: 0, fontSize: 15.7, fontWeight: 700 }}>Notices</h2>
             <span onClick={() => router.push("/secretary/announcements")} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 11.7, fontWeight: 600, borderRadius: 9, padding: "9px 16px", cursor: "pointer" }}>View all</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -269,7 +269,7 @@ export default function SecretaryDashboardPage() {
                 </div>
               );
             })}
-            {(!announcements || announcements.length === 0) && <div style={{ padding: 20, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No announcements yet.</div>}
+            {(!announcements || announcements.length === 0) && <div style={{ padding: 20, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No notices yet.</div>}
           </div>
         </div>
       </div>

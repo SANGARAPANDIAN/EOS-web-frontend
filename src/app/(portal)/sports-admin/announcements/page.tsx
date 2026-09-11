@@ -101,7 +101,7 @@ export default function AnnouncementsPage() {
     downloadCsv(
       "sports-announcements",
       [
-        { header: "Announcement", value: (a: SportsAnnouncement) => a.title },
+        { header: "Notice", value: (a: SportsAnnouncement) => a.title },
         { header: "Category", value: (a: SportsAnnouncement) => CATEGORY_LABEL[a.category] },
         { header: "Posted", value: (a: SportsAnnouncement) => formatDisplayDate(a.posted_at) },
         { header: "Posted by", value: (a: SportsAnnouncement) => a.posted_by.email },
@@ -111,7 +111,7 @@ export default function AnnouncementsPage() {
   }
 
   const columns: DataTableColumn<SportsAnnouncement>[] = [
-    { key: "title", header: "Announcement", width: "1.5fr", render: (a) => <span className="font-bold text-ink">{a.title}</span> },
+    { key: "title", header: "Notice", width: "1.5fr", render: (a) => <span className="font-bold text-ink">{a.title}</span> },
     {
       key: "audience",
       header: "Audience · Channel",
@@ -157,7 +157,7 @@ export default function AnnouncementsPage() {
     <div className="flex flex-col gap-5 animate-pop-in">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Announcements</h1>
+          <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Notices</h1>
           <p className="mt-1 text-[13.5px] text-muted">Notices published to athletes, coaches and departments</p>
         </div>
         <div className="flex gap-2.5">
@@ -166,7 +166,7 @@ export default function AnnouncementsPage() {
           </Button>
           <Button variant="primarySmall" className="inline-flex items-center gap-1.5 px-5 py-3" onClick={openModal}>
             <Icon name="add" size={16} />
-            New announcement
+            New notice
           </Button>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function AnnouncementsPage() {
       <Card className="flex flex-col gap-3.5 p-4">
         <SearchBar
           className="max-w-none"
-          placeholder="Search announcements by title or content"
+          placeholder="Search notices by title or content"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -242,21 +242,21 @@ export default function AnnouncementsPage() {
         columns={columns}
         data={rows}
         rowKey={(a) => a.id}
-        title="Announcements register"
+        title="Notices register"
         titleNote={`Showing ${rows.length} of ${loaded.length} loaded record${loaded.length === 1 ? "" : "s"}`}
         emptyMessage={
           announcements.isLoading
             ? "Loading…"
             : loaded.length === 0
-              ? "No announcements yet. Use + New announcement to post the first one."
-              : "No announcements match these filters."
+              ? "No notices yet. Use + New notice to post the first one."
+              : "No notices match these filters."
         }
       />
 
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title="New announcement"
+        title="New notice"
         subtitle="Published to athletes, coaches and departments"
       >
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
@@ -294,7 +294,7 @@ export default function AnnouncementsPage() {
               Cancel
             </Button>
             <Button type="submit" variant="primarySmall" className="px-6" disabled={!title || !content || createAnnouncement.isPending}>
-              {createAnnouncement.isPending ? "Posting…" : "Post announcement"}
+              {createAnnouncement.isPending ? "Posting…" : "Post notice"}
             </Button>
           </div>
         </form>

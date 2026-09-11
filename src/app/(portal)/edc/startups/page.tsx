@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useEdcEntrepreneurship, isBeyondIdeaStage } from "@/modules/edc/api/entrepreneurship";
 import { pillSx } from "@/modules/edc/genericPage";
+import { SkeletonFilterBar, SkeletonTable } from "@/components/ui";
 
 // Real backend connection — same GET /me/edc-entrepreneurship as EDC
 // Students, filtered client-side to ventures beyond idea stage (there is no
@@ -46,6 +47,13 @@ export default function EdcStartupsPage() {
         <p style={{ margin: 0, fontSize: 15.5, color: "#64748B" }}>The {rows.length} EDC venture{rows.length === 1 ? "" : "s"} that are beyond idea stage and still active.</p>
       </div>
 
+      {isLoading && rows.length === 0 ? (
+        <>
+          <SkeletonFilterBar />
+          <SkeletonTable rows={8} />
+        </>
+      ) : (
+        <>
       <div data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           {CHIPS.map((c) => {
@@ -101,6 +109,8 @@ export default function EdcStartupsPage() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

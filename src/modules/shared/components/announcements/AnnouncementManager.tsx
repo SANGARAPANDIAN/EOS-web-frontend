@@ -94,7 +94,7 @@ export function AnnouncementManager({
     try {
       await remove.mutateAsync(id);
     } catch (err: unknown) {
-      setDeleteError((err as { message?: string })?.message ?? "You can only delete your own announcement.");
+      setDeleteError((err as { message?: string })?.message ?? "You can only delete your own notice.");
     }
   }
 
@@ -106,7 +106,7 @@ export function AnnouncementManager({
           <p className="mt-1 text-[13.5px] text-muted">{subtitle}</p>
         </div>
         <Button variant="primarySmall" className="w-auto" onClick={() => setComposeOpen(true)}>
-          + Add announcement
+          + Add notice
         </Button>
       </div>
 
@@ -257,7 +257,7 @@ function ComposeAnnouncementModal({
       });
       onClose();
     } catch (err: unknown) {
-      setError((err as { message?: string })?.message ?? "Could not save this announcement.");
+      setError((err as { message?: string })?.message ?? "Could not save this notice.");
     }
   }
 
@@ -267,7 +267,7 @@ function ComposeAnnouncementModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
       <div className="max-h-[88vh] w-full max-w-[560px] overflow-auto rounded-modal bg-surface">
         <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
-          <div className="text-[19px] font-extrabold text-ink">{isEditing ? "Edit announcement" : "New announcement"}</div>
+          <div className="text-[19px] font-extrabold text-ink">{isEditing ? "Edit notice" : "New notice"}</div>
           <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
             ✕
           </button>
@@ -326,7 +326,7 @@ function ComposeAnnouncementModal({
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Content</label>
-            <Textarea className="mt-1.5" rows={5} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write the announcement in full" />
+            <Textarea className="mt-1.5" rows={5} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write the notice in full" />
           </div>
 
           {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}

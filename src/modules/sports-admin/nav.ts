@@ -12,7 +12,7 @@ export const sportsAdminModuleConfig: ModuleConfig = {
       items: [
         { key: "dashboard", label: "Dashboard", icon: "grid_view", href: `${BASE}/dashboard` },
         { key: "reports", label: "Reports & analytics", icon: "monitoring", href: `${BASE}/reports` },
-        { key: "announcements", label: "Announcements", icon: "campaign", href: `${BASE}/announcements` },
+        { key: "announcements", label: "Notices", icon: "campaign", href: `${BASE}/announcements` },
         { key: "calendar", label: "Calendar", icon: "calendar_month", href: `${BASE}/calendar` },
         { key: "fixtures", label: "Fixtures", icon: "sports_score", href: `${BASE}/fixtures` },
       ],

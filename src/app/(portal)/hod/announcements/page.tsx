@@ -57,16 +57,16 @@ export default function HodAnnouncementsPage() {
     <div className="flex flex-col gap-5 animate-pop-in">
       {announcements.isError && (
         <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
-          Couldn&apos;t load announcements — please try again.
+          Couldn&apos;t load notices — please try again.
         </div>
       )}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Announcements</h1>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Notices</h1>
           <p className="mt-1 text-[13px] text-muted">Circulars from the institution and posts you publish to your department</p>
         </div>
         <Button variant="primarySmall" onClick={() => setShowModal(true)}>
-          New announcement
+          New notice
         </Button>
       </div>
 
@@ -74,7 +74,7 @@ export default function HodAnnouncementsPage() {
         <SkeletonRows count={5} />
       ) : announcements.isError ? null : !announcements.data || announcements.data.length === 0 ? (
         <Card>
-          <EmptyState message="No announcements yet." />
+          <EmptyState message="No notices yet." />
         </Card>
       ) : (
         <div className="flex flex-col gap-3">
@@ -155,7 +155,7 @@ function NewAnnouncementModal({ deptCode, onClose }: { deptCode: string; onClose
   }
 
   return (
-    <Modal open onClose={onClose} title="New announcement" className="max-w-[620px]">
+    <Modal open onClose={onClose} title="New notice" className="max-w-[620px]">
       <div className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-[13px] font-bold text-primary">Headline</label>
@@ -195,7 +195,7 @@ function NewAnnouncementModal({ deptCode, onClose }: { deptCode: string; onClose
               rows={5}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Write the announcement in full"
+              placeholder="Write the notice in full"
             />
           </div>
 
@@ -203,7 +203,7 @@ function NewAnnouncementModal({ deptCode, onClose }: { deptCode: string; onClose
             <label className="mb-1.5 block text-[13px] font-bold text-primary">Schedule for (optional)</label>
             <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
             <p className="mt-1 text-[11.5px] text-subtle">
-              Saved as a reminder on the announcement — publishing itself still has to be done manually at that time.
+              Saved as a reminder on the notice — publishing itself still has to be done manually at that time.
             </p>
           </div>
         </div>

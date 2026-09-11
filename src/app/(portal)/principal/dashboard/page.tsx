@@ -209,7 +209,7 @@ export default function PrincipalDashboardPage() {
         >
           <div className="flex items-center gap-3 border-b px-5 py-[18px]" style={{ borderColor: principalColors.borderLight }}>
             <div className="text-[17px] font-bold" style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}>
-              Announcements
+              Notices
             </div>
             <Link href="/principal/announcements" className="ml-auto text-sm font-semibold" style={{ color: principalColors.primary }}>
               View all
@@ -225,7 +225,7 @@ export default function PrincipalDashboardPage() {
               ))}
             {announcements.data?.length === 0 && (
               <div className="px-5 py-6 text-sm" style={{ color: principalColors.textFaint }}>
-                No announcements have been posted to the Principal role yet.
+                No notices have been posted to the Principal role yet.
               </div>
             )}
             {announcements.data?.slice(0, 6).map((a) => (

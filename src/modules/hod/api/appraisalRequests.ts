@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
-export type AppraisalStatus = "pending" | "sent_to_principal" | "sent_back";
+export type AppraisalStatus = "pending" | "sent_to_hr" | "sent_back";
 
 export interface HodAppraisalRow {
   id: number;
@@ -10,6 +10,7 @@ export interface HodAppraisalRow {
   submitted_at: string;
   cycle_academic_year: string;
   entries_count: number;
+  attachments_count: number;
   self_score: number | null;
   status: AppraisalStatus;
   can_act: boolean;
@@ -17,7 +18,7 @@ export interface HodAppraisalRow {
 
 export interface HodAppraisalRequests {
   department: { name: string; code: string };
-  counts: { pending: number; sent_to_principal: number; sent_back: number; all: number };
+  counts: { pending: number; sent_to_hr: number; sent_back: number; all: number };
   rows: HodAppraisalRow[];
 }
 
@@ -38,6 +39,14 @@ export interface HodAppraisalEntry {
   max_score: number;
 }
 
+export interface HodAppraisalAttachment {
+  id: number;
+  division_id: number;
+  file_url: string;
+  file_name: string;
+  uploaded_at: string;
+}
+
 export interface HodAppraisalDetail {
   id: number;
   faculty_name: string;
@@ -47,6 +56,7 @@ export interface HodAppraisalDetail {
   status: AppraisalStatus;
   hod_remarks: string | null;
   entries: HodAppraisalEntry[];
+  attachments: HodAppraisalAttachment[];
 }
 
 /** GET /hod/appraisal-requests/:id */

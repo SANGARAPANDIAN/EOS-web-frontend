@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SecretaryIcon } from "@/modules/secretary/icons";
-import { useBatchesLookup, useDepartmentsLookup, useClassesLookup } from "@/modules/secretary/api/announcements";
+import { useBatchesLookup, useClassesLookup } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 import { useStudentsSearch } from "@/modules/secretary/api/overview";
 import { useTimetableSlots, useAttendanceRecords, useCreateAttendance } from "@/modules/secretary/api/attendance";
 
@@ -44,9 +45,9 @@ export default function SecretaryAttendancePage() {
 
   const { data: batches } = useBatchesLookup();
   const currentBatchId = useMemo(() => (batches ?? []).reduce<number | undefined>((best, b) => (best === undefined ? b.id : best), undefined), [batches]);
-  const { data: departments } = useDepartmentsLookup(currentBatchId);
-  const cseDept = useMemo(() => (departments ?? []).find((d) => d.code?.toUpperCase() === "CSE") ?? departments?.[0], [departments]);
-  const { data: classes } = useClassesLookup(currentBatchId, cseDept?.id);
+  const { data: identity } = useMyIdentity();
+  const myDept = useMemo(() => (identity?.department_id != null ? { id: identity.department_id } : undefined), [identity]);
+  const { data: classes } = useClassesLookup(currentBatchId, myDept?.id);
 
   const [classId, setClassId] = useState<number | undefined>(undefined);
   useEffect(() => {

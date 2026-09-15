@@ -59,16 +59,28 @@ export default function AwardsPage() {
     return rows;
   }, [filtered, sort]);
 
-  const totalParticipants = allEvents.reduce((sum, e) => sum + e.participants, 0);
-
   const columns = useMemo<DataTableColumn<AwardEventRow>[]>(
     () => [
       { key: "event", header: "Event", width: "1.6fr", sortValue: (r) => r.event_name, render: (r) => <span className="font-bold text-ink">{r.event_name}</span> },
       { key: "levels", header: "Level", sortValue: (r) => r.levels.join(", "), render: (r) => r.levels.join(", ") || "—" },
       { key: "participants", header: "Participants", align: "right", sortValue: (r) => r.participants, render: (r) => r.participants },
       { key: "latest", header: "Most recent", align: "right", sortValue: (r) => r.latest_date, render: (r) => r.latest_date },
+      {
+        key: "view",
+        header: "",
+        width: "0.7fr",
+        render: (r) => (
+          <button
+            type="button"
+            onClick={() => router.push(`/iqac/quality/student/awards/${encodeURIComponent(r.event_name)}`)}
+            className="text-[12.5px] font-bold text-primary hover:underline"
+          >
+            View entries →
+          </button>
+        ),
+      },
     ],
-    [],
+    [router],
   );
 
   return (
@@ -158,7 +170,6 @@ export default function AwardsPage() {
         rowKey={(r) => r.event_name}
         loading={events.isLoading}
         emptyMessage="No sports achievements found."
-        onRowClick={(r) => router.push(`/iqac/quality/student/awards/${encodeURIComponent(r.event_name)}`)}
       />
     </div>
   );

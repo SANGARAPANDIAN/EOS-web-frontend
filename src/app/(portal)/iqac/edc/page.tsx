@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/ui";
 import { PageCrumbs, StatTile, FilterSelect, FilterBarFooter } from "@/modules/iqac/components/PageControls";
 import { useEdcFilters, useEdcList, type EdcRow } from "@/modules/iqac/api/edc";
+import { exportToPdf, formatMoneyForPdf } from "@/lib/utils/pdf-export";
 
 const EMPTY_FILTERS = { q: "", departmentId: "", batchId: "", status: "" };
 
@@ -101,11 +102,38 @@ export default function IqacEdcPage() {
   }
 
   function handleExportPdf() {
-    try {
-      window.print();
-    } catch {
-      // print unavailable in this environment — no-op, matching the reference design's own try/catch.
-    }
+    void exportToPdf({
+      title: "EDC",
+      subtitle: "Entrepreneurship Development Cell — student ventures",
+      filename: "edc.pdf",
+      sections: [
+        {
+          type: "table",
+          columns: [
+            { header: "Venture", key: "venture" },
+            { header: "Domain", key: "domain" },
+            { header: "Student founder", key: "founder" },
+            { header: "Register no", key: "register_no" },
+            { header: "Dept", key: "dept" },
+            { header: "Stage", key: "stage" },
+            { header: "Funding required", key: "funding" },
+            { header: "Registration", key: "registration" },
+            { header: "Incubation status", key: "incubation" },
+          ],
+          rows: rows.map((r) => ({
+            venture: r.venture,
+            domain: r.domain ?? "—",
+            founder: r.student.name,
+            register_no: r.student.register_no ?? "—",
+            dept: r.department?.code ?? "—",
+            stage: r.stage ?? "—",
+            funding: r.funding_required != null ? formatMoneyForPdf(r.funding_required) : "—",
+            registration: r.registration_type ?? "Not tracked",
+            incubation: r.incubation_status ?? "No",
+          })),
+        },
+      ],
+    });
   }
 
   return (

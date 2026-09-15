@@ -24,7 +24,7 @@ export function RequireRole({ allow, children }: { allow: string[]; children: Re
     if (status !== "authenticated") return;
     if (allowed) return;
     const ownModule = getModuleConfig(role);
-    router.replace(ownModule ? `${ownModule.basePath}/dashboard` : "/login");
+    router.replace(ownModule ? (ownModule.homeHref ?? `${ownModule.basePath}/dashboard`) : "/login");
   }, [status, allowed, role, router]);
 
   if (status !== "authenticated" || !allowed) {

@@ -1,10 +1,13 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils/cn";
+import { Spinner } from "@/components/ui/Spinner";
 
 type ButtonVariant = "primary" | "primarySmall" | "secondary" | "text";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
+  /** Shows a spinner before the label and disables the button — for an in-flight mutation. */
+  loading?: boolean;
 }
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
@@ -17,8 +20,20 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   text: "border-0 bg-transparent text-[13px] font-bold text-primary enabled:hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
 };
 
-export function Button({ variant = "primary", className, ...props }: ButtonProps) {
+export function Button({ variant = "primary", loading, disabled, className, children, ...props }: ButtonProps) {
   return (
-    <button className={cn(VARIANT_CLASSES[variant], "cursor-pointer font-sans", className)} {...props} />
+    <button
+      className={cn(
+        VARIANT_CLASSES[variant],
+        "cursor-pointer font-sans",
+        loading && "inline-flex items-center justify-center gap-2",
+        className,
+      )}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading && <Spinner size={14} />}
+      {children}
+    </button>
   );
 }

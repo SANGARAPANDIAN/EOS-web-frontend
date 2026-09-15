@@ -93,7 +93,7 @@ export function HeaderSearch({ moduleConfig }: { moduleConfig: ModuleConfig }) {
     const result: ResultGroup[] = [];
     if (pageRows.length) result.push({ label: "Pages", rows: pageRows });
     if (courseRows.length) result.push({ label: "Courses", rows: courseRows });
-    if (announcementRows.length) result.push({ label: "Announcements", rows: announcementRows });
+    if (announcementRows.length) result.push({ label: "Notices", rows: announcementRows });
     return result;
   }, [query, moduleConfig, subjects.data, announcements.data]);
 
@@ -114,7 +114,7 @@ export function HeaderSearch({ moduleConfig }: { moduleConfig: ModuleConfig }) {
     // whatever's left to push the pills to the right edge.
     <div ref={containerRef} className="relative flex-[50_1_0%]">
       <SearchBar
-        placeholder="Search courses, results, announcements..."
+        placeholder="Search courses, results, notices..."
         className="max-w-[640px] w-full"
         value={query}
         onChange={(e) => {

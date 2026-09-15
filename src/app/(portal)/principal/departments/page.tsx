@@ -6,6 +6,7 @@ import { principalColors } from "@/modules/principal/theme";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
 import { PrincipalTableSkeleton } from "@/modules/principal/components/PrincipalTableSkeleton";
 import { useInitialQueryParam } from "@/lib/utils/useInitialQueryParam";
+import { sectionLabel } from "@/lib/utils/academic";
 import {
   useDepartmentsList,
   useDepartmentDetail,
@@ -96,9 +97,10 @@ function DepartmentTile({ dept, onOpen }: { dept: DepartmentCard; onOpen: () => 
   );
 }
 
-function AssignHodPanel({ departmentId, currentFacultyId }: { departmentId: number; currentFacultyId: number | null }) {
+/** Only offered while a department has no HoD — once one is assigned, the register (not this UI) is the source of truth for changing it, so there is no "Change HoD" trigger. */
+function AssignHodPanel({ departmentId }: { departmentId: number }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<string>(currentFacultyId ? String(currentFacultyId) : "");
+  const [selected, setSelected] = useState<string>("");
   const facultyOptions = useFacultyList({ department_id: departmentId });
   const assignHod = useAssignHod(departmentId);
 
@@ -110,7 +112,7 @@ function AssignHodPanel({ departmentId, currentFacultyId }: { departmentId: numb
         className="h-9 rounded-lg border px-3.5 text-sm font-semibold"
         style={{ borderColor: principalColors.border, color: principalColors.primary }}
       >
-        {currentFacultyId ? "Change HoD" : "Assign HoD"}
+        Assign HoD
       </button>
     );
   }
@@ -139,17 +141,6 @@ function AssignHodPanel({ departmentId, currentFacultyId }: { departmentId: numb
       >
         Save
       </button>
-      {currentFacultyId != null && (
-        <button
-          type="button"
-          disabled={assignHod.isPending}
-          onClick={() => assignHod.mutate(null, { onSuccess: () => setOpen(false) })}
-          className="h-9 rounded-lg border px-3 text-sm font-semibold"
-          style={{ borderColor: principalColors.border, color: "#B42318" }}
-        >
-          Clear
-        </button>
-      )}
       <button
         type="button"
         onClick={() => setOpen(false)}
@@ -206,7 +197,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
                 </p>
               </div>
             </div>
-            <AssignHodPanel departmentId={departmentId} currentFacultyId={detail.data.hod?.faculty_id ?? null} />
+            {!detail.data.hod && <AssignHodPanel departmentId={departmentId} />}
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -222,6 +213,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
               }
               progressPercent={detail.data.students.attendance_percentage ?? undefined}
               footer={`${detail.data.students.sections_count} sections`}
+              href={`/principal/students?department_id=${departmentId}`}
             />
             <PrincipalStatCard
               label="Faculty"
@@ -240,7 +232,7 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
               label="Mean CGPA"
               icon="school"
               loading={detail.isLoading}
-              value="—"
+              value={detail.data.students.mean_cgpa != null ? detail.data.students.mean_cgpa.toFixed(2) : "—"}
               sub={
                 detail.data.placement.percentage != null
                   ? `${detail.data.placement.placed} placed · ${detail.data.placement.percentage}% placement`
@@ -287,9 +279,9 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
             <tbody>
               {sections.isLoading && <PrincipalTableSkeleton columns={8} />}
               {sections.data?.map((s) => (
-                <tr key={s.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
-                    {s.section} {s.semester != null ? `· Sem ${s.semester}` : ""}
+                    {sectionLabel(s.semester, s.section)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3.5" style={{ color: principalColors.body }}>
                     {s.advisor?.name ?? "—"}
@@ -310,8 +302,8 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
                   <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
                     {s.faculty_attendance_percentage != null ? `${s.faculty_attendance_percentage}%` : "—"}
                   </td>
-                  <td className="px-3 py-3.5 text-right tabular-nums" style={{ color: principalColors.textFaint }}>
-                    —
+                  <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: s.mean_cgpa != null ? principalColors.body : principalColors.textFaint }}>
+                    {s.mean_cgpa != null ? s.mean_cgpa.toFixed(2) : "—"}
                   </td>
                   <td className="px-3 py-3.5 text-right tabular-nums" style={{ fontFamily: "var(--font-jetbrains-mono)", color: principalColors.body }}>
                     {s.placed} / {s.total_students}
@@ -325,9 +317,8 @@ function DepartmentDetailView({ departmentId, onBack }: { departmentId: number; 
           </table>
         </div>
         <div className="border-t px-5 py-3.5 text-xs" style={{ borderColor: principalColors.borderLight, color: principalColors.textSubtle }}>
-          MEAN CGPA isn&apos;t shown: no table in this system stores it, and it can&apos;t be honestly derived from exam
-          marks. FACULTY ATT. is the class advisor&apos;s own attendance this term, not every faculty member who
-          teaches the section.
+          MEAN CGPA is the credit-weighted average across all published exam results. FACULTY ATT. is the class
+          advisor&apos;s own attendance this term, not every faculty member who teaches the section.
         </div>
       </div>
     </div>

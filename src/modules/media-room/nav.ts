@@ -31,17 +31,5 @@ export const mediaRoomModuleConfig: ModuleConfig = {
         { key: "team", label: "Media team", icon: "groups", href: `${BASE}/team` },
       ],
     },
-    {
-      label: "Employee",
-      items: [
-        { key: "empAttendance", label: "Attendance", icon: "event_available", href: `${BASE}/employee/attendance` },
-        { key: "empLeave", label: "Leave", icon: "beach_access", href: `${BASE}/employee/leave` },
-        { key: "empOd", label: "OD", icon: "directions_walk", href: `${BASE}/employee/od` },
-        { key: "empPayroll", label: "HR Payroll", icon: "payments", href: `${BASE}/employee/hr-payroll` },
-        { key: "empPayslip", label: "Payslip", icon: "receipt_long", href: `${BASE}/employee/payslip` },
-        { key: "empAppraisal", label: "Appraisal", icon: "military_tech", href: `${BASE}/employee/appraisal` },
-        { key: "empLibrary", label: "Library", icon: "menu_book", href: `${BASE}/employee/library` },
-      ],
-    },
   ],
 };

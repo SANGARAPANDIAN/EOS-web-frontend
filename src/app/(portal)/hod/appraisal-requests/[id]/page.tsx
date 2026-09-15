@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, Badge, Button, EmptyState, SkeletonBlock } from "@/components/ui";
 import { useHodAppraisalDetail } from "@/modules/hod/api/appraisalRequests";
 import { formatDisplayDate } from "@/lib/utils/date";
+import { AppraisalAttachmentsList } from "@/components/shared/AppraisalAttachmentsList";
 
 export default function HodAppraisalDetailPage() {
   const params = useParams<{ id: string }>();
@@ -13,6 +14,13 @@ export default function HodAppraisalDetailPage() {
 
   if (detail.isLoading) {
     return <SkeletonBlock className="min-h-[300px]" />;
+  }
+  if (detail.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load this appraisal request — please try again.
+      </div>
+    );
   }
   if (!detail.data) {
     return (
@@ -40,7 +48,7 @@ export default function HodAppraisalDetailPage() {
             </p>
           </div>
           {d.status === "pending" && <Badge tone="accentDark">Pending review</Badge>}
-          {d.status === "sent_to_principal" && <Badge tone="accent">Sent to Principal</Badge>}
+          {d.status === "sent_to_hr" && <Badge tone="accent">Sent to HR</Badge>}
           {d.status === "sent_back" && <Badge tone="danger">Sent back</Badge>}
         </div>
         {d.status === "sent_back" && d.hod_remarks && (
@@ -49,6 +57,13 @@ export default function HodAppraisalDetailPage() {
             <p className="mt-1 text-[13.5px] text-body">{d.hod_remarks}</p>
           </div>
         )}
+      </Card>
+
+      <Card>
+        <h3 className="text-[16px] font-extrabold text-ink">Supporting documents</h3>
+        <div className="mt-3">
+          <AppraisalAttachmentsList attachments={d.attachments} />
+        </div>
       </Card>
 
       {divisions.map((division) => (

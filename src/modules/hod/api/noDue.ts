@@ -25,7 +25,8 @@ export interface HodNoDueRow {
   laboratory_cleared: boolean;
   fees_cleared: boolean;
   hostel_cleared: boolean;
-  sports_cleared: boolean;
+  /** True only once every subject-handling faculty for this student's current subjects has signed off — see the Faculty "No Due" screen. Not independently settable here, same as the other categories. */
+  academics_cleared: boolean;
   issued: boolean;
 }
 
@@ -49,12 +50,13 @@ export function useHodNoDueList(classId: number | null, search: string) {
   });
 }
 
+/**
+ * The only real write this screen supports — every category boolean is
+ * computed live (fees/library/laboratory/hostel from real dues, academics
+ * from subject-handling faculty sign-off), none is independently settable,
+ * so the edit form only ever sends this one override flag.
+ */
 export interface NoDuePatch {
-  library_cleared?: boolean;
-  laboratory_cleared?: boolean;
-  fees_cleared?: boolean;
-  hostel_cleared?: boolean;
-  sports_cleared?: boolean;
   issue?: boolean;
 }
 

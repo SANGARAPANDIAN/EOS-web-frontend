@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useStudentsList } from "@/modules/iqac/api/students";
 import type { StudentRow } from "@/modules/iqac/api/students";
 
@@ -30,7 +31,8 @@ function IdentityField({ label, value }: { label: string; value: string }) {
  */
 export function StudentPicker({ selected, onSelect }: { selected: StudentRow | null; onSelect: (s: StudentRow | null) => void }) {
   const [query, setQuery] = useState("");
-  const students = useStudentsList({ q: query.trim() || undefined, status: "all" });
+  const debouncedQuery = useDebouncedValue(query);
+  const students = useStudentsList({ q: debouncedQuery.trim() || undefined, status: "all" });
 
   if (selected) {
     return (

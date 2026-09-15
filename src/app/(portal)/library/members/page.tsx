@@ -14,7 +14,7 @@ import {
   NumberedPagination,
   type DataTableColumn,
 } from "@/modules/admin/components/ui";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useMembers, type LibraryMember } from "@/modules/library/api/members";
 import { MemberNoDuesModal } from "@/modules/library/components/members/MemberNoDuesModal";
 import { formatDate } from "@/modules/library/lib/borrow-record-format";

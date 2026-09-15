@@ -29,6 +29,7 @@ export interface TodaySlot {
   end_time: string;
   subject_id: number;
   subject_name: string;
+  subject_code: string;
   // Real column (subjects.course_type) — the subjects join already existed
   // server-side for subject_name, this just also selects course_type so
   // "today" can detect labs the same way the full-week grid already does,
@@ -36,6 +37,9 @@ export interface TodaySlot {
   course_type: string | null;
   class_id: number;
   class_section: string;
+  // classes.current_semester — null for a class with no semester set yet,
+  // same nullability as everywhere else this column is surfaced.
+  semester: number | null;
   department_name: string;
 }
 
@@ -148,8 +152,11 @@ export interface VenueAvailability {
   name: string;
   location: string | null;
   capacity: number | null;
+  photo_url: string | null;
   is_available: boolean;
   booking: { purpose: string; booked_by: string; accommodating_strength: number | null; from_datetime: string; to_datetime: string } | null;
+  /** Real COE exam hall-plan blocking this venue, if any — distinct from a regular `booking`. */
+  exam_usage: { exam_date: string; exam_label: string } | null;
 }
 
 // ListVenueQueryDto requires `from`/`to` (ISO datetime, no @IsOptional()) —
@@ -178,7 +185,7 @@ export interface VenueBookingRow {
   accommodating_strength: number | null;
   status: string | null;
   created_at: string;
-  venues_venue_bookings_venue_idTovenues: { id: number; name: string; location: string | null; capacity: number | null };
+  venue: { id: number; name: string; location: string | null; capacity: number | null };
 }
 
 export function useMyVenueBookings() {

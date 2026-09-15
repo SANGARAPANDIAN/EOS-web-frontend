@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, Badge, Avatar, Input, Select, EmptyState, SkeletonTable, SkeletonRows, PillTabs } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import {
@@ -54,12 +54,31 @@ export default function HodPlacementsPage() {
   );
 }
 
-function StatusPill({ dotClassName, count, label }: { dotClassName: string; count: number; label: string }) {
+function StatusPill({
+  dotClassName,
+  count,
+  label,
+  active,
+  onClick,
+}: {
+  dotClassName: string;
+  count: number;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
-    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-pill border border-border-default bg-surface px-3.5 py-2 text-[13px] font-bold text-ink">
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 whitespace-nowrap rounded-pill border px-3.5 py-2 text-[13px] font-bold",
+        active ? "border-border-accent bg-accent-50 text-primary" : "border-border-default bg-surface text-ink hover:bg-nav-hover",
+      )}
+    >
       <span className={cn("size-2 shrink-0 rounded-full", dotClassName)} />
       {count} {label}
-    </span>
+    </button>
   );
 }
 
@@ -71,14 +90,47 @@ function CompanyMark({ name }: { name: string }) {
   );
 }
 
+type StatusFilter = "all" | "placed" | "in_process" | "unplaced";
+type SortKey = "roll" | "companyAz" | "packageDesc" | "offersDesc";
+
 function StudentRecordsTab() {
   const [search, setSearch] = useState("");
-  const [classId, setClassId] = useState<number | null>(null);
-  const students = useHodPlacementStudents(search, classId);
+  const [year, setYear] = useState<string>("");
+  const [section, setSection] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sort, setSort] = useState<SortKey>("roll");
+  // Always fetch the full department roster — year/section are applied
+  // client-side below so either can be picked independently (the API only
+  // takes one class_id, which conflates the two).
+  const students = useHodPlacementStudents(search, null);
   const c = students.data?.counts;
   const classes = students.data?.classes ?? [];
 
-  const yearsSpanned = [...new Set(classes.map((cl) => cl.year_label))].join(", ");
+  const yearOptions = [...new Set(classes.map((cl) => cl.year_label))];
+  const sectionOptions = [
+    ...new Set(classes.filter((cl) => !year || cl.year_label === year).map((cl) => cl.section)),
+  ].sort();
+
+  const rows = useMemo(() => {
+    const classInfoByLabel = new Map((students.data?.classes ?? []).map((cl) => [cl.class_label, cl]));
+    let out = students.data?.rows ?? [];
+    if (year) out = out.filter((r) => r.class_label != null && classInfoByLabel.get(r.class_label)?.year_label === year);
+    if (section) out = out.filter((r) => r.class_label != null && classInfoByLabel.get(r.class_label)?.section === section);
+    if (statusFilter !== "all") out = out.filter((r) => r.status === statusFilter);
+    out = [...out];
+    if (sort === "companyAz") {
+      out.sort((a, b) => {
+        if (a.company == null) return b.company == null ? 0 : 1;
+        if (b.company == null) return -1;
+        return a.company.localeCompare(b.company);
+      });
+    } else if (sort === "packageDesc") {
+      out.sort((a, b) => (b.package_lpa ?? -1) - (a.package_lpa ?? -1));
+    } else if (sort === "offersDesc") {
+      out.sort((a, b) => b.offers - a.offers);
+    }
+    return out;
+  }, [students.data?.rows, students.data?.classes, year, section, statusFilter, sort]);
 
   const columns: DataTableColumn<HodPlacementStudentRow>[] = [
     {
@@ -145,6 +197,11 @@ function StudentRecordsTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      {students.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load placement records — please try again.
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <Input
           value={search}
@@ -153,31 +210,75 @@ function StudentRecordsTab() {
           className="max-w-[380px]"
         />
         <Select
-          value={classId ?? "all"}
-          onChange={(e) => setClassId(e.target.value === "all" ? null : Number(e.target.value))}
-          className="max-w-[260px] font-bold"
+          value={year || "all"}
+          onChange={(e) => {
+            const next = e.target.value === "all" ? "" : e.target.value;
+            setYear(next);
+            // A section chosen under the old year may not exist under the new one.
+            if (section && !classes.some((cl) => cl.year_label === next && cl.section === section)) {
+              setSection("");
+            }
+          }}
+          className="max-w-[160px] font-bold"
         >
-          <option value="all">All classes{yearsSpanned ? ` · ${yearsSpanned} year` : ""}</option>
-          {classes.map((cl) => (
-            <option key={cl.class_id} value={cl.class_id}>
-              {cl.class_label}
+          <option value="all">All years</option>
+          {yearOptions.map((y) => (
+            <option key={y} value={y}>
+              {y} year
             </option>
           ))}
         </Select>
+        <Select
+          value={section || "all"}
+          onChange={(e) => setSection(e.target.value === "all" ? "" : e.target.value)}
+          className="max-w-[160px] font-bold"
+        >
+          <option value="all">All sections</option>
+          {sectionOptions.map((s) => (
+            <option key={s} value={s}>
+              Section {s}
+            </option>
+          ))}
+        </Select>
+        <Select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="max-w-[220px]">
+          <option value="roll">Sort · Register number</option>
+          <option value="companyAz">Sort · Company (A–Z)</option>
+          <option value="packageDesc">Sort · Package (high to low)</option>
+          <option value="offersDesc">Sort · Offers (high to low)</option>
+        </Select>
         <div className="ml-auto flex gap-2.5">
-          <StatusPill dotClassName="bg-[#15803d]" count={c?.placed ?? 0} label="placed" />
-          <StatusPill dotClassName="bg-[#92400e]" count={c?.in_process ?? 0} label="in process" />
-          <StatusPill dotClassName="bg-[#8b93a5]" count={c?.unplaced ?? 0} label="unplaced" />
+          <StatusPill
+            dotClassName="bg-[#15803d]"
+            count={c?.placed ?? 0}
+            label="placed"
+            active={statusFilter === "placed"}
+            onClick={() => setStatusFilter((f) => (f === "placed" ? "all" : "placed"))}
+          />
+          <StatusPill
+            dotClassName="bg-[#92400e]"
+            count={c?.in_process ?? 0}
+            label="in process"
+            active={statusFilter === "in_process"}
+            onClick={() => setStatusFilter((f) => (f === "in_process" ? "all" : "in_process"))}
+          />
+          <StatusPill
+            dotClassName="bg-[#8b93a5]"
+            count={c?.unplaced ?? 0}
+            label="unplaced"
+            active={statusFilter === "unplaced"}
+            onClick={() => setStatusFilter((f) => (f === "unplaced" ? "all" : "unplaced"))}
+          />
         </div>
       </div>
       {students.isLoading ? (
         <SkeletonTable rows={8} />
-      ) : (
+      ) : students.isError ? null : (
         <DataTable
           columns={columns}
-          data={students.data?.rows ?? []}
+          data={rows}
           rowKey={(r) => r.student_id}
           rowClassName="hod-hover-row"
+          emptyMessage={statusFilter !== "all" ? "No students match this status." : undefined}
         />
       )}
     </div>
@@ -189,6 +290,13 @@ function UpcomingDrivesTab() {
 
   if (drives.isLoading) {
     return <SkeletonRows count={4} />;
+  }
+  if (drives.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load upcoming drives — please try again.
+      </div>
+    );
   }
   if (!drives.data || drives.data.length === 0) {
     return (
@@ -274,6 +382,13 @@ function HistoryTab() {
 
   if (history.isLoading) {
     return <SkeletonTable rows={6} />;
+  }
+  if (history.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load placement history — please try again.
+      </div>
+    );
   }
 
   return (

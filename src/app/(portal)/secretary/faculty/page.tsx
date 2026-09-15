@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 import { useFacultyCoordination, useAssignFacultyDuty, type FacultyCoordinationRow } from "@/modules/secretary/api/faculty";
 import { initialsOf } from "@/modules/secretary/helpers";
 import { QuickModal, type QuickFieldSpec } from "@/modules/secretary/QuickModal";
@@ -58,12 +58,10 @@ export default function SecretaryFacultyPage() {
     setTimeout(() => setToast(""), 2600);
   }
 
-  const { data: batches } = useBatchesLookup();
-  const currentBatchId = useMemo(() => (batches ?? []).reduce<number | undefined>((best, b) => (best === undefined ? b.id : best), undefined), [batches]);
-  const { data: departments } = useDepartmentsLookup(currentBatchId);
-  const cseDept = useMemo(() => (departments ?? []).find((d) => d.code?.toUpperCase() === "CSE") ?? departments?.[0], [departments]);
+  const { data: identity } = useMyIdentity();
+  const myDept = useMemo(() => (identity?.department_id != null ? { id: identity.department_id } : undefined), [identity]);
 
-  const { data: rows, isLoading, error } = useFacultyCoordination(cseDept?.id);
+  const { data: rows, isLoading, error } = useFacultyCoordination(myDept?.id);
   const assignMutation = useAssignFacultyDuty();
 
   function openAssign(f: FacultyCoordinationRow) {

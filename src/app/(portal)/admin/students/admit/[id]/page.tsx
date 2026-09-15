@@ -6,7 +6,8 @@ import { useParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { friendlyError } from "@/lib/utils/errors";
 import { Button, PageHeader, useToast } from "@/modules/admin/components/ui";
-import { useBatches, useCourses, useDepartments, useQuotas } from "@/modules/admin/api/refData";
+import { useBatches, useCourses, useQuotas } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import {
   useCertificateTypes,
   useHostelRoomTypes,

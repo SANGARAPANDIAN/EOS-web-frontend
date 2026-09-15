@@ -10,6 +10,7 @@ export interface AthleteListItem {
   name: string;
   reg_no: string | null;
   dept_code: string | null;
+  dept_name: string | null;
   year_sem: string | null;
   discipline: Ref | null;
   status: AthleteStatus;

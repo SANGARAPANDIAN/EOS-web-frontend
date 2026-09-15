@@ -15,6 +15,7 @@ import {
 import { formatDisplayDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 import { ApiError } from "@/types/api";
+import { AppraisalAttachmentsList } from "@/components/shared/AppraisalAttachmentsList";
 
 const CURRENT_YEAR = new Date().getFullYear();
 /** Last five academic years, newest first — same "YYYY-YYYY" free-text convention the criteria library writes. */
@@ -163,6 +164,11 @@ function AppraisalDetailContent({ request, onDone }: AppraisalDetailContentProps
         )}
       </div>
 
+      <div className="border-t border-divider pt-3.5">
+        <div className="mb-2 text-[12px] font-bold tracking-[.05em] text-muted uppercase">Supporting documents</div>
+        <AppraisalAttachmentsList attachments={request.attachments} />
+      </div>
+
       <div className="flex flex-col gap-1.5 border-t border-divider pt-3.5 text-[13px]">
         <div className="flex items-center justify-between">
           <span className="text-muted">HOD reviewer</span>
@@ -255,9 +261,9 @@ export default function HrEmployeeReviewsPage() {
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Employee reviews</h1>
+        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Appraisal requests</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Appraisal workflow · score once the HOD has reviewed, then approve or reject
+          Appraisal requests approved by an HoD · score once reviewed, then approve or reject
         </p>
       </div>
 
@@ -318,7 +324,17 @@ export default function HrEmployeeReviewsPage() {
               <Badge tone={STATUS_TONE[r.status]} className="shrink-0">
                 {STATUS_LABEL[r.status]}
               </Badge>
-              <div className="min-w-0 flex-1 text-right text-[12.5px] text-muted">{scoreSummary(r)}</div>
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right text-[12.5px] text-muted">
+                {r.attachments.length > 0 && (
+                  <span
+                    className="flex shrink-0 items-center gap-0.5"
+                    title={`${r.attachments.length} supporting document${r.attachments.length === 1 ? "" : "s"}`}
+                  >
+                    <Icon name="attach_file" size={13} /> {r.attachments.length}
+                  </span>
+                )}
+                {scoreSummary(r)}
+              </div>
               <Icon name="chevron_right" size={18} className="shrink-0 text-subtle" />
             </div>
           ))}

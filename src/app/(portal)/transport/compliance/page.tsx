@@ -103,7 +103,7 @@ export default function TransportCompliancePage() {
 
       {!data?.extended.documents && data && (
         <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
-          The compliance document table isn't set up yet.
+          The compliance document table isn&apos;t set up yet.
         </div>
       )}
 

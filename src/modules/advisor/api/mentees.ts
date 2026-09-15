@@ -122,3 +122,63 @@ export function useMenteePlacements(studentId: number | undefined) {
     enabled: Boolean(studentId),
   });
 }
+
+export interface MenteeAcademicSubject {
+  subject_id: number;
+  name: string;
+  code: string;
+  internal_percent: number | null;
+  end_sem_percent: number | null;
+  grade: string | null;
+  attendance_percent: number | null;
+}
+
+export interface MenteeAcademicSemester {
+  semester: number;
+  gpa: number | null;
+  subjects: MenteeAcademicSubject[];
+}
+
+export interface MenteeMonthlyAttendance {
+  month: string; // "YYYY-MM"
+  present_percent: number;
+}
+
+export interface MenteeDisciplineRecord {
+  incident_date: string;
+  nature: string;
+  action_taken: string;
+}
+
+export interface MenteeSportsAchievement {
+  event_name: string;
+  result: string;
+  level: string | null;
+  achievement_date: string;
+}
+
+export interface MenteeAcademicRecord {
+  semesters: MenteeAcademicSemester[];
+  monthly_attendance: MenteeMonthlyAttendance[];
+  hostel: { hostel_name: string; room_number: string; warden_name: string | null } | null;
+  scholarships: { name: string; academic_year: string; amount: number }[];
+  student_status: string;
+  discipline: MenteeDisciplineRecord[];
+  achievements: MenteeSportsAchievement[];
+}
+
+/**
+ * GET /me/mentees/:student_id/academic-record — semester-wise GPA, monthly
+ * attendance, per-subject internal/end-sem/grade/attendance, hostel and
+ * scholarship. No combined "internal + external = total" formula exists
+ * anywhere in this schema — internal and end-sem are reported as the real,
+ * separate figures they are; "grade" is the end-sem exam's own grade once
+ * published, falling back to the CIA average's grade before that.
+ */
+export function useMenteeAcademicRecord(studentId: number | undefined) {
+  return useQuery({
+    queryKey: ["me", "mentees", studentId, "academic-record"],
+    queryFn: () => apiClient.get<MenteeAcademicRecord>(`/me/mentees/${studentId}/academic-record`),
+    enabled: Boolean(studentId),
+  });
+}

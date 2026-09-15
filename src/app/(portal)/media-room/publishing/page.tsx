@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  MAX_MEDIA_PER_POST,
+  probeMedia,
+  validateMediaBatch,
+  type ProbedMedia,
+} from "@/modules/media-room/mediaUpload";
 import { Badge, Button, Card, EmptyState, Icon, SegmentedTabs, type BadgeTone } from "@/components/ui";
 import {
   useAllClassIds,
@@ -69,7 +75,10 @@ function ComposeTab() {
   const [format, setFormat] = useState<string>(SOCIAL_POST_FORMATS[0]);
   const [category, setCategory] = useState<AnnouncementCategory>("event");
   const [caption, setCaption] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  // Ordered carousel items. Array order IS the slide order; the server
+  // assigns sequence_no from it (see insertAnnouncementMedia).
+  const [media, setMedia] = useState<ProbedMedia[]>([]);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState("");
   const [firstComment, setFirstComment] = useState("");
   const [isPinned, setIsPinned] = useState(false);
@@ -81,6 +90,16 @@ function ComposeTab() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const busy = upload.isPending || create.isPending;
+
+  // Object URLs live until explicitly revoked; without this, composing several
+  // posts in one session leaks every preview it ever made.
+  useEffect(
+    () => () => {
+      media.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only cleanup
+    [],
+  );
   const scheduling = postDate.trim().length > 0;
 
   async function submit(asDraft: boolean) {
@@ -94,13 +113,30 @@ function ComposeTab() {
     }
     setError(null);
     try {
-      let file_key: string | undefined;
-      let file_name: string | undefined;
-      if (file) {
-        const uploaded = await upload.mutateAsync(file);
-        file_key = uploaded.file_key;
-        file_name = uploaded.file_name;
+      // Uploaded one at a time on purpose: the storage endpoint is a single
+      // multipart POST, and firing ten in parallel from a browser is how you
+      // get half-finished batches when one fails. The first item also doubles
+      // as announcements.file_key so older clients that only read that single
+      // field still see the post's lead image.
+      const uploadedMedia: {
+        storage_key: string;
+        media_type: "photo" | "video";
+        width?: number;
+        height?: number;
+        duration_seconds?: number;
+      }[] = [];
+      for (const item of media) {
+        const uploaded = await upload.mutateAsync(item.file);
+        uploadedMedia.push({
+          storage_key: uploaded.file_key,
+          media_type: item.kind,
+          width: item.width ?? undefined,
+          height: item.height ?? undefined,
+          duration_seconds: item.durationSeconds ?? undefined,
+        });
       }
+      const file_key = uploadedMedia[0]?.storage_key;
+      const file_name = media[0]?.file.name;
       await create.mutateAsync({
         title: deriveTitle(caption),
         content: caption.trim(),
@@ -116,9 +152,10 @@ function ComposeTab() {
         is_pinned: isPinned,
         allow_comments: allowComments,
         first_comment: firstComment.trim() || undefined,
+        media: uploadedMedia.length > 0 ? uploadedMedia : undefined,
       });
       setCaption("");
-      setFile(null);
+      setMedia([]);
       setLinkUrl("");
       setFirstComment("");
       setIsPinned(false);
@@ -126,7 +163,11 @@ function ComposeTab() {
       setPostTime("");
       setExpiresAt("");
       setNotice(
-        asDraft ? "Saved as a draft." : scheduling ? "Saved as a draft, scheduled — publish it from the Content calendar tab when ready." : "Published to the Explore feed.",
+        asDraft
+          ? "Saved as a draft."
+          : scheduling
+            ? `Scheduled for ${new Date(`${postDate}T${postTime || "09:00"}:00`).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}. It publishes itself — no need to come back for it.`
+            : "Published to the Explore feed.",
       );
       setTimeout(() => setNotice(null), 4000);
     } catch (err: unknown) {
@@ -223,11 +264,112 @@ function ComposeTab() {
         </div>
 
         <div className="mt-5 text-[13.5px] font-bold text-primary">Creative</div>
-        <label className="mt-2 flex h-[130px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[12px] border border-dashed border-border-default bg-surface-muted text-center">
-          <input type="file" accept="image/*,video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
-          <span className="font-mono text-[12.5px] text-muted">{file ? file.name : "drop poster / reel export here"}</span>
-          <span className="text-[12px] text-subtle">1080 × 1350 for feed · 1080 × 1920 for story</span>
+        {media.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2.5">
+            {media.map((item, index) => (
+              <div
+                key={item.previewUrl}
+                className="relative h-[92px] w-[92px] overflow-hidden rounded-[10px] border border-border-default bg-ink"
+              >
+                {item.kind === "photo" ? (
+                  /* eslint-disable-next-line @next/next/no-img-element -- a local object URL, not a remote asset next/image can optimise */
+                  <img src={item.previewUrl} alt="" className="size-full object-contain" />
+                ) : (
+                  <video src={item.previewUrl} className="size-full object-contain" muted />
+                )}
+
+                {/* Slide number: this order is exactly what viewers will swipe. */}
+                <span className="absolute left-1 top-1 rounded-[5px] bg-ink/70 px-1.5 text-[10px] font-bold text-white">
+                  {index + 1}
+                </span>
+                {item.kind === "video" && (
+                  <span className="absolute bottom-1 left-1 rounded-[5px] bg-ink/70 px-1.5 text-[10px] font-bold text-white">
+                    video
+                  </span>
+                )}
+
+                <div className="absolute bottom-1 right-1 flex gap-1">
+                  <button
+                    type="button"
+                    aria-label="Move earlier"
+                    disabled={index === 0}
+                    onClick={() =>
+                      setMedia((current) => {
+                        const next = [...current];
+                        [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                        return next;
+                      })
+                    }
+                    className="rounded-[5px] bg-ink/70 px-1.5 text-[10px] font-bold text-white disabled:opacity-30"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Move later"
+                    disabled={index === media.length - 1}
+                    onClick={() =>
+                      setMedia((current) => {
+                        const next = [...current];
+                        [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                        return next;
+                      })
+                    }
+                    className="rounded-[5px] bg-ink/70 px-1.5 text-[10px] font-bold text-white disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Remove"
+                    onClick={() =>
+                      setMedia((current) => {
+                        URL.revokeObjectURL(item.previewUrl);
+                        return current.filter((m) => m.previewUrl !== item.previewUrl);
+                      })
+                    }
+                    className="rounded-[5px] bg-danger-fg/85 px-1.5 text-[10px] font-bold text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label className="mt-2 flex h-[110px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[12px] border border-dashed border-border-default bg-surface-muted text-center">
+          <input
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            onChange={async (e) => {
+              const picked = Array.from(e.target.files ?? []);
+              // Cleared so re-picking the same file always re-fires onChange.
+              e.target.value = "";
+              if (picked.length === 0) return;
+              const problem = validateMediaBatch(media.length, picked);
+              if (problem) {
+                setMediaError(problem);
+                return;
+              }
+              setMediaError(null);
+              const probed = await Promise.all(picked.map(probeMedia));
+              setMedia((current) => [...current, ...probed]);
+            }}
+            className="hidden"
+          />
+          <span className="font-mono text-[12.5px] text-muted">
+            {media.length === 0
+              ? "drop photos / videos here"
+              : `add more · ${media.length}/${MAX_MEDIA_PER_POST}`}
+          </span>
+          <span className="text-[12px] text-subtle">
+            Several files allowed — viewers swipe through them. First one is the cover.
+          </span>
         </label>
+
+        {mediaError && <div className="mt-2 text-[13px] font-semibold text-danger-fg">{mediaError}</div>}
 
         {error && <div className="mt-3 text-[13px] font-semibold text-danger-fg">{error}</div>}
         {notice && <div className="mt-3 text-[13px] font-semibold text-success-fg">{notice}</div>}
@@ -376,6 +518,12 @@ function CommentsPanel({ post }: { post: Announcement }) {
 function ExploreFeedTab() {
   const posts = useMyAnnouncements();
   const update = useUpdateAnnouncement();
+  const remove = useDeleteAnnouncement();
+  // Two-step delete: a post is live to the whole college and deleting it also
+  // removes its comments and its uploaded media from storage, so a single
+  // mis-click must not be enough.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -441,7 +589,62 @@ function ExploreFeedTab() {
                     >
                       Edit
                     </button>
+                    {confirmDeleteId === p.id ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={remove.isPending}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            setDeleteError(null);
+                            try {
+                              await remove.mutateAsync(p.id);
+                              setConfirmDeleteId(null);
+                              // Selection would otherwise point at a post that
+                              // no longer exists.
+                              if (activeId === p.id) setActiveId(null);
+                            } catch (err: unknown) {
+                              setDeleteError(
+                                (err as { message?: string })?.message ?? "Could not delete this post.",
+                              );
+                            }
+                          }}
+                          className="text-[12px] font-bold text-danger-fg hover:underline disabled:opacity-50"
+                        >
+                          {remove.isPending ? "Deleting…" : "Confirm delete"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(null);
+                            setDeleteError(null);
+                          }}
+                          className="text-[12px] font-bold text-muted hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeleteId(p.id);
+                          setDeleteError(null);
+                        }}
+                        className="text-[12px] font-bold text-danger-fg hover:underline"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
+                  {confirmDeleteId === p.id && (
+                    <div className="mt-2 rounded-[9px] border border-danger-border bg-danger-bg px-2.5 py-2 text-[12px] font-semibold text-danger-fg">
+                      Removes this post from the app for everyone, along with its comments and uploaded media. This cannot be undone.
+                      {deleteError && <div className="mt-1">{deleteError}</div>}
+                    </div>
+                  )}
                   {editingId === p.id ? (
                     <div className="mt-2 flex gap-2" onClick={(e) => e.stopPropagation()}>
                       <input value={editText} onChange={(e) => setEditText(e.target.value)} className="h-9 flex-1 rounded-[9px] border border-border-default px-2.5 text-[13px] outline-none focus:border-primary" />
@@ -665,7 +868,23 @@ function CalendarTab() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[14.5px] font-bold text-ink">{e.post.content}</div>
-                    <div className="text-[12.5px] text-subtle">{isDraft ? "Scheduled draft" : "Published"}</div>
+                    {/* A scheduled post publishes itself (see
+                        AnnouncementsService.publishDueScheduledAnnouncements,
+                        which runs every minute), so this says when that will
+                        happen rather than just "draft". "Publish now" is only
+                        an early-release shortcut. */}
+                    <div className="text-[12.5px] text-subtle">
+                      {isDraft
+                        ? e.post.scheduled_at
+                          ? `Auto-publishes ${new Date(e.post.scheduled_at).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}`
+                          : "Draft — no schedule set"
+                        : "Published"}
+                    </div>
                   </div>
                   {isDraft ? (
                     <button

@@ -9,6 +9,7 @@ import {
   type HigherEducationRow,
   type HigherEducationAdmissionStatus,
 } from "@/modules/iqac/api/higherEducation";
+import { exportToPdf } from "@/lib/utils/pdf-export";
 
 const ADMISSION_STATUS_LABEL: Record<HigherEducationAdmissionStatus, string> = {
   interested: "Interested",
@@ -145,11 +146,42 @@ export default function IqacHigherEducationPage() {
   }
 
   function handleExportPdf() {
-    try {
-      window.print();
-    } catch {
-      // print unavailable in this environment — no-op, matching the reference design's own try/catch.
-    }
+    void exportToPdf({
+      title: "Higher Education",
+      subtitle: "Students pursuing higher studies after graduation",
+      filename: "higher-education.pdf",
+      sections: [
+        {
+          type: "table",
+          columns: [
+            { header: "Student", key: "student" },
+            { header: "Roll no", key: "roll_no" },
+            { header: "Dept", key: "dept" },
+            { header: "Batch", key: "batch" },
+            { header: "Year", key: "year" },
+            { header: "Section", key: "section" },
+            { header: "Programme", key: "programme" },
+            { header: "University", key: "university" },
+            { header: "Country", key: "country" },
+            { header: "Scholarship", key: "scholarship" },
+            { header: "Admission status", key: "status" },
+          ],
+          rows: rows.map((r) => ({
+            student: r.student.name,
+            roll_no: r.student.roll_no ?? r.student.register_no ?? "—",
+            dept: r.department?.code ?? "—",
+            batch: r.batch?.name ?? "—",
+            year: r.year != null ? String(r.year) : "—",
+            section: r.section ?? "—",
+            programme: r.programme,
+            university: r.university ?? "—",
+            country: `${r.country}${r.is_abroad ? " (overseas)" : ""}`,
+            scholarship: r.is_scholarship == null ? "Not tracked" : r.is_scholarship ? r.scholarship_name ?? "Yes" : "No",
+            status: r.admission_status ? ADMISSION_STATUS_LABEL[r.admission_status] : "Not tracked",
+          })),
+        },
+      ],
+    });
   }
 
   return (

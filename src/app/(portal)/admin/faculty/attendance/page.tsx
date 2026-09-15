@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/Icon";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { friendlyError } from "@/lib/utils/errors";
 import { Badge, Button, DataTable, Input, KpiCard, PageHeader, Select, type BadgeTone, type DataTableColumn } from "@/modules/admin/components/ui";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useFacultyAttendanceOverview, type FacultyAttendanceOverviewRow } from "@/modules/admin/api/faculty";
 import { FacultyAvatar } from "@/modules/admin/components/faculty/FacultyAvatar";
 import { exportAttendanceSummaryPdf } from "@/modules/admin/lib/faculty-report-pdfs";

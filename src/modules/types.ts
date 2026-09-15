@@ -29,6 +29,7 @@ export type NavBadgeKey =
   | "studentCount"
   | "facultyCount"
   | "totalBooks"
+  | "libraryPendingRequests"
   | "leaveRequestsPending"
   | "odRequestsPending"
   | "mrPendingRequests"
@@ -36,7 +37,39 @@ export type NavBadgeKey =
   | "mrPendingIndents"
   | "hrPendingRequests"
   | "hrPendingAppraisals"
-  | "iqacPendingApprovals";
+  | "coeRevaluationPending"
+  | "coeExamRegistrations"
+  | "coeHallSeating"
+  | "coeHallTickets"
+  | "coeInvigilation"
+  | "coeQuestionPapers"
+  | "coeMalpractice"
+  | "iqacPendingApprovals"
+  | "placementStudents"
+  | "placementCompanies"
+  | "placementDrives"
+  | "billingStudents"
+  | "billingConcessions"
+  | "billingDD"
+  | "financePopPending"
+  | "financeSopPending"
+  | "financeAwaitingAllotment"
+  | "financeFeeOutstanding"
+  | "edcAnnouncements"
+  | "edcStudents"
+  | "edcStartups"
+  | "edcIdeas"
+  | "edcIncubations"
+  | "secretaryPop"
+  | "secretarySop"
+  | "secretaryMedia"
+  | "secretaryVenue"
+  | "secretaryOutpass"
+  | "secretaryDocs"
+  | "secretaryEmpLeave"
+  | "secretaryEmpOd"
+  | "adminSopPending"
+  | "messagesUnread";
 
 export interface NavItem {
   key: string;
@@ -46,6 +79,10 @@ export interface NavItem {
   href: string;
   /** Populated at render time from live data (recent-item counts, dues, etc.) — never hardcoded. */
   badgeKey?: NavBadgeKey;
+  /** Only relevant to hostel residents — the consuming Shell filters this out of the config it passes to AppShell for a day scholar. Omit for items every student should see. */
+  hostellerOnly?: boolean;
+  /** Tags a nav item as belonging to one declared student career path (Placement/Venture/Higher Studies). The consuming Shell shows it only when the student's own declared path matches, or hasn't declared one yet. Omit for items every student should see regardless of path. */
+  careerPath?: "placement" | "venture" | "higher_studies";
 }
 
 export interface NavGroup {
@@ -58,4 +95,6 @@ export interface ModuleConfig {
   basePath: string;
   moduleLabel: string;
   navGroups: NavGroup[];
+  /** Where the root page sends this role after login — defaults to `${basePath}/dashboard`. Set this for a role with no dashboard page yet (e.g. messaging-only access). */
+  homeHref?: string;
 }

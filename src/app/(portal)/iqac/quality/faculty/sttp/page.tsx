@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/ui";
+import { DataTable, ConfirmDialog, type DataTableColumn } from "@/components/ui";
 import { MetricBackNav, MetricHeader, MetricCards, DepartmentRollup, MetricFilterBar } from "@/modules/iqac/components/academic/MetricPageChrome";
 import { AddDevelopmentProgramEntryModal } from "@/modules/iqac/components/facultyDevelopment/AddDevelopmentProgramEntryModal";
-import { useSttp, useSttpQuality, type DevelopmentProgramRow } from "@/modules/iqac/api/facultyDevelopment";
+import { useSttp, useSttpQuality, useDeleteSttpEntry, type DevelopmentProgramRow } from "@/modules/iqac/api/facultyDevelopment";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
@@ -15,6 +15,9 @@ const STATUS_OPTIONS = [
 
 export default function SttpPage() {
   const [addingEntry, setAddingEntry] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<DevelopmentProgramRow | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<DevelopmentProgramRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [dept, setDept] = useState<string | null>(null);
@@ -23,6 +26,18 @@ export default function SttpPage() {
 
   const sttp = useSttp();
   const quality = useSttpQuality();
+  const deleteEntry = useDeleteSttpEntry();
+
+  async function confirmDelete() {
+    if (!deletingEntry) return;
+    setDeleteError(null);
+    try {
+      await deleteEntry.mutateAsync(deletingEntry.id);
+      setDeletingEntry(null);
+    } catch (err: unknown) {
+      setDeleteError((err as { message?: string })?.message ?? "Could not delete this entry.");
+    }
+  }
 
   const allRows = useMemo(() => sttp.data ?? [], [sttp.data]);
 
@@ -76,6 +91,21 @@ export default function SttpPage() {
       { key: "duration", header: "Duration", sortValue: (r) => r.duration ?? "", render: (r) => r.duration ?? "—" },
       { key: "status", header: "Status", sortValue: (r) => r.status, render: (r) => r.status },
       { key: "attended_on", header: "Attended on", align: "right", sortValue: (r) => r.attended_on ?? "", render: (r) => (r.attended_on ? r.attended_on.slice(0, 10) : "—") },
+      {
+        key: "actions",
+        header: "",
+        width: "0.9fr",
+        render: (r) => (
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditingEntry(r)} className="text-[12.5px] font-bold text-primary hover:underline">
+              Edit
+            </button>
+            <button type="button" onClick={() => setDeletingEntry(r)} className="text-[12.5px] font-bold text-danger-fg hover:underline">
+              Delete
+            </button>
+          </div>
+        ),
+      },
     ],
     [],
   );
@@ -91,6 +121,21 @@ export default function SttpPage() {
       />
 
       {addingEntry && <AddDevelopmentProgramEntryModal kind="sttp" onClose={() => setAddingEntry(false)} onCreated={() => sttp.refetch()} />}
+      {editingEntry && (
+        <AddDevelopmentProgramEntryModal kind="sttp" editing={editingEntry} onClose={() => setEditingEntry(null)} onCreated={() => sttp.refetch()} />
+      )}
+      <ConfirmDialog
+        open={deletingEntry != null}
+        title="Delete this STTP entry?"
+        description={deleteError ?? "This can't be undone."}
+        confirmLabel={deleteEntry.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeletingEntry(null);
+          setDeleteError(null);
+        }}
+      />
 
       <MetricCards
         cards={[

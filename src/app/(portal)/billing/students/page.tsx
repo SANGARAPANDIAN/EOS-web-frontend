@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader, filterBarSx, inputSx, selectSx, clearBtnSx, tableWrapSx, thSx, thRightSx } from "@/modules/billing/PageHeader";
+import { SkeletonCardGrid, SkeletonFilterBar, SkeletonTable } from "@/components/ui/Skeleton";
 import { ReceivePaymentModal, toastSx } from "@/modules/billing/ReceivePaymentModal";
 import { useFeePaymentsDashboard, groupDashboardByStudent, type BillingStudentRow } from "@/modules/billing/api/fees";
 import { money, initialsOf } from "@/modules/billing/fakeData";
@@ -24,17 +25,73 @@ const cardSx = {
   transition: "transform .16s ease,border-color .16s ease,box-shadow .16s ease",
   background: "#fff",
   border: "1px solid #e6e9ef",
-  borderRadius: 12,
-  padding: "16px 18px",
+  borderRadius: 14,
+  padding: "20px",
   textAlign: "left" as const,
   cursor: "pointer",
   font: "inherit",
+  display: "flex",
+  flexDirection: "column" as const,
 } as const;
+
+const cardGridSx = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))", gap: 14 } as const;
+
+const clampNameSx = {
+  fontSize: 13.5,
+  fontWeight: 700,
+  lineHeight: 1.35,
+  color: "#0f172a",
+  marginTop: 14,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical" as const,
+  overflow: "hidden",
+  minHeight: "2.7em",
+} as const;
+
+function IconChip({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ width: 34, height: 34, borderRadius: 9, background: "#eef3ff", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
+      {children}
+    </div>
+  );
+}
+
+function BuildingIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 21V7l7-4 7 4v14M3 21h18M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
+function StatLine({ value, label }: { value: number; label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 14 }}>
+      <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 24, fontWeight: 700, color: "#0f172a" }}>{value}</span>
+      <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>{label}</span>
+    </div>
+  );
+}
 
 function ProgressBar({ pct }: { pct: number }) {
   return (
-    <div style={{ height: 5, background: "#eef2f7", borderRadius: 4, marginTop: 10, overflow: "hidden" }}>
-      <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, pct))}%`, background: "#1d4ed8", borderRadius: 4 }} />
+    <div style={{ marginTop: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+        <span style={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>Collected</span>
+        <span style={{ fontSize: 12.5, color: "#1d4ed8", fontWeight: 800 }}>{pct.toFixed(1)}%</span>
+      </div>
+      <div style={{ height: 8, background: "#eef2f7", borderRadius: 5, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, pct))}%`, background: "#1d4ed8", borderRadius: 5, transition: "width .3s ease" }} />
+      </div>
     </div>
   );
 }
@@ -154,7 +211,14 @@ export default function BillingStudentsPage() {
     window.setTimeout(() => setToast(""), 2400);
   }
 
-  if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading students…</div>;
+  if (isLoading)
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SkeletonCardGrid count={6} columns={3} />
+        <SkeletonFilterBar />
+        <SkeletonTable rows={8} />
+      </div>
+    );
   if (error) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load students."}</div>;
 
   return (
@@ -162,14 +226,13 @@ export default function BillingStudentsPage() {
       <PageHeader title="Students" sub="Fee details for every student on the roll." />
 
       {!deptPicked && (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, deptSummary.length)},1fr)`, gap: 12 }}>
+        <div style={cardGridSx}>
           {deptSummary.map((d) => (
-            <button key={d.dept} data-bill-lift onClick={() => pickDept(d.dept)} style={cardSx}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.35 }}>{d.dept}</div>
-              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 19, fontWeight: 600, marginTop: 8 }}>{d.students}</div>
-              <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 4 }}>students</div>
+            <button key={d.dept} data-bill-lift onClick={() => pickDept(d.dept)} style={cardSx} title={d.dept}>
+              <IconChip><BuildingIcon /></IconChip>
+              <div style={clampNameSx}>{d.dept}</div>
+              <StatLine value={d.students} label="students" />
               <ProgressBar pct={d.pct} />
-              <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 7 }}>{d.pct.toFixed(1)}% collected</div>
             </button>
           ))}
         </div>
@@ -191,15 +254,16 @@ export default function BillingStudentsPage() {
               <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>{deptTotalRoll} students on the roll</div>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, yearBoxes.length)},1fr)`, gap: 12 }}>
+          <div style={cardGridSx}>
             {yearBoxes.map((y) => (
               <button key={y.batch} data-bill-lift onClick={() => pickYear(y.batch)} style={cardSx}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{y.label}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#94a3b8", marginTop: 3 }}>{y.batch}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 22, fontWeight: 600, marginTop: 10 }}>{y.students}</div>
-                <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 4 }}>students fully paid</div>
+                <IconChip><CalendarIcon /></IconChip>
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{y.label}</div>
+                  <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{y.batch}</div>
+                </div>
+                <StatLine value={y.students} label="fully paid" />
                 <ProgressBar pct={y.pct} />
-                <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 7 }}>{y.pct.toFixed(1)}% collected</div>
               </button>
             ))}
           </div>
@@ -290,7 +354,9 @@ export default function BillingStudentsPage() {
                 <td style={{ padding: "12px 18px" }} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <Link href={`/billing/students/${r.student_id}`} data-bill-soft style={{ background: "#f1f5f9", color: "#0f172a", border: "1px solid #e2e8f0", borderRadius: 7, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>Fee details</Link>
-                    <button data-bill-primary onClick={() => setReceiveFor(r)} style={{ background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 7, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Receive</button>
+                    {r.due_status !== "paid" && r.outstanding_amount > 0 && (
+                      <button data-bill-primary onClick={() => setReceiveFor(r)} style={{ background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 7, padding: "7px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Receive</button>
+                    )}
                   </div>
                 </td>
               </tr>

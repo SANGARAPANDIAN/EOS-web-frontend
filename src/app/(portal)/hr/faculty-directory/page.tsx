@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { Avatar, Badge, Button, Card, DataTable, Icon, IconButton, Select, SearchBar, type DataTableColumn } from "@/components/ui";
+import { Avatar, Badge, Card, DataTable, IconButton, Select, SearchBar, type DataTableColumn } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { useHrFaculties, type HrFaculty, type HrFacultyStatus } from "@/modules/hr/api/facultyDirectory";
 import { useHrDepartments } from "@/modules/hr/api/departments";
@@ -76,12 +75,9 @@ export default function HrFacultyDirectoryPage() {
             {meta ? `${meta.total} faculty record${meta.total === 1 ? "" : "s"}` : " "}
           </p>
         </div>
-        <Link href="/hr/faculty-directory/new">
-          <Button variant="primarySmall" className="inline-flex items-center gap-1.5 px-5 py-3">
-            <Icon name="person_add" size={16} />
-            Add faculty
-          </Button>
-        </Link>
+        {/* No "Add faculty" here on purpose. Faculty records are created by
+            Admin during onboarding; HR reads and reports on them. Leaving a
+            create button in HR meant two places could mint the same person. */}
       </div>
 
       <Card className="flex flex-wrap items-center gap-3 p-4">

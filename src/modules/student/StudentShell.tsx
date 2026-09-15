@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { studentModuleConfig } from "@/modules/student/nav";
-import { useMyIdentity, useMyAcademicProfile, useMyAcademicCalendar } from "@/modules/student/api/profile";
+import { useMyIdentity, useMyAcademicProfile, useMyAcademicCalendar, useMyCareerPath } from "@/modules/student/api/profile";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
 import { useMyFees } from "@/modules/student/api/fees";
@@ -17,18 +17,23 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   const identity = useMyIdentity();
   const academicProfile = useMyAcademicProfile();
   const academicCalendar = useMyAcademicCalendar();
+  const careerPath = useMyCareerPath();
   const unread = useUnreadNotificationCount();
   const announcements = useAnnouncements();
   const fees = useMyFees();
   const feedbackForms = useFeedbackForms();
 
   const semester = academicCalendar.data?.semester ?? undefined;
-  // Always a real string from first paint (never undefined while loading)
-  // so the pill's slot in the topbar is never absent — conditionally
-  // rendering it based on async data made the header's content shift
-  // between page loads depending on fetch timing, which read as
-  // "inconsistent alignment" (same fix as HodShell.tsx).
-  const programLabel = [academicProfile.data?.course_name ?? "—", semester ? `Semester ${semester}` : null]
+  // Omits the department/course segment entirely while academicProfile is
+  // still loading, rather than a "—" placeholder — course_id is a required
+  // FK (see prisma/schema.prisma), so course_name is never actually empty
+  // once loaded; showing a dash here only ever meant "still loading" and
+  // read as a confusing, permanent-looking gap next to the semester number.
+  // "Semester N" alone still keeps the pill's slot non-empty during that
+  // brief window, so the topbar layout doesn't shift (same concern as
+  // HodShell.tsx's roleDeptLabel, which keeps its own "—" fallback since
+  // that one prefixes a fixed "HoD · " label instead of standing alone).
+  const programLabel = [academicProfile.data?.course_name, semester ? `Semester ${semester}` : null]
     .filter(Boolean)
     .join(" · ");
 
@@ -48,9 +53,41 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   const totalFeeDue = useMemo(() => fees.data?.demands.reduce((sum, d) => sum + d.due, 0) ?? 0, [fees.data]);
   const pendingFeedbackCount = useMemo(() => feedbackForms.data?.filter((f) => !f.completed).length ?? 0, [feedbackForms.data]);
 
+  // "Hostel" / "In / out request" only make sense for an actual resident —
+  // hidden for a day scholar rather than left pointing at a feature that
+  // isn't theirs. Held back (not shown) until student_type has actually
+  // loaded, so a hosteller never sees a one-frame flash of these items
+  // disappearing.
+  const isHosteller = academicProfile.data?.student_type === "hosteller";
+  // Same "held back until loaded" reasoning as isHosteller above, not just
+  // "undeclared shows everything": while careerPath is still fetching, every
+  // path-tagged item was showing (declaredPath defaults to null exactly
+  // like "not declared"), then the moment the real value arrived the two
+  // wrong ones would vanish out from under the user — a visible flash,
+  // worse than the hosteller case since here 1-2 whole nav items disappear
+  // rather than a boolean flipping once. Once genuinely loaded, an actually
+  // undeclared path still shows every item unchanged (still the intended
+  // fallback — see MeCareerPathService).
+  const declaredPath = careerPath.data?.career_path ?? null;
+  const careerPathLoaded = !careerPath.isLoading;
+  const moduleConfig = useMemo(
+    () => ({
+      ...studentModuleConfig,
+      navGroups: studentModuleConfig.navGroups.map((group) => ({
+        ...group,
+        items: group.items.filter(
+          (item) =>
+            (!item.hostellerOnly || isHosteller) &&
+            (!item.careerPath || (careerPathLoaded && (!declaredPath || item.careerPath === declaredPath))),
+        ),
+      })),
+    }),
+    [isHosteller, declaredPath, careerPathLoaded],
+  );
+
   return (
     <AppShell
-      moduleConfig={studentModuleConfig}
+      moduleConfig={moduleConfig}
       header={{
         studentName: identity.data?.name,
         registerNumber: academicProfile.data?.register_no ?? undefined,

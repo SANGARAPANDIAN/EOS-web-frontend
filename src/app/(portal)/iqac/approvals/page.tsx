@@ -5,6 +5,7 @@ import { Badge, DataTable, type BadgeTone, type DataTableColumn } from "@/compon
 import { PageCrumbs, StatTile, FilterSelect, FilterBarFooter, Pager } from "@/modules/iqac/components/PageControls";
 import { useApprovalsList, useApprovalsStats, useToggleApproval, type ApprovalRow, type ApprovalStatus } from "@/modules/iqac/api/approvals";
 import { useDepartmentsList } from "@/modules/iqac/api/departments";
+import { exportToPdf } from "@/lib/utils/pdf-export";
 
 const STATUS_LABEL: Record<ApprovalStatus, string> = { pending: "Pending", verified: "Verified", missing: "Missing" };
 const STATUS_TONE: Record<ApprovalStatus, BadgeTone> = { pending: "neutral", verified: "accent", missing: "danger" };
@@ -121,11 +122,34 @@ export default function IqacApprovalsPage() {
   }
 
   function handleExportPdf() {
-    try {
-      window.print();
-    } catch {
-      // print unavailable in this environment — no-op, matching the reference design's own try/catch.
-    }
+    void exportToPdf({
+      title: "Data entry and approvals",
+      subtitle: "Departmental submissions awaiting IQAC verification",
+      filename: "approvals.pdf",
+      sections: [
+        {
+          type: "table",
+          columns: [
+            { header: "Submission", key: "name" },
+            { header: "Type", key: "category" },
+            { header: "Dept", key: "dept" },
+            { header: "Submitted by", key: "submitted_by" },
+            { header: "Date", key: "date" },
+            { header: "Evidence", key: "evidence" },
+            { header: "Status", key: "status" },
+          ],
+          rows: rows.map((r) => ({
+            name: r.name,
+            category: r.category,
+            dept: r.department.code,
+            submitted_by: r.uploaded_by.email,
+            date: new Date(r.created_at).toLocaleDateString("en-IN"),
+            evidence: r.file_url ? "File attached" : "No file",
+            status: STATUS_LABEL[r.status],
+          })),
+        },
+      ],
+    });
   }
 
   return (

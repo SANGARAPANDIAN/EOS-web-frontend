@@ -3,14 +3,10 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, Badge, Button, EmptyState, Input, Textarea, ProfilePhoto, SkeletonBlock } from "@/components/ui";
-import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
-import {
-  useHodStudentProfile,
-  useHodMeetingNotes,
-  useAddHodMeetingNote,
-  type HodStudentProfile,
-} from "@/modules/hod/api/studentProfile";
+import { useHodStudentProfile, useHodMeetingNotes, useAddHodMeetingNote } from "@/modules/hod/api/studentProfile";
 import { formatDisplayDate } from "@/lib/utils/date";
+import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
+import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -58,9 +54,14 @@ function MeetingNotesCard({ studentId }: { studentId: number }) {
     <Card>
       <h2 className="text-[17px] font-extrabold text-ink">Parent-teacher meeting notes</h2>
 
+      {notes.isError && (
+        <div className="mt-3 rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load meeting notes — please try again.
+        </div>
+      )}
       {notes.isLoading ? (
         <div className="mt-3 text-[13px] text-muted">Loading…</div>
-      ) : !notes.data || notes.data.length === 0 ? (
+      ) : notes.isError ? null : !notes.data || notes.data.length === 0 ? (
         <div className="mt-3">
           <EmptyState message="No meeting notes recorded yet." />
         </div>
@@ -92,9 +93,10 @@ function MeetingNotesCard({ studentId }: { studentId: number }) {
           variant="primarySmall"
           className="mt-3"
           onClick={submit}
-          disabled={!meetingDate || !note.trim() || addNote.isPending}
+          disabled={!meetingDate || !note.trim()}
+          loading={addNote.isPending}
         >
-          {addNote.isPending ? "Saving…" : "Add note"}
+          Add note
         </Button>
       </div>
     </Card>
@@ -112,6 +114,13 @@ export default function HodStudentProfilePage() {
       <div className="flex flex-col gap-4">
         <SkeletonBlock />
         <SkeletonBlock />
+      </div>
+    );
+  }
+  if (profile.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load this student&apos;s profile — please try again.
       </div>
     );
   }
@@ -135,52 +144,9 @@ export default function HodStudentProfilePage() {
     certificates,
     semester_wise_gpa,
     monthly_attendance,
-    current_semester_subjects,
     fees,
     placement_status,
   } = profile.data;
-
-  const subjectColumns: DataTableColumn<HodStudentProfile["current_semester_subjects"][number]>[] = [
-    { key: "subject", header: "Subject", width: "2fr", render: (r) => <span className="font-bold text-ink">{r.name}</span> },
-    { key: "code", header: "Code", width: "90px", render: (r) => <span className="text-subtle">{r.code}</span> },
-    {
-      key: "internal",
-      header: "Internal",
-      width: "90px",
-      align: "right",
-      render: (r) => <span>{r.internal_obtained != null ? `${r.internal_obtained}/${r.internal_max}` : "—"}</span>,
-    },
-    {
-      key: "endsem",
-      header: "End sem",
-      width: "90px",
-      align: "right",
-      render: (r) => <span>{r.external_obtained != null ? `${r.external_obtained}/${r.external_max}` : "—"}</span>,
-    },
-    {
-      key: "total",
-      header: "Total",
-      width: "80px",
-      align: "right",
-      render: (r) => <span className="font-bold text-ink">{r.total_percent != null ? `${r.total_percent}%` : "—"}</span>,
-    },
-    {
-      key: "grade",
-      header: "Grade",
-      width: "70px",
-      align: "right",
-      render: (r) => (
-        <span className={"font-extrabold " + (r.grade === "RA" ? "text-[#b91c1c]" : "text-primary")}>{r.grade ?? "—"}</span>
-      ),
-    },
-    {
-      key: "attendance",
-      header: "Attendance",
-      width: "90px",
-      align: "right",
-      render: (r) => <span>{r.attendance_percent != null ? `${r.attendance_percent}%` : "—"}</span>,
-    },
-  ];
 
   const guardianEmail = guardian?.relation === "father" ? family?.father?.email : family?.mother?.email;
 
@@ -253,10 +219,11 @@ export default function HodStudentProfilePage() {
                 <div className="mt-1.5 text-[32px] font-extrabold text-ink">{stats.cgpa ?? "—"}</div>
               </div>
               <div className="hod-hover-card rounded-[11px] border border-border-default p-4">
-                <div className="text-[13.5px] text-muted">Percentage (CGPA × 9.5)</div>
+                <div className="text-[13.5px] text-muted">Fees</div>
                 <div className="mt-1.5 text-[32px] font-extrabold text-ink">
-                  {stats.percentage != null ? `${stats.percentage}%` : "—"}
+                  {fees.due > 0 ? `₹${fees.due.toLocaleString("en-IN")}` : "Paid"}
                 </div>
+                {fees.due > 0 && <div className="mt-1 text-[12px] font-bold text-danger-fg">Pending</div>}
               </div>
               <div className="hod-hover-card rounded-[11px] border border-border-default p-4">
                 <div className="text-[13.5px] text-muted">Arrears</div>
@@ -496,30 +463,18 @@ export default function HodStudentProfilePage() {
 
       <Card className="p-0">
         <div className="border-b border-divider px-5 py-4">
-          <h2 className="text-[17px] font-extrabold text-ink">Current semester subjects</h2>
-          <p className="mt-0.5 text-[12.5px] text-muted">Internal assessment, end-semester mark, grade and subject attendance</p>
+          <h2 className="text-[17px] font-extrabold text-ink">Examinations & results</h2>
+          <p className="mt-0.5 text-[12.5px] text-muted">CIA1, CIA2, Quiz and Internal marks per subject; End Sem shows a grade once published</p>
         </div>
-        <DataTable
-          columns={subjectColumns}
-          data={current_semester_subjects}
-          rowKey={(r) => r.subject_id}
-          rowClassName="hod-hover-row"
-          emptyMessage="No subject marks entered yet this semester."
-        />
+        <div className="p-5">
+          <SubjectMarksTable studentId={studentId} />
+        </div>
       </Card>
 
       {certificates.length > 0 && (
         <Card>
-          <h2 className="text-[17px] font-extrabold text-ink">Certificates &amp; achievements</h2>
-          <div className="mt-3 flex flex-col gap-2">
-            {certificates.map((c) => (
-              <div key={c.id} className="flex items-center gap-2.5">
-                <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-                <span className="text-[13.5px] text-ink">{c.name}</span>
-                {c.verified && <Badge tone="accent">Verified</Badge>}
-              </div>
-            ))}
-          </div>
+          <h2 className="mb-4 text-[17px] font-extrabold text-ink">Certificates &amp; achievements</h2>
+          <CertificateStatusGrid items={certificates} />
         </Card>
       )}
 

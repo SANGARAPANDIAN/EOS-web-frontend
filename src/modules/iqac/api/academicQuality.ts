@@ -229,6 +229,9 @@ export function useClassOptions() {
     queryKey: ["iqac", "academic-quality", "class-options"],
     queryFn: () => apiClient.get<ClassOptions>("/me/iqac/academic-quality/class-options"),
     staleTime: 10 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be well above staleTime — same reasoning, same reference-data tier.
+    gcTime: 20 * 60_000,
   });
 }
 
@@ -266,6 +269,31 @@ export function useAssignClassMentor() {
   return useMutation({
     mutationFn: ({ classId, faculty_id, academic_year }: { classId: number; faculty_id: number; academic_year: string }) =>
       apiClient.post(`/me/iqac/academic-quality/class-rows/${classId}/mentor`, { faculty_id, academic_year }),
+  });
+}
+
+/** PATCH /me/iqac/academic-quality/class-rows/:id — real classes-table update. */
+export function useUpdateClassRow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ classId, section }: { classId: number; section: string }) =>
+      apiClient.patch<CreatedClassRow>(`/me/iqac/academic-quality/class-rows/${classId}`, { section }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "grade-distribution"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/academic-quality/class-rows/:id — blocked server-side (409 CLASS_IN_USE) while any student is enrolled in the class. */
+export function useDeleteClassRow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (classId: number) => apiClient.delete(`/me/iqac/academic-quality/class-rows/${classId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["iqac", "academic-quality", "grade-distribution"] });
+    },
   });
 }
 

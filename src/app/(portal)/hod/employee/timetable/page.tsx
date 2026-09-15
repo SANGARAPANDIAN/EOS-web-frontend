@@ -46,15 +46,27 @@ function StatTiles({ stats }: { stats: HodTimetableStats }) {
   );
 }
 
-function PeriodRow({ period }: { period: HodTimetablePeriod }) {
+function PeriodRow({ period, done, isNext }: { period: HodTimetablePeriod; done: boolean; isNext: boolean }) {
   return (
-    <div className="grid grid-cols-[80px_1fr_90px] items-center gap-4 rounded-[12px] border border-[#e6e8ef] bg-white px-[18px] py-3.5">
+    <div
+      className={cn(
+        "grid grid-cols-[80px_1fr_90px] items-center gap-4 rounded-[12px] border px-[18px] py-3.5",
+        isNext ? "border-[#bfdbfe] bg-[#eff6ff]" : "border-[#e6e8ef] bg-white",
+      )}
+    >
       <div>
         <div className="font-mono text-[12.5px] font-extrabold text-primary">{period.start_time}</div>
         <div className="mt-0.5 text-[11px] font-bold text-[#9aa0b0]">P{period.period_number}</div>
       </div>
       <div className="min-w-0">
-        <div className="truncate text-[14.5px] font-extrabold text-ink">{period.subject_name}</div>
+        <div
+          className={cn(
+            "truncate text-[14.5px] font-extrabold",
+            done ? "text-[#9aa0b0] line-through" : "text-ink",
+          )}
+        >
+          {period.subject_name}
+        </div>
         <div className="mt-0.5 truncate text-[12px] font-semibold text-[#9aa0b0]">{period.class_label}</div>
       </div>
       <div className="flex justify-end">
@@ -103,8 +115,14 @@ export default function HodEmployeeTimetablePage() {
         />
       </div>
 
+      {(mode === "today" ? day.isError : week.isError) && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load the timetable — please try again.
+        </div>
+      )}
+
       {mode === "today" ? (
-        day.isLoading || !day.data ? (
+        day.isError ? null : day.isLoading || !day.data ? (
           <div className="flex flex-col gap-5">
             <Skeleton className="h-[86px] w-full" />
             <SkeletonStatTiles count={4} />
@@ -148,12 +166,24 @@ export default function HodEmployeeTimetablePage() {
                   <EmptyState message="No periods scheduled for this day." />
                 </Card>
               ) : (
-                day.data.periods.map((p) => <PeriodRow key={p.id} period={p} />)
+                (() => {
+                  const isToday = date === toIsoDateString(new Date());
+                  const nowHm = new Date().toTimeString().slice(0, 5);
+                  const nextId = isToday ? day.data.periods.find((p) => p.end_time >= nowHm)?.id : undefined;
+                  return day.data.periods.map((p) => (
+                    <PeriodRow
+                      key={p.id}
+                      period={p}
+                      done={isToday && p.end_time < nowHm}
+                      isNext={isToday && p.id === nextId}
+                    />
+                  ));
+                })()
               )}
             </div>
           </>
         )
-      ) : week.isLoading || !week.data ? (
+      ) : week.isError ? null : week.isLoading || !week.data ? (
         <SkeletonBlock className="min-h-[420px]" />
       ) : week.data.columns.length === 0 ? (
         <Card>

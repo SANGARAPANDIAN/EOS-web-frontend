@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui";
-import { useAddPatentEntry } from "@/modules/iqac/api/facultyDevelopment";
+import { useAddPatentEntry, useUpdatePatentEntry, type PatentRow } from "@/modules/iqac/api/facultyDevelopment";
 import type { FacultyRow } from "@/modules/iqac/api/faculty";
 import { FacultyPicker } from "./FacultyPicker";
 
@@ -18,25 +18,50 @@ function currentYear(): number {
 }
 
 /** Records a real faculty_patent_inventors row, finding or creating the real faculty_patents row by title. */
-export function AddPatentEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const addEntry = useAddPatentEntry();
+export function AddPatentEntryModal({
+  onClose,
+  onCreated,
+  editing,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  /** Editing an existing inventorship — faculty can't be reassigned here (delete + re-add for that); title/stage/filed_year/stage_date edit the shared patent. */
+  editing?: PatentRow;
+}) {
+  const isEditing = editing != null;
+  const create = useAddPatentEntry();
+  const update = useUpdatePatentEntry();
 
   const [faculty, setFaculty] = useState<FacultyRow | null>(null);
-  const [title, setTitle] = useState("");
-  const [stage, setStage] = useState<(typeof STAGE_OPTIONS)[number]["value"]>("filed");
-  const [filedYear, setFiledYear] = useState(String(currentYear()));
-  const [stageDate, setStageDate] = useState("");
-  const [role, setRole] = useState(ROLE_OPTIONS[0]);
+  const [title, setTitle] = useState(editing?.title ?? "");
+  const [stage, setStage] = useState<(typeof STAGE_OPTIONS)[number]["value"]>((editing?.stage as (typeof STAGE_OPTIONS)[number]["value"]) ?? "filed");
+  const [filedYear, setFiledYear] = useState(editing?.filed_year != null ? String(editing.filed_year) : String(currentYear()));
+  const [stageDate, setStageDate] = useState(editing?.stage_date?.slice(0, 10) ?? "");
+  const [role, setRole] = useState(editing?.role ?? ROLE_OPTIONS[0]);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    if (isEditing) {
+      setError(null);
+      try {
+        await update.mutateAsync({
+          id: editing.id,
+          input: { role, title: title.trim(), stage, filed_year: filedYear.trim() ? Number(filedYear) : undefined, stage_date: stageDate || undefined },
+        });
+        onCreated();
+        onClose();
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message ?? "Could not save this entry.");
+      }
+      return;
+    }
     if (!faculty || !title.trim()) {
       setError("Faculty and patent title are both required.");
       return;
     }
     setError(null);
     try {
-      await addEntry.mutateAsync({
+      await create.mutateAsync({
         faculty_id: faculty.id,
         title: title.trim(),
         stage,
@@ -52,9 +77,16 @@ export function AddPatentEntryModal({ onClose, onCreated }: { onClose: () => voi
   }
 
   return (
-    <Modal open onClose={onClose} title="Add faculty entry" subtitle="Patents">
+    <Modal open onClose={onClose} title={isEditing ? "Edit faculty entry" : "Add faculty entry"} subtitle="Patents">
       <div className="flex flex-col gap-4">
-        <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        {isEditing ? (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Faculty</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.faculty.name}</div>
+          </div>
+        ) : (
+          <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        )}
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Patent title</div>
@@ -64,7 +96,7 @@ export function AddPatentEntryModal({ onClose, onCreated }: { onClose: () => voi
             placeholder="e.g. A Method for Real-Time Traffic Prediction"
             className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
           />
-          <p className="mt-1 text-[11px] text-subtle">Matches an existing patent by this exact title, or creates one.</p>
+          {!isEditing && <p className="mt-1 text-[11px] text-subtle">Matches an existing patent by this exact title, or creates one.</p>}
         </div>
 
         <div className="grid grid-cols-3 gap-4">
@@ -126,10 +158,10 @@ export function AddPatentEntryModal({ onClose, onCreated }: { onClose: () => voi
           <button
             type="button"
             onClick={submit}
-            disabled={addEntry.isPending}
+            disabled={create.isPending || update.isPending}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {addEntry.isPending ? "Saving…" : "Save"}
+            {create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

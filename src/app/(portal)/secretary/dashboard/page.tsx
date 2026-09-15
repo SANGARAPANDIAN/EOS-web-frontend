@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SegmentedTabs, Skeleton, SkeletonStatTiles, SkeletonCardGrid } from "@/components/ui";
 import { SecretaryIcon } from "@/modules/secretary/icons";
 import { tone as noticeTone } from "@/modules/secretary/helpers";
 import { useAnnouncements } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 import {
   useStudentAttendanceOverview,
   useRollCount,
@@ -17,7 +19,8 @@ import {
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 112-204.
 //
 // REAL BACKEND WIRING — ZERO fake data. Every number on this screen comes
-// from EOSbackend1's institution-wide `/principal-*` aggregate endpoints
+// from EOSbackend1's `/principal-*` aggregate endpoints, now department-
+// scoped server-side for Secretary (own department only, mirroring HOD)
 // (originally Principal-only, granted to Secretary — see
 // `src/modules/secretary/api/overview.ts` for the exact routes/shapes) and
 // the real `/announcements` module. Honest substitutions made where the
@@ -38,6 +41,7 @@ import {
 //     `useAnnouncements()` hook (wired in a prior pass).
 
 const RANGES = ["Today", "This term"] as const;
+const RANGE_TABS = RANGES.map((r) => ({ key: r, label: r }));
 
 function noticeChip(category: string | null) {
   const key = category === "emergency" ? "overdue" : category === "academic" ? "in progress" : "pending";
@@ -54,12 +58,19 @@ export default function SecretaryDashboardPage() {
     setTimeout(() => setToast(""), 2600);
   }
 
-  const { data: attOverview } = useStudentAttendanceOverview();
+  const { data: attOverview, isLoading: attLoading } = useStudentAttendanceOverview();
   const { data: rollCount } = useRollCount();
-  const { data: facOverview } = useFacultyOverview();
-  const { data: examsOverview } = useExamsOverview();
-  const { data: placementsOverview } = usePlacementsOverview();
+  const { data: facOverview, isLoading: facLoading } = useFacultyOverview();
+  const { data: examsOverview, isLoading: examsLoading } = useExamsOverview();
+  const { data: placementsOverview, isLoading: placementsLoading } = usePlacementsOverview();
   const { data: announcements } = useAnnouncements();
+  const { data: identity } = useMyIdentity();
+  const deptName = identity?.department ?? "your department";
+
+  // True only until every query behind this dashboard has resolved at least
+  // once (React Query's isLoading, not isFetching) — a background refresh of
+  // already-cached data never re-triggers the skeleton.
+  const isLoading = attLoading || facLoading || examsLoading || placementsLoading;
 
   const facAttendancePct = useMemo(() => {
     if (!facOverview || facOverview.total_employees === 0) return null;
@@ -67,7 +78,12 @@ export default function SecretaryDashboardPage() {
   }, [facOverview]);
 
   const stats = useMemo(() => {
-    const deptsAbove90 = attOverview?.departments.filter((d) => d.attendance_pct !== null && d.attendance_pct >= 90).length ?? 0;
+    // attOverview.departments now contains just this secretary's own
+    // department (the backend scopes /principal-students/attendance-overview
+    // to her department) — a "X of Y departments" framing no longer makes
+    // sense with Y always ≤1, so this reports her own department's status
+    // against the 90% mark instead.
+    const ownDeptPct = attOverview?.departments[0]?.attendance_pct ?? null;
     return [
       {
         label: "Student attendance today",
@@ -76,7 +92,7 @@ export default function SecretaryDashboardPage() {
         hi: attOverview ? String(attOverview.present_today) : "—",
         sub: `present of ${rollCount?.count ?? "—"} on roll`,
         pct: attOverview?.mean_attendance_pct !== null && attOverview?.mean_attendance_pct !== undefined ? `${Math.round(attOverview.mean_attendance_pct)}%` : "0%",
-        foot: attOverview ? `${deptsAbove90} of ${attOverview.departments.length} departments above 90%` : "—",
+        foot: attOverview ? (ownDeptPct !== null && ownDeptPct >= 90 ? `${deptName} is above the 90% mark` : `${deptName} is below the 90% mark`) : "—",
         href: "/secretary/attendance",
       },
       {
@@ -112,12 +128,12 @@ export default function SecretaryDashboardPage() {
         href: "/secretary/reports",
       },
     ];
-  }, [attOverview, rollCount, facOverview, facAttendancePct, examsOverview, placementsOverview]);
+  }, [attOverview, rollCount, facOverview, facAttendancePct, examsOverview, placementsOverview, deptName]);
 
   const queue = useMemo(() => {
     const items: { title: string; meta: string; status: string; chipBg: string; chipFg: string; href: string }[] = [];
     if (attOverview && attOverview.below_75_count > 0) {
-      items.push({ title: `${attOverview.below_75_count} students below 75% attendance`, meta: "Institution-wide attendance overview · today", status: "Due today", chipBg: "#fffbeb", chipFg: "#b45309", href: "/secretary/reports" });
+      items.push({ title: `${attOverview.below_75_count} students below 75% attendance`, meta: `${deptName} attendance overview · today`, status: "Due today", chipBg: "#fffbeb", chipFg: "#b45309", href: "/secretary/reports" });
     }
     if (examsOverview && examsOverview.students_with_arrears > 0) {
       items.push({ title: `${examsOverview.students_with_arrears} students with pending arrears`, meta: `${examsOverview.arrear_papers} papers pending clearance`, status: "Pending", chipBg: "#eff6ff", chipFg: "#1d4ed8", href: "/secretary/reports" });
@@ -129,7 +145,7 @@ export default function SecretaryDashboardPage() {
       items.push({ title: `${facOverview.appraisals_total - facOverview.appraisals_closed} faculty appraisals pending`, meta: `Academic year ${facOverview.appraisal_academic_year ?? "—"}`, status: "Due today", chipBg: "#fffbeb", chipFg: "#b45309", href: "/secretary/reports" });
     }
     return items;
-  }, [attOverview, examsOverview, facOverview]);
+  }, [attOverview, examsOverview, facOverview, deptName]);
 
   const flags = useMemo(() => {
     const items: { title: string; meta: string }[] = [];
@@ -146,28 +162,34 @@ export default function SecretaryDashboardPage() {
     return items.slice(0, 5);
   }, [attOverview, examsOverview]);
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-[22px]">
+        <div>
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="mt-2.5 h-3.5 w-96" />
+        </div>
+        <SkeletonStatTiles count={4} />
+        <SkeletonCardGrid count={3} columns={3} />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div>
-        <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Good morning, Kavitha</h1>
+        <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Good morning{identity?.name ? `, ${identity.name}` : ""}</h1>
         <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>
-          {queue.length} items on your desk · institution-wide overview, live from EOSbackend1
+          {queue.length} items on your desk · your department&apos;s overview, live from EOSbackend1
         </p>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "26px 0 28px" }}>
-        <div data-sec-lift="" style={{ display: "flex", flex: "0 0 auto", border: "1px solid #e5e9f2", borderRadius: 12, overflow: "hidden", background: "#ffffff" }}>
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              data-sec-nav-item=""
-              onClick={() => { setRange(r); flash(`Showing figures for ${r.toLowerCase()}.`); }}
-              style={{ border: 0, background: range === r ? "#1e3a8a" : "#ffffff", color: range === r ? "#ffffff" : "#334155", fontSize: 13.1, fontWeight: range === r ? 600 : 500, padding: "14px 30px", whiteSpace: "nowrap", cursor: "pointer" }}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          options={RANGE_TABS}
+          value={range}
+          onChange={(r) => { setRange(r); flash(`Showing figures for ${r.toLowerCase()}.`); }}
+        />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 22 }}>
@@ -231,7 +253,7 @@ export default function SecretaryDashboardPage() {
 
         <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <h2 style={{ margin: 0, fontSize: 15.7, fontWeight: 700 }}>Announcements</h2>
+            <h2 style={{ margin: 0, fontSize: 15.7, fontWeight: 700 }}>Notices</h2>
             <span onClick={() => router.push("/secretary/announcements")} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 11.7, fontWeight: 600, borderRadius: 9, padding: "9px 16px", cursor: "pointer" }}>View all</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -247,7 +269,7 @@ export default function SecretaryDashboardPage() {
                 </div>
               );
             })}
-            {(!announcements || announcements.length === 0) && <div style={{ padding: 20, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No announcements yet.</div>}
+            {(!announcements || announcements.length === 0) && <div style={{ padding: 20, textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No notices yet.</div>}
           </div>
         </div>
       </div>

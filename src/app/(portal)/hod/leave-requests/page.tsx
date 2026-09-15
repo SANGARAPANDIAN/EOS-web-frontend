@@ -38,6 +38,11 @@ export default function HodLeaveRequestsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {list.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load leave requests — please try again.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">
@@ -72,7 +77,7 @@ export default function HodLeaveRequestsPage() {
 
       {list.isLoading ? (
         <SkeletonRows count={5} />
-      ) : !list.data || list.data.rows.length === 0 ? (
+      ) : list.isError ? null : !list.data || list.data.rows.length === 0 ? (
         <Card>
           <EmptyState message="No requests in this view." />
         </Card>
@@ -81,34 +86,40 @@ export default function HodLeaveRequestsPage() {
           {list.data.rows.map((row) => (
             <div
               key={row.id}
-              className="hod-hover-row flex items-center gap-5 rounded-[11px] border border-border-default px-5 py-4"
+              className="hod-hover-row grid items-start gap-5 rounded-[11px] border border-border-default px-5 py-4"
+              style={{ gridTemplateColumns: "38px 190px 170px 140px minmax(0,1fr) auto" }}
             >
               <Avatar name={row.name} size={38} />
-              <div className="w-[190px] min-w-0">
+              <div className="min-w-0">
                 <div className="truncate text-[14px] font-bold text-ink">{row.name}</div>
                 <div className="truncate text-[12px] text-subtle">{row.subtitle}</div>
               </div>
-              <div className="w-[170px]">
-                <div className="text-[13.5px] font-bold text-ink">{dateRangeLabel(row)}</div>
-                <div className="text-[11.5px] text-subtle">
+              <div className="min-w-0">
+                <div className="truncate text-[13.5px] font-bold text-ink">{dateRangeLabel(row)}</div>
+                <div className="truncate text-[11.5px] text-subtle">
                   {row.days > 1 ? `${row.days} days · ` : ""}applied {formatDisplayDate(row.applied_at)}
                 </div>
               </div>
-              <div className="w-[140px]">
+              <div className="min-w-0">
                 {row.type_label && (
-                  <div className="text-[13.5px] font-bold text-ink">{row.type_label}</div>
+                  <div className="truncate text-[13.5px] font-bold text-ink">{row.type_label}</div>
                 )}
                 <Badge tone={statusTone(row.status)} className="mt-1">
                   {statusLabel(row.status)}
                 </Badge>
               </div>
-              <div className="min-w-0 flex-1 text-[13px] text-body">{row.detail_text ?? ""}</div>
-              {row.can_act && (
+              <div className="min-w-0 text-[13px] leading-snug text-body">{row.detail_text ?? ""}</div>
+              {row.can_act ? (
                 <div className="flex shrink-0 gap-2">
                   <Button
                     variant="primarySmall"
                     onClick={() => decide.mutate({ kind: row.kind, id: row.id, decision: "approved" })}
                     disabled={decide.isPending}
+                    loading={
+                      decide.isPending &&
+                      decide.variables?.id === row.id &&
+                      decide.variables?.decision === "approved"
+                    }
                   >
                     Approve
                   </Button>
@@ -116,10 +127,17 @@ export default function HodLeaveRequestsPage() {
                     variant="secondary"
                     onClick={() => decide.mutate({ kind: row.kind, id: row.id, decision: "rejected" })}
                     disabled={decide.isPending}
+                    loading={
+                      decide.isPending &&
+                      decide.variables?.id === row.id &&
+                      decide.variables?.decision === "rejected"
+                    }
                   >
                     Reject
                   </Button>
                 </div>
+              ) : (
+                <div />
               )}
             </div>
           ))}

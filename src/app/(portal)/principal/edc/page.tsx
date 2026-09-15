@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { principalColors } from "@/modules/principal/theme";
 import { PrincipalStatCard } from "@/modules/principal/components/PrincipalStatCard";
@@ -14,10 +15,10 @@ function formatRupees(amount: number): string {
 }
 
 export default function PrincipalEdcPage() {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const [batchId, setBatchId] = useState<number | undefined>(undefined);
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const filters = useEdcFilters();
   const summary = useEdcSummary();
@@ -142,10 +143,10 @@ export default function PrincipalEdcPage() {
             <tbody>
               {list.isLoading && <PrincipalTableSkeleton columns={7} />}
               {records.map((r) => (
-                <Fragment key={r.id}>
                   <tr
-                    onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                    className="cursor-pointer border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]"
+                    key={r.id}
+                    onClick={() => router.push(`/principal/edc/${r.id}`)}
+                    className="cursor-pointer border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]"
                     style={{ borderColor: principalColors.borderMuted }}
                   >
                     <td className="px-5 py-3.5">
@@ -184,25 +185,6 @@ export default function PrincipalEdcPage() {
                       {r.funding_required != null ? formatRupees(r.funding_required) : "—"}
                     </td>
                   </tr>
-                  {expandedId === r.id && (r.description || r.remarks) && (
-                    <tr className="border-t" style={{ borderColor: principalColors.borderMuted }}>
-                      <td colSpan={7} className="px-5 py-3 text-sm" style={{ background: principalColors.surfaceMuted, color: principalColors.body }}>
-                        {r.description && (
-                          <div>
-                            <span className="font-semibold">About: </span>
-                            {r.description}
-                          </div>
-                        )}
-                        {r.remarks && (
-                          <div className="mt-1">
-                            <span className="font-semibold">Note: </span>
-                            {r.remarks}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
               ))}
             </tbody>
           </table>

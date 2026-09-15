@@ -1,18 +1,18 @@
 import { cn } from "@/lib/utils/cn";
 
-export interface SegmentedTabOption {
-  key: string;
+export interface SegmentedTabOption<T extends string = string> {
+  key: T;
   label: string;
 }
 
-interface SegmentedTabsProps {
-  options: SegmentedTabOption[];
-  value: string;
-  onChange: (key: string) => void;
+interface SegmentedTabsProps<T extends string> {
+  options: SegmentedTabOption<T>[];
+  value: T;
+  onChange: (key: T) => void;
   className?: string;
 }
 
-export function SegmentedTabs({ options, value, onChange, className }: SegmentedTabsProps) {
+export function SegmentedTabs<T extends string>({ options, value, onChange, className }: SegmentedTabsProps<T>) {
   return (
     <div className={cn("inline-flex gap-1 rounded-[11px] bg-surface-tint p-1", className)}>
       {options.map((option) => {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { cardSx } from "@/modules/billing/PageHeader";
 import { useAnnouncements, REAL_TO_TAG, announcementTagColors } from "@/modules/billing/api/announcements";
 import { useFinanceOverview } from "@/modules/billing/api/fees";
+import { SkeletonStatTiles, SkeletonCardGrid } from "@/components/ui/Skeleton";
 
 // Pixel-exact port of the `isDashboard` screen from
 // "Billing Module - Web/Billing Admin.dc.html", lines 190-339.
@@ -68,7 +69,16 @@ export default function BillingDashboardPage() {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
 
-  if (isLoading) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Loading finance overview…</div>;
+  if (isLoading && !overview) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SkeletonStatTiles count={4} />
+        <SkeletonCardGrid count={3} columns={3} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonCardGrid count={2} columns={2} />
+      </div>
+    );
+  }
   if (error || !overview) return <div style={{ padding: 60, textAlign: "center", fontSize: 13, color: "#b91c1c" }}>{error instanceof Error ? error.message : "Could not load the finance overview."}</div>;
 
   const kpi = overview.executiveKPIs;
@@ -88,7 +98,7 @@ export default function BillingDashboardPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/overview" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Total collected</div>
             <div style={kpiIconWrapSx}>
@@ -99,9 +109,9 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#1d4ed8", fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{totalPaymentsRecorded}</span> <span style={{ color: "#64748b" }}>payments recorded</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: `${Math.min(100, kpi.collectionPercentage)}%`, background: "#1d4ed8", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>{kpi.collectionPercentage.toFixed(1)}% of total demand</div>
-        </div>
+        </Link>
 
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/demand" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Outstanding dues</div>
             <div style={{ ...kpiIconWrapSx, background: "#f1f5f9" }}>
@@ -112,9 +122,9 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#0f2d6b", fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{overview.financialAnalytics.paymentStatusDistribution.find((p) => p.status === "pending")?.count ?? 0}</span> <span style={{ color: "#64748b" }}>demands fully unpaid</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: `${100 - Math.min(100, kpi.collectionPercentage)}%`, background: "#0f2d6b", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>of {fmtCrore(kpi.totalFeeDemand)} total demand</div>
-        </div>
+        </Link>
 
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/overview" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Collection efficiency</div>
             <div style={kpiIconWrapSx}>
@@ -125,9 +135,9 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#64748b" }}>share of total demand collected so far</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: `${Math.min(100, kpi.collectionPercentage)}%`, background: "#1d4ed8", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>{kpi.activeFeeStructures} active fee structures</div>
-        </div>
+        </Link>
 
-        <div data-bill-lift style={cardSx}>
+        <Link href="/billing/concessions" data-bill-lift style={{ ...cardSx, display: "block", textDecoration: "none", color: "inherit" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div style={kpiLabelSx}>Pending approvals</div>
             <div style={kpiIconWrapSx}>
@@ -138,7 +148,7 @@ export default function BillingDashboardPage() {
           <div style={kpiSubSx}><span style={{ color: "#1d4ed8", fontWeight: 700, fontFamily: "'IBM Plex Mono',monospace" }}>{kpi.pendingEducationLoanDD}</span> <span style={{ color: "#64748b" }}>education loan DDs pending too</span></div>
           <div style={barTrackSx}><div style={{ height: "100%", width: "46%", background: "#1d4ed8", borderRadius: 4 }} /></div>
           <div style={kpiFootSx}>concessions awaiting settlement</div>
-        </div>
+        </Link>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 16 }}>
@@ -178,7 +188,7 @@ export default function BillingDashboardPage() {
 
         <div data-bill-lift style={cardSx}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <div style={{ fontSize: 17, fontWeight: 800 }}>Announcements</div>
+            <div style={{ fontSize: 17, fontWeight: 800 }}>Notices</div>
             <Link href="/billing/announcements" data-bill-primary style={{ background: "#1d4ed8", color: "#fff", border: 0, borderRadius: 8, padding: "8px 15px", fontSize: 13, fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>New</Link>
           </div>
           {(announcementRows ?? []).slice(0, 4).map((a) => {
@@ -195,9 +205,9 @@ export default function BillingDashboardPage() {
             );
           })}
           {(announcementRows ?? []).length === 0 && (
-            <div style={{ padding: "14px 0", fontSize: 12.5, color: "#94a3b8" }}>No announcements yet.</div>
+            <div style={{ padding: "14px 0", fontSize: 12.5, color: "#94a3b8" }}>No notices yet.</div>
           )}
-          <Link href="/billing/announcements" style={{ marginTop: 14, background: "transparent", border: 0, color: "#1d4ed8", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, display: "inline-block", textDecoration: "none" }}>View all announcements</Link>
+          <Link href="/billing/announcements" style={{ marginTop: 14, background: "transparent", border: 0, color: "#1d4ed8", fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, display: "inline-block", textDecoration: "none" }}>View all notices</Link>
         </div>
       </div>
 

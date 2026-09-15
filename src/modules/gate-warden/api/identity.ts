@@ -13,5 +13,8 @@ export function useMyIdentity() {
     queryKey: ["auth", "me"],
     queryFn: () => apiClient.get<MyIdentity>("/auth/me"),
     staleTime: 5 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 10 * 60_000,
   });
 }

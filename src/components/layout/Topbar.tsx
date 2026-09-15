@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
+import { NotificationPanel } from "@/components/layout/NotificationPanel";
+import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
 import { cn } from "@/lib/utils/cn";
 import type { ModuleConfig } from "@/modules/types";
 
@@ -50,6 +53,8 @@ interface TopbarProps {
   search?: TopbarSearchConfig;
   /** Omit to hide the "+" button entirely — opt-in, same as `search`. */
   quickCreate?: TopbarQuickCreateConfig;
+  /** Route to a real per-module settings page — omit to hide the gear icon entirely. Only set this for a module with genuine configurable state; most modules have none yet and should omit it rather than link to an empty page. */
+  settingsHref?: string;
 }
 
 export function Topbar({
@@ -64,9 +69,19 @@ export function Topbar({
   showNotifications = true,
   search,
   quickCreate,
+  settingsHref,
 }: TopbarProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  // The count is fetched here rather than passed down, so every module that
+  // uses this header gets a live one without wiring it itself. Some shells
+  // used to hand in a hardcoded 1, which lit the dot permanently whether or
+  // not anything had actually happened.
+  const { data: liveUnread } = useUnreadNotificationCount();
+  const unreadCount = liveUnread?.count ?? unreadNotifications;
   const containerRef = useRef<HTMLDivElement>(null);
   const quickCreateRef = useRef<HTMLDivElement>(null);
 
@@ -95,8 +110,8 @@ export function Topbar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex items-center gap-4 border-b border-border-default px-7",
-        searchPlaceholder ? "h-20 shrink-0 bg-white" : "bg-white/92 py-3 backdrop-blur-[8px]",
+        "sticky top-0 z-20 flex h-20 shrink-0 items-center gap-4 border-b border-border-default px-7",
+        searchPlaceholder ? "bg-white" : "bg-white/92 backdrop-blur-[8px]",
       )}
     >
       {searchPlaceholder ? (
@@ -191,11 +206,26 @@ export function Topbar({
         </div>
       )}
 
+      {settingsHref && (
+        <IconButton icon="settings" aria-label="Settings" onClick={() => router.push(settingsHref)} />
+      )}
+
       {showNotifications && (
         <div className="relative">
-          <IconButton icon="notifications" aria-label="Notifications" />
-          {unreadNotifications > 0 && (
+          <IconButton
+            icon="notifications"
+            aria-label="Notifications"
+            onClick={() => setNotifOpen((v) => !v)}
+          />
+          {unreadCount > 0 && (
             <span className={cn("absolute size-[7px] rounded-full bg-primary")} style={{ top: 6, right: 7 }} />
+          )}
+          {notifOpen && (
+            // stopPropagation so acting on a row (marking read, pinning) does
+            // not bubble up and close the panel mid-interaction.
+            <div onClick={(e) => e.stopPropagation()}>
+              <NotificationPanel onClose={() => setNotifOpen(false)} />
+            </div>
           )}
         </div>
       )}

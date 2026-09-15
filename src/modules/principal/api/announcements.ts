@@ -10,12 +10,6 @@ export interface ClassRow {
   current_semester: number | null;
 }
 
-export interface DepartmentRow {
-  id: number;
-  name: string;
-  code: string;
-}
-
 /** GET /classes — open to any authenticated role (no @Roles guard on this handler). Used to build the announcement composer's class picker. */
 export function useClasses() {
   return useQuery({
@@ -24,13 +18,7 @@ export function useClasses() {
   });
 }
 
-/** GET /departments — same as /classes, open to any authenticated role. */
-export function useDepartments() {
-  return useQuery({
-    queryKey: ["departments"],
-    queryFn: () => apiClient.get<DepartmentRow[]>("/departments"),
-  });
-}
+// Departments moved to the app-wide shared lookup at @/modules/shared/api/departments.
 
 export interface CreateAnnouncementInput {
   title: string;

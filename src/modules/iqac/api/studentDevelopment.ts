@@ -74,6 +74,7 @@ export function usePlacementsQuality() {
 
 export interface RecruiterStudentRow {
   student_id: number;
+  drive_id: number;
   name: string;
   roll_no: string | null;
   register_no: string | null;
@@ -96,6 +97,36 @@ export function useRecruiterStudents(companyId: number | null) {
     queryKey: ["iqac", "student-development", "placements", "recruiters", companyId],
     queryFn: () => apiClient.get<RecruiterStudents>(`/me/iqac/student-development/placements/recruiters/${companyId}`),
     enabled: companyId != null,
+  });
+}
+
+export interface UpdatePlacementApplicationInput {
+  offer_response?: "accepted" | "pending" | "declined";
+  offered_package_lpa?: number;
+  status?: "applied" | "r1_cleared" | "r2_cleared" | "r3_cleared" | "rejected" | "placed";
+}
+
+/** PATCH /me/iqac/student-development/placements/drives/:driveId/applications/:studentId — real student_drive_applications update. */
+export function useUpdatePlacementApplication() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ driveId, studentId, input }: { driveId: number; studentId: number; input: UpdatePlacementApplicationInput }) =>
+      apiClient.patch(`/me/iqac/student-development/placements/drives/${driveId}/applications/${studentId}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "placements"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/student-development/placements/drives/:driveId/applications/:studentId */
+export function useDeletePlacementApplication() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ driveId, studentId }: { driveId: number; studentId: number }) =>
+      apiClient.delete(`/me/iqac/student-development/placements/drives/${driveId}/applications/${studentId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "placements"] });
+    },
   });
 }
 
@@ -175,6 +206,29 @@ export function useCreateAward() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateAwardInput) => apiClient.post("/me/iqac/student-development/awards", input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "awards"] });
+    },
+  });
+}
+
+/** PATCH /me/iqac/student-development/awards/:id — real sports_achievements update. */
+export function useUpdateAward() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Partial<CreateAwardInput> }) =>
+      apiClient.patch(`/me/iqac/student-development/awards/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "awards"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/student-development/awards/:id — real sports_achievements delete. */
+export function useDeleteAward() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/student-development/awards/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "awards"] });
     },
@@ -297,6 +351,29 @@ export function useAddCertificationEntry() {
   });
 }
 
+/** PATCH /me/iqac/student-development/certifications/:id — real student_certificates update. */
+export function useUpdateCertificationEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Partial<Omit<AddCertificationEntryInput, "student_id">> }) =>
+      apiClient.patch(`/me/iqac/student-development/certifications/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "certifications"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/student-development/certifications/:id */
+export function useDeleteCertificationEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/student-development/certifications/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "certifications"] });
+    },
+  });
+}
+
 export interface CompetitionRow {
   id: number;
   student: StudentSummary;
@@ -343,6 +420,29 @@ export function useAddCompetitionEntry() {
   });
 }
 
+/** PATCH /me/iqac/student-development/competitions/:id — real student_competitions update. */
+export function useUpdateCompetitionEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Partial<Omit<AddCompetitionEntryInput, "student_id">> }) =>
+      apiClient.patch(`/me/iqac/student-development/competitions/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "competitions"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/student-development/competitions/:id */
+export function useDeleteCompetitionEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/student-development/competitions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "competitions"] });
+    },
+  });
+}
+
 export interface HackathonRow {
   id: number;
   student: StudentSummary;
@@ -383,6 +483,29 @@ export function useAddHackathonEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: AddHackathonEntryInput) => apiClient.post("/me/iqac/student-development/hackathons", input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "hackathons"] });
+    },
+  });
+}
+
+/** PATCH /me/iqac/student-development/hackathons/:id — real student_hackathon_participations update. */
+export function useUpdateHackathonEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Partial<Omit<AddHackathonEntryInput, "student_id">> }) =>
+      apiClient.patch(`/me/iqac/student-development/hackathons/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "hackathons"] });
+    },
+  });
+}
+
+/** DELETE /me/iqac/student-development/hackathons/:id */
+export function useDeleteHackathonEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/me/iqac/student-development/hackathons/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["iqac", "student-development", "hackathons"] });
     },

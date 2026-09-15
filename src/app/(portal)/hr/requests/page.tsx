@@ -1,25 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Avatar,
   Badge,
+  Banner,
   Button,
+  Card,
   ConfirmDialog,
   DataTable,
   Icon,
   IconButton,
-  Input,
   Modal,
-  PillTabs,
   SegmentedTabs,
   Select,
-  Textarea,
+  StatCard,
 } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import {
-  useCreateHrVacationEntry,
   useDeleteHrVacationEntry,
   useHrRequestDecision,
   useHrRequests,
@@ -27,9 +26,8 @@ import {
   type HrUnifiedRequest,
 } from "@/modules/hr/api/requests";
 import { useHrDepartments } from "@/modules/hr/api/departments";
-import { useHrFaculties } from "@/modules/hr/api/facultyDirectory";
-import { useLeaveTypes } from "@/modules/hr/api/leaveTypes";
-import { formatDisplayDate, todayDateOnly } from "@/lib/utils/date";
+import { RecordVacationEntryForm } from "@/modules/hr/components/RecordVacationEntryForm";
+import { formatDisplayDate } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
 const LIMIT = 20;
@@ -54,6 +52,16 @@ function dateRangeLabel(row: HrUnifiedRequest): string {
     : `${formatDisplayDate(row.from_date)} – ${formatDisplayDate(row.to_date)}`;
 }
 
+/** A labelled cell, so the toolbar and form read as forms rather than rows of loose controls. */
+function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[.05em] text-muted">{label}</label>
+      {children}
+    </div>
+  );
+}
+
 interface RecordEntryModalProps {
   open: boolean;
   onClose: () => void;
@@ -63,8 +71,8 @@ interface RecordEntryModalProps {
  * Thin wrapper only — `Modal` renders no children at all while `open` is
  * false, so `RecordEntryForm` below is unmounted while closed and mounts
  * fresh (plain initial state) each time it opens. That gives us "reset on
- * open" for free, without a reset-on-open effect (which the repo's
- * react-hooks/set-state-in-effect lint rule flags).
+ * open" for free, without a reset-on-open effect (which the repo lint rule
+ * react-hooks/set-state-in-effect flags).
  */
 function RecordEntryModal({ open, onClose }: RecordEntryModalProps) {
   return (
@@ -72,117 +80,27 @@ function RecordEntryModal({ open, onClose }: RecordEntryModalProps) {
       open={open}
       onClose={onClose}
       title="Record an entry"
-      subtitle="Directly records a single-day leave or OD entry, e.g. from Vacation Management."
+      subtitle="Directly records a leave or OD entry (a single day or a date range), e.g. from Vacation Management."
     >
-      <RecordEntryForm onClose={onClose} />
+      <RecordVacationEntryForm onClose={onClose} />
     </Modal>
   );
 }
 
-function RecordEntryForm({ onClose }: { onClose: () => void }) {
-  const faculties = useHrFaculties({ status: "active", limit: 200 });
-  const leaveTypes = useLeaveTypes();
-  const createEntry = useCreateHrVacationEntry();
-
-  const [facultyId, setFacultyId] = useState("");
-  const [kind, setKind] = useState<"leave" | "od">("leave");
-  const [date, setDate] = useState(todayDateOnly());
-  const [reason, setReason] = useState("");
-  const [leaveTypeId, setLeaveTypeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const canSubmit = facultyId !== "" && date !== "" && (kind !== "leave" || leaveTypeId !== "");
-
-  async function submit() {
-    if (!canSubmit) {
-      setError(kind === "leave" && !leaveTypeId ? "Pick a leave type." : "Faculty and date are required.");
-      return;
-    }
-    setError(null);
-    try {
-      await createEntry.mutateAsync({
-        faculty_id: Number(facultyId),
-        kind,
-        date,
-        reason: reason.trim() || undefined,
-        leave_type_id: kind === "leave" ? Number(leaveTypeId) : undefined,
-      });
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save this entry.");
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[13px] font-bold text-body">Faculty</label>
-        <Select value={facultyId} onChange={(e) => setFacultyId(e.target.value)}>
-          <option value="">Select faculty</option>
-          {faculties.data?.data.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.first_name} {f.last_name}
-              {f.department ? ` — ${f.department.name}` : ""}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[13px] font-bold text-body">Kind</label>
-        <SegmentedTabs
-          value={kind}
-          onChange={(k) => setKind(k as "leave" | "od")}
-          options={[
-            { key: "leave", label: "Leave" },
-            { key: "od", label: "On duty" },
-          ]}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[13px] font-bold text-body">Date</label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        {kind === "leave" && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-bold text-body">Leave type</label>
-            <Select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}>
-              <option value="">Select type</option>
-              {leaveTypes.data?.map((lt) => (
-                <option key={lt.id} value={lt.id}>
-                  {lt.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[13px] font-bold text-body">Reason</label>
-        <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Optional note" />
-      </div>
-
-      {error && <div className="text-[13px] font-semibold text-danger-fg">{error}</div>}
-
-      <div className="mt-2 flex justify-end gap-2.5 border-t border-divider pt-5">
-        <Button variant="secondary" className="w-auto" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button variant="primarySmall" className="w-auto px-6" onClick={submit} disabled={createEntry.isPending || !canSubmit}>
-          {createEntry.isPending ? "Saving…" : "Save entry"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export default function HrRequestsPage() {
+  // Inbox = still moving through the HOD → HR chain; History = a request HR
+  // (or the HOD, by rejecting) has already finished deciding on — a
+  // permanent record, same split the stat cards already implied but not
+  // previously surfaced as its own view.
+  const [view, setView] = useState<"inbox" | "history">("inbox");
   const [departmentId, setDepartmentId] = useState("all");
   const [kind, setKind] = useState<"all" | "leave" | "od">("all");
   const [status, setStatus] = useState<"all" | ApprovalStatus>("all");
+  // "Awaiting HR" is the queue HR can actually act on: HoD has approved and HR
+  // has not decided yet. Without it, the list mixes in requests still sitting
+  // with the HoD, whose Approve button can only ever fail. Only meaningful in
+  // the Inbox view — every History row is already fully decided.
+  const [stage, setStage] = useState<"all" | "awaiting_hr" | "awaiting_hod">("all");
   const [page, setPage] = useState(1);
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HrUnifiedRequest | null>(null);
@@ -199,8 +117,39 @@ export default function HrRequestsPage() {
   const decision = useHrRequestDecision();
   const deleteEntry = useDeleteHrVacationEntry();
 
-  const rows = requests.data?.data ?? [];
+  const allRows = requests.data?.data ?? [];
+  const viewRows = allRows.filter((r) => (view === "history" ? r.overall_status !== "pending" : r.overall_status === "pending"));
+  const rows =
+    stage === "awaiting_hr"
+      ? viewRows.filter((r) => r.hod_approval_status === "approved" && r.hr_approval_status === "pending")
+      : stage === "awaiting_hod"
+        ? viewRows.filter((r) => r.hod_approval_status === "pending")
+        : viewRows;
+
+  const awaitingHrCount = allRows.filter(
+    (r) => r.hod_approval_status === "approved" && r.hr_approval_status === "pending",
+  ).length;
+  const awaitingHodCount = allRows.filter((r) => r.hod_approval_status === "pending").length;
+  const approvedCount = allRows.filter((r) => r.overall_status === "approved").length;
+  const rejectedCount = allRows.filter((r) => r.overall_status === "rejected").length;
   const meta = requests.data?.meta;
+
+  const filtersActive = departmentId !== "all" || kind !== "all" || status !== "all" || stage !== "all";
+
+  function changeView(next: "inbox" | "history") {
+    setView(next);
+    setStage("all");
+    setStatus("all");
+    setPage(1);
+  }
+
+  function resetFilters() {
+    setDepartmentId("all");
+    setKind("all");
+    setStatus("all");
+    setStage("all");
+    setPage(1);
+  }
 
   function handleDecision(row: HrUnifiedRequest, next: "approved" | "rejected") {
     setActionError(null);
@@ -228,62 +177,63 @@ export default function HrRequestsPage() {
     {
       key: "faculty",
       header: "Faculty",
-      width: "1.6fr",
+      width: "minmax(210px, 1.7fr)",
       render: (row) => (
         <div className="flex items-center gap-2.5">
-          <Avatar name={facultyName(row.faculty)} imageUrl={row.faculty.profile_url} size={32} />
+          <Avatar name={facultyName(row.faculty)} imageUrl={row.faculty.profile_url} size={34} />
           <div className="min-w-0">
             <div className="truncate text-[13.5px] font-bold text-ink">{facultyName(row.faculty)}</div>
-            <div className="truncate text-[12px] text-subtle">{row.faculty.department.name}</div>
+            <div className="truncate text-[11.5px] text-subtle">{row.faculty.department.name}</div>
           </div>
         </div>
       ),
     },
     {
-      key: "kind",
-      header: "Kind",
-      width: "80px",
-      render: (row) => <Badge tone="neutral">{row.kind === "leave" ? "Leave" : "OD"}</Badge>,
+      key: "request",
+      header: "Request",
+      width: "minmax(190px, 1.5fr)",
+      // Kind, dates and leave type were three separate narrow columns that each
+      // had too little room to read. They describe one thing, so they share a
+      // cell now.
+      render: (row) => (
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Badge tone={row.kind === "leave" ? "accentDark" : "neutral"}>
+              {row.kind === "leave" ? "Leave" : "OD"}
+            </Badge>
+            <span className="truncate text-[13px] font-bold text-ink">{dateRangeLabel(row)}</span>
+          </div>
+          <div className="mt-0.5 truncate text-[11.5px] text-subtle">
+            {row.kind === "leave" ? (row.leave_type?.name ?? "Type not specified") : (row.detail ?? "On duty")}
+          </div>
+        </div>
+      ),
     },
     {
-      key: "dates",
-      header: "Dates",
-      width: "170px",
-      render: (row) => <span className="text-[13px] font-bold text-ink">{dateRangeLabel(row)}</span>,
-    },
-    {
-      key: "leave_type",
-      header: "Type",
-      width: "120px",
-      render: (row) =>
-        row.kind === "leave" && row.leave_type ? (
-          <span className="text-[13px] text-body">{row.leave_type.name}</span>
-        ) : (
-          <span className="text-subtle">—</span>
-        ),
-    },
-    {
-      key: "hod",
-      header: "HOD",
-      width: "100px",
-      render: (row) => <Badge tone={statusTone(row.hod_approval_status)}>{statusLabel(row.hod_approval_status)}</Badge>,
-    },
-    {
-      key: "hr",
-      header: "HR",
-      width: "100px",
-      render: (row) => <Badge tone={statusTone(row.hr_approval_status)}>{statusLabel(row.hr_approval_status)}</Badge>,
+      key: "approvals",
+      header: "Approval chain",
+      width: "minmax(190px, 1.2fr)",
+      // The chain is HOD then HR, so it reads as a sequence rather than as two
+      // unrelated status columns.
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          <Badge tone={statusTone(row.hod_approval_status)}>HOD · {statusLabel(row.hod_approval_status)}</Badge>
+          <Icon name="chevron_right" size={14} className="shrink-0 text-subtle" />
+          <Badge tone={statusTone(row.hr_approval_status)}>HR · {statusLabel(row.hr_approval_status)}</Badge>
+        </div>
+      ),
     },
     {
       key: "overall",
-      header: "Overall",
-      width: "100px",
+      header: "Outcome",
+      width: "110px",
+      align: "center",
       render: (row) => <Badge tone={statusTone(row.overall_status)}>{statusLabel(row.overall_status)}</Badge>,
     },
     {
       key: "actions",
-      header: "",
-      width: "260px",
+      header: "Action",
+      width: "150px",
       align: "right",
       render: (row) => {
         const hodBlocking = row.hod_approval_status !== "approved";
@@ -295,24 +245,38 @@ export default function HrRequestsPage() {
             ? "HR has already decided on this request."
             : undefined;
         return (
-          <div className="flex justify-end gap-1.5">
-            <Button variant="primarySmall" disabled={disabled} title={title} onClick={() => handleDecision(row, "approved")}>
-              Approve
-            </Button>
-            <Button
-              variant="secondary"
-              className="px-3.5 py-2.5 text-[12.5px]"
-              disabled={disabled}
-              title={title}
-              onClick={() => handleDecision(row, "rejected")}
-            >
-              Reject
-            </Button>
+          <div className="flex items-center justify-end gap-1.5">
+            {disabled ? (
+              // Nothing for HR to do yet, so say why instead of showing two dead
+              // buttons whose only possible outcome is an error.
+              <span className="truncate text-[11.5px] text-subtle" title={title}>
+                {hodBlocking ? "Awaiting HOD" : `HR ${row.hr_approval_status}`}
+              </span>
+            ) : (
+              <>
+                <IconButton
+                  icon="check"
+                  size={32}
+                  iconSize={17}
+                  title="Approve"
+                  onClick={() => handleDecision(row, "approved")}
+                />
+                <IconButton
+                  icon="close"
+                  size={32}
+                  iconSize={17}
+                  title="Reject"
+                  className="text-danger-fg"
+                  onClick={() => handleDecision(row, "rejected")}
+                />
+              </>
+            )}
             <IconButton
               icon="delete"
-              size={34}
-              iconSize={17}
+              size={32}
+              iconSize={16}
               title="Delete this entry"
+              className="text-danger-fg"
               onClick={() => setDeleteTarget(row)}
             />
           </div>
@@ -323,99 +287,183 @@ export default function HrRequestsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
-      <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Requests</h1>
-        <p className="mt-1 text-[13px] text-muted">
-          Unified leave and on-duty inbox · HR can only decide once the Head of Department has approved
-        </p>
-      </div>
-
-      {actionError && (
-        <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
-          {actionError}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Requests</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {view === "history"
+              ? "Every leave and on-duty request already decided — a permanent record."
+              : "Unified leave and on-duty inbox · HR can only decide once the Head of Department has approved"}
+          </p>
         </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Select
-            value={departmentId}
-            onChange={(e) => {
-              setDepartmentId(e.target.value);
-              setPage(1);
-            }}
-            className="w-[200px]"
-          >
-            <option value="all">All departments</option>
-            {departments.data?.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </Select>
-
+        <div className="flex items-center gap-3">
           <SegmentedTabs
-            value={kind}
-            onChange={(k) => {
-              setKind(k as typeof kind);
-              setPage(1);
-            }}
+            value={view}
+            onChange={changeView}
             options={[
-              { key: "all", label: "All kinds" },
-              { key: "leave", label: "Leave" },
-              { key: "od", label: "OD" },
+              { key: "inbox", label: "Inbox" },
+              { key: "history", label: "History" },
             ]}
           />
-
-          <PillTabs
-            value={status}
-            onChange={(k) => {
-              setStatus(k as typeof status);
-              setPage(1);
-            }}
-            options={[
-              { key: "all", label: "All" },
-              { key: "pending", label: "Pending" },
-              { key: "approved", label: "Approved" },
-              { key: "rejected", label: "Rejected" },
-            ]}
-          />
+          <Button
+            variant="primarySmall"
+            className="inline-flex w-auto shrink-0 items-center gap-1.5 px-5 py-3"
+            onClick={() => setShowRecordModal(true)}
+          >
+            <Icon name="add" size={16} />
+            Record entry
+          </Button>
         </div>
-
-        <Button variant="primarySmall" className="w-auto shrink-0" onClick={() => setShowRecordModal(true)}>
-          <Icon name="add" size={16} className="mr-1.5 align-middle" />
-          Record entry
-        </Button>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        rowKey={(row) => row.id}
-        loading={requests.isLoading}
-        emptyMessage="No requests match these filters."
-      />
-
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-[12.5px] text-muted">
-          <span>
-            Page {meta.page} of {meta.totalPages} · {meta.total} total
-          </span>
-          <div className="flex gap-2">
-            <Button variant="secondary" className="w-auto px-4 py-2" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              Previous
-            </Button>
-            <Button
-              variant="secondary"
-              className="w-auto px-4 py-2"
-              disabled={page >= meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+      {actionError && <Banner>{actionError}</Banner>}
+      {requests.isError && (
+        <Banner>{requests.error instanceof ApiError ? requests.error.message : "Could not load requests."}</Banner>
       )}
+
+      {/* Counts are over the loaded page, which is exactly what the table below
+          shows — labelled as such so they are not read as college-wide totals. */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Awaiting HR"
+          icon="pending_actions"
+          value={awaitingHrCount}
+          sub="HOD approved, HR to decide"
+        />
+        <StatCard label="Awaiting HOD" icon="hourglass_top" value={awaitingHodCount} sub="Not yet with HR" />
+        <StatCard label="Approved" icon="task_alt" value={approvedCount} sub="On this page" />
+        <StatCard label="Rejected" icon="block" value={rejectedCount} sub="On this page" />
+      </div>
+
+      <Card className="flex flex-col gap-4 p-[18px_20px]">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-extrabold text-ink">Filters</h2>
+          {filtersActive && (
+            <button type="button" onClick={resetFilters} className="text-[12.5px] font-bold text-primary">
+              Clear all
+            </button>
+          )}
+        </div>
+
+        <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${view === "inbox" ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
+          <Field label="Department">
+            <Select
+              value={departmentId}
+              onChange={(e) => {
+                setDepartmentId(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="all">All departments</option>
+              {departments.data?.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="Kind">
+            <Select
+              value={kind}
+              onChange={(e) => {
+                setKind(e.target.value as "all" | "leave" | "od");
+                setPage(1);
+              }}
+            >
+              <option value="all">All</option>
+              <option value="leave">Leave</option>
+              <option value="od">OD</option>
+            </Select>
+          </Field>
+
+          <Field label="Status">
+            <Select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value as "all" | ApprovalStatus);
+                setPage(1);
+              }}
+            >
+              {/* Each view can only ever contain one side of this split
+                  (Inbox = pending, History = approved/rejected), so the
+                  options offered here only ever include values that can
+                  actually return a row — never a combination guaranteed to
+                  come back empty. */}
+              {view === "history" ? (
+                <>
+                  <option value="all">Any</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </>
+              ) : (
+                <>
+                  <option value="all">Any</option>
+                  <option value="pending">Pending</option>
+                </>
+              )}
+            </Select>
+          </Field>
+
+          {/* Stage (still-in-progress vs which side it's sitting with) only
+              means something for the Inbox — every History row is already
+              fully decided by both HOD and HR. */}
+          {view === "inbox" && (
+            <Field label="Stage">
+              <Select value={stage} onChange={(e) => setStage(e.target.value as "all" | "awaiting_hr" | "awaiting_hod")}>
+                <option value="all">Any</option>
+                <option value="awaiting_hr">{`Awaiting HR${awaitingHrCount > 0 ? ` (${awaitingHrCount})` : ""}`}</option>
+                <option value="awaiting_hod">{`Awaiting HOD${awaitingHodCount > 0 ? ` (${awaitingHodCount})` : ""}`}</option>
+              </Select>
+            </Field>
+          )}
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-[18px_20px]">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-[15px] font-extrabold text-ink">{view === "history" ? "Decided requests" : "Request inbox"}</h2>
+          <span className="text-[12px] text-subtle">
+            {rows.length} shown{meta ? ` · ${meta.total} total` : ""}
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <DataTable
+            columns={columns}
+            data={rows}
+            rowKey={(row) => row.id}
+            loading={requests.isLoading}
+            emptyMessage="No requests match these filters."
+          />
+        </div>
+
+        {meta && meta.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-divider pt-3 text-[12.5px] text-muted">
+            <span>
+              Page {meta.page} of {meta.totalPages} · {meta.total} total
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="w-auto px-4 py-2"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                className="w-auto px-4 py-2"
+                disabled={page >= meta.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
 
       <RecordEntryModal open={showRecordModal} onClose={() => setShowRecordModal(false)} />
 

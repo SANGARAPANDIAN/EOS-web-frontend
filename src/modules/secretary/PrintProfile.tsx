@@ -50,7 +50,10 @@ export function PrintProfileStyles() {
       }
       @media screen {
         [data-print-letterhead] {
-          display: none;
+          display: none !important;
+        }
+        [data-print-only] {
+          display: none !important;
         }
       }
     `}</style>

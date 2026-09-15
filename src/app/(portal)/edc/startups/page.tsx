@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useEdcEntrepreneurship, isBeyondIdeaStage } from "@/modules/edc/api/entrepreneurship";
 import { pillSx } from "@/modules/edc/genericPage";
+import { SkeletonFilterBar, SkeletonTable } from "@/components/ui";
 
 // Real backend connection — same GET /me/edc-entrepreneurship as EDC
 // Students, filtered client-side to ventures beyond idea stage (there is no
@@ -22,7 +22,6 @@ function money(v: number | null): string {
 const CHIPS = ["All", "Active", "Inside college", "Funded", "Registered", "Not registered"] as const;
 
 export default function EdcStartupsPage() {
-  const router = useRouter();
   const { data, isLoading } = useEdcEntrepreneurship();
   const rows = useMemo(() => (data ?? []).filter(isBeyondIdeaStage), [data]);
 
@@ -48,6 +47,13 @@ export default function EdcStartupsPage() {
         <p style={{ margin: 0, fontSize: 15.5, color: "#64748B" }}>The {rows.length} EDC venture{rows.length === 1 ? "" : "s"} that are beyond idea stage and still active.</p>
       </div>
 
+      {isLoading && rows.length === 0 ? (
+        <>
+          <SkeletonFilterBar />
+          <SkeletonTable rows={8} />
+        </>
+      ) : (
+        <>
       <div data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           {CHIPS.map((c) => {
@@ -83,8 +89,7 @@ export default function EdcStartupsPage() {
           <div
             key={r.id}
             data-edc-row=""
-            onClick={() => router.push(`/edc/startups/${r.id}`)}
-            style={{ display: "grid", gridTemplateColumns: "1.4fr 1.1fr 0.6fr 1.1fr 1fr 0.9fr 0.8fr", gap: 16, alignItems: "center", padding: "14px 24px", borderBottom: "1px solid #EEF2F7", cursor: "pointer" }}
+            style={{ display: "grid", gridTemplateColumns: "1.4fr 1.1fr 0.6fr 1.1fr 1fr 0.9fr 0.8fr", gap: 16, alignItems: "center", padding: "14px 24px", borderBottom: "1px solid #EEF2F7" }}
           >
             <div style={{ minWidth: 0, overflow: "hidden" }}>
               <div style={{ fontWeight: 700, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.business_name}</div>
@@ -104,6 +109,8 @@ export default function EdcStartupsPage() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

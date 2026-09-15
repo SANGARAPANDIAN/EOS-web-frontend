@@ -1,50 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
-export interface CalendarEvent {
-  id: number;
-  academic_calendar_id: number;
-  event_date: string;
-  title: string;
-  description: string | null;
-  event_type: "holiday" | "event";
-  start_time: string | null;
-  end_time: string | null;
-  created_by_user_id: number | null;
-}
-
-/** GET /me/principal/calendar/events?year=&month= — real events for that real calendar month, across every academic_calendars row. */
-export function useCalendarEvents(year: number, month: number) {
-  return useQuery({
-    queryKey: ["me", "principal", "calendar", "events", year, month],
-    queryFn: () => apiClient.get<CalendarEvent[]>("/me/principal/calendar/events", { year, month }),
-  });
-}
-
-export interface AddCalendarEventInput {
-  event_date: string;
-  title: string;
-  description?: string;
-  event_type: "holiday" | "event";
-}
-
-/**
- * POST /me/principal/calendar/events — real create, but can genuinely fail
- * with NO_ACADEMIC_CALENDAR_FOR_DATE if no academic_calendars row covers
- * the chosen date yet (a real, live gap in this database, not a bug). Not
- * currently used by the composer — see usePersonalCalendarEntries below —
- * kept for a future "official institution-wide event" flow if ever needed.
- */
-export function useAddCalendarEvent() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: AddCalendarEventInput) => apiClient.post<CalendarEvent>("/me/principal/calendar/events", input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["me", "principal", "calendar", "events"] });
-    },
-  });
-}
-
 export interface PersonalCalendarEntry {
   id: number;
   user_id: number;

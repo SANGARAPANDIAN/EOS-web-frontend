@@ -8,10 +8,22 @@
 // value below is unchanged from the source file.
 import { formatAmountInWords } from "./receipt-utils";
 
+// The letterhead crest. Exported so the printing page can warm the browser
+// cache for this exact URL before opening the print dialog — the receipt is
+// rendered inside a display:none container until the print stylesheet
+// activates, and browsers do not reliably fetch images inside a display:none
+// subtree, which otherwise prints the logo blank.
+export const RECEIPT_LOGO_SRC = "/college-logo.png";
+
 export interface ReceiptPaymentRow {
   id: number;
   demandCategoryName: string | null;
   amountPaid: number;
+  // Real fee_payments.payment_mode for this row, used only to split the
+  // printed Cash / Bank tender figures. Null when the backend has no mode
+  // recorded, in which case the row counts towards Cash (the sample
+  // receipt's own default for an over-the-counter collection).
+  paymentMode?: string | null;
 }
 
 export interface ReceiptStudentInfo {
@@ -58,8 +70,27 @@ function formatDateDDMMYYYY(iso: string | null): string {
   return `${day}/${month}/${date.getFullYear()}`;
 }
 
+// Cash vs Bank tender split for the footer line, mirroring the sample
+// receipt's "Cash … Bank … Adj.: … Fine …" row. These are every non-cash
+// member of the backend's real payment_mode_enum (cash | card | upi | dd |
+// netbanking | razorpay) — anything settled through a card, gateway,
+// transfer or instrument is Bank; cash (and an unrecorded mode) is an
+// over-the-counter Cash collection.
+const BANK_PAYMENT_MODES = new Set(["card", "upi", "dd", "netbanking", "razorpay"]);
+
+function isBankTender(mode: string | null | undefined): boolean {
+  if (!mode) return false;
+  return BANK_PAYMENT_MODES.has(mode.trim().toLowerCase());
+}
+
 export function ReceiptDocument({ student, payments, receiptNumber, printDate, ddReferenceNumber }: ReceiptDocumentProps) {
   const grandTotal = payments.reduce((sum, p) => sum + p.amountPaid, 0);
+  // An education-loan receipt is settled by the disbursing bank's DD, so the
+  // whole tender is Bank regardless of each row's stored mode.
+  const bankTotal = ddReferenceNumber
+    ? grandTotal
+    : payments.reduce((sum, p) => (isBankTender(p.paymentMode) ? sum + p.amountPaid : sum), 0);
+  const cashTotal = grandTotal - bankTotal;
 
   return (
     <div
@@ -93,7 +124,7 @@ export function ReceiptDocument({ student, payments, receiptNumber, printDate, d
         {/* Letterhead — sits above the boxed receipt, matching the sample's
             unboxed header with a single rule underneath it. */}
         <div className="flex items-center justify-between gap-2 pb-1.5">
-          <img src="/college-logo.png" alt="" className="h-[56px] w-[56px] shrink-0 object-contain" />
+          <img src={RECEIPT_LOGO_SRC} alt="" className="h-[56px] w-[56px] shrink-0 object-contain" />
           <div className="min-w-0 flex-1 text-center leading-tight">
             <h1 className="text-[21px] font-bold tracking-tight whitespace-nowrap">
               Sri Eshwar College of Engineering
@@ -193,30 +224,48 @@ export function ReceiptDocument({ student, payments, receiptNumber, printDate, d
             </tbody>
           </table>
 
-          {/* Totals */}
+          {/* Totals — laid out as on the reference receipt: the tender line
+              ("Cheque/ DD subjected to realization." + Cash/Bank/Adj./Fine)
+              spans the full width on its own row, then the amount-in-words
+              sits on the left of the next row with Total/amount on its
+              right. The DD number is appended to the tender line only for an
+              education-loan receipt; a normal receipt prints this row exactly
+              as the sample does, without any DD text. */}
           <table className="text-[12.5px]">
+            {/* Explicit widths: the tender row spans all three columns, and
+                under table-layout:fixed a colSpan cell alone would decide the
+                column widths — this colgroup keeps the Total amount column
+                the same 6rem as the Amount column in the particulars table
+                above, so the figures stay in one vertical line. */}
+            <colgroup>
+              <col />
+              <col style={{ width: "6rem" }} />
+              <col style={{ width: "6rem" }} />
+            </colgroup>
             <tbody>
               <tr>
-                <td className="border-b border-t border-black px-4 py-1.5 align-middle">
-                  {ddReferenceNumber ? (
-                    <>
-                      Cheque/DD subjected to realization.{" "}
-                      <span className="font-semibold">DD No: {ddReferenceNumber}</span>
-                    </>
-                  ) : (
-                    <>&nbsp;</>
+                <td colSpan={3} className="border-b border-t border-black px-4 py-1.5 align-middle">
+                  <span className="whitespace-nowrap">Cheque/ DD subjected to realization.</span>
+                  <span className="ml-6">Cash</span>{" "}
+                  <span className="font-semibold tabular-nums">{cashTotal.toLocaleString("en-IN")}</span>
+                  <span className="ml-5">Bank</span>{" "}
+                  <span className="font-semibold tabular-nums">{bankTotal.toLocaleString("en-IN")}</span>
+                  <span className="ml-5">Adj.:</span> <span className="font-semibold">0</span>
+                  <span className="ml-5">Fine</span> <span className="font-semibold">0</span>
+                  {ddReferenceNumber && (
+                    <span className="ml-5 whitespace-nowrap">
+                      DD No: <span className="font-semibold">{ddReferenceNumber}</span>
+                    </span>
                   )}
-                </td>
-                <td className="w-24 border-b border-t border-l-2 border-black px-2 py-1.5 text-right align-middle font-semibold">
-                  Total
-                </td>
-                <td className="w-24 border-b border-t border-black px-2 py-1.5 text-right align-middle font-bold tabular-nums">
-                  {grandTotal.toLocaleString("en-IN")}
                 </td>
               </tr>
               <tr>
-                <td colSpan={3} className="px-4 py-1.5 italic">
-                  {formatAmountInWords(grandTotal)}
+                <td className="px-4 py-1.5 italic">{formatAmountInWords(grandTotal)}</td>
+                <td className="w-24 border-l-2 border-black px-2 py-1.5 text-right align-middle font-semibold">
+                  Total
+                </td>
+                <td className="w-24 px-2 py-1.5 text-right align-middle font-bold tabular-nums">
+                  {grandTotal.toLocaleString("en-IN")}
                 </td>
               </tr>
             </tbody>

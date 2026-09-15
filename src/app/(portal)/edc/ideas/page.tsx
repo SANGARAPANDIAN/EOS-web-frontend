@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useStartupIdeas, useCreateStartupIdea, useDeleteStartupIdea, type ReviewStatus } from "@/modules/edc/api/startupIdeas";
 import { useSearchStudentsForEdc, type StudentSearchResult } from "@/modules/edc/api/entrepreneurship";
 import { pillSx, toneOf } from "@/modules/edc/genericPage";
+import { SkeletonFilterBar, SkeletonStatTiles, SkeletonTable } from "@/components/ui";
 
 // Real backend connection — replaces the fake PAGE_DEFS.ideas. GET/POST/
 // PATCH/DELETE /me/startup-ideas (real table + module, see
@@ -83,6 +84,14 @@ export default function EdcIdeasPage() {
         </div>
       </div>
 
+      {isLoading && rows.length === 0 ? (
+        <>
+          <SkeletonStatTiles count={4} />
+          <SkeletonFilterBar />
+          <SkeletonTable rows={8} />
+        </>
+      ) : (
+        <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 16 }}>
         {kpis.map((k) => (
           <div key={k.label} data-edc-lift="" style={{ background: "#fff", border: "1px solid #E6EBF2", borderRadius: 14, padding: "18px 20px 16px", display: "flex", flexDirection: "column", gap: 11 }}>
@@ -149,6 +158,8 @@ export default function EdcIdeasPage() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {modalOpen && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>
@@ -170,8 +181,9 @@ export default function EdcIdeasPage() {
                       <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #E2E8F0", borderRadius: 10 }}>
                         {studentSearch.isLoading && <div style={{ padding: 12, fontSize: 12.5, color: "#94A3B8" }}>Searching…</div>}
                         {(studentSearch.data ?? []).map((s) => (
-                          <div key={s.id} onClick={() => { setStudent(s); setStudentQuery(""); }} style={{ padding: "9px 13px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #F1F5F9" }}>
-                            {s.name} · {s.student_id_no}
+                          <div key={s.id} onClick={() => { setStudent(s); setStudentQuery(""); }} style={{ padding: "9px 13px", cursor: "pointer", borderBottom: "1px solid #F1F5F9" }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0F172A" }}>{s.name}</div>
+                            <div style={{ fontSize: 11.5, color: "#94A3B8" }}>{s.roll_no ?? s.register_no ?? s.student_id_no}{s.department ? ` · ${s.department.code}` : ""}</div>
                           </div>
                         ))}
                         {studentSearch.data?.length === 0 && !studentSearch.isLoading && <div style={{ padding: 12, fontSize: 12.5, color: "#94A3B8" }}>No students match.</div>}

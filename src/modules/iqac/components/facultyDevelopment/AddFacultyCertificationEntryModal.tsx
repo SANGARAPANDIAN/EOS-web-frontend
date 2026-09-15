@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Modal } from "@/components/ui";
-import { useAddFacultyCertificationEntry } from "@/modules/iqac/api/facultyDevelopment";
+import { useAddFacultyCertificationEntry, useUpdateFacultyCertificationEntry, uploadIqacCertificateFile, type FacultyCertificationRow } from "@/modules/iqac/api/facultyDevelopment";
 import type { FacultyRow } from "@/modules/iqac/api/faculty";
 import { FacultyPicker } from "./FacultyPicker";
 
@@ -13,33 +13,72 @@ const STATUS_OPTIONS: { value: "enrolled" | "in_progress" | "completed"; label: 
 ];
 
 /** Records a real faculty_certifications row for one faculty member. */
-export function AddFacultyCertificationEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const addEntry = useAddFacultyCertificationEntry();
+export function AddFacultyCertificationEntryModal({
+  onClose,
+  onCreated,
+  editing,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  /** Editing an existing certification — the faculty can't be changed here (delete + re-add for that). */
+  editing?: FacultyCertificationRow;
+}) {
+  const isEditing = editing != null;
+  const create = useAddFacultyCertificationEntry();
+  const update = useUpdateFacultyCertificationEntry();
 
   const [faculty, setFaculty] = useState<FacultyRow | null>(null);
-  const [platform, setPlatform] = useState("");
-  const [track, setTrack] = useState("");
-  const [score, setScore] = useState("");
-  const [completedOn, setCompletedOn] = useState("");
-  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>("completed");
-  const [certificateUrl, setCertificateUrl] = useState("");
+  const [platform, setPlatform] = useState(editing?.platform ?? "");
+  const [track, setTrack] = useState(editing?.track ?? "");
+  const [score, setScore] = useState(editing?.score ?? "");
+  const [completedOn, setCompletedOn] = useState(editing?.completed_on?.slice(0, 10) ?? "");
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>((editing?.status as (typeof STATUS_OPTIONS)[number]["value"]) ?? "completed");
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function submit() {
-    if (!faculty || !platform.trim() || !track.trim()) {
+    if (!isEditing && (!faculty || !platform.trim() || !track.trim())) {
       setError("Faculty, platform and track are all required.");
       return;
     }
     setError(null);
     try {
-      await addEntry.mutateAsync({
-        faculty_id: faculty.id,
+      let certificateUrl: string | undefined;
+      if (certificateFile) {
+        setUploading(true);
+        try {
+          const uploaded = await uploadIqacCertificateFile(certificateFile);
+          certificateUrl = uploaded.url;
+        } finally {
+          setUploading(false);
+        }
+      }
+      if (isEditing) {
+        await update.mutateAsync({
+          id: editing.id,
+          input: {
+            platform: platform.trim(),
+            track: track.trim(),
+            score: score.trim() || undefined,
+            completed_on: completedOn || undefined,
+            status,
+            certificate_url: certificateUrl ?? editing.certificate_url ?? undefined,
+          },
+        });
+        onCreated();
+        onClose();
+        return;
+      }
+      await create.mutateAsync({
+        faculty_id: faculty!.id,
         platform: platform.trim(),
         track: track.trim(),
         score: score.trim() || undefined,
         completed_on: completedOn || undefined,
         status,
-        certificate_url: certificateUrl.trim() || undefined,
+        certificate_url: certificateUrl,
       });
       onCreated();
       onClose();
@@ -49,9 +88,16 @@ export function AddFacultyCertificationEntryModal({ onClose, onCreated }: { onCl
   }
 
   return (
-    <Modal open onClose={onClose} title="Add faculty entry" subtitle="Faculty Certifications">
+    <Modal open onClose={onClose} title={isEditing ? "Edit faculty entry" : "Add faculty entry"} subtitle="Faculty Certifications">
       <div className="flex flex-col gap-4">
-        <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        {isEditing ? (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Faculty</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.faculty.name}</div>
+          </div>
+        ) : (
+          <FacultyPicker selected={faculty} onSelect={setFaculty} />
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -111,13 +157,21 @@ export function AddFacultyCertificationEntryModal({ onClose, onCreated }: { onCl
             </select>
           </div>
           <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Certificate URL (optional)</div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Certificate (optional)</div>
             <input
-              value={certificateUrl}
-              onChange={(e) => setCertificateUrl(e.target.value)}
-              placeholder="https://…"
-              className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
             />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-1.5 h-11 w-full truncate rounded-[11px] border border-border-default px-3.5 text-left text-[13.5px] text-body hover:bg-surface-tint"
+            >
+              {certificateFile ? certificateFile.name : isEditing && editing.certificate_url ? "Replace certificate — PDF, JPG or PNG" : "Choose file — PDF, JPG or PNG"}
+            </button>
           </div>
         </div>
 
@@ -130,10 +184,10 @@ export function AddFacultyCertificationEntryModal({ onClose, onCreated }: { onCl
           <button
             type="button"
             onClick={submit}
-            disabled={addEntry.isPending}
+            disabled={create.isPending || update.isPending || uploading}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {addEntry.isPending ? "Saving…" : "Save"}
+            {uploading ? "Uploading…" : create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

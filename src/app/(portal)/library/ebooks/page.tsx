@@ -22,6 +22,7 @@ import {
 import { useCategories } from "@/modules/library/api/categories";
 import { useEResources, useDeleteEResource, type EResource, type EResourcePublishState } from "@/modules/library/api/eResources";
 import { EResourceFormModal } from "@/modules/library/components/ebooks/EResourceFormModal";
+import { EResourcePreviewModal } from "@/modules/library/components/ebooks/EResourcePreviewModal";
 
 const DEFAULT_PAGE_SIZE = 20;
 type PublishFilter = "all" | EResourcePublishState;
@@ -35,6 +36,7 @@ export default function EBooksPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [formTarget, setFormTarget] = useState<EResource | "new" | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EResource | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<EResource | null>(null);
   const { show } = useToast();
 
   const { data: categories } = useCategories();
@@ -171,6 +173,7 @@ export default function EBooksPage() {
         columns={columns}
         rows={data?.data ?? []}
         rowKey={(row) => row.id}
+        onRowClick={(row) => setPreviewTarget(row)}
         isLoading={isLoading}
         error={error instanceof ApiError ? error.message : error ? "Failed to load eBooks." : null}
         emptyTitle="No eBooks found"
@@ -191,10 +194,13 @@ export default function EBooksPage() {
       />
 
       <EResourceFormModal
+        key={formTarget === null ? "closed" : formTarget === "new" ? "new" : formTarget.id}
         open={formTarget !== null}
         resource={formTarget === "new" ? null : formTarget}
         onClose={() => setFormTarget(null)}
       />
+
+      <EResourcePreviewModal resource={previewTarget} onClose={() => setPreviewTarget(null)} />
 
       <ConfirmDialog
         open={deleteTarget !== null}

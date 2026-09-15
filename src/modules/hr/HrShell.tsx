@@ -11,8 +11,7 @@ export function HrShell({ children }: { children: React.ReactNode }) {
     <AppShell
       moduleConfig={hrModuleConfig}
       header={{
-        studentName: "HR & Payroll",
-        registerNumber: dashboard.data ? `${dashboard.data.payroll.total_active_faculty} faculty on roll` : undefined,
+        registerNumber: "HR & Payroll",
         roleDeptLabel: "HR & Payroll",
         academicYearLabel: "2026–27",
         semesterParityLabel: "Odd Semester",

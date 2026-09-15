@@ -20,9 +20,17 @@ import {
   useToast,
   type DataTableColumn,
 } from "@/modules/admin/components/ui";
-import { useStudentReport, useStudentReportDownload, useUpdatePlacementStatus, type StudentReportRow } from "@/modules/placement/api/studentReport";
+import {
+  useStudentReport,
+  useStudentReportDownload,
+  useUpdatePlacementStatus,
+  useSetStudentCareerPath,
+  type StudentReportRow,
+  type CareerPath,
+} from "@/modules/placement/api/studentReport";
 import { useBatches } from "@/modules/placement/api/refData";
-import { rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
+import { eligibilityLabel as sharedEligibilityLabel, careerPathLabel, rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
+import { generateStudentReportPdf } from "@/modules/placement/lib/student-report-pdf";
 import {
   StudentFilters,
   DEFAULT_STUDENT_FILTERS,
@@ -38,18 +46,24 @@ function statusTone(label: string): BadgeTone {
   return "neutral";
 }
 
-/** Opt-out overrides eligibility in display — a student who opted out isn't meaningfully "eligible" or "not eligible" for this cycle anymore. */
-function eligibilityLabel(r: StudentReportRow): string {
-  if (r.placementOptedOut) return "Opted out";
-  if (r.placementEligible === true) return "Eligible";
-  if (r.placementEligible === false) return "Not eligible";
-  return "Not assessed";
-}
+const eligibilityLabel = sharedEligibilityLabel;
 
 function eligibilityTone(label: string): BadgeTone {
   if (label === "Eligible") return "success";
   if (label === "Not eligible") return "danger";
   if (label === "Opted out") return "neutral";
+  return "neutral";
+}
+
+const CAREER_PATH_OPTIONS: { value: CareerPath; label: string }[] = [
+  { value: "placement", label: "Placement" },
+  { value: "venture", label: "Venture" },
+  { value: "higher_studies", label: "Higher Studies" },
+];
+
+function careerPathTone(path: CareerPath | null): BadgeTone {
+  if (path === "placement") return "success";
+  if (path === "venture" || path === "higher_studies") return "warning";
   return "neutral";
 }
 
@@ -63,9 +77,10 @@ export default function StudentsPage() {
   const { data: batches } = useBatches();
   const { data, isLoading, error } = useStudentReport(filters.batchId === "all" ? undefined : filters.batchId);
   const { show } = useToast();
-  const pdfDownload = useStudentReportDownload();
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const excelDownload = useStudentReportDownload();
   const updatePlacementStatus = useUpdatePlacementStatus();
+  const setStudentCareerPath = useSetStudentCareerPath();
 
   const rows = useMemo(() => data ?? [], [data]);
 
@@ -131,12 +146,39 @@ export default function StudentsPage() {
     );
   }
 
-  function handleDownload(format: "pdf" | "excel") {
-    const mutation = format === "pdf" ? pdfDownload : excelDownload;
-    mutation.mutate(
-      { format, batchId: filters.batchId === "all" ? undefined : filters.batchId, classLabel: filters.classLabel === "All classes" ? undefined : filters.classLabel },
+  function setCareerPath(r: StudentReportRow, careerPath: CareerPath) {
+    setStudentCareerPath.mutate(
+      { studentId: r.id, careerPath },
+      {
+        onSuccess: () => show(`Marked as ${careerPathLabel(careerPath)}.`, "success"),
+        onError: (err: unknown) => show(friendlyError(err), "error"),
+      },
+    );
+  }
+
+  function handleDownloadExcel() {
+    excelDownload.mutate(
+      { format: "excel", batchId: filters.batchId === "all" ? undefined : filters.batchId, classLabel: filters.classLabel === "All classes" ? undefined : filters.classLabel },
       { onError: (err: unknown) => show(friendlyError(err), "error") },
     );
+  }
+
+  // Built entirely client-side from `filtered` (the exact rows the table is
+  // showing) instead of a round trip to the backend's PDFKit renderer —
+  // that renderer drew every row at a fixed height with no wrap-aware
+  // sizing, so a long department name overlapped into the next row.
+  async function handleDownloadPdf() {
+    setIsGeneratingPdf(true);
+    try {
+      await generateStudentReportPdf(filtered, {
+        batchLabel: filters.batchId === "all" ? undefined : batches?.find((b) => b.id === filters.batchId)?.name,
+        classLabel: filters.classLabel === "All classes" ? undefined : filters.classLabel,
+      });
+    } catch (err: unknown) {
+      show(friendlyError(err), "error");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   }
 
   function handleExportCsv() {
@@ -178,6 +220,11 @@ export default function StudentsPage() {
         return <Badge tone={eligibilityTone(label)}>{label}</Badge>;
       },
     },
+    {
+      key: "careerPath",
+      header: "Career path",
+      render: (r) => <Badge tone={careerPathTone(r.careerPath)}>{careerPathLabel(r.careerPath)}</Badge>,
+    },
     { key: "apps", header: "Applied", mono: true, render: (r) => r.drivesApplied },
     { key: "offers", header: "Offers", mono: true, render: (r) => r.offersCount },
     {
@@ -203,6 +250,11 @@ export default function StudentsPage() {
               r.placementOptedOut
                 ? { key: "clear-opt-out", label: "Clear opt-out", onSelect: () => setOptedOut(r, false) }
                 : { key: "opt-out", label: "Mark opted out", onSelect: () => setOptedOut(r, true) },
+              ...CAREER_PATH_OPTIONS.filter((o) => o.value !== r.careerPath).map((o) => ({
+                key: `career-path-${o.value}`,
+                label: `Mark as ${o.label}`,
+                onSelect: () => setCareerPath(r, o.value),
+              })),
             ]}
           />
         </div>
@@ -220,10 +272,10 @@ export default function StudentsPage() {
             <Button variant="secondary" onClick={handleExportCsv}>
               <Icon name="csv" size={16} /> CSV
             </Button>
-            <Button variant="secondary" onClick={() => handleDownload("pdf")} disabled={pdfDownload.isPending}>
-              <Icon name="picture_as_pdf" size={16} /> {pdfDownload.isPending ? "Exporting…" : "Export PDF"}
+            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+              <Icon name="picture_as_pdf" size={16} /> {isGeneratingPdf ? "Exporting…" : "Export PDF"}
             </Button>
-            <Button variant="secondary" onClick={() => handleDownload("excel")} disabled={excelDownload.isPending}>
+            <Button variant="secondary" onClick={handleDownloadExcel} disabled={excelDownload.isPending}>
               <Icon name="table" size={16} /> {excelDownload.isPending ? "Exporting…" : "Export Excel"}
             </Button>
           </>

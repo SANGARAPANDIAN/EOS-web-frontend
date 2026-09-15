@@ -118,7 +118,7 @@ export default function AdvisorPayslipPage() {
                 <div style={{ color: "#475569" }}>{p.purpose ?? "—"}</div>
                 <div style={{ color: "#7C8899", fontSize: 12.5 }}>{new Date(p.requested_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
                 <div>
-                  <span style={pill(p.status)}>{p.status ?? "pending"}</span>
+                  <span style={pill(p.status)}>{(p.status ?? "pending").toUpperCase()}</span>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   {p.status === "processed" && p.file_url && (

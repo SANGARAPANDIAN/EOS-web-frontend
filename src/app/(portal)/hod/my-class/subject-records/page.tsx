@@ -2,15 +2,11 @@
 
 import { useState } from "react";
 import { Card, Badge, Select, SkeletonFilterBar, SkeletonStatTiles, SkeletonTable } from "@/components/ui";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { useHodSubjectRecords, type HodSubjectRecordsStudentRow } from "@/modules/hod/api/myClassSubjectRecords";
-
-const ROMAN_YEAR = ["I", "II", "III", "IV", "V", "VI"];
-function yearLabelForSemester(semester: number | null): string {
-  if (semester == null) return "";
-  const yearIndex = Math.ceil(semester / 2) - 1;
-  return ROMAN_YEAR[yearIndex] ?? String(yearIndex + 1);
-}
+import { MarkEntryPanel } from "@/modules/shared/marks/MarkEntryPanel";
+import { yearLabelForSemester } from "@/lib/utils/academic";
 
 function gradeTone(grade: string): "accent" | "accentDark" | "danger" {
   if (grade === "RA") return "danger";
@@ -18,7 +14,7 @@ function gradeTone(grade: string): "accent" | "accentDark" | "danger" {
   return "accent";
 }
 
-export default function HodSubjectRecordsPage() {
+function GradebookTab() {
   const [classKey, setClassKey] = useState<string | null>(null);
   const [semester, setSemester] = useState<number | null>(null);
 
@@ -78,11 +74,12 @@ export default function HodSubjectRecordsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 animate-pop-in">
-      <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Subject Records</h1>
-        <p className="mt-1 text-[13px] text-muted">Marks for the subjects you handle personally</p>
-      </div>
+    <>
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load subject records — please try again.
+        </div>
+      )}
 
       {overview.isLoading ? (
         <div className="flex flex-col gap-5">
@@ -90,7 +87,7 @@ export default function HodSubjectRecordsPage() {
           <SkeletonStatTiles count={3} />
           <SkeletonTable rows={7} />
         </div>
-      ) : handled.length === 0 ? (
+      ) : overview.isError ? null : handled.length === 0 ? (
         <Card>
           <div className="text-[13px] text-subtle">You are not mapped to teach any class/subject yet.</div>
         </Card>
@@ -175,6 +172,33 @@ export default function HodSubjectRecordsPage() {
           )}
         </>
       )}
+    </>
+  );
+}
+
+export default function HodSubjectRecordsPage() {
+  const [tab, setTab] = useState<"gradebook" | "enter">("gradebook");
+
+  return (
+    <div className="flex flex-col gap-5 animate-pop-in">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Subject Records</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {tab === "gradebook" ? "Marks for the subjects you handle personally" : "Enter marks · Save keeps a draft, Publish makes it visible"}
+          </p>
+        </div>
+        <SegmentedTabs
+          value={tab}
+          onChange={(k) => setTab(k as "gradebook" | "enter")}
+          options={[
+            { key: "gradebook", label: "Gradebook" },
+            { key: "enter", label: "Enter marks" },
+          ]}
+        />
+      </div>
+
+      {tab === "gradebook" ? <GradebookTab /> : <MarkEntryPanel />}
     </div>
   );
 }

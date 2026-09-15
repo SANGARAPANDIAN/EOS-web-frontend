@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { Card } from "@/modules/admin/components/ui/Card";
 import { cn } from "@/lib/utils/cn";
@@ -23,6 +24,8 @@ interface KpiCardProps {
    */
   pendingReason?: ReactNode;
   className?: string;
+  /** Navigates to the relevant page when set — only pass this when that page actually exists in the sidebar. Renders as a plain (non-clickable) card when omitted. */
+  href?: string;
 }
 
 export function KpiCard({
@@ -36,13 +39,15 @@ export function KpiCard({
   tinted,
   pendingReason,
   className,
+  href,
 }: KpiCardProps) {
-  return (
+  const content = (
     <Card
       className={cn(
         "flex min-h-[152px] flex-col p-[18px]",
         tinted && "border-admin-border-hover bg-admin-tint-strong",
         pendingReason && "border-dashed",
+        href && "transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md",
         className,
       )}
     >
@@ -93,4 +98,6 @@ export function KpiCard({
       {!pendingReason && footnote && <div className="mt-2 text-[12.5px] text-admin-subtle">{footnote}</div>}
     </Card>
   );
+
+  return href ? <Link href={href}>{content}</Link> : content;
 }

@@ -29,7 +29,7 @@ export default function HodEmployeeLeavePage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Staff Leave</h1>
-          <p className="mt-1 text-[13px] text-muted">Requests are routed to your HoD, then the Principal&apos;s office</p>
+          <p className="mt-1 text-[13px] text-muted">As HoD, your requests skip department review and go straight to HR Payroll</p>
         </div>
         <SegmentedTabs
           value={tab}
@@ -50,6 +50,13 @@ export default function HodEmployeeLeavePage() {
 
 function BalanceTiles() {
   const balances = useHodLeaveBalances();
+  if (balances.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load leave balances — please try again.
+      </div>
+    );
+  }
   if (!balances.data || balances.data.length === 0) {
     return (
       <Card>
@@ -181,8 +188,14 @@ function ApplyForm() {
         Attach medical certificate (optional)
       </button>
 
-      <Button variant="primary" className="mt-6" onClick={submit} disabled={!fromDate || !toDate || apply.isPending}>
-        {apply.isPending ? "Submitting…" : "Submit Leave Request"}
+      <Button
+        variant="primary"
+        className="mt-6"
+        onClick={submit}
+        disabled={!fromDate || !toDate}
+        loading={apply.isPending}
+      >
+        Submit Leave Request
       </Button>
     </Card>
   );
@@ -209,9 +222,14 @@ function HistoryList() {
         onChange={(k) => setStatus(k === "all" ? undefined : (k as "pending" | "approved" | "rejected"))}
         options={tabs}
       />
+      {history.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load leave history — please try again.
+        </div>
+      )}
       {history.isLoading ? (
         <SkeletonRows count={4} />
-      ) : !history.data || history.data.length === 0 ? (
+      ) : history.isError ? null : !history.data || history.data.length === 0 ? (
         <Card>
           <EmptyState message="No leave requests yet." />
         </Card>

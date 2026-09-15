@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, Avatar, Badge, Button, PillTabs, Textarea, SkeletonTable } from "@/components/ui";
+import { Avatar, Badge, Button, Icon, PillTabs, Textarea, SkeletonTable, Modal } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import {
   useHodAppraisalRequests,
@@ -11,7 +11,7 @@ import {
 } from "@/modules/hod/api/appraisalRequests";
 import { formatDisplayDate } from "@/lib/utils/date";
 
-type Tab = "pending" | "sent_to_principal" | "sent_back" | "all";
+type Tab = "pending" | "sent_to_hr" | "sent_back" | "all";
 
 export default function HodAppraisalRequestsPage() {
   const [tab, setTab] = useState<Tab>("pending");
@@ -51,9 +51,21 @@ export default function HodAppraisalRequestsPage() {
     {
       key: "entries",
       header: "Entries",
-      width: "80px",
+      width: "110px",
       align: "right",
-      render: (r) => <span className="text-[13.5px] font-bold text-ink">{r.entries_count}</span>,
+      render: (r) => (
+        <div className="flex items-center justify-end gap-2">
+          {r.attachments_count > 0 && (
+            <span
+              className="flex items-center gap-0.5 text-[11.5px] font-bold text-muted"
+              title={`${r.attachments_count} supporting document${r.attachments_count === 1 ? "" : "s"}`}
+            >
+              <Icon name="attach_file" size={13} /> {r.attachments_count}
+            </span>
+          )}
+          <span className="text-[13.5px] font-bold text-ink">{r.entries_count}</span>
+        </div>
+      ),
     },
     {
       key: "self_score",
@@ -70,7 +82,7 @@ export default function HodAppraisalRequestsPage() {
       render: (r) => (
         <div className="flex items-center justify-end gap-2.5">
           {r.status === "pending" && <Badge tone="accentDark">Pending review</Badge>}
-          {r.status === "sent_to_principal" && <Badge tone="accent">Sent to Principal</Badge>}
+          {r.status === "sent_to_hr" && <Badge tone="accent">Sent to HR</Badge>}
           {r.status === "sent_back" && <Badge tone="danger">Sent back</Badge>}
           <Link href={`/hod/appraisal-requests/${r.id}`}>
             <Button variant="text">View</Button>
@@ -88,8 +100,9 @@ export default function HodAppraisalRequestsPage() {
                 variant="primarySmall"
                 onClick={() => decide.mutate({ id: r.id, decision: "approved" })}
                 disabled={decide.isPending}
+                loading={decide.isPending && decide.variables?.id === r.id}
               >
-                To Principal
+                To HR
               </Button>
             </>
           )}
@@ -100,6 +113,11 @@ export default function HodAppraisalRequestsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {requests.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load appraisal requests — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Appraisal Requests</h1>
         <p className="mt-1 text-[13px] text-muted">
@@ -113,7 +131,7 @@ export default function HodAppraisalRequestsPage() {
         onChange={(k) => setTab(k as Tab)}
         options={[
           { key: "pending", label: `Pending (${c?.pending ?? 0})` },
-          { key: "sent_to_principal", label: `Sent to Principal (${c?.sent_to_principal ?? 0})` },
+          { key: "sent_to_hr", label: `Sent to HR (${c?.sent_to_hr ?? 0})` },
           { key: "sent_back", label: `Sent back (${c?.sent_back ?? 0})` },
           { key: "all", label: `All (${c?.all ?? 0})` },
         ]}
@@ -121,7 +139,7 @@ export default function HodAppraisalRequestsPage() {
 
       {requests.isLoading ? (
         <SkeletonTable rows={5} />
-      ) : (
+      ) : requests.isError ? null : (
         <DataTable
           columns={columns}
           data={rows}
@@ -162,28 +180,27 @@ function SendBackModal({
   const [remarks, setRemarks] = useState("");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f1e3d]/45 p-4">
-      <div className="w-full max-w-[520px] rounded-modal bg-surface p-7 shadow-modal">
-        <h2 className="text-[20px] font-extrabold text-ink">Send back to {target.faculty_name}</h2>
-        <p className="mt-1 text-[13px] text-muted">
-          Let them know what needs to change before resubmitting.
-        </p>
-        <Textarea
-          className="mt-4"
-          rows={4}
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
-          placeholder="Remarks (optional)"
-        />
-        <div className="mt-5 flex justify-end gap-2.5">
-          <Button variant="secondary" onClick={onClose} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button variant="primarySmall" onClick={() => onConfirm(remarks)} disabled={isPending}>
-            {isPending ? "Sending…" : "Send back"}
-          </Button>
-        </div>
+    <Modal
+      open
+      onClose={onClose}
+      title={`Send back to ${target.faculty_name}`}
+      subtitle="Let them know what needs to change before resubmitting."
+      className="max-w-[520px]"
+    >
+      <Textarea
+        rows={4}
+        value={remarks}
+        onChange={(e) => setRemarks(e.target.value)}
+        placeholder="Remarks (optional)"
+      />
+      <div className="mt-5 flex justify-end gap-2.5">
+        <Button variant="secondary" onClick={onClose} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button variant="primarySmall" onClick={() => onConfirm(remarks)} loading={isPending}>
+          Send back
+        </Button>
       </div>
-    </div>
+    </Modal>
   );
 }

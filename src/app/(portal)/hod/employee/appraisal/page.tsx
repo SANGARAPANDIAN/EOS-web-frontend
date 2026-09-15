@@ -105,6 +105,14 @@ function ApplyForm() {
     return <SkeletonRows count={3} />;
   }
 
+  if (criteria.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load appraisal criteria — please try again.
+      </div>
+    );
+  }
+
   if (divisions.length === 0) {
     return (
       <Card>
@@ -179,8 +187,8 @@ function ApplyForm() {
         );
       })}
 
-      <Button variant="primary" onClick={submit} disabled={apply.isPending}>
-        {apply.isPending ? "Submitting…" : "Submit Appraisal Request"}
+      <Button variant="primary" onClick={submit} loading={apply.isPending}>
+        Submit Appraisal Request
       </Button>
     </div>
   );
@@ -201,6 +209,13 @@ function HistoryList() {
 
   if (history.isLoading) {
     return <SkeletonRows count={3} />;
+  }
+  if (history.isError) {
+    return (
+      <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Couldn&apos;t load appraisal history — please try again.
+      </div>
+    );
   }
   if (rows.length === 0) {
     return (

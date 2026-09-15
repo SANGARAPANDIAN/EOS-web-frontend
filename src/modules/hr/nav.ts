@@ -11,6 +11,7 @@ export const hrModuleConfig: ModuleConfig = {
       label: "Overview",
       items: [
         { key: "dashboard", label: "Dashboard", icon: "dashboard", href: `${BASE}/dashboard` },
+        { key: "announcements", label: "Notices", icon: "campaign", href: `${BASE}/announcements` },
         { key: "faculty-directory", label: "Faculty directory", icon: "groups", href: `${BASE}/faculty-directory` },
         { key: "departments", label: "Departments", icon: "apartment", href: `${BASE}/departments` },
         { key: "faculty-documents", label: "Documents", icon: "folder_shared", href: `${BASE}/faculty-documents` },
@@ -23,7 +24,7 @@ export const hrModuleConfig: ModuleConfig = {
         { key: "criteria-library", label: "Criteria library", icon: "layers", href: `${BASE}/criteria-library` },
         {
           key: "employee-reviews",
-          label: "Employee reviews",
+          label: "Appraisal requests",
           icon: "military_tech",
           href: `${BASE}/employee-reviews`,
           badgeKey: "hrPendingAppraisals",

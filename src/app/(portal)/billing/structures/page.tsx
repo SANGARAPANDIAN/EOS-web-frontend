@@ -30,6 +30,7 @@ import {
   useDeleteFeeStructure,
   type FeeStructureAppliesTo,
   type FeeStructureRow,
+  type CreateFeeStructureItemInput,
 } from "@/modules/billing/api/fees";
 
 const SECTION_TABS: { key: FeeStructureAppliesTo; label: string }[] = [
@@ -96,15 +97,24 @@ export default function FeeStructuresPage() {
   const [editGroup, setEditGroup] = useState<FeeStructureAppliesTo>("quota");
   const [editQuota, setEditQuota] = useState<string>("None");
   const [editYear, setEditYear] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
 
   const [formName, setFormName] = useState("");
   const [formGroup, setFormGroup] = useState<FeeStructureAppliesTo>("quota");
   const [formQuota, setFormQuota] = useState<string>("None");
   const [formYear, setFormYear] = useState("");
-  const [formDemandCategory, setFormDemandCategory] = useState<string>("");
+  const [formDueDate, setFormDueDate] = useState("");
   const [formHostelRoomType, setFormHostelRoomType] = useState<string>("");
   const [formTransportStage, setFormTransportStage] = useState<string>("");
   const [formAmount, setFormAmount] = useState("");
+  // Education-Fees ("quota") structures hold one item per demand category, so
+  // the create form takes a repeatable list rather than a single pair —
+  // matching the old frontend, where a + control adds further rows. Hostel and
+  // transport structures stay single-source (one room type / one stage), which
+  // is what their own item shape allows.
+  const [formQuotaItems, setFormQuotaItems] = useState<{ demandCategory: string; amount: string }[]>([
+    { demandCategory: "", amount: "" },
+  ]);
 
   const rows = useMemo(
     () => (structures ?? []).filter((s) => s.applies_to === sectionFilter && s.name.toLowerCase().includes(q.toLowerCase())),
@@ -141,16 +151,36 @@ export default function FeeStructuresPage() {
     return items.reduce((sum, it) => sum + Number(it.amount), 0);
   }
 
+  function formatDueDate(dueDate: string | null) {
+    if (!dueDate) return "—";
+    return new Date(`${dueDate}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  }
+
   function openModal() {
     setFormName("");
     setFormGroup(sectionFilter);
     setFormQuota("None");
     setFormYear("");
-    setFormDemandCategory("");
+    setFormDueDate("");
+    setFormQuotaItems([{ demandCategory: "", amount: "" }]);
     setFormHostelRoomType("");
     setFormTransportStage("");
     setFormAmount("");
     setModalOpen(true);
+  }
+
+  function addQuotaItem() {
+    setFormQuotaItems((items) => [...items, { demandCategory: "", amount: "" }]);
+  }
+
+  function removeQuotaItem(index: number) {
+    // Never drop the last row: a structure must be created with at least one
+    // item (the API enforces the same minimum).
+    setFormQuotaItems((items) => (items.length <= 1 ? items : items.filter((_, i) => i !== index)));
+  }
+
+  function updateQuotaItem(index: number, patch: Partial<{ demandCategory: string; amount: string }>) {
+    setFormQuotaItems((items) => items.map((it, i) => (i === index ? { ...it, ...patch } : it)));
   }
 
   function showToast(msg: string) {
@@ -164,6 +194,7 @@ export default function FeeStructuresPage() {
     setEditGroup(s.applies_to);
     setEditQuota(quotaName(s.quota_id));
     setEditYear(s.academic_year);
+    setEditDueDate(s.due_date ?? "");
   }
 
   function submitEdit() {
@@ -173,7 +204,16 @@ export default function FeeStructuresPage() {
     }
     const quotaId = quotas?.find((qz) => qz.name === editQuota)?.id;
     updateFeeStructure.mutate(
-      { id: editStructure.id, input: { name: editName.trim(), applies_to: editGroup, quota_id: quotaId, academic_year: editYear.trim() } },
+      {
+        id: editStructure.id,
+        input: {
+          name: editName.trim(),
+          applies_to: editGroup,
+          quota_id: quotaId,
+          academic_year: editYear.trim(),
+          due_date: editDueDate || undefined,
+        },
+      },
       {
         onSuccess: () => {
           setEditStructure(null);
@@ -185,24 +225,59 @@ export default function FeeStructuresPage() {
   }
 
   function submitModal() {
-    const amount = Number(formAmount);
-    if (!formName.trim() || !formYear.trim() || !amount) {
-      showToast("Please fill in name, academic year and amount");
+    if (!formName.trim() || !formYear.trim()) {
+      showToast("Please fill in name and academic year");
       return;
     }
-    const item =
-      formGroup === "hostel"
-        ? { hostel_room_type_id: Number(formHostelRoomType), amount }
-        : formGroup === "transport"
-          ? { transport_stage_id: Number(formTransportStage), amount }
-          : { demand_category_id: Number(formDemandCategory), amount };
-    if ((formGroup === "hostel" && !formHostelRoomType) || (formGroup === "transport" && !formTransportStage) || (formGroup === "quota" && !formDemandCategory)) {
-      showToast("Please choose an item source");
-      return;
+
+    let items: CreateFeeStructureItemInput[];
+    if (formGroup === "quota") {
+      // Every row must name a demand category and carry an amount, and no
+      // category may repeat inside one structure.
+      if (formQuotaItems.some((it) => !it.demandCategory)) {
+        showToast("Please choose a demand category for every item");
+        return;
+      }
+      if (formQuotaItems.some((it) => !Number(it.amount))) {
+        showToast("Please enter an amount for every item");
+        return;
+      }
+      const chosen = formQuotaItems.map((it) => it.demandCategory);
+      if (new Set(chosen).size !== chosen.length) {
+        showToast("Each demand category can only be added once");
+        return;
+      }
+      items = formQuotaItems.map((it) => ({
+        demand_category_id: Number(it.demandCategory),
+        amount: Number(it.amount),
+      }));
+    } else {
+      const amount = Number(formAmount);
+      if (!amount) {
+        showToast("Please fill in name, academic year and amount");
+        return;
+      }
+      if ((formGroup === "hostel" && !formHostelRoomType) || (formGroup === "transport" && !formTransportStage)) {
+        showToast("Please choose an item source");
+        return;
+      }
+      items = [
+        formGroup === "hostel"
+          ? { hostel_room_type_id: Number(formHostelRoomType), amount }
+          : { transport_stage_id: Number(formTransportStage), amount },
+      ];
     }
+
     const quotaId = quotas?.find((qz) => qz.name === formQuota)?.id;
     createFeeStructure.mutate(
-      { name: formName.trim(), applies_to: formGroup, quota_id: quotaId, academic_year: formYear.trim(), items: [item] },
+      {
+        name: formName.trim(),
+        applies_to: formGroup,
+        quota_id: quotaId,
+        academic_year: formYear.trim(),
+        due_date: formDueDate || undefined,
+        items,
+      },
       {
         onSuccess: () => {
           setModalOpen(false);
@@ -264,6 +339,7 @@ export default function FeeStructuresPage() {
                 <th style={thMidSx}>ITEMS</th>
                 <th style={thRightSx}>TOTAL AMOUNT</th>
                 <th style={thMidSx}>ACADEMIC YEAR</th>
+                <th style={thMidSx}>DUE DATE</th>
                 <th style={thActionsSx}>ACTIONS</th>
               </tr>
             </thead>
@@ -280,6 +356,7 @@ export default function FeeStructuresPage() {
                   </td>
                   <td style={tdRightMonoSx}>{money(totalAmount(s.fee_structure_items))}</td>
                   <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{s.academic_year}</td>
+                  <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{formatDueDate(s.due_date)}</td>
                   <td style={tdActionsSx}>
                     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       <button data-bill-icon onClick={() => openEdit(s)} style={delBtnSx}>Edit</button>
@@ -300,7 +377,7 @@ export default function FeeStructuresPage() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No education fee structures yet.</td></tr>
+                <tr><td colSpan={7} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No education fee structures yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -321,6 +398,7 @@ export default function FeeStructuresPage() {
                 <th style={thMidSx}>ROOM TYPES</th>
                 <th style={thRightSx}>TOTAL AMOUNT</th>
                 <th style={thMidSx}>ACADEMIC YEAR</th>
+                <th style={thMidSx}>DUE DATE</th>
                 <th style={thActionsSx}>ACTIONS</th>
               </tr>
             </thead>
@@ -336,6 +414,7 @@ export default function FeeStructuresPage() {
                   </td>
                   <td style={tdRightMonoSx}>{money(totalAmount(r.fee_structure_items))}</td>
                   <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{r.academic_year}</td>
+                  <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{formatDueDate(r.due_date)}</td>
                   <td style={tdActionsSx}>
                     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       <button data-bill-icon onClick={() => openEdit(r)} style={delBtnSx}>Edit</button>
@@ -356,7 +435,7 @@ export default function FeeStructuresPage() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={5} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No hostel fee structures yet.</td></tr>
+                <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No hostel fee structures yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -378,6 +457,7 @@ export default function FeeStructuresPage() {
                   <th style={thMidSx}>STAGES</th>
                   <th style={thRightSx}>TOTAL AMOUNT</th>
                   <th style={thMidSx}>ACADEMIC YEAR</th>
+                  <th style={thMidSx}>DUE DATE</th>
                   <th style={thActionsSx}>ACTIONS</th>
                 </tr>
               </thead>
@@ -393,6 +473,7 @@ export default function FeeStructuresPage() {
                     </td>
                     <td style={tdRightMonoSx}>{money(totalAmount(s.fee_structure_items))}</td>
                     <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{s.academic_year}</td>
+                    <td style={{ padding: "13px 10px", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12.5 }}>{formatDueDate(s.due_date)}</td>
                     <td style={tdActionsSx}>
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         <button data-bill-icon onClick={() => openEdit(s)} style={delBtnSx}>Edit</button>
@@ -413,7 +494,7 @@ export default function FeeStructuresPage() {
                   </tr>
                 ))}
                 {rows.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No bus fee structures yet.</td></tr>
+                  <tr><td colSpan={6} style={{ padding: 22, textAlign: "center", fontSize: 12.5, color: "#94a3b8" }}>No bus fee structures yet.</td></tr>
                 )}
               </tbody>
             </table>
@@ -505,7 +586,7 @@ export default function FeeStructuresPage() {
       <BillingModal
         open={modalOpen}
         title="Add Fee Structure"
-        sub="Create a new fee structure with its first item"
+        sub="Create a new fee structure and the items inside it"
         cta="Add structure"
         onClose={() => setModalOpen(false)}
         onSubmit={submitModal}
@@ -536,13 +617,89 @@ export default function FeeStructuresPage() {
 
         {formGroup === "quota" && (
           <div>
-            <div style={fieldLabelSx}>Demand Category</div>
-            <select value={formDemandCategory} onChange={(e) => setFormDemandCategory(e.target.value)} style={{ ...fieldInputSx, background: "#fff" }}>
-              <option value="">Select a demand category</option>
-              {(demandCategories ?? []).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+              <div style={fieldLabelSx}>Fee Structure Items</div>
+              <div style={{ fontSize: 12, color: "#64748b", fontFamily: "'IBM Plex Mono',monospace" }}>
+                Total {money(formQuotaItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0))}
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {formQuotaItems.map((item, index) => (
+                <div key={index} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <select
+                    value={item.demandCategory}
+                    onChange={(e) => updateQuotaItem(index, { demandCategory: e.target.value })}
+                    style={{ ...fieldInputSx, background: "#fff", flex: "1 1 auto", minWidth: 0 }}
+                  >
+                    <option value="">Select a demand category</option>
+                    {(demandCategories ?? []).map((c) => (
+                      <option
+                        key={c.id}
+                        value={c.id}
+                        // A category already used by another row is not
+                        // selectable again — one item per category.
+                        disabled={formQuotaItems.some((other, i) => i !== index && other.demandCategory === String(c.id))}
+                      >
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={item.amount}
+                    onChange={(e) => updateQuotaItem(index, { amount: e.target.value })}
+                    placeholder="e.g. 50000"
+                    style={{ ...fieldMonoSx, flex: "0 0 132px", width: 132 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeQuotaItem(index)}
+                    disabled={formQuotaItems.length <= 1}
+                    aria-label="Remove this item"
+                    title={formQuotaItems.length <= 1 ? "A structure needs at least one item" : "Remove this item"}
+                    style={{
+                      flex: "0 0 34px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      border: "1px solid #e2e8f0",
+                      background: "#fff",
+                      color: formQuotaItems.length <= 1 ? "#cbd5e1" : "#b91c1c",
+                      cursor: formQuotaItems.length <= 1 ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  </button>
+                </div>
               ))}
-            </select>
+            </div>
+            <button
+              type="button"
+              onClick={addQuotaItem}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                marginTop: 10,
+                borderRadius: 8,
+                border: "1px dashed #93b4fd",
+                background: "#f5f8ff",
+                color: "#1d4ed8",
+                padding: "8px 13px",
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Add item
+            </button>
           </div>
         )}
 
@@ -570,16 +727,37 @@ export default function FeeStructuresPage() {
           </div>
         )}
 
-        <div style={fieldRow2Sx}>
-          <div>
-            <div style={fieldLabelSx}>Academic Year</div>
-            <input value={formYear} onChange={(e) => setFormYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+        {/* Education-Fees structures carry their amounts per item above, so
+            only the single-source sections show a standalone Amount field. */}
+        {formGroup === "quota" ? (
+          <div style={fieldRow2Sx}>
+            <div>
+              <div style={fieldLabelSx}>Academic Year</div>
+              <input value={formYear} onChange={(e) => setFormYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+            </div>
+            <div>
+              <div style={fieldLabelSx}>Due Date</div>
+              <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} style={fieldMonoSx} />
+            </div>
           </div>
-          <div>
-            <div style={fieldLabelSx}>Amount</div>
-            <input value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="e.g. 60000" style={fieldMonoSx} />
-          </div>
-        </div>
+        ) : (
+          <>
+            <div style={fieldRow2Sx}>
+              <div>
+                <div style={fieldLabelSx}>Academic Year</div>
+                <input value={formYear} onChange={(e) => setFormYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+              </div>
+              <div>
+                <div style={fieldLabelSx}>Amount</div>
+                <input value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="e.g. 60000" style={fieldMonoSx} />
+              </div>
+            </div>
+            <div>
+              <div style={fieldLabelSx}>Due Date</div>
+              <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} style={fieldMonoSx} />
+            </div>
+          </>
+        )}
       </BillingModal>
 
       {/* Edit is a separate, simpler flow than Create (old-frontend-exact):
@@ -615,9 +793,15 @@ export default function FeeStructuresPage() {
             </select>
           </div>
         </div>
-        <div>
-          <div style={fieldLabelSx}>Academic Year</div>
-          <input value={editYear} onChange={(e) => setEditYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+        <div style={fieldRow2Sx}>
+          <div>
+            <div style={fieldLabelSx}>Academic Year</div>
+            <input value={editYear} onChange={(e) => setEditYear(e.target.value)} placeholder="2026-27" style={fieldMonoSx} />
+          </div>
+          <div>
+            <div style={fieldLabelSx}>Due Date</div>
+            <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} style={fieldMonoSx} />
+          </div>
         </div>
       </BillingModal>
     </div>

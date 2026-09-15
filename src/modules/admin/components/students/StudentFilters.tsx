@@ -2,7 +2,8 @@
 
 import { Icon } from "@/components/ui/Icon";
 import { Select } from "@/modules/admin/components/ui/Select";
-import { useDepartments, useBatches, useCourses, useQuotas } from "@/modules/admin/api/refData";
+import { useBatches, useCourses, useQuotas } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import type { ListStudentsParams } from "@/modules/admin/api/students";
 
 export type StudentFiltersValue = Pick<

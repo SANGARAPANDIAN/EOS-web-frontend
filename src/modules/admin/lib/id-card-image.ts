@@ -1,6 +1,4 @@
-import type { Faculty } from "@/modules/admin/api/faculty";
-import { EMPLOYMENT_STATUS_FROM_ENUM } from "@/modules/admin/lib/faculty-wizard-config";
-import { formatDate, formatFacultyCode, fullName, initialsOf } from "@/modules/admin/lib/faculty-format";
+import type { IdCardData } from "@/modules/admin/lib/id-card-data";
 
 // ISO/IEC 7810 ID-1 — the physical size every plastic ID card is cut to,
 // 85.60 x 53.98mm, held in portrait here (the 53.98mm edge as the card's
@@ -114,7 +112,7 @@ function drawHeader(ctx: CanvasRenderingContext2D, logo: HTMLImageElement | null
 // Front layout intentionally leaves real blank space above the wave band
 // (bandTop is a fixed position, not content-driven) — that's how the
 // college's actual card looks, not a gap to be designed away.
-async function drawFront(ctx: CanvasRenderingContext2D, faculty: Faculty, logo: HTMLImageElement | null) {
+async function drawFront(ctx: CanvasRenderingContext2D, data: IdCardData, logo: HTMLImageElement | null) {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, CARD_W, CARD_H);
   drawHeader(ctx, logo);
@@ -123,7 +121,7 @@ async function drawFront(ctx: CanvasRenderingContext2D, faculty: Faculty, logo: 
   const photoH = 270;
   const photoX = (CARD_W - photoW) / 2;
   const photoY = 190;
-  const photo = faculty.profile_url ? await loadImage(faculty.profile_url) : null;
+  const photo = data.photoUrl ? await loadImage(data.photoUrl) : null;
 
   if (photo) {
     ctx.drawImage(photo, photoX, photoY, photoW, photoH);
@@ -133,7 +131,7 @@ async function drawFront(ctx: CanvasRenderingContext2D, faculty: Faculty, logo: 
     ctx.fillStyle = SLATE_600;
     ctx.font = "bold 64px Helvetica, Arial, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(initialsOf(faculty), CARD_W / 2, photoY + photoH / 2 + 22);
+    ctx.fillText(data.initials, CARD_W / 2, photoY + photoH / 2 + 22);
   }
   ctx.strokeStyle = "rgb(40,40,40)";
   ctx.lineWidth = 2;
@@ -143,22 +141,22 @@ async function drawFront(ctx: CanvasRenderingContext2D, faculty: Faculty, logo: 
   ctx.textAlign = "center";
   ctx.fillStyle = SLATE_900;
   ctx.font = "bold 36px Helvetica, Arial, sans-serif";
-  ctx.fillText(fullName(faculty), CARD_W / 2, cursorY);
+  ctx.fillText(data.name, CARD_W / 2, cursorY);
 
   cursorY += 38;
   ctx.fillStyle = SLATE_600;
   ctx.font = "20px Helvetica, Arial, sans-serif";
-  ctx.fillText(`Faculty ID: ${formatFacultyCode(faculty.id)}`, CARD_W / 2, cursorY);
+  ctx.fillText(`${data.idLabel}: ${data.idValue}`, CARD_W / 2, cursorY);
 
   cursorY += 62;
   ctx.fillStyle = SLATE_900;
   ctx.font = "bold 34px Helvetica, Arial, sans-serif";
-  ctx.fillText(faculty.designation, CARD_W / 2, cursorY);
+  ctx.fillText(data.roleLine, CARD_W / 2, cursorY);
 
   cursorY += 46;
   ctx.font = "bold 32px Helvetica, Arial, sans-serif";
-  const deptLines = wrapText(ctx, faculty.department?.name ?? "", CARD_W - 90);
-  deptLines.forEach((line, i) => ctx.fillText(line, CARD_W / 2, cursorY + i * 38));
+  const subLines = wrapText(ctx, data.subLine, CARD_W - 90);
+  subLines.forEach((line, i) => ctx.fillText(line, CARD_W / 2, cursorY + i * 38));
 
   drawWaveBand(ctx, 800);
 }
@@ -167,22 +165,11 @@ async function drawFront(ctx: CanvasRenderingContext2D, faculty: Faculty, logo: 
 // value at valueX) rather than value wrapping below its label — matching
 // the real card's two-column layout, not the stacked layout the very
 // first version of this file used.
-function drawBack(ctx: CanvasRenderingContext2D, faculty: Faculty) {
+function drawBack(ctx: CanvasRenderingContext2D, data: IdCardData) {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, CARD_W, CARD_H);
 
-  const address = [faculty.address_line, faculty.city, faculty.state, faculty.postal_code].filter(Boolean).join(", ");
-
-  const rows: [string, string][] = [
-    ["Date of Birth", formatDate(faculty.date_of_birth)],
-    [
-      "Employment Status",
-      faculty.employment_status ? EMPLOYMENT_STATUS_FROM_ENUM[faculty.employment_status] ?? faculty.employment_status : "—",
-    ],
-    ["Phone", faculty.phone ?? "—"],
-    ["Email", faculty.email],
-    ["Address", address || "—"],
-  ];
+  const rows = data.backRows;
 
   const labelX = 40;
   const valueX = 300;
@@ -248,50 +235,50 @@ function drawBack(ctx: CanvasRenderingContext2D, faculty: Faculty) {
   }
 }
 
-async function renderCardCanvases(faculty: Faculty, logo: HTMLImageElement | null) {
+async function renderCardCanvases(data: IdCardData, logo: HTMLImageElement | null) {
   const frontCanvas = document.createElement("canvas");
   frontCanvas.width = CARD_W;
   frontCanvas.height = CARD_H;
   const frontCtx = frontCanvas.getContext("2d");
-  if (frontCtx) await drawFront(frontCtx, faculty, logo);
+  if (frontCtx) await drawFront(frontCtx, data, logo);
 
   const backCanvas = document.createElement("canvas");
   backCanvas.width = CARD_W;
   backCanvas.height = CARD_H;
   const backCtx = backCanvas.getContext("2d");
-  if (backCtx) drawBack(backCtx, faculty);
+  if (backCtx) drawBack(backCtx, data);
 
   return { frontCanvas, backCanvas };
 }
 
 /**
- * Renders one faculty member's front/back as PNG data URLs — used by the
- * on-screen FlipIdCard preview. The exact same drawFront/drawBack calls
- * back the printed PDF below, so the preview is pixel-for-pixel what
- * downloading actually produces, never a second hand-built approximation
- * that could drift out of sync with it. `faculty` must carry the back-side
- * fields (DOB/address/etc.) — summary rows from a list screen don't have
- * them; fetch the full record first (see fetchFacultyById).
+ * Renders one entity's front/back as PNG data URLs — used by the on-screen
+ * FlipIdCard preview. The exact same drawFront/drawBack calls back the
+ * printed PDF below, so the preview is pixel-for-pixel what downloading
+ * actually produces, never a second hand-built approximation that could
+ * drift out of sync with it. `data` must carry the back-side fields
+ * (DOB/address/etc.) — summary rows from a list screen don't have them;
+ * fetch the full record first (see fetchFacultyById / fetchStudentIdCardSource)
+ * and build `data` via facultyToIdCardData/studentToIdCardData.
  */
-export async function renderFacultyCardImages(faculty: Faculty): Promise<{ front: string; back: string }> {
+export async function renderIdCardImages(data: IdCardData): Promise<{ front: string; back: string }> {
   const logo = await loadImage("/college-logo.png");
-  const { frontCanvas, backCanvas } = await renderCardCanvases(faculty, logo);
+  const { frontCanvas, backCanvas } = await renderCardCanvases(data, logo);
   return { front: frontCanvas.toDataURL("image/png"), back: backCanvas.toDataURL("image/png") };
 }
 
 /**
- * Builds one print-ready A4 PDF — one page per faculty member, front and
- * back placed side by side at the card's true physical size (ISO/IEC 7810
- * ID-1, 53.98 x 85.6mm) near the top of the page, with a light dashed cut
- * guide around each. Never stretched to fill the sheet: the printing team
- * needs the actual card scale to cut against, not an arbitrary layout.
- * `facultyList` must already carry the back-side fields — callers that
- * only have summary rows should re-fetch via fetchFacultyById first (see
- * FacultyIdCardModal, which fetches once and reuses it for both the
- * preview and this download).
+ * Builds one print-ready A4 PDF — one page per entity, front and back
+ * placed side by side at the card's true physical size (ISO/IEC 7810 ID-1,
+ * 53.98 x 85.6mm) near the top of the page, with a light dashed cut guide
+ * around each. Never stretched to fill the sheet: the printing team needs
+ * the actual card scale to cut against, not an arbitrary layout. Each
+ * entry must already carry the back-side fields — callers that only have
+ * summary rows should re-fetch the full record first (see IdCardModal,
+ * which fetches once and reuses it for both the preview and this download).
  */
-export async function generateFacultyIdCardsPdf(facultyList: Faculty[]): Promise<void> {
-  if (facultyList.length === 0) return;
+export async function generateIdCardsPdf(dataList: IdCardData[]): Promise<void> {
+  if (dataList.length === 0) return;
   const { jsPDF } = await import("jspdf");
   const logo = await loadImage("/college-logo.png");
 
@@ -305,11 +292,11 @@ export async function generateFacultyIdCardsPdf(facultyList: Faculty[]): Promise
   const frontX = marginX;
   const backX = marginX + CARD_W_MM + gapMm;
 
-  for (let i = 0; i < facultyList.length; i++) {
-    const faculty = facultyList[i];
+  for (let i = 0; i < dataList.length; i++) {
+    const data = dataList[i];
     if (i > 0) doc.addPage();
 
-    const { frontCanvas, backCanvas } = await renderCardCanvases(faculty, logo);
+    const { frontCanvas, backCanvas } = await renderCardCanvases(data, logo);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
@@ -330,14 +317,11 @@ export async function generateFacultyIdCardsPdf(facultyList: Faculty[]): Promise
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105);
-    doc.text(`${fullName(faculty)} · ${formatFacultyCode(faculty.id)}`, pageWidth / 2, topY + CARD_H_MM + 10, {
+    doc.text(`${data.name} · ${data.idValue}`, pageWidth / 2, topY + CARD_H_MM + 10, {
       align: "center",
     });
   }
 
-  const filename =
-    facultyList.length === 1
-      ? `id-card-${formatFacultyCode(facultyList[0].id)}.pdf`
-      : `id-cards-${facultyList.length}.pdf`;
+  const filename = dataList.length === 1 ? `id-card-${dataList[0].fileNameHint}.pdf` : `id-cards-${dataList.length}.pdf`;
   doc.save(filename);
 }

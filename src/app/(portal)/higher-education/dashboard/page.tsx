@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, Button, Icon, ProgressBar, EmptyState, DataTable, SegmentedTabs, type DataTableColumn } from "@/components/ui";
+import Link from "next/link";
+import { Card, Badge, Button, Icon, ProgressBar, EmptyState, DataTable, SegmentedTabs, Skeleton, SkeletonStatTiles, SkeletonCardGrid, type DataTableColumn } from "@/components/ui";
 import { useHigherEducationDashboard, type HigherEducationDashboard } from "@/modules/higher-education/api/dashboard";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
 import { useDeleteAnnouncement } from "@/modules/higher-education/api/announcements";
@@ -45,12 +46,24 @@ export default function HigherEducationDashboardPage() {
 
   const maxDestinationCount = data ? Math.max(1, ...data.destinations.map((d) => d.count)) : 1;
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonStatTiles count={4} />
+        <SkeletonCardGrid count={3} columns={3} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonCardGrid count={2} columns={2} />
+        <SkeletonCardGrid count={3} columns={3} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">{greetingForHour()}, Dr. Kalaiselvi</h1>
         <p className="mt-1 text-[13px] text-muted">
-          {formatLongDate()} · {isLoading ? "—" : data?.finalYearEligible ?? 0} final-year students eligible this cycle
+          {formatLongDate()} · {data?.finalYearEligible ?? 0} final-year students eligible this cycle
         </p>
       </div>
 
@@ -71,7 +84,7 @@ export default function HigherEducationDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/higher-education/aspirants" className={`min-w-0 block rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Registered aspirants</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -79,15 +92,15 @@ export default function HigherEducationDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : data?.kpis.aspirants.total ?? 0}
+            {data?.kpis.aspirants.total ?? 0}
           </div>
           <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-            <span className="text-[14px] font-extrabold text-primary">{isLoading ? "—" : data?.kpis.aspirants.withinIndia ?? 0}</span>
+            <span className="text-[14px] font-extrabold text-primary">{data?.kpis.aspirants.withinIndia ?? 0}</span>
             <span className="text-[13px] text-muted">within India · {data?.kpis.aspirants.abroad ?? 0} overseas</span>
           </div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/higher-education/applications" className={`min-w-0 block rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Applications filed</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -95,14 +108,14 @@ export default function HigherEducationDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : data?.kpis.applicationsFiled ?? "Not tracked yet"}
+            {data?.kpis.applicationsFiled ?? "Not tracked yet"}
           </div>
           <div className="mt-3 text-[13px] text-muted">
             {data?.extended ? "aspirants who have submitted their application" : "enable aspirant tracking to see this"}
           </div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <div className="min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px]">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Admits confirmed</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -110,7 +123,7 @@ export default function HigherEducationDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : data?.kpis.admits?.total ?? "Not tracked yet"}
+            {data?.kpis.admits?.total ?? "Not tracked yet"}
           </div>
           <div className="mt-3 flex items-baseline gap-2 flex-wrap">
             {data?.kpis.admits && (
@@ -122,7 +135,7 @@ export default function HigherEducationDashboardPage() {
           </div>
         </div>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/higher-education/scholarships" className={`min-w-0 block rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Scholarship secured</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -130,7 +143,7 @@ export default function HigherEducationDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : data?.kpis.scholarship ? formatRupees(data.kpis.scholarship.totalValue) : "Not tracked yet"}
+            {data?.kpis.scholarship ? formatRupees(data.kpis.scholarship.totalValue) : "Not tracked yet"}
           </div>
           <div className="mt-3 flex items-baseline gap-2 flex-wrap">
             {data?.kpis.scholarship && (
@@ -140,7 +153,7 @@ export default function HigherEducationDashboardPage() {
               </>
             )}
           </div>
-        </div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-[1.35fr_1fr_1fr] gap-4 items-start">
@@ -192,9 +205,7 @@ export default function HigherEducationDashboardPage() {
             <h2 className="text-[17px] font-extrabold text-ink">Needs attention</h2>
             <Badge tone="accentDark">{data?.needsAttention.length ?? 0} flags</Badge>
           </div>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.needsAttention.length === 0 ? (
+          {!data || data.needsAttention.length === 0 ? (
             <EmptyState message="You're all caught up." />
           ) : (
             <div className="flex flex-col gap-3">
@@ -213,15 +224,19 @@ export default function HigherEducationDashboardPage() {
 
         <Card className={HOVERABLE}>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[17px] font-extrabold text-ink">Announcements</h2>
+            <h2 className="text-[17px] font-extrabold text-ink">Notices</h2>
             <Button variant="primarySmall" className="w-auto" onClick={() => setShowNewAnnouncement(true)}>
               New
             </Button>
           </div>
           {announcements.isLoading ? (
-            <EmptyState message="Loading…" />
+            <div className="flex flex-col gap-2.5">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
           ) : recentAnnouncements.length === 0 ? (
-            <EmptyState message="No announcements yet." />
+            <EmptyState message="No notices yet." />
           ) : (
             <div className="flex flex-col gap-2.5 -mx-1">
               {recentAnnouncements.map((a) => (
@@ -282,9 +297,7 @@ export default function HigherEducationDashboardPage() {
             <h2 className="text-[17px] font-extrabold text-ink">Deadlines this fortnight</h2>
             <p className="mt-0.5 text-[12.5px] text-subtle">Interview dates on record for the next 14 days</p>
           </div>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.interviewsUpcoming.length === 0 ? (
+          {!data || data.interviewsUpcoming.length === 0 ? (
             <EmptyState message="No interviews scheduled in the next 14 days." />
           ) : (
             <div className="mt-2 flex flex-col">
@@ -310,7 +323,7 @@ export default function HigherEducationDashboardPage() {
             columns={departmentColumns}
             data={data?.departmentRows ?? []}
             rowKey={(row) => row.dept}
-            emptyMessage={isLoading ? "Loading…" : "No aspirants recorded yet."}
+            emptyMessage="No aspirants recorded yet."
             hoverableRows
           />
         </Card>

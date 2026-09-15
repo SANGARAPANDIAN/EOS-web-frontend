@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useEdcEntrepreneurship, isBeyondIdeaStage } from "@/modules/edc/api/entrepreneurship";
 import { pillSx } from "@/modules/edc/genericPage";
+import { SkeletonFilterBar, SkeletonStatTiles, SkeletonTable } from "@/components/ui";
 
 // Real backend connection — replaces the fake EDC_ROWS list. GET
 // /me/edc-entrepreneurship (institution-wide, real-time). The design's
@@ -20,7 +20,6 @@ function money(v: number | null): string {
 }
 
 export default function EdcEntrepreneursPage() {
-  const router = useRouter();
   const { data, isLoading } = useEdcEntrepreneurship();
   const rows = data ?? [];
 
@@ -56,6 +55,14 @@ export default function EdcEntrepreneursPage() {
         <p style={{ margin: 0, fontSize: 15.5, color: "#64748B" }}>Students building ventures through the EDC · open a student for the full entrepreneurship file</p>
       </div>
 
+      {isLoading && rows.length === 0 ? (
+        <>
+          <SkeletonStatTiles count={4} />
+          <SkeletonFilterBar />
+          <SkeletonTable rows={8} />
+        </>
+      ) : (
+        <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 16 }}>
         {kpis.map((k) => (
           <div key={k.label} data-edc-lift="" style={{ background: k.highlight ? "#F4F8FF" : "#fff", border: `1px solid ${k.highlight ? "#CFE0F7" : "#E6EBF2"}`, borderRadius: 14, padding: "18px 20px 16px", display: "flex", flexDirection: "column", gap: 11 }}>
@@ -101,8 +108,7 @@ export default function EdcEntrepreneursPage() {
           <div
             key={r.id}
             data-edc-row=""
-            onClick={() => router.push(`/edc/entrepreneurs/${r.id}`)}
-            style={{ display: "grid", gridTemplateColumns: "1.5fr 1.1fr 1.2fr 1.1fr 0.9fr 0.9fr 1fr", gap: 16, alignItems: "center", padding: "14px 24px", borderBottom: "1px solid #EEF2F7", cursor: "pointer" }}
+            style={{ display: "grid", gridTemplateColumns: "1.5fr 1.1fr 1.2fr 1.1fr 0.9fr 0.9fr 1fr", gap: 16, alignItems: "center", padding: "14px 24px", borderBottom: "1px solid #EEF2F7" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 11.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
@@ -129,6 +135,8 @@ export default function EdcEntrepreneursPage() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

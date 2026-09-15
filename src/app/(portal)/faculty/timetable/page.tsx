@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SegmentedTabs, SkeletonBlock, SkeletonRows } from "@/components/ui";
 import { useTodaySlots, useFacultyTimetable } from "@/modules/advisor/api/employee";
 import { useMyFacultyProfile } from "@/modules/advisor/api/profile";
 
@@ -114,24 +115,14 @@ export default function AdvisorTimetablePage() {
             {myProfile.data?.name ?? ""} · {myProfile.data?.department?.name ?? ""}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, background: "#fff", border: "1px solid #E6EAF0", borderRadius: 11, padding: 5 }}>
-          {[
-            { key: "today" as const, label: "Today" },
-            { key: "week" as const, label: "Full week" },
-          ].map((t) => {
-            const active = tab === t.key;
-            return (
-              <div
-                key={t.key}
-                data-advisor-lift=""
-                onClick={() => setTab(t.key)}
-                style={{ padding: "13px 20px", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", background: active ? "#1D4ED8" : "transparent", color: active ? "#fff" : "#0F172A" }}
-              >
-                {t.label}
-              </div>
-            );
-          })}
-        </div>
+        <SegmentedTabs
+          options={[
+            { key: "today", label: "Today" },
+            { key: "week", label: "Full week" },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       {tab === "today" && (
@@ -178,7 +169,14 @@ export default function AdvisorTimetablePage() {
             ))}
           </div>
 
+          {!isToday && displayRows.length > 0 && (
+            <div style={{ marginTop: 14, fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
+              Class/section is shown for today only — the weekly timetable source has no section field for other days.
+            </div>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
+            {(isToday ? today.isLoading : week.isLoading) && displayRows.length === 0 && <SkeletonRows count={5} />}
             {displayRows.map((r) => {
               const done = isToday && r.end_time < nowHm;
               const isNext = isToday && !done && displayRows.find((s) => s.end_time >= nowHm)?.id === r.id;
@@ -209,7 +207,8 @@ export default function AdvisorTimetablePage() {
         </>
       )}
 
-      {tab === "week" && (
+      {tab === "week" && week.isLoading && weekDays.length === 0 && <SkeletonBlock className="mt-5" />}
+      {tab === "week" && !(week.isLoading && weekDays.length === 0) && (
         <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 20, marginTop: 20, overflowX: "auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: `56px repeat(${TIME_COLUMNS.length}, minmax(120px,1fr))`, gap: 10 }}>
             <div />

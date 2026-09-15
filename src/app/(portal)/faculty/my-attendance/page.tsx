@@ -111,6 +111,7 @@ export default function AdvisorMyAttendancePage() {
               const status = d !== null ? marks[dateKey(d)] : undefined;
               const absent = status === "absent";
               const od = status === "onDuty";
+              const holiday = status === "holiday";
               return (
                 <div
                   key={i}
@@ -120,10 +121,10 @@ export default function AdvisorMyAttendancePage() {
                     padding: "9px 0",
                     borderRadius: 9,
                     fontSize: 13,
-                    fontWeight: absent || od ? 800 : 600,
-                    color: d === null ? "transparent" : absent ? "#DC2626" : od ? "#1E3A8A" : "#334155",
-                    background: absent ? "#FEF2F2" : od ? "#EFF6FF" : "transparent",
-                    border: absent ? "1px solid #FECACA" : od ? "1px solid #DBEAFE" : "1px solid transparent",
+                    fontWeight: absent || od || holiday ? 800 : 600,
+                    color: d === null ? "transparent" : absent ? "#DC2626" : od ? "#1E3A8A" : holiday ? "#475569" : "#334155",
+                    background: absent ? "#FEF2F2" : od ? "#EFF6FF" : holiday ? "#F1F5F9" : "transparent",
+                    border: absent ? "1px solid #FECACA" : od ? "1px solid #DBEAFE" : holiday ? "1px solid #CBD5E1" : "1px solid transparent",
                   }}
                 >
                   {d ?? "·"}
@@ -136,6 +137,7 @@ export default function AdvisorMyAttendancePage() {
               { swatch: "transparent", border: "#DDE3EC", label: "Present" },
               { swatch: "#FEF2F2", border: "#FECACA", label: "Absent" },
               { swatch: "#EFF6FF", border: "#DBEAFE", label: "On duty" },
+              { swatch: "#F1F5F9", border: "#CBD5E1", label: "Holiday" },
             ].map((l) => (
               <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 12, height: 12, borderRadius: 4, background: l.swatch, border: `1px solid ${l.border}` }} />

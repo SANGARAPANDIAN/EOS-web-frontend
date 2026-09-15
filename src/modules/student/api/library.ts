@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
+// Borrow-request hooks (used to be student-only) now live in shared/api —
+// Faculty and HoD self-service through the exact same request/accept flow.
+export { useMyBorrowRequests, useCreateBorrowRequest } from "@/modules/shared/api/libraryRequests";
+export type { BorrowRequestStatus, MyBorrowRequest } from "@/modules/shared/api/libraryRequests";
+
 export interface LibraryBook {
   id: number;
   qr_code: string | null;

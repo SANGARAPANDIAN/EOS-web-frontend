@@ -6,6 +6,7 @@ export interface Venue {
   name: string;
   location: string | null;
   capacity: number | null;
+  photo_url: string | null;
 }
 
 interface PaginatedResponse<T> {
@@ -20,12 +21,24 @@ interface PaginatedResponse<T> {
  * fields on each row are ignored here.
  */
 export function useVenues() {
-  const from = new Date().toISOString();
-  const to = new Date(Date.now() + 365 * 86_400_000).toISOString();
   return useQuery({
     queryKey: ["venues", "picker"],
-    queryFn: () => apiClient.get<PaginatedResponse<Venue>>("/venues", { from, to, limit: 100 }),
+    // The window is computed inside queryFn, not in the hook body: reading the
+    // clock during render is impure (the same rule that the useNow loop broke),
+    // and it also recomputed `from`/`to` on every single render even though the
+    // query key never changed.
+    queryFn: () => {
+      const now = Date.now();
+      return apiClient.get<PaginatedResponse<Venue>>("/venues", {
+        from: new Date(now).toISOString(),
+        to: new Date(now + 365 * 86_400_000).toISOString(),
+        limit: 100,
+      });
+    },
     staleTime: 10 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be well above staleTime — same reasoning, same reference-data tier.
+    gcTime: 20 * 60_000,
     select: (res) => res.data,
   });
 }

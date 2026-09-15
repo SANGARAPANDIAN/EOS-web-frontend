@@ -64,3 +64,63 @@ export function useHigherEducationList(params: HigherEducationListParams) {
       ),
   });
 }
+
+// --- Full Higher-Education Profile detail screen ---
+// Backed by GET /me/principal/higher-education/:id/profile — every field
+// maps to a real column on student_higher_education, or to the same real
+// family/contact data the Student Profile screen already uses. A passport
+// *expiry* date and a named contact-person for this flow have no backing
+// anywhere in the schema, so neither appears here.
+
+export interface HigherEducationProfile {
+  id: number;
+  student: {
+    id: number;
+    name: string;
+    register_no: string | null;
+    roll_no: string | null;
+    photo_url: string | null;
+    institute_email: string;
+    mobile: string | null;
+    passport_number: string | null;
+  };
+  batch: { id: number; name: string } | null;
+  department: { id: number; name: string; code: string } | null;
+  programme: string;
+  university: string | null;
+  country: string;
+  is_abroad: boolean;
+  intake_term: string | null;
+  sop_status: string | null;
+  recommendation_status: string | null;
+  research_output: string | null;
+  internship_details: string | null;
+  visa_status: "not_applied" | "in_progress" | "applied" | "approved" | "rejected" | null;
+  application_submitted_date: string | null;
+  interview_date: string | null;
+  offer_status: "awaited" | "received" | "accepted" | "declined" | null;
+  funding_source: string | null;
+  cgpa: number | null;
+  percentage: number | null;
+  test_scores_summary: string | null;
+  is_scholarship: boolean | null;
+  scholarship_name: string | null;
+  scholarship_value: number | null;
+  admission_status: "interested" | "applied" | "admitted" | "enrolled" | null;
+  remarks: string | null;
+  credits_earned: number;
+  arrear_count: number;
+  family: {
+    father: { name: string | null; occupation: string | null; mobile: string | null; email: string | null; photo_url: string | null };
+    mother: { name: string | null; occupation: string | null; mobile: string | null; email: string | null; photo_url: string | null };
+    guardian: { name: string | null; relationship: string | null; is_father: boolean; mobile: string | null; email: string | null };
+  } | null;
+}
+
+export function useHigherEducationProfile(id: number | undefined) {
+  return useQuery({
+    queryKey: ["me", "principal", "higher-education", "profile", id],
+    queryFn: () => apiClient.get<HigherEducationProfile>(`/me/principal/higher-education/${id}/profile`),
+    enabled: id !== undefined,
+  });
+}

@@ -6,6 +6,7 @@ import { friendlyError } from "@/lib/utils/errors";
 import {
   PageHeader,
   Button,
+  FilterBar,
   Input,
   Select,
   Badge,
@@ -110,7 +111,7 @@ export default function PlacementAnnouncementsPage() {
     if (!deleteTarget) return;
     deleteAnnouncement.mutate(deleteTarget.id, {
       onSuccess: () => {
-        show("Announcement deleted.", "success");
+        show("Notice deleted.", "success");
         setDeleteTarget(null);
       },
       onError: (err: unknown) => show(friendlyError(err), "error"),
@@ -120,20 +121,24 @@ export default function PlacementAnnouncementsPage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title="Announcements"
+        title="Notices"
         description="Circulars from the institution and posts you publish to your department."
         actions={
           <Button variant="primary" onClick={() => setComposerTarget("new")}>
-            New announcement
+            New notice
           </Button>
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="min-w-[220px] flex-1">
-          <Input leadingIcon="search" placeholder="Search announcements" value={query} onChange={(e) => setQuery(e.target.value)} />
-        </div>
-        <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+      <FilterBar>
+        <Input
+          leadingIcon="search"
+          placeholder="Search notices"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="max-w-xs"
+        />
+        <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-40">
           <option value="">All categories</option>
           {ANNOUNCEMENT_CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -141,7 +146,7 @@ export default function PlacementAnnouncementsPage() {
             </option>
           ))}
         </Select>
-        <Select value={audience} onChange={(e) => setAudience(e.target.value)}>
+        <Select value={audience} onChange={(e) => setAudience(e.target.value)} className="w-40">
           <option value="">All audiences</option>
           {(["students", "teachers", "parents"] as const).map((a) => (
             <option key={a} value={a}>
@@ -149,22 +154,25 @@ export default function PlacementAnnouncementsPage() {
             </option>
           ))}
         </Select>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setQuery("");
-            setCategory("");
-            setAudience("");
-          }}
-        >
-          Reset
-        </Button>
-      </div>
+        {(query || category || audience) && (
+          <button
+            type="button"
+            className="ml-auto text-sm font-semibold text-admin-primary hover:text-admin-primary-dark"
+            onClick={() => {
+              setQuery("");
+              setCategory("");
+              setAudience("");
+            }}
+          >
+            Reset filters
+          </button>
+        )}
+      </FilterBar>
 
       <div className="flex flex-col gap-3.5">
         {isLoading && <PendingNotice reason="Loading…" height={100} />}
         {!isLoading && error && <PendingNotice reason={friendlyError(error)} height={100} />}
-        {!isLoading && !error && filtered.length === 0 && <EmptyState icon="campaign" title="No announcements match these filters" />}
+        {!isLoading && !error && filtered.length === 0 && <EmptyState icon="campaign" title="No notices match these filters" />}
         {filtered.map((a) => (
           <AnnouncementCard
             key={a.id}
@@ -184,7 +192,7 @@ export default function PlacementAnnouncementsPage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete announcement"
+        title="Delete notice"
         message={`Delete "${deleteTarget?.title}"? This can't be undone.`}
         confirmLabel="Delete"
         destructive

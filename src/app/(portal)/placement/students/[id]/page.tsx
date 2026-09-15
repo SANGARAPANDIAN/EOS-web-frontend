@@ -9,6 +9,7 @@ import { Badge, type BadgeTone, Button, Card } from "@/modules/admin/components/
 import { useStudentProfile } from "@/modules/placement/api/students";
 import type { StudentApplicationRow, StudentOfferRow, StudentProfile } from "@/modules/placement/api/students";
 import { applicationStageLabel, dateLabel, lpa, offerResponseLabel, rosterStatusLabel, yearLabel } from "@/modules/placement/lib/format";
+import { SkeletonBlock, SkeletonStatTiles, SkeletonCardGrid } from "@/components/ui/Skeleton";
 
 function statusTone(label: string): BadgeTone {
   if (label === "Placed") return "success";
@@ -97,7 +98,15 @@ function StudentDetailContent({ id }: { id: number }) {
   const driveId = searchParams.get("driveId");
   const { data: profile, isLoading, error } = useStudentProfile(id);
 
-  if (isLoading) return <p className="text-sm text-admin-muted">Loading…</p>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <SkeletonBlock className="h-[150px]" />
+        <SkeletonStatTiles count={4} />
+        <SkeletonCardGrid count={2} columns={2} />
+      </div>
+    );
+  }
   if (error || !profile) return <p className="text-sm text-admin-danger">Failed to load this student.</p>;
 
   const backLabel = driveId ? "Back to Placement Drives" : "Back to Students";

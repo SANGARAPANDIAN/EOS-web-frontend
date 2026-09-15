@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Modal, Button, FormField, Input, Select, useToast } from "@/modules/admin/components/ui";
 import { friendlyError } from "@/lib/utils/errors";
 import { numberFieldOptions, textFieldOptions } from "@/lib/utils/rhf-helpers";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useCategories } from "@/modules/library/api/categories";
 import { useRacks } from "@/modules/library/api/racks";
 import { useCreateBook, useUpdateBook, type Book, type CreateBookInput } from "@/modules/library/api/books";

@@ -21,7 +21,8 @@ import {
 import { friendlyError } from "@/lib/utils/errors";
 import { numberFieldOptions, textFieldOptions } from "@/lib/utils/rhf-helpers";
 import { OtpVerifyDialog } from "@/modules/admin/components/faculty/OtpVerifyDialog";
-import { useDepartments, type Department } from "@/modules/admin/api/refData";
+import { type Department } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useCreateFaculty, type CreateFacultyInput, type Faculty } from "@/modules/admin/api/faculty";
 import { useUploadFacultyDocument, useUploadFacultyPhoto } from "@/modules/admin/api/facultyFiles";
 import { facultyWizardSchema, type FacultyWizardValues } from "@/modules/admin/schemas/faculty-wizard.schema";

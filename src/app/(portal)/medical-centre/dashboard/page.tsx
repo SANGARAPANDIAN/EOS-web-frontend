@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Card, Badge, Button, Icon, ProgressBar, EmptyState, SegmentedTabs, Input, Select, Textarea } from "@/components/ui";
+import { Card, Badge, Button, Icon, ProgressBar, EmptyState, SegmentedTabs, Input, Select, Textarea, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import { useMedicalCentreDashboard, type DashboardRange } from "@/modules/medical-centre/api/dashboard";
 import { useAddWalkin } from "@/modules/medical-centre/api/opd";
 import { useTeam } from "@/modules/medical-centre/api/team";
@@ -142,13 +142,31 @@ export default function MedicalCentreDashboardPage() {
   const isLoading = dashboard.isLoading;
   const kpis = data?.kpis;
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonBlock className="h-[70px]" />
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-[1.15fr_1fr_1fr] gap-4">
+          <SkeletonBlock />
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+        <div className="grid grid-cols-[1fr_1.25fr] gap-4">
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Medical centre</h1>
         <p className="mt-1 text-[13px] text-muted">
           Sick room, pharmacy and ambulance · open 8.30 am to 8.30 pm, on call overnight ·{" "}
-          {isLoading ? "—" : (data?.totalStudents ?? 0).toLocaleString("en-IN")} students on roll
+          {(data?.totalStudents ?? 0).toLocaleString("en-IN")} students on roll
         </p>
       </div>
 
@@ -168,23 +186,23 @@ export default function MedicalCentreDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/records" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Visits</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
               <Icon name="healing" size={19} className="text-primary" />
             </div>
           </div>
-          <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">{isLoading ? "—" : kpis?.visits ?? 0}</div>
+          <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">{kpis?.visits ?? 0}</div>
           <div className="mt-3 flex items-baseline gap-2 flex-wrap">
             <span className="text-[14px] font-extrabold text-primary">{kpis?.visitsReferred ?? 0}</span>
             <span className="text-[13px] text-muted">referred out of campus</span>
           </div>
-          <ProgressBar percent={isLoading ? 0 : kpis?.visitsBarPercent ?? 0} height={6} className="mt-3" />
+          <ProgressBar percent={kpis?.visitsBarPercent ?? 0} height={6} className="mt-3" />
           <div className="mt-3 text-[12.5px] text-subtle">{kpis?.visitsNote}</div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/sickroom" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Sick room beds</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -192,19 +210,19 @@ export default function MedicalCentreDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : data?.extended.sickRoom ? kpis?.bedsOccupied : "Not tracked yet"}
+            {data?.extended.sickRoom ? kpis?.bedsOccupied : "Not tracked yet"}
           </div>
           <div className="mt-3 flex items-baseline gap-2 flex-wrap">
             <span className="text-[14px] font-extrabold text-primary">{kpis?.bedsFree ?? 0}</span>
             <span className="text-[13px] text-muted">free right now</span>
           </div>
-          <ProgressBar percent={isLoading ? 0 : kpis?.bedsBarPercent ?? 0} height={6} className="mt-3" />
+          <ProgressBar percent={kpis?.bedsBarPercent ?? 0} height={6} className="mt-3" />
           <div className="mt-3 text-[12.5px] text-subtle">
             {kpis?.longestStayMinutes != null ? `Longest stay ${kpis.longestStayMinutes} min · observation` : "No one currently admitted"}
           </div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/opd" className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-primary-dark">Waiting in OPD</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-surface">
@@ -212,19 +230,16 @@ export default function MedicalCentreDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-primary-dark">
-            {isLoading ? "—" : data?.extended.opdQueue ? kpis?.opdWaiting : "Not tracked yet"}
+            {data?.extended.opdQueue ? kpis?.opdWaiting : "Not tracked yet"}
           </div>
           <div className="mt-3 flex items-baseline gap-2 flex-wrap">
             <span className="text-[14px] font-extrabold text-primary-dark">{kpis?.opdConsulting ?? 0}</span>
             <span className="text-[13px] text-primary-dark/80">in consultation now</span>
           </div>
-          <ProgressBar percent={isLoading ? 0 : kpis?.opdBarPercent ?? 0} height={6} className="mt-3" />
-          <Link href="/medical-centre/opd" className="mt-3 block text-[13px] font-bold text-primary-dark hover:underline">
-            Open the queue
-          </Link>
-        </div>
+          <ProgressBar percent={kpis?.opdBarPercent ?? 0} height={6} className="mt-3" />
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/medical-centre/pharmacy" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Medicines dispensed</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -232,17 +247,14 @@ export default function MedicalCentreDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : data?.extended.pharmacy ? kpis?.dispensed : "Not tracked yet"}
+            {data?.extended.pharmacy ? kpis?.dispensed : "Not tracked yet"}
           </div>
           <div className="mt-3 flex items-baseline gap-2 flex-wrap">
             <span className="text-[14px] font-extrabold text-primary">{kpis?.lowStockCount ?? 0}</span>
             <span className="text-[13px] text-muted">items below reorder level</span>
           </div>
-          <ProgressBar percent={isLoading ? 0 : kpis?.dispensedBarPercent ?? 0} height={6} className="mt-3" />
-          <Link href="/medical-centre/pharmacy" className="mt-3 block text-[13px] font-bold text-primary hover:underline">
-            Review pharmacy stock
-          </Link>
-        </div>
+          <ProgressBar percent={kpis?.dispensedBarPercent ?? 0} height={6} className="mt-3" />
+        </Link>
       </div>
 
       <div className="grid grid-cols-[1.15fr_1fr_1fr] gap-4 items-start">
@@ -253,9 +265,7 @@ export default function MedicalCentreDashboardPage() {
               Manage
             </Link>
           </div>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.occupiedBeds.length === 0 ? (
+          {!data || data.occupiedBeds.length === 0 ? (
             <EmptyState message={data?.extended.sickRoom ? "All beds are free." : "Sick room beds aren't tracked yet."} />
           ) : (
             <div className="flex flex-col">
@@ -286,9 +296,7 @@ export default function MedicalCentreDashboardPage() {
             <h2 className="text-[17px] font-extrabold text-ink">Needs attention</h2>
             <Badge tone="accentDark">{data?.needsAttention.length ?? 0} flags</Badge>
           </div>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.needsAttention.length === 0 ? (
+          {!data || data.needsAttention.length === 0 ? (
             <EmptyState message="You're all caught up." />
           ) : (
             <div className="flex flex-col">
@@ -314,9 +322,7 @@ export default function MedicalCentreDashboardPage() {
               </Button>
             </Link>
           </div>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.advisories.length === 0 ? (
+          {!data || data.advisories.length === 0 ? (
             <EmptyState message="No advisories yet." />
           ) : (
             <div className="flex flex-col">
@@ -338,9 +344,7 @@ export default function MedicalCentreDashboardPage() {
         <Card className={HOVERABLE}>
           <h2 className="text-[17px] font-extrabold text-ink">Today&apos;s roster</h2>
           <p className="mb-1 mt-0.5 text-[13px] text-muted">Two shifts cover 8.30 am to 8.30 pm</p>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.todaysRoster.length === 0 ? (
+          {!data || data.todaysRoster.length === 0 ? (
             <EmptyState message={data?.extended.staffDuty ? "No one is marked on duty today." : "Staff duty isn't tracked yet."} />
           ) : (
             <div className="flex flex-col">
@@ -366,9 +370,7 @@ export default function MedicalCentreDashboardPage() {
             </Link>
           </div>
           <p className="mb-1 mt-0.5 text-[13px] text-muted">Students and staff seen in the last four days</p>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.recentTreatmentLog.length === 0 ? (
+          {!data || data.recentTreatmentLog.length === 0 ? (
             <EmptyState message="No visits recorded yet." />
           ) : (
             <div className="flex flex-col">

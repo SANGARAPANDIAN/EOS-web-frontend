@@ -7,6 +7,8 @@ export interface HostelRoom {
   room_number: string;
   room_type_id: number;
   capacity: number;
+  block: { id: number; name: string } | null;
+  floor: { id: number; name: string } | null;
   occupied: number;
   vacant: number;
 }
@@ -30,5 +32,8 @@ export function useHostelRoomTypes() {
     queryKey: ["hostel-room-types"],
     queryFn: () => apiClient.get<HostelRoomType[]>("/hostel-room-types"),
     staleTime: 10 * 60_000,
+    // See shared/api/departments.ts's useDepartments() for why gcTime needs
+    // to be set well above staleTime — same reference-data reasoning.
+    gcTime: 20 * 60_000,
   });
 }

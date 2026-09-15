@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { tone } from "@/modules/secretary/helpers";
-import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 import { useMeetings, useCreateMeeting, useUpdateMom, useCirculateMom, useToggleActionItem, type MeetingRow } from "@/modules/secretary/api/meetings";
 import { QuickModal, type QuickFieldSpec } from "@/modules/secretary/QuickModal";
 
@@ -41,12 +41,10 @@ export default function SecretaryMeetingsPage() {
     setTimeout(() => setToast(""), 2600);
   }
 
-  const { data: batches } = useBatchesLookup();
-  const currentBatchId = useMemo(() => (batches ?? []).reduce<number | undefined>((best, b) => (best === undefined ? b.id : best), undefined), [batches]);
-  const { data: departments } = useDepartmentsLookup(currentBatchId);
-  const cseDept = useMemo(() => (departments ?? []).find((d) => d.code?.toUpperCase() === "CSE") ?? departments?.[0], [departments]);
+  const { data: identity } = useMyIdentity();
+  const myDept = useMemo(() => (identity?.department_id != null ? { id: identity.department_id } : undefined), [identity]);
 
-  const { data: meetings, isLoading, error } = useMeetings(cseDept?.id);
+  const { data: meetings, isLoading, error } = useMeetings(myDept?.id);
   const createMutation = useCreateMeeting();
   const updateMomMutation = useUpdateMom();
   const circulateMutation = useCirculateMom();
@@ -67,13 +65,13 @@ export default function SecretaryMeetingsPage() {
         flash("Please fill in the title before saving.");
         return;
       }
-      if (!cseDept) {
+      if (!myDept) {
         flash("Department list isn't loaded yet — try again in a moment.");
         return;
       }
       try {
         await createMutation.mutateAsync({
-          department_id: cseDept.id,
+          department_id: myDept.id,
           title: form.title,
           meeting_at: form.meeting_at || new Date().toISOString(),
           venue: form.venue,

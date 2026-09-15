@@ -6,11 +6,13 @@ import { useParams } from "next/navigation";
 import { Card, Badge, SegmentedTabs, EmptyState, Icon, Button } from "@/components/ui";
 import {
   useMyLmsSubjects,
-  useLmsMaterials,
+  useLmsFolders,
+  useFolderResources,
   useLmsTasks,
   useSubmitLmsTask,
   useLmsLessonPlan,
-  type LmsMaterialItem,
+  type LmsFolder,
+  type LmsResource,
   type LmsTask,
   type LessonPlanSession,
 } from "@/modules/student/api/lms";
@@ -33,7 +35,7 @@ const FORMAT_BY_EXT: Record<string, { label: string; icon: string }> = {
 
 // No mime/format column exists on lms_resources — the extension is recovered
 // honestly from the stored file_url (the original filename survives in it).
-function resourceFormat(resource: LmsMaterialItem): { label: string; icon: string } {
+function resourceFormat(resource: LmsResource): { label: string; icon: string } {
   if (resource.resource_type === "link") return { label: "LINK", icon: "open_in_new" };
   const ext = resource.file_url?.split(".").pop()?.toLowerCase().split("?")[0];
   return (ext && FORMAT_BY_EXT[ext]) || { label: "FILE", icon: "description" };
@@ -75,20 +77,17 @@ function aggregateLessonPlan(sessions: LessonPlanSession[]): LessonUnit[] {
     }));
 }
 
-function MaterialRow({ item, showFolder }: { item: LmsMaterialItem; showFolder: boolean }) {
+function MaterialRow({ item }: { item: LmsResource }) {
   const format = resourceFormat(item);
   const href = item.file_url ?? item.link_url ?? "#";
   return (
-    <div className="flex items-center gap-3.5 border-t border-divider px-5 py-3.5 first:border-0">
+    <div className="flex items-center gap-3.5 border-t border-divider bg-surface px-5 py-3.5 pl-[52px]">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-icon-chip">
         <Icon name={format.icon} size={19} className="text-primary" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px] font-bold text-ink">{item.title}</div>
-        <div className="mt-0.5 text-[11.5px] text-subtle">
-          Uploaded {formatDisplayDate(item.created_at)}
-          {showFolder ? ` · ${item.folder_title}` : ""}
-        </div>
+        <div className="mt-0.5 text-[11.5px] text-subtle">Uploaded {formatDisplayDate(item.created_at)}</div>
       </div>
       <Badge tone="accent">{format.label}</Badge>
       <a
@@ -100,6 +99,43 @@ function MaterialRow({ item, showFolder }: { item: LmsMaterialItem; showFolder: 
         <Icon name="download" size={16} />
         Open
       </a>
+    </div>
+  );
+}
+
+// Folders are a real, faculty-authored grouping (lms_resource_folders) — the
+// student view now mirrors that structure instead of flattening every
+// folder's files into one list: only the folder title shows until a student
+// clicks it, and its files are fetched (useFolderResources' `enabled` gate)
+// only once expanded, not for every folder up front.
+function FolderRow({ folder, expanded, onToggle }: { folder: LmsFolder; expanded: boolean; onToggle: () => void }) {
+  const resources = useFolderResources(folder.id, expanded);
+  return (
+    <div className="border-t border-divider first:border-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-3.5 px-5 py-3.5 text-left hover:bg-nav-hover"
+      >
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-icon-chip">
+          <Icon name={expanded ? "folder_open" : "folder"} size={19} className="text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[14px] font-bold text-ink">{folder.title}</div>
+          <div className="mt-0.5 text-[11.5px] text-subtle">
+            {folder.faculty_name} · {folder.resource_count} file{folder.resource_count === 1 ? "" : "s"}
+          </div>
+        </div>
+        <Icon name={expanded ? "expand_less" : "expand_more"} size={20} className="text-subtle" />
+      </button>
+      {expanded &&
+        (resources.isLoading ? (
+          <EmptyState message="Loading…" className="pl-[52px]" />
+        ) : !resources.data || resources.data.length === 0 ? (
+          <EmptyState message="No files in this folder yet." className="pl-[52px]" />
+        ) : (
+          resources.data.map((item) => <MaterialRow key={item.id} item={item} />)
+        ))}
     </div>
   );
 }
@@ -173,13 +209,14 @@ export default function LmsSubjectPage() {
 
   const subjects = useMyLmsSubjects();
   const subject = subjects.data?.find((s) => s.subject_id === subjectId);
-  const materials = useLmsMaterials(subjectId);
+  const folders = useLmsFolders(subjectId);
   const tasks = useLmsTasks(subjectId);
   const lessonPlan = useLmsLessonPlan(subjectId);
   const submitMutation = useSubmitLmsTask(subjectId);
 
   const [tab, setTab] = useState<Tab>("material");
   const [submittingTaskId, setSubmittingTaskId] = useState<number | null>(null);
+  const [expandedFolderId, setExpandedFolderId] = useState<number | null>(null);
 
   const lessonUnits = useMemo(() => aggregateLessonPlan(lessonPlan.data?.sessions ?? []), [lessonPlan.data]);
   const totalSessions = lessonUnits.reduce((sum, u) => sum + u.sessionCount, 0);
@@ -213,12 +250,19 @@ export default function LmsSubjectPage() {
       {tab === "material" && (
         <Card className="overflow-hidden p-0">
           <div className="px-5 pt-4 pb-1 text-[16px] font-extrabold tracking-[-.02em] text-ink">Course material</div>
-          {materials.isLoading ? (
+          {folders.isLoading ? (
             <EmptyState message="Loading…" className="px-5" />
-          ) : materials.items.length === 0 ? (
+          ) : !folders.data || folders.data.length === 0 ? (
             <EmptyState message="No material shared yet." className="px-5" />
           ) : (
-            materials.items.map((item) => <MaterialRow key={item.id} item={item} showFolder={materials.folderCount > 1} />)
+            folders.data.map((folder) => (
+              <FolderRow
+                key={folder.id}
+                folder={folder}
+                expanded={expandedFolderId === folder.id}
+                onToggle={() => setExpandedFolderId((id) => (id === folder.id ? null : folder.id))}
+              />
+            ))
           )}
         </Card>
       )}

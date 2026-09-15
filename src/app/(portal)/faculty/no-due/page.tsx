@@ -107,7 +107,8 @@ export default function AdvisorNoDuePage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "2.2fr 2fr 1.2fr 1.2fr",
+            gridTemplateColumns: "2fr 2.2fr 1fr 1.2fr",
+            columnGap: 20,
             padding: "15px 22px",
             borderBottom: "1px solid #EEF1F6",
             fontSize: 10.5,
@@ -125,7 +126,7 @@ export default function AdvisorNoDuePage() {
           const feesPending = r.fees.filter((f) => !f.cleared);
           const cleared = r.total_pending <= 0;
           return (
-            <div key={r.id} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "2.2fr 2fr 1.2fr 1.2fr", padding: "13px 22px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
+            <div key={r.id} data-advisor-lift="" style={{ display: "grid", gridTemplateColumns: "2fr 2.2fr 1fr 1.2fr", columnGap: 20, padding: "13px 22px", borderBottom: "1px solid #F4F6FA", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                 <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 11.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
                   {initialsOf(r.name)}
@@ -135,8 +136,17 @@ export default function AdvisorNoDuePage() {
                   <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{r.roll_no ?? r.student_id_no}</div>
                 </div>
               </div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: feesPending.length ? "#DC2626" : "#475569" }}>
-                {feesPending.length ? feesPending.map((f) => `${f.category} ${inr(f.pending_amount)}`).join(" · ") : "Cleared"}
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                {feesPending.length ? (
+                  feesPending.map((f) => (
+                    <div key={f.category} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, fontWeight: 600, color: "#DC2626" }}>
+                      <span>{f.category}</span>
+                      <span style={{ whiteSpace: "nowrap" }}>{inr(f.pending_amount)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>Cleared</span>
+                )}
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: r.library.cleared ? "#475569" : "#DC2626" }}>{r.library.cleared ? "Clear" : inr(r.library.pending_amount)}</div>
               <div>
@@ -149,6 +159,7 @@ export default function AdvisorNoDuePage() {
                     background: cleared ? "#EFF6FF" : "#FEF2F2",
                     border: `1px solid ${cleared ? "#DBEAFE" : "#FECACA"}`,
                     color: cleared ? "#1D4ED8" : "#DC2626",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {cleared ? "No due" : `${inr(r.total_pending)} pending`}

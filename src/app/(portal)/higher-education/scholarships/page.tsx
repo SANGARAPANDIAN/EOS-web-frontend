@@ -7,7 +7,11 @@ import {
   useHigherEducationScholarships,
   useCreateScheme,
   type SchemeRow,
+  useUpdateScheme,
+  useDeleteScheme,
 } from "@/modules/higher-education/api/scholarships";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ApiError } from "@/types/api";
 
 /** Matches the Transport dashboard/routes hover-lift convention. */
 const HOVERABLE = "transition-all duration-150 hover:-translate-y-1 hover:border-primary hover:shadow-hover-lift";
@@ -104,6 +108,57 @@ export default function HigherEducationScholarshipsPage() {
   const isLoading = scholarships.isLoading;
   const [showAdd, setShowAdd] = useState(false);
 
+  const updateScheme = useUpdateScheme();
+  const deleteScheme = useDeleteScheme();
+  const [editRow, setEditRow] = useState<SchemeRow | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", type: "", applied: "", awarded: "", value: "" });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<SchemeRow | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+
+  function openEdit(row: SchemeRow) {
+    setEditRow(row);
+    setEditForm({
+      name: row.name,
+      type: row.type ?? "",
+      applied: String(row.applied ?? ""),
+      awarded: String(row.awarded ?? ""),
+      value: String(row.value ?? ""),
+    });
+    setEditError(null);
+  }
+
+  async function saveEdit() {
+    if (!editRow) return;
+    setEditError(null);
+    try {
+      await updateScheme.mutateAsync({
+        id: editRow.id,
+        name: editForm.name,
+        scheme_type: editForm.type || undefined,
+        applied_count: editForm.applied === "" ? undefined : Number(editForm.applied),
+        awarded_count: editForm.awarded === "" ? undefined : Number(editForm.awarded),
+        total_value: editForm.value === "" ? undefined : Number(editForm.value),
+      });
+      setEditRow(null);
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Could not save this scheme.");
+    }
+  }
+
+  async function confirmRemove() {
+    if (!removing) return;
+    setRowError(null);
+    try {
+      await deleteScheme.mutateAsync(removing.id);
+    } catch (err) {
+      // Refused once awards exist under the scheme.
+      setRowError(err instanceof ApiError ? err.message : "Could not delete this scheme.");
+    } finally {
+      setRemoving(null);
+    }
+  }
+
   const maxMix = data && data.fundingMix.length > 0 ? Math.max(...data.fundingMix.map((m) => m.awarded)) : 1;
 
   const columns: DataTableColumn<SchemeRow>[] = [
@@ -112,6 +167,22 @@ export default function HigherEducationScholarshipsPage() {
     { key: "applied", header: "Applied", align: "right", render: (row) => <span className="font-mono text-body">{row.applied}</span> },
     { key: "awarded", header: "Awarded", align: "right", render: (row) => <span className="font-mono text-ink">{row.awarded}</span> },
     { key: "value", header: "Value", align: "right", render: (row) => <span className="font-bold text-primary">{row.value > 0 ? formatRupees(row.value) : "—"}</span> },
+    {
+      key: "actions",
+      header: "",
+      width: "1.1fr",
+      align: "right",
+      render: (row) => (
+        <div className="flex items-center justify-end gap-3">
+          <button type="button" onClick={() => openEdit(row)} className="text-[12.5px] font-bold text-primary hover:underline">
+            Edit
+          </button>
+          <button type="button" onClick={() => setRemoving(row)} className="text-[12.5px] font-bold text-muted hover:text-danger-fg">
+            Delete
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -225,6 +296,69 @@ export default function HigherEducationScholarshipsPage() {
           </Card>
         </div>
       </div>
+      {rowError && (
+        <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+          {rowError}
+        </div>
+      )}
+
+      {editRow &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-8">
+            <div className="w-full max-w-[480px] rounded-modal bg-surface">
+              <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
+                <div className="text-[19px] font-extrabold text-ink">Edit scheme</div>
+                <button type="button" onClick={() => setEditRow(null)} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
+                  ✕
+                </button>
+              </div>
+              <div className="flex flex-col gap-4 px-[26px] py-[22px]">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Scheme name</label>
+                  <Input className="mt-1.5" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Type</label>
+                  <Input className="mt-1.5" value={editForm.type} onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value }))} placeholder="e.g. merit, need_based" />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Applied</label>
+                    <Input className="mt-1.5" type="number" min="0" value={editForm.applied} onChange={(e) => setEditForm((f) => ({ ...f, applied: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Awarded</label>
+                    <Input className="mt-1.5" type="number" min="0" value={editForm.awarded} onChange={(e) => setEditForm((f) => ({ ...f, awarded: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Total value</label>
+                    <Input className="mt-1.5" type="number" min="0" value={editForm.value} onChange={(e) => setEditForm((f) => ({ ...f, value: e.target.value }))} />
+                  </div>
+                </div>
+                {editError && <div className="text-[13px] font-semibold text-danger-fg">{editError}</div>}
+              </div>
+              <div className="flex justify-end gap-2.5 border-t border-divider px-[26px] py-[18px]">
+                <Button variant="secondary" className="w-auto" onClick={() => setEditRow(null)}>
+                  Cancel
+                </Button>
+                <Button variant="primarySmall" onClick={() => void saveEdit()} disabled={updateScheme.isPending}>
+                  {updateScheme.isPending ? "Saving…" : "Save changes"}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <ConfirmDialog
+        open={removing != null}
+        title="Delete this scheme?"
+        description={removing ? `${removing.name} will be removed from the register.` : undefined}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoving(null)}
+      />
     </div>
   );
 }

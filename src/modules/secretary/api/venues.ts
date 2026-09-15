@@ -20,6 +20,7 @@ export interface VenueAvailability {
   name: string;
   location: string | null;
   capacity: number | null;
+  photo_url: string | null;
   is_available: boolean;
   booking: VenueBooking | null;
 }
@@ -47,11 +48,13 @@ export interface VenueBookingRow {
   to_datetime: string;
   accommodating_strength: number | null;
   status: VenueBookingStatus;
-  reviewed_by_user_id: number | null;
-  alternative_venue_id: number | null;
   created_at: string;
-  venues_venue_bookings_venue_idTovenues: { id: number; name: string; location: string | null; capacity: number | null } | null;
-  users_venue_bookings_booked_by_user_idTousers: { id: number; email: string } | null;
+  // Matches VenuesService.toBookingResponse() exactly — the raw Prisma
+  // relation names (venues_venue_bookings_venue_idTovenues, etc.) never
+  // reach the frontend; the backend renames them on the way out.
+  venue: { id: number; name: string; location: string | null; capacity: number | null } | null;
+  alternative_venue: { id: number; name: string; location: string | null; capacity: number | null } | null;
+  booked_by: { name: string; department_name: string | null; email: string; phone: string | null } | null;
 }
 export interface VenueBookingsResponse {
   data: VenueBookingRow[];

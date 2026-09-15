@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Toggle } from "@/components/ui/Toggle";
 import { useMyPreferences, useUpdateMyPreferences, type UserPreferences } from "@/modules/secretary/api/preferences";
 
 // Pixel-exact layout port of the `isSettings` screen from
@@ -57,9 +58,7 @@ export default function SecretarySettingsPage() {
                   <div style={{ fontSize: 13.1, fontWeight: 600 }}>{s.label}</div>
                   <div style={{ fontSize: 11.3, color: "#64748b", marginTop: 2 }}>{s.desc}</div>
                 </div>
-                <button onClick={() => onToggle(s.key, s.label)} style={{ width: 54, height: 30, borderRadius: 999, border: 0, cursor: "pointer", position: "relative", background: on ? "#1e3a8a" : "#e2e8f0" }}>
-                  <span style={{ position: "absolute", top: 3, left: on ? 27 : 3, width: 24, height: 24, borderRadius: 999, background: "#ffffff", boxShadow: "0 1px 3px rgba(15,23,42,0.25)", transition: "left 140ms ease" }} />
-                </button>
+                <Toggle checked={on} onChange={() => onToggle(s.key, s.label)} />
               </div>
             );
           })}

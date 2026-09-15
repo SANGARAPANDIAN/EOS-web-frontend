@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import { useBatches, useDepartments } from "@/modules/admin/api/refData";
+import { useBatches } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 import { useStudentCount, type StudentsListResponse } from "@/modules/admin/api/students";
 import type { SoaApplicationsListResponse, SoaStatus } from "@/modules/admin/api/admissions";
 import { EMPLOYMENT_STATUS_TO_ENUM } from "@/modules/admin/lib/faculty-wizard-config";
@@ -13,6 +14,9 @@ export interface ExecutiveKpis {
   collectionPercentage: number;
   pendingEducationLoanDD: number;
   activeFeeStructures: number;
+  /** Populated only when `from`/`to` are passed to useFinanceOverview — see that hook. */
+  collectedInRange?: string;
+  paymentCountInRange?: number;
 }
 
 export interface MonthlyCollectionTrendItem {
@@ -41,7 +45,7 @@ export interface FinanceOverview {
   };
   operationalInsights: {
     recentPayments: unknown[];
-    topOutstandingStudents: unknown[];
+    topOutstandingStudents: { student_id: number; student_name: string | null; register_number: string | null; total_outstanding: string }[];
     concessionSummary: { total_concession_amount: string; count: number; settled_count: number; unsettled_count: number };
     educationLoanDDSummary: {
       total_amount: string;
@@ -65,11 +69,35 @@ export interface Paginated<T> {
   meta: PaginatedMeta;
 }
 
-/** GET /finance-overview — admin only. */
-export function useFinanceOverview() {
+/**
+ * GET /finance-overview — admin only. `range` is optional and additive:
+ * omit it for the exact all-time aggregate this hook always returned
+ * (Billing's own dashboard/overview pages do this); pass an ISO
+ * from/to window to also populate executiveKPIs.collectedInRange for the
+ * Admin dashboard's Today/This term/This year toggle.
+ */
+export function useFinanceOverview(range?: { from: string; to: string }) {
   return useQuery({
-    queryKey: ["admin", "finance-overview"],
-    queryFn: () => apiClient.get<FinanceOverview>("/finance-overview"),
+    queryKey: ["admin", "finance-overview", range],
+    queryFn: () => apiClient.get<FinanceOverview>("/finance-overview", range),
+  });
+}
+
+/**
+ * Every student with a real outstanding balance, sourced from
+ * /finance-overview's topOutstandingStudents with its cap raised well past
+ * the dashboard's default 10 — feeds the Admin Students page's Fee
+ * Defaulters view via GET /students?ids=.... `enabled` gates it behind
+ * that tab actually being selected.
+ */
+export function useOutstandingStudentIds(enabled: boolean, limit = 500) {
+  return useQuery({
+    queryKey: ["admin", "finance-overview", "outstanding-student-ids", limit],
+    queryFn: () =>
+      apiClient
+        .get<FinanceOverview>("/finance-overview", { top_outstanding_limit: limit })
+        .then((r) => r.operationalInsights.topOutstandingStudents.map((s) => s.student_id)),
+    enabled,
   });
 }
 
@@ -173,6 +201,22 @@ export function useAdmissionsPipeline() {
       };
       return result;
     },
+  });
+}
+
+/**
+ * GET /soa-applications?from&to&limit=1 — count of applications *created*
+ * within the window, independent of their current status. This is the one
+ * genuinely period-scoped admissions figure: current pipeline status
+ * (applied/fees_paid/confirmed/cancelled) reflects where an application
+ * stands *right now*, not when it got there, so that breakdown stays
+ * unwindowed by design (see useAdmissionsPipeline).
+ */
+export function useNewApplicationsInRange(from: string, to: string) {
+  return useQuery({
+    queryKey: ["soa-applications", "new-in-range", from, to],
+    queryFn: () =>
+      apiClient.get<SoaApplicationsListResponse>("/soa-applications", { from, to, limit: 1 }).then((r) => r.meta.total),
   });
 }
 

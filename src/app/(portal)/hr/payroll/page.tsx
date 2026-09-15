@@ -13,7 +13,6 @@ import {
   IconButton,
   Input,
   Modal,
-  Select,
   StatCard,
   type DataTableColumn,
 } from "@/components/ui";
@@ -25,7 +24,8 @@ import {
   type CreateHrPayrollInput,
   type HrPayrollRecord,
 } from "@/modules/hr/api/payroll";
-import { useHrFaculties } from "@/modules/hr/api/facultyDirectory";
+import { HrFacultyPicker } from "@/modules/hr/components/HrFacultyPicker";
+import type { HrFaculty } from "@/modules/hr/api/facultyDirectory";
 import { formatDisplayDate, todayDateOnly } from "@/lib/utils/date";
 import { ApiError } from "@/types/api";
 
@@ -51,7 +51,6 @@ function formatCurrency(amount: number): string {
 }
 
 interface CreateFormState {
-  facultyId: string;
   month: string;
   basicSalary: string;
   hra: string;
@@ -61,7 +60,6 @@ interface CreateFormState {
 }
 
 const EMPTY_FORM: CreateFormState = {
-  facultyId: "",
   month: currentMonth(),
   basicSalary: "",
   hra: "",
@@ -72,7 +70,9 @@ const EMPTY_FORM: CreateFormState = {
 
 function RunPayrollModal({ onClose }: { onClose: () => void }) {
   const createPayroll = useCreateHrPayroll();
-  const faculties = useHrFaculties({ status: "active", limit: 200 });
+  // A plain dropdown could only ever hold the first 100 of ~500 faculty, so
+  // the picker searches server-side by name, roll number or email instead.
+  const [faculty, setFaculty] = useState<HrFaculty | null>(null);
   const [form, setForm] = useState<CreateFormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,7 +90,7 @@ function RunPayrollModal({ onClose }: { onClose: () => void }) {
   }
 
   async function submit() {
-    if (!form.facultyId) {
+    if (faculty === null) {
       setError("Choose a faculty member.");
       return;
     }
@@ -104,7 +104,7 @@ function RunPayrollModal({ onClose }: { onClose: () => void }) {
     }
     setError(null);
     const input: CreateHrPayrollInput = {
-      faculty_id: Number(form.facultyId),
+      faculty_id: faculty.id,
       month: form.month,
       basic_salary: Number(form.basicSalary) || 0,
       hra: Number(form.hra) || 0,
@@ -125,14 +125,7 @@ function RunPayrollModal({ onClose }: { onClose: () => void }) {
       <div className="flex flex-col gap-3.5">
         <div>
           <div className="mb-1.5 text-[13px] font-bold text-body">Faculty</div>
-          <Select value={form.facultyId} onChange={(e) => update("facultyId", e.target.value)}>
-            <option value="">Select faculty…</option>
-            {faculties.data?.data.map((f) => (
-              <option key={f.id} value={f.id}>
-                {facultyName(f)} — {f.designation}
-              </option>
-            ))}
-          </Select>
+          <HrFacultyPicker value={faculty} onChange={setFaculty} />
         </div>
 
         <div>
@@ -185,18 +178,17 @@ function RunPayrollModal({ onClose }: { onClose: () => void }) {
 
 export default function HrPayrollPage() {
   const [month, setMonth] = useState(currentMonth());
-  const [facultyId, setFacultyId] = useState("");
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
   const [payingRecord, setPayingRecord] = useState<HrPayrollRecord | null>(null);
+  const [filterFaculty, setFilterFaculty] = useState<HrFaculty | null>(null);
 
   const payroll = useHrPayroll({
     month: month || undefined,
-    faculty_id: facultyId ? Number(facultyId) : undefined,
+    faculty_id: filterFaculty?.id,
     page,
     limit: PAGE_SIZE,
   });
-  const faculties = useHrFaculties({ status: "active", limit: 200 });
   const markPaid = useMarkHrPayrollPaid();
 
   function updateMonth(value: string) {
@@ -204,8 +196,8 @@ export default function HrPayrollPage() {
     setPage(1);
   }
 
-  function updateFacultyFilter(value: string) {
-    setFacultyId(value);
+  function updateFacultyFilter(next: HrFaculty | null) {
+    setFilterFaculty(next);
     setPage(1);
   }
 
@@ -291,16 +283,25 @@ export default function HrPayrollPage() {
         <StatCard label="Net payable (shown)" value={formatCurrency(shownStats.totalNet)} icon="account_balance_wallet" />
       </div>
 
-      <Card className="flex flex-wrap items-center gap-3 p-4">
-        <Input type="month" value={month} onChange={(e) => updateMonth(e.target.value)} className="w-auto" />
-        <Select value={facultyId} onChange={(e) => updateFacultyFilter(e.target.value)} className="w-auto min-w-[220px]">
-          <option value="">All faculty</option>
-          {faculties.data?.data.map((f) => (
-            <option key={f.id} value={f.id}>
-              {facultyName(f)}
-            </option>
-          ))}
-        </Select>
+      <Card className="flex flex-col gap-4 p-[18px_20px]">
+        <h2 className="text-[15px] font-extrabold text-ink">Filters</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+          <div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Month</label>
+            <Input type="month" value={month} onChange={(e) => updateMonth(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Faculty</label>
+            {/* Searchable rather than a dropdown: the list endpoint caps a page
+                at 100 rows and there are ~500 faculty, so a dropdown could never
+                offer everyone. */}
+            <HrFacultyPicker
+              value={filterFaculty}
+              onChange={updateFacultyFilter}
+              placeholder="All faculty — search by name, roll no, designation or email"
+            />
+          </div>
+        </div>
       </Card>
 
       <DataTable columns={columns} data={rows} rowKey={(row) => row.id} loading={payroll.isLoading} emptyMessage="No payroll records for these filters." />

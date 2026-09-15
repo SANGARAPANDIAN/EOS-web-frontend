@@ -111,7 +111,7 @@ export default function PrincipalFinancePage() {
             <tbody>
               {collectionByYear.isLoading && <PrincipalTableSkeleton columns={4} />}
               {collectionByYear.data?.map((row) => (
-                <tr key={row.year} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={row.year} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {row.year}
                   </td>
@@ -141,7 +141,7 @@ export default function PrincipalFinancePage() {
           {budget.data?.heads
             .filter((h) => h.spent != null)
             .map((h) => (
-              <div key={h.head} className="flex items-center justify-between border-b px-5 py-3.5 last:border-b-0 transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+              <div key={h.head} className="flex items-center justify-between border-b px-5 py-3.5 last:border-b-0 transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                 <span style={{ color: principalColors.body }}>{h.head}</span>
                 <span className="font-mono font-semibold" style={{ color: principalColors.heading }}>
                   {formatRupees(h.spent ?? 0)}
@@ -178,7 +178,7 @@ export default function PrincipalFinancePage() {
             <tbody>
               {feeHeads.isLoading && <PrincipalTableSkeleton columns={5} />}
               {feeHeads.data?.map((row) => (
-                <tr key={row.fee_head} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={row.fee_head} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {row.fee_head}
                   </td>
@@ -233,7 +233,7 @@ export default function PrincipalFinancePage() {
             <tbody>
               {duesByAge.isLoading && <PrincipalTableSkeleton columns={3} />}
               {duesByAge.data?.map((row) => (
-                <tr key={row.age} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                <tr key={row.age} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                   <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                     {row.age}
                   </td>
@@ -272,7 +272,7 @@ export default function PrincipalFinancePage() {
               {scholarships.data?.schemes.map((s) => {
                 const badge = statusBadge(s.status);
                 return (
-                  <tr key={s.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={s.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                     <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                       {s.name}
                     </td>
@@ -333,7 +333,7 @@ export default function PrincipalFinancePage() {
               {budget.data?.heads
                 .filter((h) => h.spent != null)
                 .map((h) => (
-                  <tr key={h.head} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={h.head} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                     <td className="px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                       {h.head}
                     </td>

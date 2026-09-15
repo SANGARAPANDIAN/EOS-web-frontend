@@ -1,92 +1,305 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Badge, Button, Icon, Input, Select, EmptyState, DataTable, type BadgeTone, type DataTableColumn } from "@/components/ui";
 import { usePharmacyStock, type StockItem } from "@/modules/medical-centre/api/pharmacy";
 import { useTeam } from "@/modules/medical-centre/api/team";
 import { useOpdQueue } from "@/modules/medical-centre/api/opd";
-import { useServiceCharges, useBillHistory, useCreateBill, useCollectBill, type Bill, type BillItemInput } from "@/modules/medical-centre/api/billing";
+import { useServiceCharges, useBillHistory, useCreateBill, useCollectBill, useBillReceipt, type Bill, type BillItemInput } from "@/modules/medical-centre/api/billing";
+import { MedicalReceiptDocument, RECEIPT_LOGO_SRC } from "@/modules/medical-centre/MedicalReceiptDocument";
+import { formatDayAndTime } from "@/lib/utils/date";
 
+/**
+ * The rupee sign was previously written as a literal "\\u20b9" in JSX, which
+ * React renders as those six characters rather than the symbol — which is why
+ * the totals column and the Collected/Pending tiles read as escape codes.
+ */
+function rupees(value: number): string {
+  return `\u20b9${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Selectable payment modes at the counter. The stored enum still allows
+ * 'student_account' and 'staff_welfare' — historic bills carry them and the
+ * receipt renders them — but neither is offered here any more: the health
+ * centre settles in cash or by UPI.
+ */
 const PAYMENT_MODES: { value: CreateBillMode; label: string }[] = [
   { value: "cash", label: "Cash" },
   { value: "upi", label: "UPI" },
-  { value: "student_account", label: "Add to student account" },
-  { value: "staff_welfare", label: "Staff welfare" },
 ];
 
 type CreateBillMode = "cash" | "upi" | "student_account" | "staff_welfare";
 
 const STATUS_TONE: Record<Bill["status"], BadgeTone> = { Paid: "accent", Pending: "accentDark", Settled: "neutral" };
 
-function BillHistoryModal({ onClose }: { onClose: () => void }) {
-  const history = useBillHistory();
-  const collect = useCollectBill();
-  const bills = history.data?.bills ?? [];
+/**
+ * Bill history, rendered as a permanent section of the page rather than a
+ * modal.
+ *
+ * It used to be a modal, which is why clearing the form appeared to "wipe the
+ * history": the history was only ever visible transiently, so anything that
+ * closed it looked destructive. It is now always on screen, and Clear form
+ * touches nothing but the form fields.
+ *
+ * Collecting payment lives on each row here — deliberately separate from the
+ * billing form, which is for raising a new bill.
+ */
+/**
+ * Fetches one receipt and drives the browser print dialog for it.
+ *
+ * Mounted only while a bill is selected for printing, so nothing is fetched
+ * until the user actually asks for a receipt. The document sits in a
+ * `hidden print:block` container: invisible on screen and out of normal
+ * layout, revealed only by the print stylesheet.
+ *
+ * The logo is decoded before print() is called. Browsers do not reliably
+ * fetch images inside a display:none subtree, and firing the dialog straight
+ * away printed the college crest blank — the same guard the fees receipt uses.
+ */
+function MedicalReceiptPrintHost({ billId, onDone }: { billId: number; onDone: () => void }) {
+  const receipt = useBillReceipt(billId);
+  const [ready, setReady] = useState(false);
 
-  const columns: DataTableColumn<Bill>[] = [
-    { key: "id", header: "Bill no", width: "0.9fr", render: (row) => <span className="font-mono font-bold text-primary">{row.id}</span> },
-    { key: "patient", header: "Patient", width: "1.3fr", render: (row) => <span className="font-bold text-ink">{row.patient}</span> },
-    { key: "condition", header: "Condition", width: "1.4fr", render: (row) => <span className="text-body">{row.condition}</span> },
-    { key: "items", header: "Items", width: "1.6fr", render: (row) => <span className="text-body">{row.items}</span> },
-    { key: "staff", header: "Attended by", width: "1.2fr", render: (row) => <span className="text-body">{row.staff}</span> },
-    { key: "total", header: "Total", width: "0.8fr", align: "right", render: (row) => <span className="font-bold text-primary">₹{row.total}</span> },
-    { key: "status", header: "Status", width: "0.9fr", align: "right", render: (row) => <Badge tone={STATUS_TONE[row.status]}>{row.status}</Badge> },
-    {
-      key: "action",
-      header: "Action",
-      width: "0.9fr",
-      align: "right",
-      render: (row) =>
-        row.status === "Pending" ? (
-          <button type="button" onClick={() => collect.mutate(row.billId)} disabled={collect.isPending} className="text-[12.5px] font-bold text-primary hover:underline">
-            Collect
-          </button>
-        ) : (
-          <span className="text-[12.5px] text-subtle">Receipt</span>
-        ),
-    },
-  ];
+  useEffect(() => {
+    if (!receipt.data) return;
+
+    function handleAfterPrint() {
+      onDone();
+    }
+    window.addEventListener("afterprint", handleAfterPrint);
+
+    let cancelled = false;
+    let timer = 0;
+    const open = () => {
+      if (cancelled) return;
+      setReady(true);
+      // One frame for the portal to paint before the dialog captures it.
+      timer = window.setTimeout(() => window.print(), 80);
+    };
+
+    const logo = new window.Image();
+    logo.src = RECEIPT_LOGO_SRC;
+    if (logo.complete) {
+      open();
+    } else {
+      logo.onload = open;
+      // Still print if the asset is missing, so a broken image can never
+      // block a receipt the cashier needs.
+      logo.onerror = open;
+    }
+
+    return () => {
+      cancelled = true;
+      logo.onload = null;
+      logo.onerror = null;
+      window.removeEventListener("afterprint", handleAfterPrint);
+      window.clearTimeout(timer);
+    };
+  }, [receipt.data, onDone]);
+
+  if (receipt.isError) {
+    return (
+      <div className="mt-3 rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+        Could not load that receipt.{" "}
+        <button type="button" onClick={onDone} className="underline">
+          Dismiss
+        </button>
+      </div>
+    );
+  }
+
+  if (!receipt.data) {
+    return <div className="mt-3 text-[12.5px] text-subtle">Preparing receipt…</div>;
+  }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/45 p-10">
-      <div className="w-full max-w-[920px] rounded-modal bg-surface">
-        <div className="flex items-center justify-between border-b border-divider px-[26px] py-[22px]">
-          <div className="text-[19px] font-extrabold text-ink">Bill history</div>
-          <button type="button" onClick={onClose} className="flex size-[34px] items-center justify-center rounded-[9px] border border-border-default text-[16px] text-body">
-            ✕
-          </button>
-        </div>
-        <div className="flex gap-4 px-[26px] py-[18px]">
-          <div className="flex-1 rounded-[11px] border border-border-default p-4">
-            <div className="text-[12.5px] text-muted">Collected</div>
-            <div className="mt-1 text-[22px] font-extrabold text-primary">₹{history.data?.collected ?? 0}</div>
-          </div>
-          <div className="flex-1 rounded-[11px] border border-border-default p-4">
-            <div className="text-[12.5px] text-muted">Pending</div>
-            <div className="mt-1 text-[22px] font-extrabold text-primary-dark">₹{history.data?.pending ?? 0}</div>
-          </div>
-        </div>
-        {history.isLoading ? (
-          <EmptyState message="Loading…" />
-        ) : (
-          <DataTable columns={columns} data={bills} rowKey={(row) => row.billId} emptyMessage="No bills recorded yet." hoverableRows />
-        )}
-        <div className="flex justify-end border-t border-divider px-[26px] py-[18px]">
-          <Button variant="secondary" className="w-auto" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </div>
+    <div id="medical-receipt-print-root" data-print-root className={ready ? "hidden print:block" : "hidden"}>
+      <MedicalReceiptDocument receipt={receipt.data} />
     </div>,
     document.body,
   );
 }
 
+function BillHistoryPanel() {
+  // Which bill is being printed. Set by the Print button; the print host
+  // below fetches that receipt and opens the browser print dialog.
+  const [printBillId, setPrintBillId] = useState<number | null>(null);
+  const history = useBillHistory();
+  const collect = useCollectBill();
+  const bills = history.data?.bills ?? [];
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  async function collectPayment(billId: number) {
+    setError(null);
+    try {
+      await collect.mutateAsync(billId);
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Could not collect this payment.");
+    }
+  }
+
+  const columns: DataTableColumn<Bill>[] = [
+    {
+      key: "bill",
+      header: "Bill",
+      width: "minmax(150px, 1.1fr)",
+      // Bill number and when it was raised describe the same thing, so they
+      // share a cell instead of two narrow columns — and the timestamp is
+      // formatted rather than the raw ISO string the API returns.
+      render: (row) => (
+        <div className="min-w-0">
+          <div className="font-mono text-[13px] font-bold text-primary">{row.id}</div>
+          <div className="mt-0.5 truncate text-[11.5px] text-subtle">{formatDayAndTime(row.when)}</div>
+        </div>
+      ),
+    },
+    {
+      key: "patient",
+      header: "Patient",
+      width: "minmax(170px, 1.4fr)",
+      render: (row) => (
+        <div className="min-w-0">
+          <div className="truncate text-[13.5px] font-bold text-ink">{row.patient}</div>
+          <div className="mt-0.5 truncate text-[11.5px] text-muted">
+            {row.condition && row.condition !== "\u2014" ? row.condition : "No complaint recorded"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "items",
+      header: "Medicines & services",
+      width: "minmax(220px, 2fr)",
+      render: (row) => (
+        <button
+          type="button"
+          onClick={() => setExpanded((cur) => (cur === row.billId ? null : row.billId))}
+          className="min-w-0 max-w-full text-left"
+          title={row.items}
+        >
+          <span className="block truncate text-[13px] text-body hover:text-primary">{row.items || "\u2014"}</span>
+          <span className="mt-0.5 block text-[11px] font-bold text-primary">
+            {expanded === row.billId ? "Hide items" : "View items"}
+          </span>
+        </button>
+      ),
+    },
+    {
+      key: "attended",
+      header: "Attended by",
+      width: "minmax(150px, 1.2fr)",
+      // Who saw the patient and how they paid are both context on the visit.
+      render: (row) => (
+        <div className="min-w-0">
+          <div className="truncate text-[13px] text-body">{row.staff}</div>
+          <div className="mt-0.5 truncate text-[11.5px] text-subtle">{row.mode}</div>
+        </div>
+      ),
+    },
+    {
+      key: "total",
+      header: "Total",
+      width: "130px",
+      align: "right",
+      render: (row) => (
+        <div>
+          <div className="font-mono text-[14px] font-extrabold text-primary">{rupees(row.total)}</div>
+          <div className="mt-1 flex justify-end">
+            <Badge tone={STATUS_TONE[row.status]}>{row.status}</Badge>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      width: "180px",
+      align: "right",
+      // One action column instead of a separate Receipt and Payment pair: a
+      // settled bill only offers a receipt, an unpaid one also offers collect.
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setPrintBillId(row.billId)}
+            className="inline-flex items-center gap-1 rounded-[8px] border border-border-default px-2.5 py-1.5 text-[12px] font-bold text-body hover:bg-surface-tint"
+            title={`Print receipt ${row.id}`}
+          >
+            <Icon name="print" size={14} />
+            Print
+          </button>
+          {row.status === "Pending" ? (
+            <button
+              type="button"
+              onClick={() => void collectPayment(row.billId)}
+              disabled={collect.isPending}
+              className="rounded-[8px] border border-border-accent bg-accent-50 px-2.5 py-1.5 text-[12px] font-bold text-primary disabled:opacity-50"
+            >
+              Collect
+            </button>
+          ) : (
+            <span className="text-[11.5px] text-subtle">Settled</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4 rounded-card border border-border-default bg-surface p-[20px_22px]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[19px] font-extrabold text-ink">Bill history</h2>
+          <p className="mt-0.5 text-[12.5px] text-muted">
+            {bills.length} bill{bills.length === 1 ? "" : "s"} on record \u00b7 collect pending payments from here
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <div className="rounded-[11px] border border-border-default px-4 py-2.5">
+            <div className="text-[11.5px] text-muted">Collected</div>
+            <div className="mt-0.5 text-[19px] font-extrabold text-primary">{rupees(history.data?.collected ?? 0)}</div>
+          </div>
+          <div className="rounded-[11px] border border-border-default px-4 py-2.5">
+            <div className="text-[11.5px] text-muted">Pending</div>
+            <div className="mt-0.5 text-[19px] font-extrabold text-primary-dark">{rupees(history.data?.pending ?? 0)}</div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+          {error}
+        </div>
+      )}
+
+      {history.isLoading ? (
+        <EmptyState message="Loading\u2026" />
+      ) : (
+        <DataTable columns={columns} data={bills} rowKey={(row) => row.billId} emptyMessage="No bills recorded yet." hoverableRows />
+      )}
+
+      {printBillId !== null && (
+        <MedicalReceiptPrintHost billId={printBillId} onDone={() => setPrintBillId(null)} />
+      )}
+
+      {expanded != null && (
+        <div className="rounded-[11px] border border-border-default bg-surface-tint p-4">
+          <div className="text-[12.5px] font-bold text-primary">Full line items</div>
+          <div className="mt-1.5 text-[13px] text-body">
+            {bills.find((b) => b.billId === expanded)?.items || "No items recorded on this bill."}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BillingPage() {
   const router = useRouter();
-  const [showHistory, setShowHistory] = useState(false);
 
   const pharmacy = usePharmacyStock();
   const team = useTeam();
@@ -106,11 +319,21 @@ export default function BillingPage() {
   const [condition, setCondition] = useState("");
   const [staffId, setStaffId] = useState<number | undefined>(undefined);
   const [mode, setMode] = useState<CreateBillMode>("cash");
+  // Only meaningful for UPI. Cleared whenever the mode moves away from UPI so a
+  // stale reference can never be attached to a cash bill.
+  const [upiTxnId, setUpiTxnId] = useState("");
+  // Set when the patient is pulled from the OPD queue; null for a walk-in typed
+  // in by hand.
+  const [visitId, setVisitId] = useState<number | null>(null);
 
   const [medQuery, setMedQuery] = useState("");
   const [pickerQty, setPickerQty] = useState<Record<number, number>>({});
   const [items, setItems] = useState<BillItemInput[]>([]);
-  const [selectedServices, setSelectedServices] = useState<string[]>(["Consultation"]);
+  // Starts empty rather than pre-selecting a hardcoded name: the catalogue is
+  // loaded from medical_services (where it is "General Consultation", not
+  // "Consultation"), so a guessed default matched nothing and submitting the
+  // bill crashed on the missing row.
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const inCart = (stockId: number) => items.find((i) => i.stock_id === stockId)?.quantity ?? 0;
@@ -128,6 +351,11 @@ export default function BillingPage() {
       setPatient(q.name);
       setDept(q.dept);
       setCondition(q.complaint);
+      // The queue row IS a medical_visits row, which already knows whether this
+      // is a student or a faculty member. Carrying its id onto the bill is what
+      // lets the receipt print a real roll number instead of guessing from the
+      // typed name.
+      setVisitId(q.id);
     }
   }
 
@@ -170,8 +398,10 @@ export default function BillingPage() {
   const qtyTotal = items.reduce((sum, i) => sum + i.quantity, 0);
 
   function clearForm() {
+    setUpiTxnId("");
+    setVisitId(null);
     setItems([]);
-    setSelectedServices(["Consultation"]);
+    setSelectedServices([]);
     setPatient("");
     setDept("");
     setCondition("");
@@ -183,11 +413,25 @@ export default function BillingPage() {
       setError("Patient name is required.");
       return;
     }
+    // The API enforces this too; catching it here keeps the operator from
+    // losing a filled-in bill to a round-trip rejection.
+    if (mode === "upi" && !upiTxnId.trim()) {
+      setError("Enter the UPI transaction ID for a UPI payment.");
+      return;
+    }
     setError(null);
-    const serviceItems: BillItemInput[] = selectedServices.map((name) => {
-      const svc = serviceList.find((s) => s.name === name)!;
-      return { item_type: "service", description: svc.name, quantity: 1, rate: svc.rate };
-    });
+    // Resolved against the loaded catalogue and filtered, never asserted: a
+    // selection that no longer exists (catalogue edited in another tab) must
+    // not take the whole bill down.
+    const serviceItems: BillItemInput[] = selectedServices
+      .map((name) => serviceList.find((s) => s.name === name))
+      .filter((svc): svc is NonNullable<typeof svc> => svc !== undefined)
+      .map((svc) => ({
+        item_type: "service" as const,
+        description: svc.name,
+        quantity: 1,
+        rate: svc.rate,
+      }));
     try {
       await createBill.mutateAsync({
         patient_name: patient.trim(),
@@ -195,6 +439,9 @@ export default function BillingPage() {
         condition: condition.trim() || undefined,
         attended_by_staff_id: staffId,
         payment_mode: mode,
+        visit_id: visitId ?? undefined,
+        // Sent only for UPI; the API rejects a reference on any other mode.
+        upi_transaction_id: mode === "upi" ? upiTxnId.trim() : undefined,
         status,
         items: [...items, ...serviceItems],
       });
@@ -272,12 +519,11 @@ export default function BillingPage() {
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-ink">Billing</h1>
           <p className="mt-1 text-[13px] text-muted">Consultation is free for students and staff · medicines and procedures are charged at cost.</p>
         </div>
-        <Button variant="secondary" className="w-auto" onClick={() => setShowHistory(true)}>
-          History · {historyForCount.data?.bills.length ?? 0} bills
-        </Button>
+        <div className="rounded-[11px] border border-border-default px-4 py-2.5 text-right">
+          <div className="text-[11.5px] text-muted">Bills on record</div>
+          <div className="mt-0.5 text-[19px] font-extrabold text-ink">{historyForCount.data?.bills.length ?? 0}</div>
+        </div>
       </div>
-
-      {showHistory && <BillHistoryModal onClose={() => setShowHistory(false)} />}
 
       <div className="rounded-card border border-border-default bg-surface p-[16px_18px]">
         <div className="mb-3 text-[13px] font-bold uppercase tracking-[.05em] text-muted">Staff on duty at OPD now</div>
@@ -322,7 +568,18 @@ export default function BillingPage() {
               </div>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Patient name</label>
-                <Input className="mt-1.5" placeholder="Student or staff name" value={patient} onChange={(e) => setPatient(e.target.value)} />
+                <Input
+                  className="mt-1.5"
+                  placeholder="Student or staff name"
+                  value={patient}
+                  onChange={(e) => {
+                    setPatient(e.target.value);
+                    // Editing the name by hand means this is no longer the
+                    // queued patient, so the visit link is dropped rather than
+                    // left pointing at someone else.
+                    setVisitId(null);
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Department / year</label>
@@ -345,7 +602,15 @@ export default function BillingPage() {
               </div>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">Payment mode</label>
-                <Select className="mt-1.5" value={mode} onChange={(e) => setMode(e.target.value as CreateBillMode)}>
+                <Select
+                  className="mt-1.5"
+                  value={mode}
+                  onChange={(e) => {
+                    const next = e.target.value as CreateBillMode;
+                    setMode(next);
+                    if (next !== "upi") setUpiTxnId("");
+                  }}
+                >
                   {PAYMENT_MODES.map((m) => (
                     <option key={m.value} value={m.value}>
                       {m.label}
@@ -353,6 +618,26 @@ export default function BillingPage() {
                   ))}
                 </Select>
               </div>
+
+              {/* A UPI settlement has a reference the patient can be shown and
+                  the college can reconcile against, so it is required here and
+                  printed on the receipt. No other mode has one, so the field
+                  only exists for UPI. */}
+              {mode === "upi" && (
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.05em] text-muted">
+                    UPI transaction ID
+                  </label>
+                  <Input
+                    className="mt-1.5"
+                    value={upiTxnId}
+                    onChange={(e) => setUpiTxnId(e.target.value)}
+                    placeholder="e.g. 428913756201"
+                    maxLength={60}
+                  />
+                  <p className="mt-1 text-[11.5px] text-subtle">Printed on the receipt.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -496,7 +781,14 @@ export default function BillingPage() {
             <Button variant="secondary" onClick={() => submitBill("pending")} disabled={createBill.isPending}>
               Save as pending
             </Button>
-            <button type="button" onClick={clearForm} className="text-center text-[12.5px] font-bold text-subtle hover:text-ink">
+            {/* Clears only the fields above. Saved bills are untouched and stay
+                listed in Bill history below. */}
+            <button
+              type="button"
+              onClick={clearForm}
+              title="Empties this form only — saved bills stay in Bill history below"
+              className="text-center text-[12.5px] font-bold text-subtle hover:text-ink"
+            >
               Clear form
             </button>
           </div>
@@ -505,6 +797,11 @@ export default function BillingPage() {
           </p>
         </div>
       </div>
+
+      {/* Always on screen, below the form. Clearing the form cannot make this
+          disappear, and collecting a payment happens here rather than in the
+          form that raises a new bill. */}
+      <BillHistoryPanel />
     </div>
   );
 }

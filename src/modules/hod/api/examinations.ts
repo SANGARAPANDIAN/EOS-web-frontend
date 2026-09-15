@@ -17,6 +17,8 @@ export interface HodExaminationFilters {
   department: { id: number; name: string; code: string };
   batches: { id: number; label: string }[];
   classes: HodExaminationClass[];
+  /** Real semesters with actual exam data anywhere in the department — not just "today's" semester, which is all classes[].semester ever reflects. */
+  semesters: { semester: number; year_label: string }[];
   exam_types: { id: number; name: string; category: string }[];
 }
 
@@ -39,29 +41,32 @@ export interface HodExaminationRow {
   register_no: string;
   name: string | null;
   marks: (number | null)[];
+  /** Only populated for external/university exam types — letter grade per subject, replacing raw marks in the UI. */
+  grades: (string | null)[] | null;
   average_percent: number | null;
 }
 
 export interface HodExaminationGrid {
   department: { id: number; name: string; code: string };
   class: { id: number; section: string; semester: number; year_label: string; batch_label: string };
-  exam_type: { id: number; name: string };
+  exam_type: { id: number; name: string; category: string };
   candidates: number;
   papers: number;
   subjects: HodExaminationSubject[];
   rows: HodExaminationRow[];
 }
 
-/** GET /hod/examinations/grid?class_id=&exam_type_id= */
-export function useHodExaminationGrid(classId: number | null, examTypeId: number | null) {
+/** GET /hod/examinations/grid?class_id=&exam_type_id=&semester= */
+export function useHodExaminationGrid(classId: number | null, examTypeId: number | null, semester: number | null) {
   return useQuery({
-    queryKey: ["hod", "examinations", "grid", classId, examTypeId],
+    queryKey: ["hod", "examinations", "grid", classId, examTypeId, semester],
     queryFn: () =>
       apiClient.get<HodExaminationGrid>("/hod/examinations/grid", {
         class_id: classId ?? undefined,
         exam_type_id: examTypeId ?? undefined,
+        semester: semester ?? undefined,
       }),
-    enabled: classId !== null && examTypeId !== null,
+    enabled: classId !== null && examTypeId !== null && semester !== null,
   });
 }
 
@@ -74,12 +79,14 @@ export function useHodExaminationGrid(classId: number | null, examTypeId: number
 export async function downloadHodExaminationGrid(
   classId: number,
   examTypeId: number,
+  semester: number,
   filename: string,
 ): Promise<void> {
   const token = getToken();
   const url = new URL(`${API_BASE_URL}/hod/examinations/grid/export`);
   url.searchParams.set("class_id", String(classId));
   url.searchParams.set("exam_type_id", String(examTypeId));
+  url.searchParams.set("semester", String(semester));
 
   const res = await fetch(url.toString(), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -128,6 +128,11 @@ export default function HodAssignFacultyPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {overview.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load assign-faculty data — please try again.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Assign Faculty</h1>
@@ -148,7 +153,7 @@ export default function HodAssignFacultyPage() {
 
       {overview.isLoading ? (
         <SkeletonTable rows={8} />
-      ) : (
+      ) : overview.isError ? null : (
         <DataTable
           columns={columns}
           data={rows}
@@ -158,7 +163,7 @@ export default function HodAssignFacultyPage() {
         />
       )}
 
-      {!overview.isLoading && rows.length === 0 && !o?.classes.length && (
+      {!overview.isLoading && !overview.isError && rows.length === 0 && !o?.classes.length && (
         <Card>
           <p className="text-[13px] text-muted">No classes found in your department.</p>
         </Card>

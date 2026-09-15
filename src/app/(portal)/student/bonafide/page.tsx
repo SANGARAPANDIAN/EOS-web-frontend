@@ -11,9 +11,16 @@ type Tab = "apply" | "history";
 
 const STATUS_LABEL: Record<BonafideStatus, string> = {
   pending: "Pending",
-  faculty_approved: "Faculty approved",
-  issued: "Issued",
+  faculty_approved: "Accepted",
+  issued: "Ready — collect from office",
   rejected: "Rejected",
+};
+
+const STATUS_TONE: Record<BonafideStatus, "neutral" | "accent" | "accentDark" | "danger"> = {
+  pending: "neutral",
+  faculty_approved: "accent",
+  issued: "accentDark",
+  rejected: "danger",
 };
 
 // Purely decorative — bonafide_reasons has no icon/category column, so this
@@ -174,13 +181,7 @@ function BonafideHistoryTable({ rows }: { rows: BonafideRequestRow[] }) {
           <div className="text-[13.5px] font-bold text-ink">{r.reason_text}</div>
           <div className="text-[13px] text-muted">{formatDisplayDate(r.requested_at)}</div>
           <div className="text-right">
-            {r.status === "issued" && r.file_url ? (
-              <a href={r.file_url} target="_blank" rel="noreferrer" className="text-[12.5px] font-bold text-primary">
-                Download
-              </a>
-            ) : (
-              <Badge tone={r.status === "rejected" ? "accentDark" : "accent"}>{STATUS_LABEL[r.status]}</Badge>
-            )}
+            <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
           </div>
         </div>
       ))}

@@ -11,6 +11,7 @@ import {
   type HodVenueBookingRow,
 } from "@/modules/hod/api/employeeVenue";
 import { formatDisplayDate, toIsoDateString } from "@/lib/utils/date";
+import { VenueThumbnail } from "@/components/shared/VenueThumbnail";
 
 function statusTone(status: string): "accent" | "danger" | "neutral" {
   if (status === "approved") return "accent";
@@ -89,6 +90,11 @@ function ApplyForm() {
 
   return (
     <div className="flex flex-col gap-5">
+      {catalog.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load venue availability — please try again.
+        </div>
+      )}
       <Card className="hod-hover-card">
         {submitted && (
           <div className="mb-4 rounded-[10px] bg-accent-50 px-4 py-3 text-[13px] font-bold text-primary">
@@ -133,8 +139,14 @@ function ApplyForm() {
           <Input type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="e.g. 120" />
         </div>
 
-        <Button variant="primary" className="mt-6" onClick={submit} disabled={!purpose || !fromDate || !toDate || create.isPending}>
-          {create.isPending ? "Submitting…" : "Submit Booking Request"}
+        <Button
+          variant="primary"
+          className="mt-6"
+          onClick={submit}
+          disabled={!purpose || !fromDate || !toDate}
+          loading={create.isPending}
+        >
+          Submit Booking Request
         </Button>
       </Card>
 
@@ -149,8 +161,13 @@ function ApplyForm() {
                 key={v.id}
                 className="hod-hover-card rounded-[11px] border border-border-default bg-surface p-4"
               >
-                <div className="text-[13.5px] font-extrabold text-ink">{v.name}</div>
-                <div className="mt-0.5 truncate text-[12px] text-muted">{v.booking?.booked_by} · {v.booking?.purpose}</div>
+                <div className="flex items-start gap-3">
+                  <VenueThumbnail photoUrl={v.photo_url} name={v.name} />
+                  <div className="min-w-0">
+                    <div className="text-[13.5px] font-extrabold text-ink">{v.name}</div>
+                    <div className="mt-0.5 truncate text-[12px] text-muted">{v.booking?.booked_by} · {v.booking?.purpose}</div>
+                  </div>
+                </div>
                 <div className="mt-2 text-[11.5px] text-subtle">
                   {v.booking && formatTimeRange(v.booking.from_datetime, v.booking.to_datetime)}
                 </div>
@@ -182,9 +199,14 @@ function HistoryList() {
           { key: "rejected", label: "Rejected" },
         ]}
       />
+      {bookings.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load venue bookings — please try again.
+        </div>
+      )}
       {bookings.isLoading ? (
         <SkeletonRows count={4} />
-      ) : !bookings.data || bookings.data.data.length === 0 ? (
+      ) : bookings.isError ? null : !bookings.data || bookings.data.data.length === 0 ? (
         <Card>
           <EmptyState message="No venue bookings yet." />
         </Card>

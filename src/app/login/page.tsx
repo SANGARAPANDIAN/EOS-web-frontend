@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -21,7 +22,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (status === "authenticated" && session) {
       const moduleConfig = getModuleConfig(session.user.role);
-      router.replace(moduleConfig ? `${moduleConfig.basePath}/dashboard` : "/login");
+      router.replace(moduleConfig ? (moduleConfig.homeHref ?? `${moduleConfig.basePath}/dashboard`) : "/login");
     }
   }, [status, session, router]);
 
@@ -36,7 +37,7 @@ export default function LoginPage() {
         setError(`The "${newSession.user.role}" portal isn't available yet.`);
         return;
       }
-      router.replace(`${moduleConfig.basePath}/dashboard`);
+      router.replace(moduleConfig.homeHref ?? `${moduleConfig.basePath}/dashboard`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -170,7 +171,7 @@ export default function LoginPage() {
             </span>
             <span className="flex items-center gap-1.5">
               <Icon name="mail" size={15} />
-              erp@srec.ac.in
+              erp@sece.ac.in
             </span>
           </div>
         </div>

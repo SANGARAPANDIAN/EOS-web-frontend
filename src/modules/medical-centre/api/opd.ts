@@ -50,3 +50,34 @@ export function useAdvanceQueue() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "medical-centre-opd-queue"] }),
   });
 }
+
+export interface OpdPatientMatch {
+  kind: "student" | "faculty";
+  student_id: number | null;
+  faculty_id: number | null;
+  name: string;
+  identifier: string | null;
+  department: string | null;
+}
+
+/**
+ * GET /me/medical-centre-opd-queue/search?q=&kind=
+ *
+ * One search covering students and staff — whoever walks up to the counter
+ * could be either, so the operator does not pick a register first. Matched
+ * case-insensitively across name, roll no, register no, student id and staff
+ * code.
+ */
+export function useOpdPatientSearch(term: string, kind?: "student" | "faculty" | "all") {
+  const q = term.trim();
+  return useQuery({
+    queryKey: ["me", "medical-centre-opd-queue", "search", q, kind ?? "all"],
+    queryFn: () =>
+      apiClient.get<OpdPatientMatch[]>("/me/medical-centre-opd-queue/search", {
+        q,
+        kind: kind && kind !== "all" ? kind : undefined,
+      }),
+    enabled: q.length >= 2,
+    placeholderData: (prev) => prev,
+  });
+}

@@ -3,18 +3,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { apiClient } from "@/lib/api/client";
+import { ConfirmDialog, SkeletonCardGrid } from "@/components/ui";
 import {
   useFacultyFolders,
   useCreateFolder,
   useFolderResources,
   useAddLinkResource,
   useAddFileResource,
+  useDeleteResource,
   useFacultyTasks,
   useCreateLmsTask,
   useTaskSubmissions,
   useFacultyLessonPlan,
   useCreateLessonSession,
 } from "@/modules/advisor/api/lms";
+import { useSetAssignmentStudentStatus } from "@/modules/advisor/api/assignments";
+import { AdvisorIcon } from "@/modules/advisor/icons";
 
 // CONNECTED FOR REAL — all three tabs (Material/Task/Lesson plan) previously
 // rendered entirely fabricated sample content behind TODO(backend) comments
@@ -50,13 +54,13 @@ function fmtDate(d: string | null) {
 function tabButtonStyle(active: boolean) {
   return {
     padding: "13px 22px",
-    borderRadius: 11,
+    borderRadius: 8,
     fontSize: 13.5,
     fontWeight: 700,
     cursor: "pointer",
-    background: active ? "#1D4ED8" : "#fff",
-    border: `1px solid ${active ? "#1D4ED8" : "#E2E8F0"}`,
-    color: active ? "#fff" : "#0F172A",
+    background: active ? "#fff" : "transparent",
+    color: active ? "#1D4ED8" : "#64748B",
+    boxShadow: active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
     textAlign: "center" as const,
   };
 }
@@ -95,6 +99,8 @@ export default function AdvisorCurrentSemesterPage() {
   const [showAddLink, setShowAddLink] = useState(false);
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const deleteResource = useDeleteResource();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
 
   const addFile = useAddFileResource();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,19 +117,35 @@ export default function AdvisorCurrentSemesterPage() {
   const activeTask = tasks.data?.find((t) => t.id === activeTaskId);
   const submissions = useTaskSubmissions(activeTaskId ?? undefined);
 
+  // "Assignment Status" was never a separate feature — Task above IS the
+  // assignments table (LmsService.createTask() writes straight into
+  // `assignments`; submitTask()/getTaskSubmissions() read/write the same
+  // `student_assignment_status` rows AssignmentsService does, including the
+  // same status_id). The old standalone page was just a second, redundant
+  // UI over these same rows. Only the "mark submitted by hand" action —
+  // absent from the Task submissions panel — is genuinely worth keeping;
+  // folded straight into that panel below instead of a whole extra tab.
+  const setAssignmentStatus = useSetAssignmentStudentStatus();
+  const [submissionQuery, setSubmissionQuery] = useState("");
+  const [submissionFilter, setSubmissionFilter] = useState<"All" | "Submitted" | "Not submitted">("All");
+
   const lessonPlan = useFacultyLessonPlan(subject?.subject_id, subject?.class_id);
   const createSession = useCreateLessonSession();
   const [showAddSession, setShowAddSession] = useState(false);
   const [sessionDate, setSessionDate] = useState("");
+  const [sessionUnit, setSessionUnit] = useState("");
   const [sessionTopic, setSessionTopic] = useState("");
 
   if (!subject) {
     return (
       <div style={{ width: "100%" }}>
-        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>Current Semester</div>
+        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>LMS</div>
         <div style={{ marginTop: 6, fontSize: 14, color: "#64748B", fontWeight: 500 }}>
           {data?.academic_year ?? ""} · open a subject to manage material, tasks and lesson plan
         </div>
+        {isLoading && subjects.length === 0 ? (
+          <SkeletonCardGrid count={6} columns={3} className="mt-5" />
+        ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px,1fr))", gap: 16, marginTop: 20 }}>
           {subjects.map((s) => (
             <div key={`${s.class_id}-${s.subject_id}`} data-advisor-lift="" onClick={() => setSubjectId(s.subject_id)} style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 20, cursor: "pointer" }}>
@@ -151,6 +173,7 @@ export default function AdvisorCurrentSemesterPage() {
             <div style={{ padding: "40px 0", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 14 }}>No subjects mapped for the current semester.</div>
           )}
         </div>
+        )}
       </div>
     );
   }
@@ -215,8 +238,14 @@ export default function AdvisorCurrentSemesterPage() {
   function submitAddSession() {
     if (!sessionDate || !sessionTopic.trim() || !subject) return;
     createSession.mutate(
-      { subject_id: subject.subject_id, class_id: subject.class_id, session_date: sessionDate, topic: sessionTopic.trim() },
-      { onSuccess: () => { setSessionDate(""); setSessionTopic(""); setShowAddSession(false); } },
+      {
+        subject_id: subject.subject_id,
+        class_id: subject.class_id,
+        session_date: sessionDate,
+        topic: sessionTopic.trim(),
+        unit_title: sessionUnit.trim() || undefined,
+      },
+      { onSuccess: () => { setSessionDate(""); setSessionUnit(""); setSessionTopic(""); setShowAddSession(false); } },
     );
   }
 
@@ -236,7 +265,7 @@ export default function AdvisorCurrentSemesterPage() {
             {subject.subject_code} · {subject.section} · {subject.hours_per_week || "—"} hrs / week
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", background: "#EEF1F7", borderRadius: 11, padding: 4, gap: 4 }}>
           <div data-advisor-lift="" onClick={() => setTab("material")} style={tabButtonStyle(tab === "material")}>
             Material
           </div>
@@ -316,7 +345,7 @@ export default function AdvisorCurrentSemesterPage() {
                     style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 13px", borderRadius: 11, cursor: "pointer", background: active ? "#EFF6FF" : "transparent", border: `1px solid ${active ? "#DBEAFE" : "transparent"}` }}
                   >
                     <div style={{ width: 34, height: 34, borderRadius: 9, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
-                      <div style={{ width: 14, height: 11, border: "2px solid #1D4ED8", borderRadius: 3 }} />
+                      <AdvisorIcon kind="subject" width={16} height={16} style={{ color: "#1D4ED8" }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 700 }}>{f.title}</div>
@@ -353,12 +382,40 @@ export default function AdvisorCurrentSemesterPage() {
                   }}
                 />
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ flex: 1, textAlign: "center", padding: 12, background: "#EFF6FF", border: "1px solid #DBEAFE", borderRadius: 10, color: addFile.isPending ? "#93C5FD" : "#1D4ED8", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}
+                  onClick={() => {
+                    setShowAddLink(false);
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    padding: 12,
+                    background: showAddLink ? "#fff" : "#EFF6FF",
+                    border: showAddLink ? "1px solid #E2E8F0" : "1px solid #DBEAFE",
+                    borderRadius: 10,
+                    color: addFile.isPending ? "#93C5FD" : showAddLink ? "#475569" : "#1D4ED8",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
                 >
                   {addFile.isPending ? "Uploading…" : "Upload file"}
                 </div>
-                <div onClick={() => setShowAddLink((v) => !v)} style={{ flex: 1, textAlign: "center", padding: 12, background: "#fff", border: "1px solid #E2E8F0", borderRadius: 10, color: "#475569", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+                <div
+                  onClick={() => setShowAddLink((v) => !v)}
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    padding: 12,
+                    background: showAddLink ? "#EFF6FF" : "#fff",
+                    border: showAddLink ? "1px solid #DBEAFE" : "1px solid #E2E8F0",
+                    borderRadius: 10,
+                    color: showAddLink ? "#1D4ED8" : "#475569",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
                   Add link
                 </div>
               </div>
@@ -375,7 +432,9 @@ export default function AdvisorCurrentSemesterPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 12 }}>
               {(resources.data ?? []).map((item) => (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 0", borderBottom: "1px solid #F4F6FA" }}>
-                  <div style={{ width: 22, height: 22, border: "1.5px solid #CBD5E1", borderRadius: 6, flex: "0 0 22px" }} />
+                  <div style={{ width: 22, height: 22, border: "1.5px solid #CBD5E1", borderRadius: 6, flex: "0 0 22px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <AdvisorIcon kind="assignment" width={13} height={13} style={{ color: "#94A3B8" }} />
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 700 }}>{item.title}</div>
                     <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>Added {fmtDate(item.created_at)}</div>
@@ -384,6 +443,13 @@ export default function AdvisorCurrentSemesterPage() {
                   <a href={item.link_url ?? item.file_url ?? "#"} target="_blank" rel="noreferrer" style={{ padding: "8px 15px", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 12.5, fontWeight: 700, color: "#475569" }}>
                     Open
                   </a>
+                  <div
+                    onClick={() => setDeleteTarget({ id: item.id, title: item.title })}
+                    title="Remove"
+                    style={{ width: 30, height: 30, flex: "0 0 30px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 9, border: "1px solid #E2E8F0", color: "#94A3B8", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    ×
+                  </div>
                 </div>
               ))}
               {activeFolderId && (resources.data ?? []).length === 0 && !resources.isLoading && (
@@ -492,19 +558,53 @@ export default function AdvisorCurrentSemesterPage() {
           </div>
 
           <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
               <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{activeTask?.title ?? "No task selected"}</div>
               <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 600 }}>
                 {(submissions.data ?? []).filter((r) => r.is_submitted).length} of {(submissions.data ?? []).length} submitted
               </div>
             </div>
+            {activeTaskId && (submissions.data ?? []).length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 220px", minWidth: 180, display: "flex", alignItems: "center", gap: 8, height: 40, padding: "0 12px", border: "1px solid #E2E8F0", borderRadius: 9, background: "#F8FAFC" }}>
+                  <AdvisorIcon kind="search" width={14} height={14} style={{ color: "#94A3B8", flex: "0 0 14px" }} />
+                  <input
+                    value={submissionQuery}
+                    onChange={(e) => setSubmissionQuery(e.target.value)}
+                    placeholder="Search by name or roll number"
+                    style={{ flex: "1 1 0", minWidth: 0, border: 0, outline: 0, background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "#0F172A" }}
+                  />
+                </div>
+                {(["All", "Submitted", "Not submitted"] as const).map((f) => {
+                  const isActive = submissionFilter === f;
+                  return (
+                    <div
+                      key={f}
+                      data-advisor-lift=""
+                      onClick={() => setSubmissionFilter(f)}
+                      style={{ padding: "8px 14px", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", background: isActive ? "#1D4ED8" : "#fff", border: `1px solid ${isActive ? "#1D4ED8" : "#E2E8F0"}`, color: isActive ? "#fff" : "#475569", whiteSpace: "nowrap" }}
+                    >
+                      {f}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 14 }}>
-              {(submissions.data ?? []).map((r) => (
-                <div key={r.student_id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 0", borderBottom: "1px solid #F4F6FA" }}>
+              {(submissions.data ?? [])
+                .filter((r) => {
+                  const q = submissionQuery.trim().toLowerCase();
+                  if (q && !(r.name.toLowerCase().includes(q) || r.student_id_no.toLowerCase().includes(q))) return false;
+                  if (submissionFilter === "Submitted") return r.is_submitted;
+                  if (submissionFilter === "Not submitted") return !r.is_submitted;
+                  return true;
+                })
+                .map((r) => (
+                <div key={r.student_id} style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 0", borderBottom: "1px solid #F4F6FA", flexWrap: "wrap" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#EFF6FF", color: "#1D4ED8", fontSize: 11.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 34px" }}>
                     {r.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: "1 1 120px", minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 700 }}>{r.name}</div>
                     <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 2 }}>{r.student_id_no}</div>
                   </div>
@@ -516,6 +616,15 @@ export default function AdvisorCurrentSemesterPage() {
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0F172A", width: 60, textAlign: "right" }}>{r.marks_obtained !== null ? r.marks_obtained : "—"}</div>
                   <div style={{ padding: "5px 12px", borderRadius: 20, background: r.is_submitted ? "#EFF6FF" : "#F8FAFC", border: `1px solid ${r.is_submitted ? "#DBEAFE" : "#E2E8F0"}`, color: r.is_submitted ? "#1D4ED8" : "#94A3B8", fontSize: 11, fontWeight: 800 }}>
                     {r.is_submitted ? "SUBMITTED" : "NOT SUBMITTED"}
+                  </div>
+                  <div
+                    onClick={() =>
+                      activeTaskId &&
+                      setAssignmentStatus.mutate({ assignmentId: activeTaskId, statusId: r.status_id, studentId: r.student_id, is_submitted: !r.is_submitted })
+                    }
+                    style={{ padding: "7px 12px", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 11.7, fontWeight: 700, color: "#1D4ED8", cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {r.is_submitted ? "Mark not submitted" : "Mark submitted"}
                   </div>
                 </div>
               ))}
@@ -547,6 +656,7 @@ export default function AdvisorCurrentSemesterPage() {
           {showAddSession && (
             <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
               <input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} style={{ height: 42, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 12px", fontFamily: "inherit", fontSize: 13.5 }} />
+              <input value={sessionUnit} onChange={(e) => setSessionUnit(e.target.value)} placeholder="Unit (e.g. Unit 4)" style={{ width: 150, height: 42, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 12px", fontFamily: "inherit", fontSize: 13.5 }} />
               <input value={sessionTopic} onChange={(e) => setSessionTopic(e.target.value)} placeholder="Topic" style={{ flex: 1, minWidth: 200, height: 42, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 12px", fontFamily: "inherit", fontSize: 13.5 }} />
               <div onClick={submitAddSession} style={{ padding: "10px 20px", background: "#1D4ED8", color: "#fff", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 {createSession.isPending ? "Adding…" : "Add"}
@@ -588,6 +698,21 @@ export default function AdvisorCurrentSemesterPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Remove this item?"
+        description={deleteTarget ? `"${deleteTarget.title}" will be removed from this folder. This can't be undone.` : undefined}
+        confirmLabel="Remove"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget && activeFolderId) {
+            deleteResource.mutate({ resourceId: deleteTarget.id, folderId: activeFolderId });
+          }
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

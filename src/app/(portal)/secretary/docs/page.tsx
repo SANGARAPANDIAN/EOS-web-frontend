@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { tone } from "@/modules/secretary/helpers";
-import { useBatchesLookup, useDepartmentsLookup } from "@/modules/secretary/api/announcements";
+import { useMyIdentity } from "@/modules/student/api/profile";
 import { useDocuments, useCreateDocument, useToggleVerifyDocument, useDeleteDocument, useUploadDocumentAttachment, type DocumentRow } from "@/modules/secretary/api/documents";
 
 // Pixel-exact layout port of the `isDocs` screen from
@@ -42,12 +42,10 @@ export default function SecretaryDocsPage() {
     setTimeout(() => setToast(""), 2600);
   }
 
-  const { data: batches } = useBatchesLookup();
-  const currentBatchId = useMemo(() => (batches ?? []).reduce<number | undefined>((best, b) => (best === undefined ? b.id : best), undefined), [batches]);
-  const { data: departments } = useDepartmentsLookup(currentBatchId);
-  const cseDept = useMemo(() => (departments ?? []).find((d) => d.code?.toUpperCase() === "CSE") ?? departments?.[0], [departments]);
+  const { data: identity } = useMyIdentity();
+  const myDept = useMemo(() => (identity?.department_id != null ? { id: identity.department_id } : undefined), [identity]);
 
-  const { data: docs, isLoading, error } = useDocuments({ department_id: cseDept?.id, category: filter === "All" ? undefined : filter });
+  const { data: docs, isLoading, error } = useDocuments({ department_id: myDept?.id, category: filter === "All" ? undefined : filter });
   const createMutation = useCreateDocument();
   const verifyMutation = useToggleVerifyDocument();
   const deleteMutation = useDeleteDocument();
@@ -75,7 +73,7 @@ export default function SecretaryDocsPage() {
       flash("Please fill in the title before saving.");
       return;
     }
-    if (!cseDept) {
+    if (!myDept) {
       flash("Department list isn't loaded yet — try again in a moment.");
       return;
     }
@@ -85,7 +83,7 @@ export default function SecretaryDocsPage() {
     }
     try {
       await createMutation.mutateAsync({
-        department_id: cseDept.id,
+        department_id: myDept.id,
         name: docName,
         category: docCategory,
         file_url: pickedFile.url,

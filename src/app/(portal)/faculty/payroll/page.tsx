@@ -75,7 +75,7 @@ export default function AdvisorPayrollPage() {
     <div style={{ width: "100%" }}>
       <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em" }}>HR Payroll</div>
       <div style={{ marginTop: 6, fontSize: 14, color: "#64748B", fontWeight: 500 }}>
-        Payroll &amp; HR queries · {myProfile.data?.name ?? ""}
+        Payroll &amp; HR queries{myProfile.data?.name ? ` · ${myProfile.data.name}` : ""}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginTop: 20, alignItems: "start" }}>

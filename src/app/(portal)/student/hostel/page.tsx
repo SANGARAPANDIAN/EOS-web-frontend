@@ -363,7 +363,9 @@ export default function HostelPage() {
             </div>
             <div className="flex-1">
               <div className="text-[15px] font-bold text-ink">
-                {room.data.hostel_name} · Room {room.data.room_number}
+                {room.data.hostel_name}
+                {room.data.block_name && ` · ${room.data.block_name}`}
+                {room.data.floor_name && ` · ${room.data.floor_name}`} · Room {room.data.room_number}
               </div>
               <div className="text-[12.5px] text-muted">
                 {room.data.room_type_name} {room.data.mess_type && `· ${room.data.mess_type} mess`}

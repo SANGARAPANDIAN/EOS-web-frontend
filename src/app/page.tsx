@@ -16,7 +16,7 @@ export default function RootPage() {
       return;
     }
     const moduleConfig = getModuleConfig(session.user.role);
-    router.replace(moduleConfig ? `${moduleConfig.basePath}/dashboard` : "/login");
+    router.replace(moduleConfig ? (moduleConfig.homeHref ?? `${moduleConfig.basePath}/dashboard`) : "/login");
   }, [status, session, router]);
 
   return <div className="flex h-screen items-center justify-center bg-surface text-sm text-muted">Loading…</div>;

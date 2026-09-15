@@ -3,20 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useIsClassAdvisor } from "@/modules/advisor/api/profile";
 import { useMenteeRoster, type MenteeRosterStudent } from "@/modules/advisor/api/dashboard";
-import { useMenteeProfile, useMenteeReport, useMenteeDocuments } from "@/modules/advisor/api/mentees";
+import { useMenteeProfile, useMenteeReport, useMenteeDocuments, useMenteeAcademicRecord, useMenteePlacements } from "@/modules/advisor/api/mentees";
 import { useMenteeNoDueStudents } from "@/modules/advisor/api/no-due";
+import { AdvisorIcon } from "@/modules/advisor/icons";
+import { SkeletonTable } from "@/components/ui";
+import { SubjectMarksTable } from "@/modules/shared/marks/SubjectMarksTable";
+import { CertificateStatusGrid } from "@/modules/shared/certificates/CertificateStatusGrid";
 
 // Design-exact layout preserved in full (every card/section/chart below
-// matches the reference pixel-for-pixel) — per instruction, sections with
-// no real backend source yet (school record before admission, semester-wise
-// GPA history, monthly attendance trend, semester subjects table, fee
-// ledger, college/ERP record, important documents) still render as empty
-// design shells: "—" for text values, 0 for chart bars — rather than being
-// deleted or filled with invented sample content. The moment a real
-// endpoint exists for any of these, only the data source changes, not the
-// layout. Fields that DO have a real source (name, roll, email, CGPA,
-// arrears, attendance%, personal/contact/academic/address details,
-// parent/guardian, aadhaar via GET /me/mentees/:id/report) use live data.
+// matches the reference pixel-for-pixel). GET /me/mentees/:id/academic-record
+// (added this session) now backs semester-wise GPA, monthly attendance,
+// semester subjects, hostel/warden, scholarship, student status, discipline
+// (malpractice_incidents) and achievements (sports_achievements) — all were
+// previously empty design shells under the mistaken assumption no source
+// existed for any of them. Only "School record before admission" (Class
+// X/XII marks) and "Library ID" remain genuine "—" shells: no admission-time
+// school-marks table or per-student library-membership model exists
+// anywhere in schema.prisma (student_test_scores, the only similarly-named
+// table, holds CGPA-snapshot/Aptitude test rows for placement eligibility,
+// not school records).
 
 // Real enum values (dayscholar_mode, student_type) come back as raw
 // snake_case strings (e.g. "own_vehicle") — humanized for display only,
@@ -73,6 +78,8 @@ export default function AdvisorStudentsPage() {
   const profile = useMenteeProfile(selectedId ?? undefined);
   const report = useMenteeReport(selectedId ?? undefined);
   const documents = useMenteeDocuments(selectedId ?? undefined);
+  const academicRecord = useMenteeAcademicRecord(selectedId ?? undefined);
+  const placements = useMenteePlacements(selectedId ?? undefined);
   useEffect(() => {
     if (selectedId) report.refetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,9 +180,20 @@ export default function AdvisorStudentsPage() {
                       <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 10 }}>—</div>
                     </div>
                     <div data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 15 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 600, color: "#7C8899" }}>Percentage (CGPA × 9.5)</div>
-                      <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", marginTop: 6 }}>{student.cgpa ? `${(student.cgpa * 9.5).toFixed(1)}%` : "—"}</div>
-                      <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600, marginTop: 10 }}>—</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: "#7C8899" }}>Fees</div>
+                      {(() => {
+                        const pendingAmt = noDueById.get(student.id)?.total_pending ?? null;
+                        return (
+                          <>
+                            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", marginTop: 6 }}>
+                              {pendingAmt == null ? "—" : pendingAmt > 0 ? `₹${pendingAmt.toLocaleString("en-IN")}` : "Paid"}
+                            </div>
+                            <div style={{ fontSize: 11, color: pendingAmt && pendingAmt > 0 ? "#DC2626" : "#94A3B8", fontWeight: 700, marginTop: 10 }}>
+                              {pendingAmt && pendingAmt > 0 ? "Pending" : "—"}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 15 }}>
                       <div style={{ fontSize: 11.5, fontWeight: 600, color: "#7C8899" }}>Arrears</div>
@@ -378,65 +396,78 @@ export default function AdvisorStudentsPage() {
               </div>
             )}
 
-            {/* No semester-wise GPA history or monthly attendance trend
-                endpoint exists yet — empty design shells (0-height bars). */}
+            {/* Real GET /me/mentees/:id/academic-record — semester GPA
+                (exam_marks grouped by exams.semester, same grading bands
+                Subject Records already publishes with) and monthly
+                attendance (attendance_records grouped by calendar month). */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 16, marginTop: 16, alignItems: "start" }}>
               <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Semester-wise GPA</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-                  {["Sem 1", "Sem 2", "Sem 3", "Sem 4", "Sem 5"].map((sem) => (
-                    <div key={sem} style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <div style={{ width: 46, fontSize: 13, fontWeight: 700 }}>{sem}</div>
-                      <div style={{ width: 44, fontSize: 13.5, fontWeight: 800 }}>—</div>
-                      <div style={{ flex: 1, height: 8, borderRadius: 8, background: "#EDF1F7", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: "0%", background: "#1D4ED8", borderRadius: 8 }} />
+                  {(academicRecord.data?.semesters ?? []).map((sem) => {
+                    const arrears = sem.subjects.filter((s) => s.grade === "RA").length;
+                    return (
+                      <div key={sem.semester} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <div style={{ width: 46, fontSize: 13, fontWeight: 700 }}>Sem {sem.semester}</div>
+                        <div style={{ width: 44, fontSize: 13.5, fontWeight: 800 }}>{sem.gpa !== null ? sem.gpa.toFixed(2) : "—"}</div>
+                        <div style={{ flex: 1, height: 8, borderRadius: 8, background: "#EDF1F7", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${sem.gpa !== null ? (sem.gpa / 10) * 100 : 0}%`, background: "#1D4ED8", borderRadius: 8 }} />
+                        </div>
+                        <div style={{ width: 70, fontSize: 12, color: "#94A3B8", fontWeight: 600, textAlign: "right" }}>
+                          {sem.subjects.length} subject{sem.subjects.length === 1 ? "" : "s"}
+                        </div>
+                        <div style={{ width: 70, fontSize: 12, fontWeight: 700, color: arrears > 0 ? "#DC2626" : "#94A3B8", textAlign: "right" }}>
+                          {arrears > 0 ? `${arrears} arrear${arrears === 1 ? "" : "s"}` : "All clear"}
+                        </div>
                       </div>
-                      <div style={{ width: 70, fontSize: 12, color: "#94A3B8", fontWeight: 600, textAlign: "right" }}>—</div>
-                      <div style={{ width: 70, fontSize: 12, fontWeight: 700, color: "#94A3B8", textAlign: "right" }}>—</div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  {(academicRecord.data?.semesters ?? []).length === 0 && !academicRecord.isLoading && (
+                    <div style={{ padding: "12px 0", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>No published exam results yet.</div>
+                  )}
                 </div>
               </div>
               <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Monthly attendance</div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 160, marginTop: 20 }}>
-                  {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"].map((m) => (
-                    <div key={m} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, height: "100%", justifyContent: "flex-end" }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 700, color: "#475569" }}>0%</div>
-                      <div style={{ width: "70%", height: "0%", background: "#93C5FD", borderRadius: "6px 6px 0 0" }} />
-                      <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600 }}>{m}</div>
-                    </div>
-                  ))}
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 160, marginTop: 20, overflowX: "auto" }}>
+                  {(academicRecord.data?.monthly_attendance ?? []).slice(-12).map((m) => {
+                    const [y, mo] = m.month.split("-").map(Number);
+                    const label = new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString("en-IN", { month: "short" });
+                    return (
+                      <div key={m.month} style={{ flex: "0 0 34px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, height: "100%", justifyContent: "flex-end" }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: "#475569" }}>{m.present_percent}%</div>
+                        <div style={{ width: "70%", height: `${m.present_percent}%`, background: "#93C5FD", borderRadius: "6px 6px 0 0" }} />
+                        <div style={{ fontSize: 11, color: "#94A3B8", fontWeight: 600 }}>{label}</div>
+                      </div>
+                    );
+                  })}
+                  {(academicRecord.data?.monthly_attendance ?? []).length === 0 && !academicRecord.isLoading && (
+                    <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>No attendance records yet.</div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* No cross-subject semester-results table exists yet at the
-                mentee-profile level (only per-exam roster marks via
-                exam-marks endpoints, scoped to the faculty's own subject) —
-                empty design shell. */}
+            {/* Shared SubjectMarksTable — same component and data source
+                (GET /exam-marks?student_id=) as Admin/HoD/Principal/Secretary,
+                replacing the old per-semester internal/end-sem average pulled
+                from /me/mentees/:id/academic-record. */}
             <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22, marginTop: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Semester subjects</div>
-              <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 500, marginTop: 5 }}>Internal assessment, end-semester mark, grade and subject attendance</div>
-              <div style={{ display: "grid", gridTemplateColumns: "2.4fr 1fr 1fr 1fr 1fr 1fr 1fr", padding: "14px 0", borderBottom: "1px solid #EEF1F6", marginTop: 12, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>
-                <div>SUBJECT</div>
-                <div>CODE</div>
-                <div>INTERNAL</div>
-                <div>END SEM</div>
-                <div>TOTAL</div>
-                <div>GRADE</div>
-                <div>ATTENDANCE</div>
+              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Examinations & results</div>
+              <div style={{ fontSize: 12.5, color: "#7C8899", fontWeight: 500, marginTop: 5 }}>CIA1, CIA2, Quiz and Internal marks per subject; End Sem shows a grade once published</div>
+              <div style={{ marginTop: 16 }}>
+                <SubjectMarksTable studentId={student.id} />
               </div>
-              <div style={{ padding: "24px 0", textAlign: "center", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>—</div>
             </div>
 
             {/* Fee ledger now real — GET /me/mentee-no-due/students (same
                 source the No Due page uses), fetched once above for the
-                whole roster. No ERP/hostel-warden/library-ID/scholarship/
-                discipline model exists anywhere in schema.prisma — those
-                rows stay honest "—" shells; Hostel/day-scholar and
-                Transport/bus-route use the real dayscholar_mode/
-                vehicle_number fields already fetched into `p`. */}
+                whole roster. Hostel warden/scholarship/student status/
+                discipline are also real now, via GET .../academic-record —
+                only "Library ID" stays an honest "—" shell (no per-student
+                library-membership model exists anywhere in schema.prisma).
+                Hostel/day-scholar and Transport/bus-route use the real
+                dayscholar_mode/vehicle_number fields already fetched into `p`. */}
             <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginTop: 16, alignItems: "start" }}>
               <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
@@ -473,14 +504,52 @@ export default function AdvisorStudentsPage() {
                 <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>College / ERP record</div>
                 <div style={{ marginTop: 10 }}>
                   {[
-                    ["Hostel / day scholar", humanize(p.dayscholar_mode) ?? humanize(p.student_type) ?? "—"],
+                    // student_type_enum (hosteller/dayscholar) is the actual
+                    // accommodation classification this label promises —
+                    // dayscholar_mode_enum (transport/own_vehicle) is a
+                    // day-scholar's commute mode, a different concept, and
+                    // was wrongly prioritized here (it's non-null for most
+                    // day scholars, so this almost never reached
+                    // student_type at all). Commute mode has its own row
+                    // directly below ("Transport / bus route").
+                    ["Hostel / day scholar", humanize(p.student_type) ?? "—"],
                     ["Transport / bus route", p.vehicle_number ?? "—"],
-                    ["Hostel warden", "—"],
+                    [
+                      "Hostel warden",
+                      academicRecord.data?.hostel
+                        ? `${academicRecord.data.hostel.warden_name ?? "—"} · ${academicRecord.data.hostel.hostel_name} ${academicRecord.data.hostel.room_number}`
+                        : "—",
+                    ],
+                    // No per-student library-membership model exists anywhere
+                    // in this schema (library_racks/library_settings are
+                    // library-wide config, not a per-student ID) — stays "—".
                     ["Library ID", "—"],
-                    ["Scholarship", "—"],
-                    ["Student status", "—"],
-                    ["Placement", "—"],
-                    ["Discipline", "—"],
+                    [
+                      "Scholarship",
+                      academicRecord.data?.scholarships.length
+                        ? academicRecord.data.scholarships.map((s) => `${s.name} (${s.academic_year})`).join(", ")
+                        : "—",
+                    ],
+                    ["Student status", academicRecord.data ? humanize(academicRecord.data.student_status) : "—"],
+                    [
+                      "Placement",
+                      (() => {
+                        const apps = placements.data ?? [];
+                        const placed = apps.find((a) => a.application_status === "placed");
+                        if (placed) return `Placed${placed.company_name ? ` · ${placed.company_name}` : ""}`;
+                        if (apps.length > 0) return `In progress · ${apps.length} application${apps.length === 1 ? "" : "s"}`;
+                        return "—";
+                      })(),
+                    ],
+                    [
+                      "Discipline",
+                      // Real GET .../academic-record — malpractice_incidents
+                      // (exam-malpractice records), the only genuine
+                      // "discipline"-shaped data in this schema.
+                      academicRecord.data?.discipline.length
+                        ? `${academicRecord.data.discipline.length} incident${academicRecord.data.discipline.length === 1 ? "" : "s"} on file`
+                        : "No incidents on file",
+                    ],
                   ].map(([label, value]) => (
                     <div key={label} style={{ display: "flex", gap: 18, padding: "10px 0", borderBottom: "1px solid #F4F6FA" }}>
                       <div style={{ fontSize: 13, color: "#7C8899", fontWeight: 600, flex: 1 }}>{label}</div>
@@ -489,34 +558,41 @@ export default function AdvisorStudentsPage() {
                   ))}
                 </div>
                 <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8", marginTop: 14 }}>ACHIEVEMENTS</div>
-                <div style={{ padding: "10px 0", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>—</div>
+                <div style={{ marginTop: 6 }}>
+                  {/* Real GET .../academic-record — sports_achievements
+                      (athlete_student_id), not department_achievements
+                      (a Media-Room department news feed with no student_id). */}
+                  {(academicRecord.data?.achievements.length ?? 0) > 0 ? (
+                    academicRecord.data!.achievements.map((a, i) => (
+                      <div key={i} style={{ display: "flex", gap: 12, padding: "8px 0", borderBottom: "1px solid #F4F6FA" }}>
+                        <div style={{ flex: 1, fontSize: 12.5, fontWeight: 700 }}>
+                          {a.event_name}
+                          {a.level ? ` · ${a.level}` : ""}
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8" }}>{a.result}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: "10px 0", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>No achievements on file</div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Real GET /me/mentees/:id/documents — student_certificates
-                rows, admin-set is_available/file_url/verified_at. This
-                table existed in schema.prisma with zero endpoints reading
-                it anywhere before this session. */}
+                rows, admin-set is_available/file_url. This table existed
+                in schema.prisma with zero endpoints reading it anywhere
+                before this session. */}
             <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 22, marginTop: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Important documents</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 14, marginTop: 16 }}>
-                {(documents.data ?? []).map((doc) => (
-                  <div key={doc.certificate_type_id} data-advisor-lift="" style={{ background: "#F8FAFC", border: "1px solid #EEF1F6", borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{doc.name}</div>
-                    <div style={{ fontSize: 12, color: doc.is_available ? "#1D4ED8" : "#94A3B8", fontWeight: 600, marginTop: 6 }}>
-                      {doc.is_available ? (doc.verified_at ? "Verified" : "Received") : "Not received"}
-                    </div>
-                    {doc.is_available && doc.file_url && (
-                      <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 6, fontSize: 11.5, fontWeight: 700, color: "#1D4ED8" }}>
-                        View →
-                      </a>
-                    )}
-                  </div>
-                ))}
-                {documents.data && documents.data.length === 0 && (
-                  <div style={{ gridColumn: "1 / -1", padding: "10px 0", color: "#94A3B8", fontWeight: 600, fontSize: 13 }}>No certificate types configured.</div>
-                )}
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Important documents</div>
+              <CertificateStatusGrid
+                items={(documents.data ?? []).map((doc) => ({
+                  id: doc.certificate_type_id,
+                  name: doc.name,
+                  is_available: doc.is_available,
+                  file_url: doc.file_url,
+                }))}
+              />
             </div>
           </>
         )}
@@ -531,7 +607,7 @@ export default function AdvisorStudentsPage() {
 
       <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px", marginTop: 20, display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: 42, height: 42, borderRadius: 11, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 42px" }}>
-          <div style={{ width: 14, height: 14, border: "2px solid #1D4ED8", borderRadius: 4 }} />
+          <AdvisorIcon kind="results" width={20} height={20} style={{ color: "#1D4ED8" }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em" }}>{primaryClass ? `${primaryClass.department.name} — ${primaryClass.section}` : "—"}</div>
@@ -561,7 +637,7 @@ export default function AdvisorStudentsPage() {
 
       <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "14px 16px", marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 280px", minWidth: 220, display: "flex", alignItems: "center", gap: 10, height: 44, padding: "0 14px", border: "1px solid #E2E8F0", borderRadius: 10, background: "#F8FAFC" }}>
-          <div style={{ width: 13, height: 13, border: "2px solid #94A3B8", borderRadius: "50%", flex: "0 0 13px" }} />
+          <AdvisorIcon kind="search" width={15} height={15} style={{ color: "#94A3B8", flex: "0 0 15px" }} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -585,6 +661,9 @@ export default function AdvisorStudentsPage() {
       </div>
 
       <div style={{ display: "flex", gap: 16, marginTop: 16, alignItems: "start" }}>
+        {roster.isLoading && students.length === 0 ? (
+          <SkeletonTable rows={8} className="flex-1" />
+        ) : (
         <div style={{ flex: 1, minWidth: 0, background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 0.7fr 0.7fr 0.8fr 0.9fr 1fr", padding: "15px 22px", borderBottom: "1px solid #EEF1F6", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: "#94A3B8" }}>
             <div>STUDENT</div>
@@ -612,7 +691,7 @@ export default function AdvisorStudentsPage() {
                 </div>
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#475569" }}>{r.roll_no ?? "—"}</div>
-              <div style={{ fontSize: 13.5, fontWeight: 700 }}>—</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{r.current_semester_gpa !== null ? r.current_semester_gpa.toFixed(2) : "—"}</div>
               <div style={{ fontSize: 13.5, fontWeight: 700 }}>{r.cgpa !== null ? r.cgpa.toFixed(2) : "—"}</div>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: r.arrears > 0 ? "#DC2626" : "#94A3B8" }}>{r.arrears > 0 ? r.arrears : "—"}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>{r.attendance_percent !== null ? `${r.attendance_percent}%` : "—"}</div>
@@ -641,11 +720,14 @@ export default function AdvisorStudentsPage() {
           ))}
           {filtered.length === 0 && !roster.isLoading && (
             <div style={{ padding: "54px 22px", textAlign: "center" }}>
-              <div style={{ width: 32, height: 32, border: "2px solid #CBD5E1", borderRadius: "50%", margin: "0 auto" }} />
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <AdvisorIcon kind="results" width={28} height={28} style={{ color: "#CBD5E1" }} />
+              </div>
               <div style={{ fontSize: 14, color: "#94A3B8", fontWeight: 600, marginTop: 14 }}>No students match this filter</div>
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

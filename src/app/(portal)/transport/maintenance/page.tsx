@@ -73,7 +73,7 @@ export default function TransportMaintenancePage() {
 
       {!data?.extended.fleet_status && data && (
         <div className="rounded-[11px] border border-border-default bg-surface-tint px-4 py-3 text-[12.5px] text-muted">
-          Odometer and next-service tracking aren't set up yet, so "Service due" can't be computed.
+          Odometer and next-service tracking aren&apos;t set up yet, so &quot;Service due&quot; can&apos;t be computed.
         </div>
       )}
 

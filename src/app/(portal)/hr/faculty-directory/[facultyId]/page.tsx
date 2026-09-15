@@ -17,6 +17,7 @@ import {
   Select,
 } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
+import { EntityDetailHeader } from "@/components/shared/EntityDetailHeader";
 import {
   useHrFacultyActivity,
   useHrFacultyById,
@@ -74,7 +75,7 @@ export default function HrFacultyDetailPage({ params }: { params: Promise<{ facu
     setEditFirstName(f.first_name);
     setEditLastName(f.last_name);
     setEditDesignation(f.designation);
-    setEditDepartmentId(String(f.department_id));
+    setEditDepartmentId(f.department?.id != null ? String(f.department.id) : "");
     setEditStatus(f.status);
     setEditPhone(f.phone ?? "");
     setEditDateOfJoining(f.date_of_joining ? f.date_of_joining.slice(0, 10) : "");
@@ -84,6 +85,10 @@ export default function HrFacultyDetailPage({ params }: { params: Promise<{ facu
 
   async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!editDepartmentId) {
+      setEditError("Choose a department.");
+      return;
+    }
     setEditError(null);
     try {
       await updateFaculty.mutateAsync({
@@ -100,7 +105,16 @@ export default function HrFacultyDetailPage({ params }: { params: Promise<{ facu
       });
       setShowEditModal(false);
     } catch (err) {
-      setEditError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      // A non-ApiError here means the request never got a structured
+      // response at all (network failure, timeout, backend unreachable) —
+      // worth saying explicitly rather than folding it into the same
+      // generic message a real validation/permission error would show,
+      // since the two call for different next steps from the user.
+      setEditError(
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't reach the server. Check your connection and try again.",
+      );
     }
   }
 
@@ -143,34 +157,23 @@ export default function HrFacultyDetailPage({ params }: { params: Promise<{ facu
         </Card>
       ) : (
         <>
-          <Card className="flex gap-6 p-6">
-            <Avatar name={`${f.first_name} ${f.last_name}`} imageUrl={f.profile_url} size={72} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-[26px] font-extrabold tracking-[-.02em] text-ink">
-                  {f.first_name} {f.last_name}
-                </h1>
-                <Badge tone={STATUS_TONE[f.status]}>{f.status}</Badge>
-                <Button variant="secondary" onClick={openEditModal}>
-                  Edit
-                </Button>
-              </div>
-              <p className="mt-1 text-[13.5px] text-muted">{[f.designation, f.department?.name].filter(Boolean).join(" · ")}</p>
-              <div className="mt-4 grid grid-cols-4 gap-3">
-                {[
-                  { label: "Employee ID", value: String(f.id) },
-                  { label: "Department", value: f.department?.name ?? "—" },
-                  { label: "Joined", value: f.date_of_joining ? formatDisplayDate(f.date_of_joining) : "—" },
-                  { label: "Phone", value: f.phone ?? "—" },
-                ].map((k) => (
-                  <div key={k.label} className="rounded-[11px] border border-border-default bg-surface-muted p-3">
-                    <div className="text-[10px] font-extrabold tracking-[.07em] text-subtle uppercase">{k.label}</div>
-                    <div className="mt-1 truncate text-[14.5px] font-bold text-ink">{k.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
+          <EntityDetailHeader
+            avatar={<Avatar name={`${f.first_name} ${f.last_name}`} imageUrl={f.profile_url} size={72} />}
+            title={`${f.first_name} ${f.last_name}`}
+            badge={<Badge tone={STATUS_TONE[f.status]}>{f.status}</Badge>}
+            actions={
+              <Button variant="secondary" onClick={openEditModal}>
+                Edit
+              </Button>
+            }
+            subtitle={[f.designation, f.department?.name].filter(Boolean).join(" · ")}
+            fields={[
+              { label: "Employee ID", value: String(f.id) },
+              { label: "Department", value: f.department?.name ?? "—" },
+              { label: "Joined", value: f.date_of_joining ? formatDisplayDate(f.date_of_joining) : "—" },
+              { label: "Phone", value: f.phone ?? "—" },
+            ]}
+          />
 
           <div className="grid grid-cols-2 items-start gap-4">
             <Card>
@@ -329,7 +332,18 @@ export default function HrFacultyDetailPage({ params }: { params: Promise<{ facu
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-primary">Department</label>
-                  <Select value={editDepartmentId} onChange={(e) => setEditDepartmentId(e.target.value)} required>
+                  <Select
+                    value={editDepartmentId}
+                    onChange={(e) => setEditDepartmentId(e.target.value)}
+                    required
+                    disabled={departments.isLoading}
+                  >
+                    {/* Placeholder keeps the control from silently falling back to
+                        whichever option happens to render first while departments
+                        are still loading — editDepartmentId is already set to the
+                        faculty's real department at this point, this option just
+                        has nothing to match against until the list arrives. */}
+                    {departments.isLoading && <option value={editDepartmentId}>Loading departments…</option>}
                     {departments.data?.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name}

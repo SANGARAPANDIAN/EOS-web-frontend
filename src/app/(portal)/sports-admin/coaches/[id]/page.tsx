@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Button, Avatar, Icon, Input, Modal, Select, Textarea, EmptyState } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
+import { EntityDetailHeader } from "@/components/shared/EntityDetailHeader";
 import { useCoachDetail, useUpdateCoachProfile, type DutyStatus } from "@/modules/sports-admin/api/coaches";
 import { useDisciplines } from "@/modules/sports-admin/api/disciplines";
 import { formatDisplayDate } from "@/lib/utils/date";
@@ -78,34 +79,23 @@ export default function CoachDetailPage({ params }: { params: Promise<{ id: stri
         </Card>
       ) : (
         <>
-          <Card className="flex gap-6 p-6">
-            <Avatar name={c.name} size={72} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-[26px] font-extrabold tracking-[-.02em] text-ink">{c.name}</h1>
-                <Badge tone={statusTone}>{c.status}</Badge>
-                <Button variant="secondary" onClick={openEditModal}>
-                  Edit
-                </Button>
-              </div>
-              <p className="mt-1 text-[13.5px] text-muted">
-                {[c.designation, c.department?.name].filter(Boolean).join(" · ")}
-              </p>
-              <div className="mt-4 grid grid-cols-4 gap-3">
-                {[
-                  { label: "Discipline", value: c.discipline?.name ?? "—" },
-                  { label: "Coaching experience", value: c.coaching_experience_years != null ? `${c.coaching_experience_years} yrs` : "—" },
-                  { label: "Duty status", value: c.duty_status },
-                  { label: "Teams", value: c.teams.length },
-                ].map((k) => (
-                  <div key={k.label} className="rounded-card-sm border border-border-default bg-surface-muted p-3">
-                    <div className="text-[10px] font-extrabold tracking-[.07em] text-subtle uppercase">{k.label}</div>
-                    <div className="mt-1 text-[14.5px] font-bold text-ink">{k.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
+          <EntityDetailHeader
+            avatar={<Avatar name={c.name} size={72} />}
+            title={c.name}
+            badge={<Badge tone={statusTone}>{c.status}</Badge>}
+            actions={
+              <Button variant="secondary" onClick={openEditModal}>
+                Edit
+              </Button>
+            }
+            subtitle={[c.designation, c.department?.name].filter(Boolean).join(" · ")}
+            fields={[
+              { label: "Discipline", value: c.discipline?.name ?? "—" },
+              { label: "Coaching experience", value: c.coaching_experience_years != null ? `${c.coaching_experience_years} yrs` : "—" },
+              { label: "Duty status", value: c.duty_status },
+              { label: "Teams", value: c.teams.length },
+            ]}
+          />
 
           <div className="grid grid-cols-2 items-start gap-4">
             <Card>

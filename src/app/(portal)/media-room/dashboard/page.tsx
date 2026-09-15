@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Card, Badge, Icon, EmptyState } from "@/components/ui";
+import { Card, Badge, Icon, EmptyState, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
+import { useNow } from "@/lib/hooks/useNow";
 import { useMyIdentity } from "@/modules/media-room/api/identity";
 import { useMediaRequests, useReviewMediaRequest } from "@/modules/media-room/api/mediaRequests";
 import { useAchievements } from "@/modules/media-room/api/achievements";
@@ -80,15 +81,13 @@ export default function MediaRoomDashboardPage() {
   const deliveredCount = delivered.data?.meta.total ?? 0;
   const achievementsCount = achievements.data?.meta.total ?? 0;
 
-  const isLoading = pending.isLoading;
-
   const todayIso = new Date().toISOString().slice(0, 10);
   const shootRows = shoots.data?.ready ? shoots.data.data : [];
   const todayShoots = shootRows
     .filter((s) => s.scheduled_at?.slice(0, 10) === todayIso)
     .sort((a, b) => (a.scheduled_at ?? "").localeCompare(b.scheduled_at ?? ""));
 
-  const now = Date.now();
+  const now = useNow();
   const staleRequests = (pending.data?.data ?? []).filter((r) => now - new Date(r.created_at).getTime() > 2 * DAY_MS);
   const unscheduledShoots = shootRows.filter((s) => (s.status === "planned" || s.status === "confirmed") && !s.scheduled_at);
   const indentRows = indents.data?.ready ? indents.data.data : [];
@@ -102,6 +101,19 @@ export default function MediaRoomDashboardPage() {
     ...pendingIndents.map((i) => ({ title: `Indent awaiting review · ${i.title}`, sub: `₹${Number(i.estimated_cost ?? 0).toLocaleString("en-IN")} · raised ${formatDayAndTime(i.created_at)}` })),
     ...needsRepair.map((e) => ({ title: `${e.name} flagged for repair`, sub: e.asset_tag ?? "No asset tag" })),
   ].slice(0, 5);
+
+  if (identity.isLoading || pending.isLoading || achievements.isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonBlock className="h-[70px]" />
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-[1.35fr_1fr] gap-4">
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -120,7 +132,7 @@ export default function MediaRoomDashboardPage() {
       )}
 
       <div className="grid grid-cols-4 gap-4">
-        <div className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/media-room/requests?status=pending" className={`min-w-0 rounded-card border border-border-accent bg-accent-50 p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-primary-dark">Pending requests</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-surface">
@@ -128,14 +140,12 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-primary-dark">
-            {isLoading ? "—" : pendingCount}
+            {pendingCount}
           </div>
-          <Link href="/media-room/requests" className="mt-3 block text-[13px] font-bold text-primary-dark hover:underline">
-            Review the queue
-          </Link>
-        </div>
+          <div className="mt-3 text-[13px] font-bold text-primary-dark">Review the queue</div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/media-room/requests?status=approved" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Approved · awaiting delivery</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -143,14 +153,12 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : approvedCount}
+            {approvedCount}
           </div>
-          <Link href="/media-room/requests" className="mt-3 block text-[13px] font-bold text-primary hover:underline">
-            View approved
-          </Link>
-        </div>
+          <div className="mt-3 text-[13px] font-bold text-primary">View approved</div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/media-room/requests?status=delivered" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Delivered</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -158,12 +166,12 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {isLoading ? "—" : deliveredCount}
+            {deliveredCount}
           </div>
           <div className="mt-3 text-[13px] text-muted">Completed coverage requests</div>
-        </div>
+        </Link>
 
-        <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
+        <Link href="/media-room/achievements" className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="text-[14.5px] font-bold text-body">Achievements posted</div>
             <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
@@ -171,18 +179,16 @@ export default function MediaRoomDashboardPage() {
             </div>
           </div>
           <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-            {achievements.isLoading ? "—" : achievementsCount}
+            {achievementsCount}
           </div>
-          <Link href="/media-room/achievements" className="mt-3 block text-[13px] font-bold text-primary hover:underline">
-            Open achievements
-          </Link>
-        </div>
+          <div className="mt-3 text-[13px] font-bold text-primary">Open achievements</div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-[1.35fr_1fr] gap-4 items-start">
         <Card data-mr-lift="1" className={HOVERABLE}>
           <div className="flex items-center justify-between">
-            <h2 className="text-[17px] font-extrabold text-ink">Today's shoots</h2>
+            <h2 className="text-[17px] font-extrabold text-ink">Today&apos;s shoots</h2>
             <Link href="/media-room/shoots" className="text-[13.5px] font-bold text-primary hover:underline">
               All assignments
             </Link>
@@ -245,9 +251,7 @@ export default function MediaRoomDashboardPage() {
               Open queue
             </Link>
           </div>
-          {pending.isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !pending.data || pending.data.data.length === 0 ? (
+          {!pending.data || pending.data.data.length === 0 ? (
             <EmptyState message="Nothing waiting on you." />
           ) : (
             <div className="flex flex-col">
@@ -286,9 +290,7 @@ export default function MediaRoomDashboardPage() {
             <h2 className="text-[17px] font-extrabold text-ink">Recent achievements</h2>
             <Badge tone="neutral">{achievementsCount} total</Badge>
           </div>
-          {achievements.isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !achievements.data || achievements.data.data.length === 0 ? (
+          {!achievements.data || achievements.data.data.length === 0 ? (
             <EmptyState message="Nothing posted yet." />
           ) : (
             <div className="flex flex-col">

@@ -56,6 +56,10 @@ export interface CreateBillInput {
   condition?: string;
   attended_by_staff_id?: number;
   payment_mode: "cash" | "upi" | "student_account" | "staff_welfare";
+  /** Required by the API when payment_mode is "upi", rejected on other modes. */
+  upi_transaction_id?: string;
+  /** The OPD visit this bill settles, when the patient came from the queue. */
+  visit_id?: number;
   status: "paid" | "pending" | "settled";
   items: BillItemInput[];
 }
@@ -78,5 +82,51 @@ export function useCollectBill() {
   return useMutation({
     mutationFn: (id: number) => apiClient.post(`/me/medical-centre-billing/${id}/collect`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "medical-centre-billing"] }),
+  });
+}
+
+/**
+ * GET /me/medical-centre-billing/:id/receipt
+ *
+ * Structured receipt data — the line items as real rows (description,
+ * quantity, unit rate, amount), which the history list only carries as a
+ * pre-joined summary string. Fetched on demand, when a receipt is actually
+ * being printed.
+ */
+export interface MedicalReceiptItemDto {
+  id: number;
+  item_type: string;
+  description: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+export interface MedicalReceiptDto {
+  receipt_no: string;
+  bill_id: number;
+  issued_at: string;
+  patient: {
+    name: string;
+    department: string | null;
+    /** Roll number (student) or staff code (faculty); null for a walk-in. */
+    identifier: string | null;
+    /** True when the details came from a linked OPD visit, not typed in. */
+    is_linked: boolean;
+  };
+  reason: string | null;
+  attended_by: { name: string; designation: string | null } | null;
+  payment_mode: string;
+  upi_transaction_id: string | null;
+  status: string;
+  items: MedicalReceiptItemDto[];
+  totals: { medicine: number; service: number; total: number };
+}
+
+export function useBillReceipt(billId: number | null) {
+  return useQuery({
+    queryKey: ["me", "medical-centre-billing", "receipt", billId],
+    queryFn: () => apiClient.get<MedicalReceiptDto>(`/me/medical-centre-billing/${billId}/receipt`),
+    enabled: billId !== null,
   });
 }

@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Button, Input, Avatar, Icon, EmptyState, Modal, Select } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui/Badge";
+import { EntityDetailHeader } from "@/components/shared/EntityDetailHeader";
 import {
   useTrialDetail,
   useSelectTrial,
@@ -113,67 +114,58 @@ export default function TrialDetailPage({ params }: { params: Promise<{ id: stri
         </Card>
       ) : (
         <>
-          <Card className="flex gap-6 p-6">
-            <div className="flex flex-col items-center gap-2">
-              <Avatar name={t.student.name} size={72} />
-              <span className="font-mono text-[11px] text-muted">SPT-{String(t.student.id).padStart(4, "0")}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-[26px] font-extrabold tracking-[-.02em] text-ink">{t.student.name}</h1>
-                <Badge tone={STATUS_TONE[t.status]}>{t.status}</Badge>
-                <Button variant="secondary" onClick={openEditModal}>
-                  Edit
+          <EntityDetailHeader
+            avatar={
+              <div className="flex flex-col items-center gap-2">
+                <Avatar name={t.student.name} size={72} />
+                <span className="font-mono text-[11px] text-muted">SPT-{String(t.student.id).padStart(4, "0")}</span>
+              </div>
+            }
+            title={t.student.name}
+            badge={<Badge tone={STATUS_TONE[t.status]}>{t.status}</Badge>}
+            actions={
+              <Button variant="secondary" onClick={openEditModal}>
+                Edit
+              </Button>
+            }
+            subtitle={[t.student.dept?.name, t.discipline?.name].filter(Boolean).join(" · ")}
+            fields={[
+              { label: "Round", value: t.round_label ?? "—" },
+              { label: "Trial date", value: formatDisplayDate(t.trial_at) },
+              { label: "Target squad", value: t.target_team?.name ?? "—" },
+              { label: "Panel", value: t.panel ?? "—" },
+            ]}
+          >
+            {t.status === "pending" && (
+              <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-divider pt-4">
+                <Input
+                  value={recommendation}
+                  onChange={(e) => setRecommendation(e.target.value)}
+                  placeholder="Recommendation (optional)"
+                  className="max-w-[280px]"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={handleSelect}
+                  disabled={selectTrial.isPending || holdTrial.isPending}
+                >
+                  {selectTrial.isPending ? "Selecting…" : "Select for squad"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleHold}
+                  disabled={selectTrial.isPending || holdTrial.isPending}
+                >
+                  {holdTrial.isPending ? "Updating…" : "Keep on hold"}
                 </Button>
               </div>
-              <p className="mt-1 text-[13.5px] text-muted">
-                {[t.student.dept?.name, t.discipline?.name].filter(Boolean).join(" · ")}
-              </p>
-              <div className="mt-4 grid grid-cols-4 gap-3">
-                {[
-                  { label: "Round", value: t.round_label ?? "—" },
-                  { label: "Trial date", value: formatDisplayDate(t.trial_at) },
-                  { label: "Target squad", value: t.target_team?.name ?? "—" },
-                  { label: "Panel", value: t.panel ?? "—" },
-                ].map((k) => (
-                  <div key={k.label} className="rounded-card-sm border border-border-default bg-surface-muted p-3">
-                    <div className="text-[10px] font-extrabold tracking-[.07em] text-subtle uppercase">{k.label}</div>
-                    <div className="mt-1 text-[14.5px] font-bold text-ink">{k.value}</div>
-                  </div>
-                ))}
+            )}
+            {error && (
+              <div className="mt-3 rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
+                {error}
               </div>
-
-              {t.status === "pending" && (
-                <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-divider pt-4">
-                  <Input
-                    value={recommendation}
-                    onChange={(e) => setRecommendation(e.target.value)}
-                    placeholder="Recommendation (optional)"
-                    className="max-w-[280px]"
-                  />
-                  <Button
-                    variant="secondary"
-                    onClick={handleSelect}
-                    disabled={selectTrial.isPending || holdTrial.isPending}
-                  >
-                    {selectTrial.isPending ? "Selecting…" : "Select for squad"}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={handleHold}
-                    disabled={selectTrial.isPending || holdTrial.isPending}
-                  >
-                    {holdTrial.isPending ? "Updating…" : "Keep on hold"}
-                  </Button>
-                </div>
-              )}
-              {error && (
-                <div className="mt-3 rounded-[10px] border border-danger-border bg-danger-bg px-3.5 py-2.5 text-[13px] font-semibold text-danger-fg">
-                  {error}
-                </div>
-              )}
-            </div>
-          </Card>
+            )}
+          </EntityDetailHeader>
 
           <div className="grid grid-cols-2 items-start gap-4">
             <Card>

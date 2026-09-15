@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Badge, Button, EmptyState } from "@/components/ui";
+import { Badge, Button, EmptyState, SkeletonRows } from "@/components/ui";
 import { GateSearchPanel, type GateSearchPanelHandle } from "@/modules/gate-warden/components/GateSearchPanel";
 import { usePendingExits, usePendingReturns } from "@/modules/gate-warden/api/gateLog";
 import { formatDisplayDate, formatRelativeTime } from "@/lib/utils/date";
@@ -36,7 +36,7 @@ export default function GateDeskPage() {
             </div>
 
             <div className="mt-3.5">
-              {pendingExits.isLoading && <EmptyState loading />}
+              {pendingExits.isLoading && <SkeletonRows count={3} />}
               {pendingExits.isError && (
                 <p className="py-3 text-[13px] font-semibold text-danger-fg">
                   {pendingExits.error instanceof ApiError ? pendingExits.error.message : "Failed to load the queue."}
@@ -81,7 +81,7 @@ export default function GateDeskPage() {
             </div>
 
             <div className="mt-3.5">
-              {pendingReturns.isLoading && <EmptyState loading />}
+              {pendingReturns.isLoading && <SkeletonRows count={3} />}
               {pendingReturns.isError && (
                 <p className="py-3 text-[13px] font-semibold text-danger-fg">
                   {pendingReturns.error instanceof ApiError ? pendingReturns.error.message : "Failed to load the queue."}

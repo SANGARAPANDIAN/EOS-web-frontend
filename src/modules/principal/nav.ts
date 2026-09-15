@@ -14,7 +14,7 @@ export const principalModuleConfig: ModuleConfig = {
         { key: "reports", label: "Reports & Analytics", icon: "insights", href: `${BASE}/reports` },
         {
           key: "announcements",
-          label: "Announcements",
+          label: "Notices",
           icon: "campaign",
           href: `${BASE}/announcements`,
           badgeKey: "announcementsRecent",
@@ -41,6 +41,7 @@ export const principalModuleConfig: ModuleConfig = {
           badgeKey: "principalFacultyTotal",
         },
         { key: "departments", label: "Departments & HoDs", icon: "account_tree", href: `${BASE}/departments` },
+        { key: "role-allocation", label: "Role Allocation", icon: "assignment_ind", href: `${BASE}/role-allocation` },
         { key: "higher-education", label: "Higher education", icon: "school", href: `${BASE}/higher-education` },
         { key: "edc", label: "EDC", icon: "rocket_launch", href: `${BASE}/edc` },
       ],

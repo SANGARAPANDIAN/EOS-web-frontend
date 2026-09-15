@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAnnouncements } from "@/modules/shared/api/announcements";
 import { PrincipalAnnouncementComposer } from "@/modules/principal/components/PrincipalAnnouncementComposer";
 import { principalColors } from "@/modules/principal/theme";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { formatDayAndTime } from "@/lib/utils/date";
+import { useInitialQueryParam } from "@/lib/utils/useInitialQueryParam";
 
 function audienceLine(a: { class_labels?: string[]; role_labels?: string[]; target_audience: string }): string {
   if (a.class_labels && a.class_labels.length > 0) return a.class_labels.join(", ");
@@ -24,6 +25,17 @@ function posterLine(a: { posted_by?: { role: string; designation: string | null;
 export default function PrincipalAnnouncementsPage() {
   const announcements = useAnnouncements();
   const [composerOpen, setComposerOpen] = useState(false);
+  const initialAction = useInitialQueryParam("action");
+
+  // Header "+" quick action lands here as /principal/announcements?action=new
+  // — open the same real composer the page's own "New announcement" button
+  // uses, rather than a second create flow.
+  useEffect(() => {
+    if (initialAction === "new") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setComposerOpen(true);
+    }
+  }, [initialAction]);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -33,7 +45,7 @@ export default function PrincipalAnnouncementsPage() {
             className="text-[34px] font-extrabold tracking-tight"
             style={{ fontFamily: "var(--font-plus-jakarta-sans)", color: principalColors.heading }}
           >
-            Announcements
+            Notices
           </h1>
           <p className="mt-1.5 text-[15px]" style={{ color: principalColors.textFaint }}>
             Circulars from the institution and posts you publish to your department
@@ -46,7 +58,7 @@ export default function PrincipalAnnouncementsPage() {
           style={{ background: principalColors.primary }}
         >
           <Icon name="campaign" size={18} />
-          New announcement
+          New notice
         </button>
       </div>
 
@@ -66,7 +78,7 @@ export default function PrincipalAnnouncementsPage() {
 
         {announcements.data?.length === 0 && (
           <div className="rounded-2xl border p-6 text-sm" style={{ background: principalColors.bg, borderColor: principalColors.border, color: principalColors.textFaint }}>
-            No announcements have been posted to the Principal role yet — publish one, or wait for
+            No notices have been posted to the Principal role yet — publish one, or wait for
             one addressed to you.
           </div>
         )}

@@ -6,6 +6,7 @@ export interface HodFacultyStaffOverview {
   employee_count: number;
   teaching_count: number;
   non_teaching_count: number;
+  designations: string[];
   faculty_attendance: {
     percentage: number;
     reported: number;
@@ -45,14 +46,14 @@ export interface HodFacultyStaffRow {
 
 export type HodFacultyStaffType = "all" | "teaching" | "non_teaching";
 
-/** GET /hod/faculty-staff/list?type=&search= */
-export function useHodFacultyStaffList(type: HodFacultyStaffType, search: string) {
+/** GET /hod/faculty-staff/list?type=&search=&designation= */
+export function useHodFacultyStaffList(type: HodFacultyStaffType, search: string, designation: string | null) {
   return useQuery({
-    queryKey: ["hod", "faculty-staff", "list", type, search],
+    queryKey: ["hod", "faculty-staff", "list", type, search, designation],
     queryFn: () =>
       apiClient.get<{ department: { code: string }; rows: HodFacultyStaffRow[] }>(
         "/hod/faculty-staff/list",
-        { type, search: search || undefined },
+        { type, search: search || undefined, designation: designation ?? undefined },
       ),
   });
 }

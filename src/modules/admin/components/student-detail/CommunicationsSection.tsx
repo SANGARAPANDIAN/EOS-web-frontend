@@ -10,7 +10,7 @@ export function CommunicationsSection({ studentId, active }: { studentId: number
   if (isLoading) return <Stub message="Loading…" />;
 
   if (!data || data.length === 0) {
-    return <Stub message="No announcements targeted at this student's class." />;
+    return <Stub message="No notices targeted at this student's class." />;
   }
 
   return (

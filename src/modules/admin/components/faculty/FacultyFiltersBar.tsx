@@ -1,7 +1,7 @@
 "use client";
 
 import { FilterBar, Select } from "@/modules/admin/components/ui";
-import { useDepartments } from "@/modules/admin/api/refData";
+import { useDepartments } from "@/modules/shared/api/departments";
 
 export interface FacultyFiltersValue {
   department_id?: number;

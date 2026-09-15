@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, StatCard, SegmentedTabs, Select, SkeletonTable, Avatar } from "@/components/ui";
+import { Card, StatCard, SegmentedTabs, Select, SkeletonTable, SkeletonStatTiles, Avatar } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import { DataTable } from "@/components/ui/DataTable";
 import { useHodClasses, useHodClassDetail, type HodClassStudentRow } from "@/modules/hod/api/classRecords";
@@ -177,9 +177,15 @@ export default function HodClassRecordsPage() {
   const cls = detail.data?.class;
   const advisor = detail.data?.advisor;
   const stats = detail.data?.stats;
+  const anyError = classes.isError || detail.isError;
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {anyError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load class records — please try again.
+        </div>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Class Records</h1>
@@ -250,42 +256,46 @@ export default function HodClassRecordsPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard
-          className="hod-hover-card"
-          label="Mean attendance"
-          value={stats?.mean_attendance != null ? `${stats.mean_attendance}%` : "—"}
-          sub="across the class"
-          barPercent={stats?.mean_attendance ?? undefined}
-        />
-        <StatCard
-          className="hod-hover-card"
-          label="Average CGPA"
-          value={stats?.average_cgpa ?? "—"}
-          sub={cls ? `${cls.year}-${cls.section} · Semester ${cls.semester}` : undefined}
-          barPercent={stats?.average_cgpa != null ? Math.round((stats.average_cgpa / 10) * 100) : undefined}
-        />
-        <StatCard
-          className="hod-hover-card"
-          label="Placements"
-          value={stats ? stats.placed_count : "—"}
-          sub={stats ? `of ${stats.eligible_count} eligible` : undefined}
-          barPercent={
-            stats && stats.eligible_count > 0 ? Math.round((stats.placed_count / stats.eligible_count) * 100) : undefined
-          }
-        />
-        <StatCard
-          className="hod-hover-card"
-          label="Students with fees pending"
-          value={stats ? stats.fees_pending_count : "—"}
-          sub={stats ? `of ${stats.student_count} students` : undefined}
-          barPercent={
-            stats && stats.student_count > 0
-              ? Math.round((stats.fees_pending_count / stats.student_count) * 100)
-              : undefined
-          }
-        />
-      </div>
+      {detail.isLoading ? (
+        <SkeletonStatTiles count={4} />
+      ) : (
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard
+            className="hod-hover-card"
+            label="Mean attendance"
+            value={stats?.mean_attendance != null ? `${stats.mean_attendance}%` : "—"}
+            sub="across the class"
+            barPercent={stats?.mean_attendance ?? undefined}
+          />
+          <StatCard
+            className="hod-hover-card"
+            label="Average CGPA"
+            value={stats?.average_cgpa ?? "—"}
+            sub={cls ? `${cls.year}-${cls.section} · Semester ${cls.semester}` : undefined}
+            barPercent={stats?.average_cgpa != null ? Math.round((stats.average_cgpa / 10) * 100) : undefined}
+          />
+          <StatCard
+            className="hod-hover-card"
+            label="Placements"
+            value={stats ? stats.placed_count : "—"}
+            sub={stats ? `of ${stats.eligible_count} eligible` : undefined}
+            barPercent={
+              stats && stats.eligible_count > 0 ? Math.round((stats.placed_count / stats.eligible_count) * 100) : undefined
+            }
+          />
+          <StatCard
+            className="hod-hover-card"
+            label="Students with fees pending"
+            value={stats ? stats.fees_pending_count : "—"}
+            sub={stats ? `of ${stats.student_count} students` : undefined}
+            barPercent={
+              stats && stats.student_count > 0
+                ? Math.round((stats.fees_pending_count / stats.student_count) * 100)
+                : undefined
+            }
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <input
@@ -340,7 +350,7 @@ export default function HodClassRecordsPage() {
       <Card className="p-0">
         {detail.isLoading ? (
           <SkeletonTable rows={8} className="rounded-none border-0 bg-transparent" />
-        ) : (
+        ) : detail.isError ? null : (
           <DataTable
             columns={columns}
             data={filtered}

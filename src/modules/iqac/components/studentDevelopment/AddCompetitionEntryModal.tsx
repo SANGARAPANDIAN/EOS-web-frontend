@@ -2,32 +2,57 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui";
-import { useAddCompetitionEntry } from "@/modules/iqac/api/studentDevelopment";
+import { useAddCompetitionEntry, useUpdateCompetitionEntry, type CompetitionRow } from "@/modules/iqac/api/studentDevelopment";
 import type { StudentRow } from "@/modules/iqac/api/students";
 import { StudentPicker } from "./StudentPicker";
 
 const LEVEL_OPTIONS = ["College", "District", "Zonal", "State", "National", "International"];
 
 /** Records a real student_competitions row for one student. */
-export function AddCompetitionEntryModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const addEntry = useAddCompetitionEntry();
+export function AddCompetitionEntryModal({
+  onClose,
+  onCreated,
+  editing,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  /** Editing an existing entry — the student can't be changed here (delete + re-add for that). */
+  editing?: CompetitionRow;
+}) {
+  const create = useAddCompetitionEntry();
+  const update = useUpdateCompetitionEntry();
+  const isEditing = editing != null;
 
   const [student, setStudent] = useState<StudentRow | null>(null);
-  const [eventName, setEventName] = useState("");
-  const [category, setCategory] = useState("");
-  const [level, setLevel] = useState(LEVEL_OPTIONS[0]);
-  const [heldOn, setHeldOn] = useState("");
-  const [result, setResult] = useState("");
+  const [eventName, setEventName] = useState(editing?.event_name ?? "");
+  const [category, setCategory] = useState(editing?.category ?? "");
+  const [level, setLevel] = useState(editing?.level ?? LEVEL_OPTIONS[0]);
+  const [heldOn, setHeldOn] = useState(editing?.held_on?.slice(0, 10) ?? "");
+  const [result, setResult] = useState(editing?.result ?? "");
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    if (isEditing) {
+      setError(null);
+      try {
+        await update.mutateAsync({
+          id: editing.id,
+          input: { event_name: eventName.trim(), category: category.trim() || undefined, level, held_on: heldOn || undefined, result: result.trim() || undefined },
+        });
+        onCreated();
+        onClose();
+      } catch (err: unknown) {
+        setError((err as { message?: string })?.message ?? "Could not save this competition entry.");
+      }
+      return;
+    }
     if (!student || !eventName.trim()) {
       setError("Student and event are both required.");
       return;
     }
     setError(null);
     try {
-      await addEntry.mutateAsync({
+      await create.mutateAsync({
         student_id: student.id,
         event_name: eventName.trim(),
         category: category.trim() || undefined,
@@ -43,9 +68,16 @@ export function AddCompetitionEntryModal({ onClose, onCreated }: { onClose: () =
   }
 
   return (
-    <Modal open onClose={onClose} title="Add student entry" subtitle="Competitions · non-sports events">
+    <Modal open onClose={onClose} title={isEditing ? "Edit student entry" : "Add student entry"} subtitle="Competitions · non-sports events">
       <div className="flex flex-col gap-4">
-        <StudentPicker selected={student} onSelect={setStudent} />
+        {isEditing ? (
+          <div>
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Student</div>
+            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.student.name}</div>
+          </div>
+        ) : (
+          <StudentPicker selected={student} onSelect={setStudent} />
+        )}
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Event</div>
@@ -113,10 +145,10 @@ export function AddCompetitionEntryModal({ onClose, onCreated }: { onClose: () =
           <button
             type="button"
             onClick={submit}
-            disabled={addEntry.isPending}
+            disabled={create.isPending || update.isPending}
             className="h-[42px] rounded-[10px] border border-primary-border bg-primary px-4 text-[13.5px] font-bold text-white disabled:opacity-50"
           >
-            {addEntry.isPending ? "Saving…" : "Save"}
+            {create.isPending || update.isPending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

@@ -12,7 +12,7 @@ import { currentInstitutionSemesterParity, viewedAcademicYearLabel } from "@/lib
 const QUICK_CREATE_ITEMS = [
   { label: "Add athlete", route: "/sports-admin/athletes" },
   { label: "Create squad", route: "/sports-admin/teams" },
-  { label: "New announcement", route: "/sports-admin/announcements" },
+  { label: "New notice", route: "/sports-admin/announcements" },
   { label: "Add calendar event", route: "/sports-admin/calendar" },
   { label: "Log incident", route: "/sports-admin/injuries" },
 ];

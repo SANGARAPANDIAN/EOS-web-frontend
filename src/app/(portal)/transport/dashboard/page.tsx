@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, Badge, Button, Icon, ProgressBar, EmptyState, Input, Select, SegmentedTabs, type BadgeTone } from "@/components/ui";
+import { Card, Badge, Button, Icon, ProgressBar, EmptyState, Input, Select, SegmentedTabs, SkeletonStatTiles, SkeletonBlock, type BadgeTone } from "@/components/ui";
 import { useTransportDashboard, type TransportDashboardPeriod } from "@/modules/transport/api/dashboard";
 import { useCreateTransportNotice } from "@/modules/transport/api/notices";
 import { formatLongDate, formatDayAndTime, greetingForHour } from "@/lib/utils/date";
@@ -67,6 +67,7 @@ export default function TransportDashboardPage() {
       subB: extended?.fleet_status ? "idle, in depot or workshop" : "run the setup SQL to enable",
       barPercent: extended?.fleet_status ? onRoutePercent : 0,
       foot: extended?.fleet_status ? `${data?.fleet.buses_maintenance ?? 0} off road for service` : "see fleet status notes below",
+      href: "/transport/buses",
     },
     {
       key: "students",
@@ -87,6 +88,7 @@ export default function TransportDashboardPage() {
       subB: "routes at/above 90%",
       barPercent: occupancyPercent ?? 0,
       foot: data ? `${riders} students across ${data.ridership.routes.length} routes` : "—",
+      href: "/transport/routes",
     },
     {
       key: "renewals",
@@ -115,6 +117,19 @@ export default function TransportDashboardPage() {
     );
   }
 
+  if (isLoading && !data) {
+    return (
+      <div className="flex flex-col gap-5">
+        <SkeletonStatTiles count={4} />
+        <div className="grid grid-cols-[1.1fr_1fr_1fr] gap-4">
+          <SkeletonBlock />
+          <SkeletonBlock />
+          <SkeletonBlock />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
@@ -135,28 +150,34 @@ export default function TransportDashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        {STAT_TILES.map((tile) => (
-          <div
-            key={tile.key}
-            className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${HOVERABLE}`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-[14.5px] font-bold text-body">{tile.label}</div>
-              <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
-                <Icon name={tile.icon} size={19} className="text-primary" />
+        {STAT_TILES.map((tile) => {
+          const tileContent = (
+            <div className={`min-w-0 rounded-card border border-border-default bg-surface p-[20px_22px] ${tile.href ? HOVERABLE : ""}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[14.5px] font-bold text-body">{tile.label}</div>
+                <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-icon-chip">
+                  <Icon name={tile.icon} size={19} className="text-primary" />
+                </div>
               </div>
+              <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
+                {tile.value}
+              </div>
+              <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                <span className="text-[14px] font-extrabold text-primary">{tile.subA}</span>
+                <span className="text-[13px] text-muted">{tile.subB}</span>
+              </div>
+              <ProgressBar percent={tile.barPercent} height={6} className="mt-3" />
+              <div className="mt-3 text-[12.5px] text-subtle">{tile.foot}</div>
             </div>
-            <div className="mt-3.5 text-[40px] font-extrabold tracking-[-.03em] leading-none text-ink">
-              {isLoading ? "—" : tile.value}
-            </div>
-            <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-              <span className="text-[14px] font-extrabold text-primary">{isLoading ? "—" : tile.subA}</span>
-              <span className="text-[13px] text-muted">{tile.subB}</span>
-            </div>
-            <ProgressBar percent={isLoading ? 0 : tile.barPercent} height={6} className="mt-3" />
-            <div className="mt-3 text-[12.5px] text-subtle">{tile.foot}</div>
-          </div>
-        ))}
+          );
+          return tile.href ? (
+            <Link key={tile.key} href={tile.href}>
+              {tileContent}
+            </Link>
+          ) : (
+            <div key={tile.key}>{tileContent}</div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-[1.1fr_1fr_1fr] gap-4 items-start">
@@ -171,29 +192,27 @@ export default function TransportDashboardPage() {
             <div>
               <div className="text-[13px] font-semibold text-muted">Buses reporting {PERIOD_LABEL[period]}</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading ? "—" : data?.fleet_command.buses_reporting ?? 0}
+                {data?.fleet_command.buses_reporting ?? 0}
               </div>
             </div>
             <div>
               <div className="text-[13px] font-semibold text-muted">GPS online now</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading ? "—" : data?.fleet_command.gps_online_now ?? 0}
+                {data?.fleet_command.gps_online_now ?? 0}
               </div>
             </div>
             <div>
               <div className="text-[13px] font-semibold text-muted">Diesel cost {PERIOD_LABEL[period]}</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading
-                  ? "—"
-                  : extended?.fuel_tracking
-                    ? `₹${(data?.fleet_command.diesel_cost ?? 0).toLocaleString("en-IN")}`
-                    : "Not tracked"}
+                {extended?.fuel_tracking
+                  ? `₹${(data?.fleet_command.diesel_cost ?? 0).toLocaleString("en-IN")}`
+                  : "Not tracked"}
               </div>
             </div>
             <div>
               <div className="text-[13px] font-semibold text-muted">Fee collected {PERIOD_LABEL[period]}</div>
               <div className="mt-1 text-[26px] font-extrabold text-ink">
-                {isLoading ? "—" : `₹${(data?.fleet_command.transport_fee_collected ?? 0).toLocaleString("en-IN")}`}
+                {`₹${(data?.fleet_command.transport_fee_collected ?? 0).toLocaleString("en-IN")}`}
               </div>
             </div>
           </div>
@@ -221,9 +240,7 @@ export default function TransportDashboardPage() {
             <h2 className="text-[17px] font-extrabold text-ink">Needs attention</h2>
             <Badge tone="accentDark">{data?.needs_attention.length ?? 0} flags</Badge>
           </div>
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.needs_attention.length === 0 ? (
+          {!data || data.needs_attention.length === 0 ? (
             <EmptyState
               message={
                 extended?.fleet_status || extended?.documents
@@ -259,7 +276,7 @@ export default function TransportDashboardPage() {
             </button>
           </div>
 
-          {!extended?.notices && !isLoading && (
+          {!extended?.notices && (
             <p className="mb-3 text-[12px] text-subtle">Noticeboard not set up yet — see setup notes below.</p>
           )}
 
@@ -288,9 +305,7 @@ export default function TransportDashboardPage() {
             </div>
           )}
 
-          {isLoading ? (
-            <EmptyState message="Loading…" />
-          ) : !data || data.notices.length === 0 ? (
+          {!data || data.notices.length === 0 ? (
             <EmptyState message="No notices yet." />
           ) : (
             <div className="flex flex-col gap-3">

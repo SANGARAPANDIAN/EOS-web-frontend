@@ -1,14 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/ui";
+import { DataTable, ConfirmDialog, type DataTableColumn } from "@/components/ui";
 import { MetricBackNav, MetricHeader, MetricCards, DepartmentRollup, MetricFilterBar } from "@/modules/iqac/components/academic/MetricPageChrome";
 import { AddCompetitionEntryModal } from "@/modules/iqac/components/studentDevelopment/AddCompetitionEntryModal";
-import { useCompetitions, useCompetitionsQuality, type CompetitionRow } from "@/modules/iqac/api/studentDevelopment";
+import { useCompetitions, useCompetitionsQuality, useDeleteCompetitionEntry, type CompetitionRow } from "@/modules/iqac/api/studentDevelopment";
 import { useExamFilters, currentAcademicYearShort } from "@/modules/iqac/api/academicQuality";
 
 export default function CompetitionsPage() {
   const [addingEntry, setAddingEntry] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<CompetitionRow | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<CompetitionRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [batchId, setBatchId] = useState<number | null>(null);
@@ -19,6 +22,18 @@ export default function CompetitionsPage() {
   const competitions = useCompetitions(batchId);
   const quality = useCompetitionsQuality();
   const filters = useExamFilters();
+  const deleteEntry = useDeleteCompetitionEntry();
+
+  async function confirmDelete() {
+    if (!deletingEntry) return;
+    setDeleteError(null);
+    try {
+      await deleteEntry.mutateAsync(deletingEntry.id);
+      setDeletingEntry(null);
+    } catch (err: unknown) {
+      setDeleteError((err as { message?: string })?.message ?? "Could not delete this entry.");
+    }
+  }
 
   const allRows = useMemo(() => competitions.data ?? [], [competitions.data]);
 
@@ -74,6 +89,21 @@ export default function CompetitionsPage() {
       { key: "level", header: "Level", sortValue: (r) => r.level ?? "", render: (r) => r.level ?? "—" },
       { key: "held_on", header: "Held on", align: "right", sortValue: (r) => r.held_on ?? "", render: (r) => (r.held_on ? r.held_on.slice(0, 10) : "—") },
       { key: "result", header: "Result", align: "right", sortValue: (r) => r.result ?? "", render: (r) => r.result ?? "—" },
+      {
+        key: "actions",
+        header: "",
+        width: "0.9fr",
+        render: (r) => (
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditingEntry(r)} className="text-[12.5px] font-bold text-primary hover:underline">
+              Edit
+            </button>
+            <button type="button" onClick={() => setDeletingEntry(r)} className="text-[12.5px] font-bold text-danger-fg hover:underline">
+              Delete
+            </button>
+          </div>
+        ),
+      },
     ],
     [],
   );
@@ -89,6 +119,21 @@ export default function CompetitionsPage() {
       />
 
       {addingEntry && <AddCompetitionEntryModal onClose={() => setAddingEntry(false)} onCreated={() => competitions.refetch()} />}
+      {editingEntry && (
+        <AddCompetitionEntryModal editing={editingEntry} onClose={() => setEditingEntry(null)} onCreated={() => competitions.refetch()} />
+      )}
+      <ConfirmDialog
+        open={deletingEntry != null}
+        title="Delete this competition entry?"
+        description={deleteError ?? "This can't be undone."}
+        confirmLabel={deleteEntry.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeletingEntry(null);
+          setDeleteError(null);
+        }}
+      />
 
       <MetricCards
         cards={[

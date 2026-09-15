@@ -33,7 +33,7 @@ export interface DepartmentDetail {
   hod: DepartmentHod | null;
   students_count: number;
   faculty_count: number;
-  students: { attendance_percentage: number | null; sections_count: number };
+  students: { attendance_percentage: number | null; sections_count: number; mean_cgpa: number | null };
   faculty: { reporting_rate_today: number | null; on_leave_today: number; total_active: number };
   fees_pending_total: number;
   placement: { placed: number; total: number; percentage: number | null };
@@ -66,6 +66,7 @@ export interface DepartmentSection {
   total_students: number;
   placed: number;
   fees_pending_amount: number;
+  mean_cgpa: number | null;
 }
 
 /** GET /me/principal/departments/:id/sections */

@@ -13,6 +13,7 @@ export interface ExamScheduleRow {
   end_time: string;
   session: "FN" | "AN";
   venue_name: string | null;
+  seat_number: string | null;
 }
 
 /** GET /me/exam-schedule — every published exam slot for the student's class. */

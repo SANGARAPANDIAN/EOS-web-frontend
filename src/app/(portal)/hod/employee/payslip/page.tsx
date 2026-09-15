@@ -73,6 +73,11 @@ export default function HodEmployeePayslipPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
+      {history.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load payslip history — please try again.
+        </div>
+      )}
       <div>
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Payslip Request</h1>
         <p className="mt-1 text-[13px] text-muted">Request a payslip copy and view earlier requests</p>
@@ -131,8 +136,8 @@ export default function HodEmployeePayslipPage() {
             />
           </div>
 
-          <Button variant="primary" className="mt-6" onClick={submit} disabled={apply.isPending}>
-            {apply.isPending ? "Submitting…" : "Request Payslip"}
+          <Button variant="primary" className="mt-6" onClick={submit} loading={apply.isPending}>
+            Request Payslip
           </Button>
         </Card>
 
@@ -144,7 +149,7 @@ export default function HodEmployeePayslipPage() {
             rowKey={(r) => r.id}
             rowClassName="hod-hover-row"
             loading={history.isLoading}
-            emptyMessage="No payslip requests yet."
+            emptyMessage={history.isError ? "Couldn't load payslip history." : "No payslip requests yet."}
           />
         </div>
       </div>

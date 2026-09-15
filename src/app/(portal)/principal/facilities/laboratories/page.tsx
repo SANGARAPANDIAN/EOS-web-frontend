@@ -82,7 +82,7 @@ export default function PrincipalLaboratoriesPage() {
               <tbody>
                 {laboratories.isLoading && <PrincipalTableSkeleton columns={4} />}
                 {filtered.map((l) => (
-                  <tr key={l.id} className="border-t transition-colors hover:bg-[rgba(13,30,79,0.03)]" style={{ borderColor: principalColors.borderMuted }}>
+                  <tr key={l.id} className="border-t transition-colors hover:bg-[#F1F6FE] hover:shadow-[inset_0_0_0_1.5px_#1D47AE]" style={{ borderColor: principalColors.borderMuted }}>
                     <td className="whitespace-nowrap px-5 py-3.5 font-semibold" style={{ color: principalColors.heading }}>
                       {l.block ?? "—"}
                     </td>

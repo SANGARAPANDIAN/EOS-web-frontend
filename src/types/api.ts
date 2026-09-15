@@ -12,6 +12,8 @@ export interface ApiErrorEnvelope {
   message: string;
   timestamp: string;
   path: string;
+  /** Present on some 409 conflicts (e.g. "can't delete, still in use") — a breakdown of what's blocking the request. */
+  details?: Record<string, number>;
 }
 
 export interface PaginatedResult<T> {
@@ -25,6 +27,7 @@ export interface PaginatedResult<T> {
 export class ApiError extends Error {
   readonly statusCode: number;
   readonly errorCode: string;
+  readonly details?: Record<string, number>;
 
   constructor(envelope: ApiErrorEnvelope) {
     // envelope.message can genuinely be a string[] at runtime — the backend's
@@ -38,5 +41,6 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.statusCode = envelope.statusCode;
     this.errorCode = envelope.errorCode;
+    this.details = envelope.details;
   }
 }

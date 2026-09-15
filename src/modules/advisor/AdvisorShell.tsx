@@ -1,37 +1,39 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { ADVISOR_NAV } from "./nav";
-import { AdvisorIcon } from "./icons";
+import { AppShell } from "@/components/layout/AppShell";
+import type { NavGroup } from "@/modules/types";
+import { advisorModuleConfig, ADVISOR_NAV } from "./nav";
+import type { AdvisorIconKind } from "./icons";
 import { useMyFacultyProfile, useIsClassAdvisor } from "./api/profile";
 import { useHandledClasses } from "./api/classes";
 import { usePendingStudentLeaveCount, usePendingStudentOdCount } from "./api/requests";
-import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
-import { NotificationPanel } from "./NotificationPanel";
 
-// Standalone, pixel-accurate port of the sidebar/header/profile-drawer shell
-// from "Advisor (Final) - Web/Faculty Portal.dc.html" — deliberately NOT
-// built on the shared AppShell/Sidebar (those render a different, generic
-// layout with Material Symbols icons). Every color/size/spacing value below
-// is copied directly from that file's inline styles, not approximated.
-//
-// All content below is now live from EOSbackend1 — no hardcoded sample
-// values remain. Fields the backend has no source of truth for at all
-// (publications count, feedback score) are omitted entirely rather than
-// invented; see advisor-backend-wiring memory for the full field-by-field map.
-function initialsOf(name: string | undefined) {
-  if (!name) return "";
-  const parts = name.replace(/^Dr\.?\s+/i, "").split(" ").filter(Boolean);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
-}
+// All content below is live from EOSbackend1 — no hardcoded sample values.
+// Fields the backend has no source of truth for at all (publications count,
+// feedback score) are omitted entirely rather than invented; see
+// advisor-backend-wiring memory for the full field-by-field map.
+
+const ICON_MAP: Record<AdvisorIconKind, string> = {
+  dashboard: "dashboard",
+  reports: "monitoring",
+  announcements: "campaign",
+  attendance: "event_available",
+  leave: "beach_access",
+  od: "directions_walk",
+  assignment: "assignment_turned_in",
+  subject: "menu_book",
+  cia: "school",
+  results: "bar_chart",
+  venue: "location_on",
+  payroll: "payments",
+  payslip: "receipt_long",
+  appraisal: "military_tech",
+  library: "local_library",
+  search: "search",
+};
 
 export function AdvisorShell({ children }: { children: React.ReactNode }) {
-  const { logout } = useAuth();
-  const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
 
   const myProfile = useMyFacultyProfile();
@@ -39,8 +41,6 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
   const handledClasses = useHandledClasses();
   const pendingLeave = usePendingStudentLeaveCount();
   const pendingOd = usePendingStudentOdCount();
-  const unreadCount = useUnreadNotificationCount();
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // /me/profile (which would supply phone/status/raw name split) is
   // unreachable for a faculty JWT due to a confirmed backend route
@@ -49,16 +49,22 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
   const designation = myProfile.data?.designation ?? "";
   const departmentName = myProfile.data?.department?.name ?? "";
   const departmentCode = myProfile.data?.department?.code ?? "";
-  const initials = initialsOf(displayName);
   const primaryMentee = menteeClasses[0];
 
-  const visibleNav = useMemo(
-    () => (advisorLoading ? ADVISOR_NAV.filter((g) => !g.advisorOnly) : ADVISOR_NAV.filter((g) => !g.advisorOnly || isAdvisor)),
+  const navGroups: NavGroup[] = useMemo(
+    () =>
+      ADVISOR_NAV.filter((g) => !g.advisorOnly || (!advisorLoading && isAdvisor)).map((group) => ({
+        label: group.label,
+        items: group.items.map((item) => ({
+          key: item.key,
+          label: item.label,
+          icon: ICON_MAP[item.icon],
+          href: item.href,
+          badgeKey: item.badgeKey === "pendingLeave" ? "leaveRequestsPending" : item.badgeKey === "pendingOd" ? "odRequestsPending" : undefined,
+        })),
+      })),
     [advisorLoading, isAdvisor],
   );
-
-  const badgeValue = (key: "pendingLeave" | "pendingOd") =>
-    key === "pendingLeave" ? pendingLeave.data ?? 0 : pendingOd.data ?? 0;
 
   const profileFields = [
     myProfile.data?.work_email ? { label: "Email", value: myProfile.data.work_email } : null,
@@ -75,157 +81,27 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
       : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
-
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        overflow: "hidden",
-        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-        color: "#0F172A",
-        background: "#FFFFFF",
-      }}
-    >
-      <aside
-        style={{
-          width: 266,
-          flex: "0 0 266px",
-          background: "#FFFFFF",
-          borderRight: "1px solid #E6EAF0",
-          display: "flex",
-          flexDirection: "column",
-          height: "100vh",
+    <>
+      <AppShell
+        moduleConfig={{ ...advisorModuleConfig, navGroups }}
+        onIdentityClick={() => setProfileOpen(true)}
+        header={{
+          studentName: displayName,
+          registerNumber: [designation, departmentCode].filter(Boolean).join(" · ") || undefined,
+          searchPlaceholder: "Search students, classes, assignments...",
+          programLabel: isAdvisor && primaryMentee ? `Class Mentor · ${primaryMentee.label}` : undefined,
+          // No academic-calendar/section-context endpoint exists for faculty —
+          // omitting the AY/semester pill is more honest than an unbacked value.
+          showNotifications: true,
+        }}
+        navBadges={{
+          leaveRequestsPending: pendingLeave.data || undefined,
+          odRequestsPending: pendingOd.data || undefined,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "18px 20px",
-            borderBottom: "1px solid #EEF1F6",
-          }}
-        >
-          <Image
-            src="/college-logo.png"
-            alt="Sri Eshwar College of Engineering"
-            width={40}
-            height={40}
-            style={{ width: 40, height: 40, objectFit: "contain", flex: "0 0 40px" }}
-          />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", color: "#1E3A8A" }}>
-              Sri Eshwar
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#7C8899", letterSpacing: "0.01em" }}>
-              Faculty Portal
-            </div>
-          </div>
-        </div>
-
-        <nav style={{ flex: 1, overflowY: "auto", padding: "14px 12px 24px" }}>
-          {visibleNav.map((group) => (
-            <div key={group.label}>
-              <div style={{ display: "flex", alignItems: "center", padding: "16px 12px 8px" }}>
-                <div style={{ flex: 1, fontSize: 10.5, fontWeight: 800, letterSpacing: "0.12em", color: "#94A3B8" }}>
-                  {group.label}
-                </div>
-                {group.chevron && (
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#94A3B8", cursor: "pointer" }}>«</div>
-                )}
-              </div>
-              {group.items.map((item) => {
-                const active = pathname?.startsWith(item.href) ?? false;
-                return (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    data-advisor-lift=""
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 13,
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      cursor: "pointer",
-                      marginBottom: 2,
-                      background: active ? "#DBEAFE" : "transparent",
-                      color: active ? "#1D4ED8" : "#475569",
-                      textDecoration: "none",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 20,
-                        height: 20,
-                        flex: "0 0 20px",
-                      }}
-                    >
-                      <AdvisorIcon kind={item.icon} />
-                    </div>
-                    <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.label}</div>
-                    {item.badgeKey && badgeValue(item.badgeKey) > 0 && (
-                      <div style={{ fontSize: 11, fontWeight: 800, color: "#1D4ED8", background: "#EFF6FF", borderRadius: 6, padding: "2px 7px" }}>
-                        {badgeValue(item.badgeKey)}
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        <div
-          onClick={() => setProfileOpen(true)}
-          style={{
-            borderTop: "1px solid #EEF1F6",
-            padding: "14px 18px",
-            display: "flex",
-            alignItems: "center",
-            gap: 11,
-            cursor: "pointer",
-          }}
-        >
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "#DBEAFE",
-              color: "#1D4ED8",
-              fontWeight: 800,
-              fontSize: 12.5,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {displayName}
-            </div>
-            <div style={{ fontSize: 11, color: "#7C8899", fontWeight: 500 }}>
-              {[designation, departmentCode].filter(Boolean).join(" · ")}
-            </div>
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#CBD5E1" }}>›</div>
-        </div>
-      </aside>
+        {children}
+      </AppShell>
 
       {profileOpen && (
         <div
@@ -299,7 +175,14 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
                     flex: "0 0 66px",
                   }}
                 >
-                  {initials}
+                  {displayName
+                    .replace(/^Dr\.?\s+/i, "")
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((p) => p[0])
+                    .join("")
+                    .toUpperCase()}
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em" }}>{displayName}</div>
@@ -364,162 +247,6 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
-
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", minWidth: 0 }}>
-        <header
-          style={{
-            height: 66,
-            flex: "0 0 66px",
-            background: "#FFFFFF",
-            borderBottom: "1px solid #E6EAF0",
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            padding: "0 26px",
-          }}
-        >
-          <div
-            style={{
-              flex: "1 1 120px",
-              minWidth: 0,
-              maxWidth: 520,
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              height: 40,
-              padding: "0 14px",
-              border: "1px solid #E2E8F0",
-              borderRadius: 10,
-              background: "#F8FAFC",
-            }}
-          >
-            <div style={{ width: 13, height: 13, border: "2px solid #94A3B8", borderRadius: "50%" }} />
-            <input
-              placeholder="Search students, classes, assignments…"
-              style={{
-                flex: "1 1 0",
-                minWidth: 0,
-                border: 0,
-                outline: 0,
-                background: "transparent",
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                color: "#0F172A",
-              }}
-            />
-            <div
-              style={{
-                fontSize: 10.5,
-                fontWeight: 700,
-                color: "#94A3B8",
-                background: "#EDF1F7",
-                borderRadius: 6,
-                padding: "3px 7px",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Ctrl K
-            </div>
-          </div>
-
-          {/* Spacer — pushes the Class Mentor chip + bell to the far right
-              edge of the header. Without this, since the search box only
-              grows to maxWidth:520, the chip+bell floated left of a large
-              empty gap instead of sitting flush right. */}
-          <div style={{ flex: 1 }} />
-
-          {/* Academic-year/semester pill has no backend source (no
-              faculty-section-context endpoint exists) — flagged in
-              advisor-backend-wiring memory as a real gap, not silently
-              faked. The "Class Mentor" chip below IS live: it renders only
-              when useIsClassAdvisor() confirms an active class_mentors row.
-              The bell IS live too — real unread count from
-              GET /me/notifications/unread-count, dropdown from
-              GET /me/notifications/panel (see NotificationPanel.tsx). */}
-          {isAdvisor && primaryMentee && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                height: 38,
-                padding: "0 14px",
-                border: "1px solid #DBEAFE",
-                background: "#EFF6FF",
-                borderRadius: 9,
-                fontSize: 12.5,
-                fontWeight: 700,
-                color: "#1D4ED8",
-                whiteSpace: "nowrap",
-                flex: "0 0 auto",
-              }}
-            >
-              Class Mentor · {primaryMentee.label}
-            </div>
-          )}
-          <div style={{ position: "relative", flex: "0 0 38px" }}>
-            <div
-              onClick={() => setNotificationsOpen((v) => !v)}
-              style={{
-                position: "relative",
-                width: 38,
-                height: 38,
-                border: "1px solid #E2E8F0",
-                borderRadius: 9,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
-            >
-              <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8a6 6 0 10-12 0c0 4.5-1.5 6-1.5 6h15S18 12.5 18 8z" />
-                <path d="M10.3 18.5a2 2 0 003.4 0" />
-              </svg>
-              {!!unreadCount.data?.count && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
-                    width: 9,
-                    height: 9,
-                    borderRadius: "50%",
-                    background: "#1D4ED8",
-                    border: "1.5px solid #fff",
-                  }}
-                />
-              )}
-            </div>
-            {notificationsOpen && <NotificationPanel onClose={() => setNotificationsOpen(false)} />}
-          </div>
-          <div
-            onClick={logout}
-            title="Log out"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 38,
-              height: 38,
-              flex: "0 0 38px",
-              border: "1px solid #E2E8F0",
-              borderRadius: 9,
-              cursor: "pointer",
-              color: "#DC2626",
-            }}
-          >
-            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-              <path d="M16 17l5-5-5-5" />
-              <path d="M21 12H9" />
-            </svg>
-          </div>
-        </header>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "28px 26px 60px", background: "#FFFFFF" }}>{children}</div>
-      </main>
-    </div>
+    </>
   );
 }

@@ -138,8 +138,14 @@ function ApplyForm() {
         Attach invitation / brochure (optional)
       </button>
 
-      <Button variant="primary" className="mt-6" onClick={submit} disabled={!fromDate || !toDate || apply.isPending}>
-        {apply.isPending ? "Submitting…" : "Submit OD Request"}
+      <Button
+        variant="primary"
+        className="mt-6"
+        onClick={submit}
+        disabled={!fromDate || !toDate}
+        loading={apply.isPending}
+      >
+        Submit OD Request
       </Button>
     </Card>
   );
@@ -161,9 +167,14 @@ function HistoryList() {
           { key: "rejected", label: "Rejected" },
         ]}
       />
+      {history.isError && (
+        <div className="rounded-[11px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[13px] font-semibold text-danger-fg">
+          Couldn&apos;t load OD history — please try again.
+        </div>
+      )}
       {history.isLoading ? (
         <SkeletonRows count={4} />
-      ) : !history.data || history.data.length === 0 ? (
+      ) : history.isError ? null : !history.data || history.data.length === 0 ? (
         <Card>
           <EmptyState message="No OD requests yet." />
         </Card>

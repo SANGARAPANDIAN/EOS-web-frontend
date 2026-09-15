@@ -26,7 +26,7 @@ export default function AnnouncementsPage() {
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
       <div>
-        <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Announcements</h1>
+        <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Notices</h1>
         <p className="mt-1 text-[13px] text-muted">Everything posted to you by the principal, HoD, faculty and offices.</p>
       </div>
 
@@ -53,7 +53,7 @@ export default function AnnouncementsPage() {
         </Card>
       ) : filtered.length === 0 ? (
         <Card>
-          <EmptyState message="No announcements to show." />
+          <EmptyState message="No notices to show." />
         </Card>
       ) : (
         <div className="flex flex-col gap-3">

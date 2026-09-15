@@ -151,7 +151,7 @@ export default function AdvisorMyOdPage() {
               <div style={{ fontSize: 13, color: "#475569", fontWeight: 600, marginTop: 6 }}>{dateRangeLabel(h.from_date, h.to_date)}</div>
               {h.place && <div style={{ fontSize: 13, color: "#7C8899", fontWeight: 500, marginTop: 8 }}>{h.place}</div>}
               <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600, marginTop: 12, paddingTop: 12, borderTop: "1px solid #F1F4F9" }}>
-                HoD: {h.hod_approval_status} · HR: {h.hr_approval_status}
+                HoD: {(h.hod_approval_status ?? "pending").toUpperCase()} · HR: {(h.hr_approval_status ?? "pending").toUpperCase()}
               </div>
             </div>
           ))}

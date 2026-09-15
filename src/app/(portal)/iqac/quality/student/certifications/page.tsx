@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/ui";
+import { DataTable, ConfirmDialog, type DataTableColumn } from "@/components/ui";
 import { MetricBackNav, MetricHeader, MetricCards, DepartmentRollup, MetricFilterBar } from "@/modules/iqac/components/academic/MetricPageChrome";
 import { AddCertificationEntryModal } from "@/modules/iqac/components/studentDevelopment/AddCertificationEntryModal";
-import { useCertifications, useCertificationsQuality, type CertificationRow } from "@/modules/iqac/api/studentDevelopment";
+import { useCertifications, useCertificationsQuality, useDeleteCertificationEntry, type CertificationRow } from "@/modules/iqac/api/studentDevelopment";
 import { useExamFilters, currentAcademicYearShort } from "@/modules/iqac/api/academicQuality";
 
 const STATUS_OPTIONS = [
@@ -16,6 +16,9 @@ const STATUS_OPTIONS = [
 
 export default function CertificationsPage() {
   const [addingEntry, setAddingEntry] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<CertificationRow | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<CertificationRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [batchId, setBatchId] = useState<number | null>(null);
@@ -26,6 +29,18 @@ export default function CertificationsPage() {
   const certifications = useCertifications(batchId);
   const quality = useCertificationsQuality();
   const filters = useExamFilters();
+  const deleteEntry = useDeleteCertificationEntry();
+
+  async function confirmDelete() {
+    if (!deletingEntry) return;
+    setDeleteError(null);
+    try {
+      await deleteEntry.mutateAsync(deletingEntry.id);
+      setDeletingEntry(null);
+    } catch (err: unknown) {
+      setDeleteError((err as { message?: string })?.message ?? "Could not delete this entry.");
+    }
+  }
 
   const allRows = useMemo(() => certifications.data ?? [], [certifications.data]);
 
@@ -80,6 +95,21 @@ export default function CertificationsPage() {
       { key: "score", header: "Score", align: "right", sortValue: (r) => r.score ?? "", render: (r) => r.score ?? "—" },
       { key: "status", header: "Status", sortValue: (r) => r.status, render: (r) => r.status.replace("_", " ") },
       { key: "completed_on", header: "Completed on", align: "right", sortValue: (r) => r.completed_on ?? "", render: (r) => (r.completed_on ? r.completed_on.slice(0, 10) : "—") },
+      {
+        key: "actions",
+        header: "",
+        width: "0.9fr",
+        render: (r) => (
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditingEntry(r)} className="text-[12.5px] font-bold text-primary hover:underline">
+              Edit
+            </button>
+            <button type="button" onClick={() => setDeletingEntry(r)} className="text-[12.5px] font-bold text-danger-fg hover:underline">
+              Delete
+            </button>
+          </div>
+        ),
+      },
     ],
     [],
   );
@@ -95,6 +125,21 @@ export default function CertificationsPage() {
       />
 
       {addingEntry && <AddCertificationEntryModal onClose={() => setAddingEntry(false)} onCreated={() => certifications.refetch()} />}
+      {editingEntry && (
+        <AddCertificationEntryModal editing={editingEntry} onClose={() => setEditingEntry(null)} onCreated={() => certifications.refetch()} />
+      )}
+      <ConfirmDialog
+        open={deletingEntry != null}
+        title="Delete this certification entry?"
+        description={deleteError ?? "This can't be undone."}
+        confirmLabel={deleteEntry.isPending ? "Deleting…" : "Delete"}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeletingEntry(null);
+          setDeleteError(null);
+        }}
+      />
 
       <MetricCards
         cards={[

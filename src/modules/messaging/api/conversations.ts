@@ -12,6 +12,8 @@ import { apiClient } from "@/lib/api/client";
 export const messagingKeys = {
   unreadCount: ["messaging", "unread-count"] as const,
   conversations: ["messaging", "conversations"] as const,
+  /** Cache-only (never fetched on its own) — seeded by useCreateConversation so a brand-new conversation's header data is available instantly, without waiting on a recents-list refetch that won't include it until a first message exists (see useConversations' doc comment). */
+  conversation: (conversationId: number) => ["messaging", "conversation", conversationId] as const,
   messages: (conversationId: number) => ["messaging", "conversations", conversationId, "messages"] as const,
 };
 
@@ -89,13 +91,21 @@ export function useConversations() {
 /**
  * POST /me/messaging/conversations — get-or-create a 1:1 conversation; the
  * backend enforces the student-to-student rule here. Deliberately does not
- * touch the conversations-list cache — a conversation with no messages yet
+ * touch the conversations-LIST cache — a conversation with no messages yet
  * stays out of that list entirely (both here and server-side), only
- * appearing once the first message is actually sent.
+ * appearing once the first message is actually sent. It does seed the
+ * per-conversation cache-only entry above, though: the response already
+ * carries the full otherUser name/roleLabel, so ConversationPane can render
+ * the header instantly on the very first render instead of coming up blank
+ * until a message is sent and the list happens to include this row.
  */
 export function useCreateConversation() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (otherUserId: number) => apiClient.post<ConversationSummary>("/me/messaging/conversations", { otherUserId }),
+    onSuccess: (conversation) => {
+      queryClient.setQueryData(messagingKeys.conversation(conversation.id), conversation);
+    },
   });
 }
 

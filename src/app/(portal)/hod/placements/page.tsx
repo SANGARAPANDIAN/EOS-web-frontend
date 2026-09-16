@@ -91,7 +91,7 @@ function CompanyMark({ name }: { name: string }) {
 }
 
 type StatusFilter = "all" | "placed" | "in_process" | "unplaced";
-type SortKey = "roll" | "companyAz" | "packageDesc" | "offersDesc";
+type SortKey = "roll" | "companyAz" | "packageDesc" | "packageAsc" | "offersDesc";
 
 function StudentRecordsTab() {
   const [search, setSearch] = useState("");
@@ -126,6 +126,8 @@ function StudentRecordsTab() {
       });
     } else if (sort === "packageDesc") {
       out.sort((a, b) => (b.package_lpa ?? -1) - (a.package_lpa ?? -1));
+    } else if (sort === "packageAsc") {
+      out.sort((a, b) => (a.package_lpa ?? Infinity) - (b.package_lpa ?? Infinity));
     } else if (sort === "offersDesc") {
       out.sort((a, b) => b.offers - a.offers);
     }
@@ -244,6 +246,7 @@ function StudentRecordsTab() {
           <option value="roll">Sort · Register number</option>
           <option value="companyAz">Sort · Company (A–Z)</option>
           <option value="packageDesc">Sort · Package (high to low)</option>
+          <option value="packageAsc">Sort · Package (low to high)</option>
           <option value="offersDesc">Sort · Offers (high to low)</option>
         </Select>
         <div className="ml-auto flex gap-2.5">

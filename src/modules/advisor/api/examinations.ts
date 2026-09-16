@@ -78,6 +78,27 @@ export function useAdvisorExaminationGrid(classId: number | null, examTypeId: nu
   });
 }
 
+export interface AdvisorExaminationKpis {
+  pass_percent: number | null;
+  fail_percent: number | null;
+  average_cgpa: number | null;
+  topper: { student_id: number; name: string | null; register_no: string; cgpa: number } | null;
+}
+
+/** GET /me/advisor-examinations/kpis?class_id=&exam_type_id=&semester= — same selection as useAdvisorExaminationGrid. */
+export function useAdvisorExaminationKpis(classId: number | null, examTypeId: number | null, semester: number | null) {
+  return useQuery({
+    queryKey: ["advisor", "examinations", "kpis", classId, examTypeId, semester],
+    queryFn: () =>
+      apiClient.get<AdvisorExaminationKpis>("/me/advisor-examinations/kpis", {
+        class_id: classId ?? undefined,
+        exam_type_id: examTypeId ?? undefined,
+        semester: semester ?? undefined,
+      }),
+    enabled: classId !== null && examTypeId !== null && semester !== null,
+  });
+}
+
 /**
  * The export endpoint returns a raw .xlsx (not the JSON envelope apiClient
  * expects), and a plain <a href> download wouldn't carry the Bearer token —

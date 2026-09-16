@@ -69,7 +69,9 @@ export type NavBadgeKey =
   | "secretaryEmpLeave"
   | "secretaryEmpOd"
   | "adminSopPending"
-  | "messagesUnread";
+  | "messagesUnread"
+  | "stationaryPendingRequests"
+  | "stationaryMachinesDown";
 
 export interface NavItem {
   key: string;
@@ -97,4 +99,6 @@ export interface ModuleConfig {
   navGroups: NavGroup[];
   /** Where the root page sends this role after login — defaults to `${basePath}/dashboard`. Set this for a role with no dashboard page yet (e.g. messaging-only access). */
   homeHref?: string;
+  /** Opt out of AppShell's shared "Messages" nav item — for a role with no messaging use case of its own (e.g. an external vendor account). */
+  hideMessagesNav?: boolean;
 }

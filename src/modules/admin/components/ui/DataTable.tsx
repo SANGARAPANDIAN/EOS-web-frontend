@@ -148,9 +148,8 @@ export function DataTable<T>({
                   key={rowKey(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
-                    "border-b border-admin-divider transition-[transform,box-shadow,background-color] duration-150 last:border-b-0",
-                    onRowClick &&
-                      "cursor-pointer hover:-translate-y-0.5 hover:bg-admin-tint hover:shadow-admin-row-hover-ring",
+                    "border-b border-admin-divider transition-[transform,box-shadow,background-color] duration-150 last:border-b-0 hover:-translate-y-0.5 hover:bg-admin-tint hover:shadow-admin-row-hover-ring",
+                    onRowClick && "cursor-pointer",
                   )}
                 >
                   {selection && (

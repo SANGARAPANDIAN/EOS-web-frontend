@@ -15,6 +15,7 @@ const MESSAGES_NAV_ITEM: NavItem = { key: "messages", label: "Messages", icon: "
  * is added later.
  */
 function withMessagesNavItem(moduleConfig: ModuleConfig): ModuleConfig {
+  if (moduleConfig.hideMessagesNav) return moduleConfig;
   const [firstGroup, ...restGroups] = moduleConfig.navGroups;
   if (!firstGroup) return moduleConfig;
   return {

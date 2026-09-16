@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, Select, Input, Button, EmptyState, SkeletonTable } from "@/components/ui";
+import { Card, StatCard, Select, Input, Button, EmptyState, SkeletonTable, SkeletonStatTiles } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import { useDragScroll } from "@/lib/hooks/useDragScroll";
 import {
   useHodExaminationFilters,
   useHodExaminationGrid,
+  useHodExaminationKpis,
   downloadHodExaminationGrid,
   type HodExaminationRow,
 } from "@/modules/hod/api/examinations";
@@ -53,6 +54,7 @@ export default function HodExaminationsResultsPage() {
   const effectiveExamTypeId = examTypeId ?? filters.data?.exam_types[0]?.id ?? null;
 
   const grid = useHodExaminationGrid(selectedClass?.class_id ?? null, effectiveExamTypeId, effectiveSemester);
+  const kpis = useHodExaminationKpis(selectedClass?.class_id ?? null, effectiveExamTypeId, effectiveSemester);
 
   const filteredRows = useMemo(() => {
     const rows = grid.data?.rows ?? [];
@@ -154,6 +156,51 @@ export default function HodExaminationsResultsPage() {
         <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Examinations &amp; Results</h1>
         <p className="mt-1 text-[13px] text-muted">Paper-wise marks and grades for every candidate in the department</p>
       </div>
+
+      {kpis.isLoading ? (
+        <SkeletonStatTiles count={4} />
+      ) : (
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard
+            className="hod-hover-card"
+            label="Pass"
+            value={kpis.data?.pass_percent != null ? `${kpis.data.pass_percent}%` : "—"}
+            sub="of subject attempts, this exam"
+            barPercent={kpis.data?.pass_percent ?? undefined}
+          />
+          <StatCard
+            className="hod-hover-card"
+            label="Fail"
+            value={kpis.data?.fail_percent != null ? `${kpis.data.fail_percent}%` : "—"}
+            sub="of subject attempts, this exam"
+            barPercent={kpis.data?.fail_percent ?? undefined}
+          />
+          <StatCard
+            className="hod-hover-card"
+            label="Average CGPA"
+            value={kpis.data?.average_cgpa ?? "—"}
+            sub="this exam's papers only"
+            barPercent={kpis.data?.average_cgpa != null ? Math.round((kpis.data.average_cgpa / 10) * 100) : undefined}
+          />
+          <StatCard
+            className="hod-hover-card"
+            href={kpis.data?.topper ? `/hod/class-records/student/${kpis.data.topper.student_id}` : undefined}
+            label="Class Topper"
+            // A name is far longer than the number/percentage this card
+            // normally holds — StatCard's shared value slot is a fixed 32px
+            // single-line truncate (tuned for short stats everywhere else it's
+            // used), so a smaller, wrapping override just for this one value
+            // keeps the full name visible without touching that shared
+            // component's sizing for every other card in the app.
+            value={
+              <span className="line-clamp-2 block text-[20px] leading-[1.2] whitespace-normal">
+                {kpis.data?.topper?.name ?? "—"}
+              </span>
+            }
+            sub={kpis.data?.topper ? `${kpis.data.topper.register_no} · CGPA ${kpis.data.topper.cgpa}` : undefined}
+          />
+        </div>
+      )}
 
       <Card className="hod-hover-card">
         <div className="grid grid-cols-5 gap-4">

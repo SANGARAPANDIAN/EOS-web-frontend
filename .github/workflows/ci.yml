@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main, hot-fix-manish]
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend (lint, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Hard gate — this must always succeed. Verified clean as of 2026-09-16.
+      - name: Build
+        run: npm run build
+
+      # Informational for now, not blocking — not yet verified clean
+      # repo-wide. Flip continue-on-error to false once confirmed clean.
+      - name: Lint
+        continue-on-error: true
+        run: npm run lint
+
+      # No test suite exists for this app yet (zero automated tests as of
+      # 2026-09) — nothing to run here until one is added.

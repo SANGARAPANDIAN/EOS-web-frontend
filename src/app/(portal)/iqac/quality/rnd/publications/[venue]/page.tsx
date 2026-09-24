@@ -34,13 +34,24 @@ export default function VenuePublicationsPage() {
   }
 
   const rows = publications.data ?? [];
-  const authors = new Set(rows.map((r) => r.author.faculty_id));
+  const authors = new Set(rows.flatMap((r) => r.contributors.map((c) => `${c.type}-${c.id}`)));
   const totalCitations = rows.reduce((sum, r) => sum + r.citation_count, 0);
 
   const columns = useMemo<DataTableColumn<VenuePublicationRow>[]>(
     () => [
       { key: "title", header: "Title", width: "1.8fr", sortValue: (r) => r.title, render: (r) => <span className="font-bold text-ink">{r.title}</span> },
-      { key: "author", header: "Author", sortValue: (r) => r.author.name, render: (r) => `${r.author.name}${r.author.department_code ? ` · ${r.author.department_code}` : ""}` },
+      {
+        key: "contributors",
+        header: "Contributors",
+        width: "1.4fr",
+        sortValue: (r) => r.contributors[0]?.name ?? "",
+        render: (r) =>
+          r.contributors.length === 0
+            ? "—"
+            : r.contributors
+                .map((c) => `${c.name}${c.role === "primary_author" ? " (Primary)" : ""}`)
+                .join(", "),
+      },
       { key: "type", header: "Type", sortValue: (r) => r.type, render: (r) => r.type },
       { key: "year", header: "Year", sortValue: (r) => r.year ?? -1, render: (r) => r.year ?? "—" },
       { key: "citations", header: "Citations", align: "right", sortValue: (r) => r.citation_count, render: (r) => r.citation_count },
@@ -69,7 +80,7 @@ export default function VenuePublicationsPage() {
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
-          onClick={() => router.push("/iqac/quality/faculty/publications")}
+          onClick={() => router.push("/iqac/quality/rnd/publications")}
           className="w-fit h-10 rounded-[9px] border border-border-default bg-surface px-4 text-[13px] font-bold text-ink hover:bg-surface-tint"
         >
           ← Publications
@@ -79,7 +90,7 @@ export default function VenuePublicationsPage() {
           onClick={() => setAddingEntry(true)}
           className="hover-lift h-10 shrink-0 rounded-[9px] border border-primary-border bg-primary px-4 text-[13px] font-bold text-white"
         >
-          + Add faculty entry
+          + Add publication
         </button>
       </div>
 
@@ -112,7 +123,7 @@ export default function VenuePublicationsPage() {
         <>
           <div>
             <h1 className="text-[34px] font-extrabold tracking-[-.02em] text-ink">{venue}</h1>
-            <p className="mt-1 text-[15px] font-medium text-muted">Every real paper on file for this venue · Faculty Development · Publications</p>
+            <p className="mt-1 text-[15px] font-medium text-muted">Every real paper on file for this venue · Research & Development · Publications</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

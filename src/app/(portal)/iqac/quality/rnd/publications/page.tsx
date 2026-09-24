@@ -68,9 +68,6 @@ export default function PublicationsPage() {
     return rows;
   }, [filtered, sort]);
 
-  const totalPapers = allVenues.reduce((sum, v) => sum + v.papers, 0);
-  const totalCitations = allVenues.reduce((sum, v) => sum + v.citations, 0);
-
   const columns = useMemo<DataTableColumn<PublicationVenueRow>[]>(
     () => [
       { key: "venue", header: "Journal / Venue", width: "1.8fr", sortValue: (r) => r.venue, render: (r) => <span className="font-bold text-ink">{r.venue}</span> },
@@ -82,11 +79,11 @@ export default function PublicationsPage() {
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
-      <MetricBackNav crumb="IQAC · Faculty Development · Publications" />
+      <MetricBackNav crumb="IQAC · Research & Development · Publications" />
       <MetricHeader
         name="Publications"
-        blurb="Scopus and peer-reviewed publications authored by faculty — real faculty_publications data."
-        addLabel="+ Add faculty entry"
+        blurb="Scopus and peer-reviewed publications, authored by faculty and/or students."
+        addLabel="+ Add publication"
         onAdd={() => setAddingEntry(true)}
       />
 
@@ -160,7 +157,7 @@ export default function PublicationsPage() {
         rowKey={(r) => r.venue}
         loading={venues.isLoading}
         emptyMessage="No publications found."
-        onRowClick={(r) => router.push(`/iqac/quality/faculty/publications/${encodeURIComponent(r.venue)}`)}
+        onRowClick={(r) => router.push(`/iqac/quality/rnd/publications/${encodeURIComponent(r.venue)}`)}
       />
     </div>
   );

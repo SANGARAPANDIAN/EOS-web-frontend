@@ -53,6 +53,13 @@ export const QUALITY_DOMAINS: QualityDomain[] = [
       { key: "fdp", label: "FDP", icon: "school" },
       { key: "sttp", label: "STTP", icon: "menu_book" },
       { key: "certifications", label: "Certifications", icon: "workspace_premium" },
+    ],
+  },
+  {
+    key: "rnd",
+    label: "Research & Development",
+    icon: "science",
+    metrics: [
       { key: "publications", label: "Publications", icon: "article" },
       { key: "research", label: "Research", icon: "science" },
       { key: "patents", label: "Patents", icon: "verified" },

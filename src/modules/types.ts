@@ -71,7 +71,9 @@ export type NavBadgeKey =
   | "adminSopPending"
   | "messagesUnread"
   | "stationaryPendingRequests"
-  | "stationaryMachinesDown";
+  | "stationaryMachinesDown"
+  | "stationeryLowStock"
+  | "stationeryPendingOrders";
 
 export interface NavItem {
   key: string;

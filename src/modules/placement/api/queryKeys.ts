@@ -33,4 +33,5 @@ export const placementKeys = {
   studentReport: (batchId?: number) => [...base, "student-report", batchId ?? "all"] as const,
   reportsGeneratedCount: () => [...base, "reports-generated-count"] as const,
   announcements: () => [...base, "announcements"] as const,
+  todos: () => [...base, "todos"] as const,
 };

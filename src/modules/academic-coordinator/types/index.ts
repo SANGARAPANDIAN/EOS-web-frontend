@@ -14,6 +14,17 @@ export const FEEDBACK_COURSE_TYPE_LABELS: Record<FeedbackCourseType, string> = {
   ADDITIONAL: "Elective / Additional",
 };
 
+/** Mirrors the live `feedback_service_type_enum` — a form tagged with one of these is the student mobile app's Campus-tab service review, not a class/batch-scoped academic form. */
+export type FeedbackServiceType = "food_court" | "medical" | "library" | "stationary" | "copy_center";
+
+export const FEEDBACK_SERVICE_TYPE_LABELS: Record<FeedbackServiceType, string> = {
+  food_court: "Food Court",
+  medical: "Medical",
+  library: "Library",
+  stationary: "Stationary",
+  copy_center: "Copy Center",
+};
+
 export interface FeedbackQuestionTemplate {
   id: number;
   questionText: string;
@@ -49,6 +60,8 @@ export interface FeedbackForm {
   questionCount: number;
   /** null on every environment until the pending migration in academic_coordinator.query.md #1 runs. */
   category: FeedbackCourseType | null;
+  /** Set only for a Campus-tab service review form — see FeedbackServiceType. */
+  serviceType: FeedbackServiceType | null;
   /** Defaults to true (visible) until the same migration runs — see query.md for why. */
   isPublished: boolean;
 }
@@ -64,10 +77,12 @@ export interface CreateFeedbackFormInput {
   form_type?: FeedbackFormType;
   rating_scale_id?: number;
   category?: FeedbackCourseType;
+  /** Set instead of class_id/batch_id for a Campus-tab service review form (institute-wide by nature). */
+  service_type?: FeedbackServiceType;
   questions: FeedbackQuestionInput[];
 }
 
-export type UpdateFeedbackFormInput = Partial<Pick<CreateFeedbackFormInput, "title" | "class_id" | "batch_id" | "category">>;
+export type UpdateFeedbackFormInput = Partial<Pick<CreateFeedbackFormInput, "title" | "class_id" | "batch_id" | "category" | "service_type">>;
 
 /** Per-question aggregate for a "general" form's results (anonymous — no student identity ever returned). */
 export interface FeedbackQuestionResult {

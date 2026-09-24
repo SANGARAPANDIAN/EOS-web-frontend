@@ -29,6 +29,7 @@ export const studentModuleConfig: ModuleConfig = {
         { key: "calendar", label: "Calendar", icon: "calendar_month", href: `${BASE}/calendar` },
         { key: "lms", label: "LMS", icon: "menu_book", href: `${BASE}/lms` },
         { key: "placements", label: "Placements", icon: "work", href: `${BASE}/placements`, careerPath: "placement" },
+        { key: "todo", label: "Todo", icon: "checklist", href: `${BASE}/todo`, careerPath: "placement" },
         { key: "exam-schedule", label: "Exam schedule", icon: "event_note", href: `${BASE}/exam-schedule` },
         { key: "fees", label: "Fees", icon: "payments", href: `${BASE}/fees`, badgeKey: "feesDue" },
       ],
@@ -48,6 +49,8 @@ export const studentModuleConfig: ModuleConfig = {
         { key: "hostel", label: "Hostel", icon: "apartment", href: `${BASE}/hostel`, hostellerOnly: true },
         { key: "inout", label: "In / out request", icon: "swap_horiz", href: `${BASE}/inout`, hostellerOnly: true },
         { key: "library", label: "Library", icon: "local_library", href: `${BASE}/library` },
+        { key: "stationary", label: "Copy Center", icon: "print", href: `${BASE}/stationary` },
+        { key: "stationery-store", label: "Stationery Store", icon: "shopping_cart", href: `${BASE}/stationery-store` },
         {
           key: "feedback",
           label: "Feedback",

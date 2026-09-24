@@ -22,6 +22,7 @@ import { coeModuleConfig } from "@/modules/coe/nav";
 import { iqacModuleConfig } from "@/modules/iqac/nav";
 import { financeModuleConfig } from "@/modules/finance/nav";
 import { stationaryModuleConfig } from "@/modules/stationary/nav";
+import { stationeryStoreModuleConfig } from "@/modules/stationery-store/nav";
 
 /**
  * Roles with real backend support (a working `/me/...` API, confirmed by the
@@ -74,6 +75,7 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   iqac: iqacModuleConfig,
   finance: financeModuleConfig,
   stationary: stationaryModuleConfig,
+  stationery: stationeryStoreModuleConfig,
   parent: messagingOnlyModuleConfig("parent", "Parent"),
   alumni: messagingOnlyModuleConfig("alumni", "Alumni"),
   non_teaching_staff: messagingOnlyModuleConfig("non_teaching_staff", "Staff"),

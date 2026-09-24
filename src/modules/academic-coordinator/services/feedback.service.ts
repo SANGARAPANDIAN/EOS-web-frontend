@@ -8,6 +8,7 @@ import type {
   FeedbackQuestionInput,
   FeedbackQuestionTemplate,
   FeedbackResults,
+  FeedbackServiceType,
   PaginatedResponse,
   UpdateFeedbackFormInput,
 } from "../types";
@@ -34,6 +35,7 @@ interface BackendFeedbackForm {
   _count?: { feedback_questions: number };
   feedback_questions?: BackendFeedbackQuestion[];
   category?: FeedbackCourseType | null;
+  service_type?: FeedbackServiceType | null;
   is_published?: boolean;
 }
 
@@ -66,6 +68,7 @@ function toForm(f: BackendFeedbackForm): FeedbackForm {
     classSection: f.classes?.section ?? null,
     questionCount: f._count?.feedback_questions ?? f.feedback_questions?.length ?? 0,
     category: f.category ?? null,
+    serviceType: f.service_type ?? null,
     isPublished: f.is_published ?? true,
   };
 }

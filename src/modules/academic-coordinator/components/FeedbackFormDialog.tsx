@@ -12,16 +12,24 @@ import { useCreateFeedbackForm } from "../hooks/useFeedbackMutations";
 import { useQuestionTemplates } from "../hooks/useFeedbackQueries";
 import { useAcademicYear } from "../context/AcademicYearContext";
 import { FeedbackQuestionListEditor } from "./FeedbackQuestionListEditor";
-import { FEEDBACK_COURSE_TYPE_LABELS, type FeedbackCourseType, type FeedbackFormType, type FeedbackQuestionInput } from "../types";
+import {
+  FEEDBACK_COURSE_TYPE_LABELS,
+  FEEDBACK_SERVICE_TYPE_LABELS,
+  type FeedbackCourseType,
+  type FeedbackFormType,
+  type FeedbackQuestionInput,
+  type FeedbackServiceType,
+} from "../types";
 
 interface FeedbackFormDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
-type TargetKind = "sections" | "batch";
+type TargetKind = "sections" | "batch" | "service";
 
 const FEEDBACK_CATEGORIES = Object.keys(FEEDBACK_COURSE_TYPE_LABELS) as FeedbackCourseType[];
+const FEEDBACK_SERVICES = Object.keys(FEEDBACK_SERVICE_TYPE_LABELS) as FeedbackServiceType[];
 
 function emptyQuestion(): FeedbackQuestionInput {
   return { question_text: "", question_type: "rating" };
@@ -46,6 +54,7 @@ export function FeedbackFormDialog({ open, onClose }: FeedbackFormDialogProps) {
   const [selectionScopeKey, setSelectionScopeKey] = useState<string | null>(null);
   const [formType, setFormType] = useState<FeedbackFormType>("general");
   const [category, setCategory] = useState<FeedbackCourseType | "">("");
+  const [serviceType, setServiceType] = useState<FeedbackServiceType>("food_court");
   const [questions, setQuestions] = useState<FeedbackQuestionInput[]>([emptyQuestion()]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -84,6 +93,7 @@ export function FeedbackFormDialog({ open, onClose }: FeedbackFormDialogProps) {
     setSelectionScopeKey(null);
     setFormType("general");
     setCategory("");
+    setServiceType("food_court");
     setQuestions([emptyQuestion()]);
     setError(null);
     setProgress(null);
@@ -123,6 +133,21 @@ export function FeedbackFormDialog({ open, onClose }: FeedbackFormDialogProps) {
     }
     const cleanQuestions = questions.map((q) => ({ ...q, question_text: q.question_text.trim() })).filter((q) => q.question_text);
     if (cleanQuestions.length === 0) return setError("Add at least one question.");
+
+    if (targetKind === "service") {
+      createForm
+        .mutateAsync({
+          title: trimmedTitle,
+          service_type: serviceType,
+          questions: cleanQuestions,
+        })
+        .then(() => {
+          show("Feedback form created", "success");
+          handleClose();
+        })
+        .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again."));
+      return;
+    }
 
     if (targetKind === "batch") {
       createForm
@@ -203,10 +228,39 @@ export function FeedbackFormDialog({ open, onClose }: FeedbackFormDialogProps) {
           >
             An entire batch
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTargetKind("service");
+              setFormType("general");
+              setCategory("");
+            }}
+            className={`h-9 flex-1 rounded-input border text-[12.5px] font-semibold ${
+              targetKind === "service" ? "border-primary bg-accent-100 text-primary" : "border-border-default bg-surface text-body"
+            }`}
+          >
+            A Campus service
+          </button>
         </div>
       </div>
 
-      {targetKind === "sections" ? (
+      {targetKind === "service" && (
+        <div className="mb-3.5">
+          <label className="mb-1 block text-[12.5px] font-semibold text-body">Service</label>
+          <Select value={serviceType} onChange={(e) => setServiceType(e.target.value as FeedbackServiceType)}>
+            {FEEDBACK_SERVICES.map((s) => (
+              <option key={s} value={s}>
+                {FEEDBACK_SERVICE_TYPE_LABELS[s]}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-[11px] text-subtle">
+            Sent to every student, institute-wide — shown as this service&apos;s review card on the Campus tab of the mobile app.
+          </p>
+        </div>
+      )}
+
+      {targetKind === "sections" && (
         <div className="mb-3.5 rounded-input border border-divider bg-surface-tint p-3">
           <div>
             <label className="mb-1 block text-[12.5px] font-semibold text-body">Department</label>
@@ -257,7 +311,9 @@ export function FeedbackFormDialog({ open, onClose }: FeedbackFormDialogProps) {
             )}
           </div>
         </div>
-      ) : (
+      )}
+
+      {targetKind === "batch" && (
         <div className="mb-3.5">
           <label className="mb-1 block text-[12.5px] font-semibold text-body">Batch</label>
           <div className="flex h-[42px] items-center rounded-input border border-border-default bg-surface-tint px-[13px] font-semibold text-body">
@@ -267,28 +323,32 @@ export function FeedbackFormDialog({ open, onClose }: FeedbackFormDialogProps) {
         </div>
       )}
 
-      <div className="mb-3.5">
-        <label className="mb-1 block text-[12.5px] font-semibold text-body">Form type *</label>
-        <Select value={formType} onChange={(e) => setFormType(e.target.value as FeedbackFormType)}>
-          <option value="general">General feedback (per-question aggregate)</option>
-          <option value="end_semester" disabled={targetKind !== "sections"}>
-            End-of-semester faculty rating (per faculty × subject matrix)
-          </option>
-        </Select>
-      </div>
-
-      <div className="mb-3.5">
-        <label className="mb-1 block text-[12.5px] font-semibold text-body">Category</label>
-        <Select value={category} onChange={(e) => setCategory(e.target.value as FeedbackCourseType | "")}>
-          <option value="">No category — custom questions, sent to everyone in scope</option>
-          {FEEDBACK_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {FEEDBACK_COURSE_TYPE_LABELS[c]}
+      {targetKind !== "service" && (
+        <div className="mb-3.5">
+          <label className="mb-1 block text-[12.5px] font-semibold text-body">Form type *</label>
+          <Select value={formType} onChange={(e) => setFormType(e.target.value as FeedbackFormType)}>
+            <option value="general">General feedback (per-question aggregate)</option>
+            <option value="end_semester" disabled={targetKind !== "sections"}>
+              End-of-semester faculty rating (per faculty × subject matrix)
             </option>
-          ))}
-        </Select>
-        <p className="mt-1 text-[11px] text-subtle">Optional. Picking one lets you reuse that category&apos;s standard question set below.</p>
-      </div>
+          </Select>
+        </div>
+      )}
+
+      {targetKind !== "service" && (
+        <div className="mb-3.5">
+          <label className="mb-1 block text-[12.5px] font-semibold text-body">Category</label>
+          <Select value={category} onChange={(e) => setCategory(e.target.value as FeedbackCourseType | "")}>
+            <option value="">No category — custom questions, sent to everyone in scope</option>
+            {FEEDBACK_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {FEEDBACK_COURSE_TYPE_LABELS[c]}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-[11px] text-subtle">Optional. Picking one lets you reuse that category&apos;s standard question set below.</p>
+        </div>
+      )}
 
       <FeedbackQuestionListEditor
         questions={questions}

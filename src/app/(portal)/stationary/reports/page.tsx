@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PageHeader, Button, Card, KpiCard, EmptyState } from "@/modules/admin/components/ui";
+import { PageHeader, Button, Card, KpiCard, EmptyState, Input } from "@/modules/admin/components/ui";
 import { useUsageByDepartment, useRevenueReport } from "@/modules/stationary/api/reports";
 
 // Ported from "Stationery Portal.dc.html"'s Reports page: "Usage by
@@ -40,8 +40,15 @@ function exportCsv(filename: string, rows: (string | number)[][]) {
 
 export default function StationaryReportsPage() {
   const [tab, setTab] = useState<Tab>("usage");
-  const { data: usage, isLoading: usageLoading } = useUsageByDepartment();
-  const { data: revenue, isLoading: revenueLoading } = useRevenueReport();
+  // Both empty = month-to-date (the backend's own default) - set here only
+  // to scope a specific window, which then affects the on-screen report AND
+  // whatever gets exported, same as this page already behaved before dates
+  // were pickable (just month-to-date, un-adjustable).
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const range = fromDate && toDate ? { from: fromDate, to: toDate } : undefined;
+  const { data: usage, isLoading: usageLoading } = useUsageByDepartment(range);
+  const { data: revenue, isLoading: revenueLoading } = useRevenueReport(range);
 
   const maxPages = Math.max(1, ...(usage?.departments.map((d) => d.pages) ?? [1]));
   // "unspecified" is only a real mode for rows created before payment_mode
@@ -87,6 +94,29 @@ export default function StationaryReportsPage() {
           </Button>
         }
       />
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-admin-muted">From date</label>
+          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-auto" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-admin-muted">To date</label>
+          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-auto" />
+        </div>
+        {(fromDate || toDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setFromDate("");
+              setToDate("");
+            }}
+            className="mb-2 text-sm font-semibold text-admin-primary hover:text-admin-primary-dark"
+          >
+            Reset to month-to-date
+          </button>
+        )}
+      </div>
 
       <div className="flex gap-7 border-b border-admin-divider">
         {(["usage", "revenue"] as const).map((t) => (

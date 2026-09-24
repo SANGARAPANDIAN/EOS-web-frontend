@@ -75,6 +75,7 @@ export const ROLE_LABEL: Record<string, string> = {
   academic_coordinator: "Academic Coordinator",
   alumni: "Alumni",
   stationary: "Stationary",
+  stationery: "Stationery Store",
 };
 
 /** drive_application_status_enum (schema.prisma) — shared between the Placements page and the Dashboard's next-drive tile. */

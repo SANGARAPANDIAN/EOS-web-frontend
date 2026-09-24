@@ -9,6 +9,8 @@ export interface DataTableColumn<T> {
   align?: "left" | "right";
   /** Right-aligned numeric/register-number columns read better in the mono font, matching the reference. */
   mono?: boolean;
+  /** Shrink this column to its content width (e.g. a short amount/status/badge column) instead of sharing the table's stretched width evenly - stops a short value from getting a wide, empty-looking cell next to its neighbours. */
+  shrink?: boolean;
   render: (row: T) => ReactNode;
 }
 
@@ -35,6 +37,8 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   footer?: ReactNode;
   className?: string;
+  /** Drop the 720px min-width for a table embedded in a narrower card (e.g. a Dashboard preview) - the default suits a full-width page table. */
+  compact?: boolean;
 }
 
 const SKELETON_ROWS = 5;
@@ -85,6 +89,7 @@ export function DataTable<T>({
   isLoading = false,
   footer,
   className,
+  compact = false,
 }: DataTableProps<T>) {
   return (
     <Card hoverable={false} className={cn("overflow-hidden", className)}>
@@ -95,7 +100,7 @@ export function DataTable<T>({
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-sm">
+        <table className={cn("w-full border-collapse text-sm", !compact && "min-w-[720px]")}>
           <thead>
             <tr className="bg-admin-tint">
               {selection && (
@@ -111,8 +116,9 @@ export function DataTable<T>({
                 <th
                   key={col.key}
                   className={cn(
-                    "border-b border-admin-divider px-3 py-[11px] text-[11px] font-bold tracking-[.08em] text-admin-muted uppercase first:pl-5 last:pr-5",
+                    "border-b border-admin-divider px-4 py-[11px] text-[11px] font-bold tracking-[.08em] text-admin-muted uppercase first:pl-5 last:pr-5",
                     col.align === "right" ? "text-right" : "text-left",
+                    col.shrink && "w-px whitespace-nowrap",
                   )}
                 >
                   {col.header}
@@ -126,7 +132,7 @@ export function DataTable<T>({
                 <tr key={`skeleton-${i}`} className="border-b border-admin-divider">
                   {selection && <td className="px-3 py-3.5 pl-5" />}
                   {columns.map((col) => (
-                    <td key={col.key} className="px-3 py-3.5 first:pl-5 last:pr-5">
+                    <td key={col.key} className="px-4 py-3.5 first:pl-5 last:pr-5">
                       <div className="h-4 w-full max-w-[140px] animate-pulse rounded bg-admin-tint" />
                     </td>
                   ))}
@@ -148,12 +154,17 @@ export function DataTable<T>({
                   key={rowKey(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
-                    "border-b border-admin-divider transition-[transform,box-shadow,background-color] duration-150 last:border-b-0 hover:-translate-y-0.5 hover:bg-admin-tint hover:shadow-admin-row-hover-ring",
-                    onRowClick && "cursor-pointer",
+                    "border-b border-admin-divider transition-[transform,box-shadow,background-color] duration-150 last:border-b-0",
+                    // Only a genuinely clickable row (onRowClick set) gets the
+                    // lift + tint + ring hover - a plain read-only table (no
+                    // onRowClick, e.g. the Dashboard's Recent orders) used to
+                    // get the same hover on every row despite nothing
+                    // happening on click, which read as a bug.
+                    onRowClick && "cursor-pointer hover:-translate-y-0.5 hover:bg-admin-tint hover:shadow-admin-row-hover-ring",
                   )}
                 >
                   {selection && (
-                    <td className="px-3 py-3.5 pl-5" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-3.5 pl-5" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className={CHECKBOX_CLASS}
@@ -167,9 +178,10 @@ export function DataTable<T>({
                     <td
                       key={col.key}
                       className={cn(
-                        "px-3 py-3.5 text-admin-body first:pl-5 last:pr-5",
+                        "px-4 py-3.5 text-admin-body first:pl-5 last:pr-5",
                         col.align === "right" ? "text-right" : "text-left",
                         col.mono && "font-mono",
+                        col.shrink && "w-px whitespace-nowrap",
                       )}
                     >
                       {col.render(row)}

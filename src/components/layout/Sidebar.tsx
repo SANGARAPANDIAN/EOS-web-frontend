@@ -40,7 +40,7 @@ export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges, 
                 collapsed ? "justify-center" : "justify-between",
               )}
             >
-              {!collapsed && (
+              {!collapsed && group.label && (
                 <span className="text-[10px] font-extrabold tracking-[.11em] text-subtle">
                   {group.label.toUpperCase()}
                 </span>

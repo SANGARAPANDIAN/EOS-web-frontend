@@ -17,10 +17,19 @@ export interface UsageByDepartmentReport {
   departments: DepartmentUsageRow[];
 }
 
-export function useUsageByDepartment() {
+export interface ReportDateRange {
+  from?: string;
+  to?: string;
+}
+
+export function useUsageByDepartment(range?: ReportDateRange) {
   return useQuery({
-    queryKey: ["stationary", "reports", "usage-by-department"],
-    queryFn: () => apiClient.get<UsageByDepartmentReport>("/stationary-requests/reports/usage-by-department"),
+    queryKey: ["stationary", "reports", "usage-by-department", range?.from ?? null, range?.to ?? null],
+    queryFn: () =>
+      apiClient.get<UsageByDepartmentReport>(
+        "/stationary-requests/reports/usage-by-department",
+        range?.from && range?.to ? { from: range.from, to: range.to } : undefined,
+      ),
   });
 }
 
@@ -42,9 +51,13 @@ export interface RevenueReport {
   recent_payments: RecentPaymentRow[];
 }
 
-export function useRevenueReport() {
+export function useRevenueReport(range?: ReportDateRange) {
   return useQuery({
-    queryKey: ["stationary", "reports", "revenue"],
-    queryFn: () => apiClient.get<RevenueReport>("/stationary-requests/reports/revenue"),
+    queryKey: ["stationary", "reports", "revenue", range?.from ?? null, range?.to ?? null],
+    queryFn: () =>
+      apiClient.get<RevenueReport>(
+        "/stationary-requests/reports/revenue",
+        range?.from && range?.to ? { from: range.from, to: range.to } : undefined,
+      ),
   });
 }

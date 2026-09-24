@@ -49,8 +49,8 @@ export function useOutings(params: { status?: OutingStatus; page?: number; page_
 export function useDecideOuting() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, decision }: { id: number; decision: "approved" | "rejected" }) =>
-      apiClient.patch<Outing>(`/hostel/outings/${id}/decision`, { decision }),
+    mutationFn: ({ id, decision, remarks }: { id: number; decision: "approved" | "rejected"; remarks?: string }) =>
+      apiClient.patch<Outing>(`/hostel/outings/${id}/decision`, { decision, remarks }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hostel", "outings"] });
       queryClient.invalidateQueries({ queryKey: ["hostel", "dashboard", "summary"] });

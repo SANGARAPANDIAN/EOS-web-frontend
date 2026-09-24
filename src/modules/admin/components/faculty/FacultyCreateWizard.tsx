@@ -789,7 +789,11 @@ export function FacultyCreateWizard() {
             {step.id === "account" &&
               fieldGrid(
                 <>
-                  <FormField label="Role" error={errors.role?.message}>
+                  <FormField
+                    label="Role"
+                    hint="A display label only — every new account is created as regular Faculty. To actually appoint someone HoD, use Principal → Role Allocation; to make them a Class Advisor or Subject Handling faculty, use HoD → Assign Faculty once the account exists."
+                    error={errors.role?.message}
+                  >
                     <Select className={errors.role ? "border-admin-danger" : undefined} {...liveClear("role")}>
                       <option value="">Select role</option>
                       {ROLE_OPTIONS.map((r) => (

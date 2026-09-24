@@ -6,7 +6,6 @@ import {
   Button,
   Badge,
   Card,
-  ConfirmDialog,
   DataTable,
   Icon,
   IconButton,
@@ -15,6 +14,7 @@ import {
   SegmentedTabs,
   type DataTableColumn,
 } from "@/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import type { BadgeTone } from "@/components/ui/Badge";
 import {
   useUpdatePayslipRequest,
@@ -205,16 +205,15 @@ export default function HrPayslipRequestsPage() {
 
       {processTarget && <ProcessPayslipModal request={processTarget} onClose={() => setProcessTarget(null)} />}
 
-      <ConfirmDialog
+      <ReasonDialog
         open={rejectTarget !== null}
-        destructive
         title="Reject this payslip request?"
-        description={rejectTarget ? `${facultyName(rejectTarget.faculty)} · ${monthLabel(rejectTarget.month)}` : undefined}
-        confirmLabel={rejectRequest.isPending ? "Rejecting…" : "Reject request"}
-        onConfirm={() => {
+        label="Reason for rejection"
+        loading={rejectRequest.isPending}
+        onConfirm={(rejectionReason) => {
           if (!rejectTarget) return;
           rejectRequest.mutate(
-            { id: rejectTarget.id, input: { status: "rejected" } },
+            { id: rejectTarget.id, input: { status: "rejected", rejection_reason: rejectionReason || undefined } },
             { onSuccess: () => setRejectTarget(null) },
           );
         }}

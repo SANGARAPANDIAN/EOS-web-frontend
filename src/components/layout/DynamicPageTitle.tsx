@@ -43,6 +43,7 @@ const ACRONYM_WORDS = new Set(["sop", "pop", "od", "hod", "iqac", "edc", "coe", 
 // to "Announcements" for the browser tab title.
 const SEGMENT_LABEL_OVERRIDES: Record<string, string> = {
   announcements: "Notices",
+  "order-food": "Craveo",
 };
 
 function humanize(segment: string): string {

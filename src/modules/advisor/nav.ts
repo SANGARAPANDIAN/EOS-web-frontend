@@ -10,7 +10,7 @@ export interface AdvisorNavItem {
   /** Hardcoded badge counts ("2", "3") in the design were sample data —
    * real counts are wired in by AdvisorShell from live pending-request
    * data, never fabricated here. */
-  badgeKey?: "pendingLeave" | "pendingOd";
+  badgeKey?: "pendingLeave" | "pendingOd" | "pendingTimetableRequests";
 }
 
 export interface AdvisorNavGroup {
@@ -19,9 +19,14 @@ export interface AdvisorNavGroup {
   chevron?: boolean;
   /** True only for "MY CLASS" — rendered only when the logged-in faculty is
    * an active class_mentors advisor for at least one class this academic
-   * year. Every other group is common to all faculty regardless of advisor
-   * status. Determined live via useIsClassAdvisor(), never hardcoded. */
+   * year AND the class-advisor/teaching switch (AdvisorShell) is currently
+   * on the advisor side. Determined live via useIsClassAdvisor(), never
+   * hardcoded. */
   advisorOnly?: boolean;
+  /** True only for "CLASS" — the subject-handling/teaching duty. Hidden
+   * while the class-advisor/teaching switch is on the advisor side, same
+   * segregation treatment advisorOnly gets on the other side. */
+  teachingOnly?: boolean;
   items: AdvisorNavItem[];
 }
 
@@ -39,6 +44,7 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
   },
   {
     label: "CLASS",
+    teachingOnly: true,
     items: [
       { key: "attendance", label: "Attendance", icon: "attendance", href: `${BASE}/attendance` },
       { key: "current-semester", label: "LMS", icon: "subject", href: `${BASE}/current-semester` },
@@ -55,6 +61,7 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
       { key: "edc", label: "EDC", icon: "reports", href: `${BASE}/edc` },
       { key: "exams", label: "Examination & Results", icon: "cia", href: `${BASE}/exams` },
       { key: "placements", label: "Placements", icon: "results", href: `${BASE}/placements` },
+      { key: "internships", label: "Internships", icon: "assignment", href: `${BASE}/internships` },
       { key: "leave", label: "Leave", icon: "leave", href: `${BASE}/leave`, badgeKey: "pendingLeave" },
       { key: "od", label: "OD", icon: "od", href: `${BASE}/od`, badgeKey: "pendingOd" },
       { key: "no-due", label: "No Due", icon: "payslip", href: `${BASE}/no-due` },
@@ -64,7 +71,7 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
     label: "EMPLOYEE",
     items: [
       { key: "my-attendance", label: "Attendance", icon: "attendance", href: `${BASE}/my-attendance` },
-      { key: "timetable", label: "Timetable", icon: "attendance", href: `${BASE}/timetable` },
+      { key: "timetable", label: "Timetable", icon: "attendance", href: `${BASE}/timetable`, badgeKey: "pendingTimetableRequests" },
       { key: "my-leave", label: "Leave", icon: "leave", href: `${BASE}/my-leave` },
       { key: "my-od", label: "OD", icon: "od", href: `${BASE}/my-od` },
       { key: "venue-booking", label: "Venue", icon: "venue", href: `${BASE}/venue-booking` },

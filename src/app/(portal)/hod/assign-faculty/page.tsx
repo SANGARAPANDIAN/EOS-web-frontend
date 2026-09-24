@@ -7,6 +7,7 @@ import {
   useHodAssignFaculty,
   useSetHandlingFaculty,
   useSetSubstituteFaculty,
+  useSetClassMentor,
   type HodAssignFacultyRow,
 } from "@/modules/hod/api/assignFaculty";
 
@@ -32,6 +33,7 @@ export default function HodAssignFacultyPage() {
   const overview = useHodAssignFaculty(classId);
   const setHandlingFaculty = useSetHandlingFaculty();
   const setSubstituteFaculty = useSetSubstituteFaculty();
+  const setClassMentor = useSetClassMentor();
   const o = overview.data;
   const rows = o?.rows ?? [];
   const selectedClassId = classId ?? o?.selected_class_id ?? null;
@@ -150,6 +152,39 @@ export default function HodAssignFacultyPage() {
           ))}
         </Select>
       </div>
+
+      {!overview.isLoading && !overview.isError && selectedClassId != null && (
+        <Card>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-[13.5px] font-bold text-ink">Class Advisor / Mentor</div>
+              <p className="mt-0.5 text-[12px] text-muted">
+                {o?.current_mentor
+                  ? `${o.current_mentor.name} is the advisor for ${selectedClassLabel ?? "this class"} this year.`
+                  : `No advisor appointed yet for ${selectedClassLabel ?? "this class"} this year.`}
+              </p>
+            </div>
+            <Select
+              value={o?.current_mentor?.faculty_id ?? ""}
+              disabled={setClassMentor.isPending}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                setClassMentor.mutate({ class_id: selectedClassId, faculty_id: Number(e.target.value) });
+              }}
+              className="max-w-[240px] shrink-0 font-bold"
+            >
+              <option value="" disabled>
+                Select faculty
+              </option>
+              {(o?.faculty_options ?? []).map((f) => (
+                <option key={f.faculty_id} value={f.faculty_id}>
+                  {f.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </Card>
+      )}
 
       {overview.isLoading ? (
         <SkeletonTable rows={8} />

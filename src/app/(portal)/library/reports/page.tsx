@@ -8,12 +8,12 @@ import {
   Button,
   Card,
   DataTable,
-  DatePicker,
   PageHeader,
   Select,
   useToast,
   type DataTableColumn,
 } from "@/modules/admin/components/ui";
+import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { useDepartments } from "@/modules/shared/api/departments";
 import {
   REPORT_DEFS,
@@ -137,17 +137,13 @@ export default function LibraryReportsPage() {
                 </Select>
               )}
               {def.supports.dateRange && (
-                <>
-                  <DatePicker
-                    value={filters.from ?? ""}
-                    onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value || undefined }))}
-                  />
-                  <span className="text-sm text-admin-muted">to</span>
-                  <DatePicker
-                    value={filters.to ?? ""}
-                    onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value || undefined }))}
-                  />
-                </>
+                <DateRangeFilter
+                  from={filters.from ?? ""}
+                  to={filters.to ?? ""}
+                  onFromChange={(value) => setFilters((f) => ({ ...f, from: value || undefined }))}
+                  onToChange={(value) => setFilters((f) => ({ ...f, to: value || undefined }))}
+                  onClear={() => setFilters((f) => ({ ...f, from: undefined, to: undefined }))}
+                />
               )}
             </div>
           )}

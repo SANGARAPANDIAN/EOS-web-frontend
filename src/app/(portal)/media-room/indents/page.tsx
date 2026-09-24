@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { Badge, Button, Card, EmptyState, Input, Select, type BadgeTone } from "@/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import {
   useIndents,
   useCreateIndent,
   useUpdateIndentStatus,
   useDeleteIndent,
+  type Indent,
   type IndentStatus,
   type IndentType,
   type BudgetHead,
@@ -61,6 +63,13 @@ export default function RaiseIndentPage() {
   const [budgetHead, setBudgetHead] = useState<BudgetHead>("media_branding");
   const [justification, setJustification] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<Indent | null>(null);
+
+  function confirmReject(resolution_notes: string) {
+    if (!rejecting) return;
+    updateStatus.mutate({ id: rejecting.id, status: "rejected", resolution_notes: resolution_notes || undefined });
+    setRejecting(null);
+  }
 
   const notReady = indents.data && !indents.data.ready;
   const rows = indents.data?.data ?? [];
@@ -204,7 +213,7 @@ export default function RaiseIndentPage() {
                           <>
                             <button
                               type="button"
-                              onClick={() => updateStatus.mutate({ id: i.id, status: "rejected" })}
+                              onClick={() => setRejecting(i)}
                               disabled={updateStatus.isPending}
                               className="rounded-[7px] border border-danger-border px-3 py-1.5 text-[12.5px] font-bold text-danger-fg hover:bg-danger-bg"
                             >
@@ -249,6 +258,16 @@ export default function RaiseIndentPage() {
           )}
         </>
       )}
+      <ReasonDialog
+        open={rejecting !== null}
+        title="Reject indent"
+        label="Reason"
+        placeholder="Why this indent is being rejected"
+        confirmLabel="Reject indent"
+        loading={updateStatus.isPending}
+        onConfirm={confirmReject}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   );
 }

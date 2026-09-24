@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, StatCard, Button, Badge, EmptyState, SegmentedTabs, Spinner, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
+import { Card, StatCard, Button, Badge, EmptyState, SegmentedTabs, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import { useHodDashboard } from "@/modules/hod/api/dashboard";
 import { formatLongDate, greetingForHour, formatDayAndTime } from "@/lib/utils/date";
 
@@ -170,7 +170,7 @@ export default function HodDashboardPage() {
             </div>
           )}
           {d && (
-            <Link href="/hod/my-class/attendance" className="mt-3 block">
+            <Link href="/faculty/attendance" className="mt-3 block">
               <Button variant="primary">Mark attendance</Button>
             </Link>
           )}
@@ -202,13 +202,7 @@ export default function HodDashboardPage() {
 
         <Card>
           <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[16px] font-extrabold text-ink">Notices</h2>
-              {/* Background refresh (e.g. a new announcement just got posted) — the
-                  previous list stays fully visible underneath, this is just a cue
-                  that it's being brought up to date, not a full-list replacement. */}
-              {dashboard.isFetching && !dashboard.isLoading && <Spinner size={14} className="text-subtle" />}
-            </div>
+            <h2 className="text-[16px] font-extrabold text-ink">Notices</h2>
             <Link href="/hod/announcements">
               <Button variant="primarySmall">View all</Button>
             </Link>

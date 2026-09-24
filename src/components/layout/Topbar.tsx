@@ -7,7 +7,9 @@ import { IconButton } from "@/components/ui/IconButton";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
 import { NotificationPanel } from "@/components/layout/NotificationPanel";
+import { WalletPanel } from "@/components/layout/WalletPanel";
 import { useUnreadNotificationCount } from "@/modules/shared/api/notifications";
+import { useWallet } from "@/modules/shared/api/wallet";
 import { cn } from "@/lib/utils/cn";
 import type { ModuleConfig } from "@/modules/types";
 
@@ -49,6 +51,8 @@ interface TopbarProps {
   unreadNotifications?: number;
   /** Defaults to shown — the HoD design reference has no notification bell in its topbar at all. */
   showNotifications?: boolean;
+  /** Shows the wallet balance + top-up button — omit for roles with no wallet (only Parent, per WalletController's own WALLET_ROLES). */
+  showWallet?: boolean;
   /** Omit for modules that use the shared `HeaderSearch` default (pages/courses/announcements) — provide this only when a module needs fully custom search behaviour/results (e.g. a role with its own cross-entity search endpoint). Ignored when `searchPlaceholder` is set. */
   search?: TopbarSearchConfig;
   /** Omit to hide the "+" button entirely — opt-in, same as `search`. */
@@ -67,6 +71,7 @@ export function Topbar({
   semesterParityLabel,
   unreadNotifications = 0,
   showNotifications = true,
+  showWallet = false,
   search,
   quickCreate,
   settingsHref,
@@ -75,6 +80,8 @@ export function Topbar({
   const [open, setOpen] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const { data: wallet } = useWallet(showWallet);
 
   // The count is fetched here rather than passed down, so every module that
   // uses this header gets a live one without wiring it itself. Some shells
@@ -208,6 +215,24 @@ export function Topbar({
 
       {settingsHref && (
         <IconButton icon="settings" aria-label="Settings" onClick={() => router.push(settingsHref)} />
+      )}
+
+      {showWallet && (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setWalletOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-pill border border-border-default px-3.5 py-2 text-[13px] font-bold text-ink transition-colors hover:border-border-accent"
+          >
+            <Icon name="account_balance_wallet" size={17} className="text-primary" />
+            {wallet ? `₹${Math.round(wallet.balance).toLocaleString("en-IN")}` : "Wallet"}
+          </button>
+          {walletOpen && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <WalletPanel onClose={() => setWalletOpen(false)} />
+            </div>
+          )}
+        </div>
       )}
 
       {showNotifications && (

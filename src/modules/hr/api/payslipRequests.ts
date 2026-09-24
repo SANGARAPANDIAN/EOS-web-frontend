@@ -42,6 +42,7 @@ export interface UpdatePayslipRequestInput {
   status: "processed" | "rejected";
   /** Required when status is "processed" — the link to the generated payslip. */
   file_url?: string;
+  rejection_reason?: string;
 }
 
 /** GET /me/payslip-requests — HR Payroll sees every request; paginated, filterable. */

@@ -1,23 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, Badge, Button, Input, Select, Textarea, EmptyState, SkeletonRows } from "@/components/ui";
-import {
-  useHodHrPayrollRequests,
-  useCreateHodHrPayrollRequest,
-  type HodHrPayrollRequestRow,
-} from "@/modules/hod/api/employeeHrPayroll";
+import { useMyHrQueries, useCreateHrQuery, HR_QUERY_CATEGORIES, type HrQueryRow } from "@/modules/advisor/api/hr-queries";
 import { formatDisplayDate } from "@/lib/utils/date";
-
-const CATEGORIES = [
-  "Select a category",
-  "PF / ESI query",
-  "Increment / arrears",
-  "Bank account change",
-  "Income tax / Form 16",
-  "Salary deduction query",
-  "Other HR request",
-];
 
 function statusTone(status: string): "accent" | "neutral" {
   return status === "resolved" ? "accent" : "neutral";
@@ -43,21 +29,41 @@ export default function HodEmployeeHrPayrollPage() {
   );
 }
 
+/** Same /me/hr-queries multipart endpoint Faculty and Secretary's own HR
+ * Payroll pages already use (src/app/(portal)/faculty/payroll/page.tsx) —
+ * this used to call a separate, HoD-only proxy route that never actually
+ * wired the file through, which is why "Attach a file" did nothing. */
 function RequestForm() {
-  const create = useCreateHodHrPayrollRequest();
+  const create = useCreateHrQuery();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function submit() {
-    if (category === CATEGORIES[0] || !subject) return;
-    await create.mutateAsync({ category, subject, description: description || undefined });
-    setSubmitted(true);
-    setCategory(CATEGORIES[0]);
-    setSubject("");
-    setDescription("");
+    if (!category || !subject.trim()) return;
+    setFormError(null);
+    setSubmitted(false);
+    try {
+      await create.mutateAsync({
+        category,
+        subject: subject.trim(),
+        description: description.trim() || undefined,
+        file: file ?? undefined,
+      });
+      setSubmitted(true);
+      setCategory("");
+      setSubject("");
+      setDescription("");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Could not submit this request. Please try again.");
+    }
   }
 
   return (
@@ -69,7 +75,8 @@ function RequestForm() {
       )}
       <label className="mb-1.5 block text-[13px] font-bold text-ink">Request Category</label>
       <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-        {CATEGORIES.map((c) => (
+        <option value="">Select a category</option>
+        {HR_QUERY_CATEGORIES.map((c) => (
           <option key={c} value={c}>
             {c}
           </option>
@@ -78,7 +85,7 @@ function RequestForm() {
 
       <div className="mt-5">
         <label className="mb-1.5 block text-[13px] font-bold text-ink">Subject</label>
-        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Revised PF contribution query" />
+        <Input value={subject} onChange={(e) => setSubject(e.target.value.slice(0, 200))} placeholder="e.g. Revised PF contribution query" />
       </div>
 
       <div className="mt-5">
@@ -91,20 +98,22 @@ function RequestForm() {
         />
       </div>
 
+      <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       <button
         type="button"
-        disabled
-        title="Attachment upload isn't wired up yet"
-        className="mt-5 w-full rounded-[10px] border border-dashed border-border-default py-3 text-center text-[13.5px] font-bold text-primary opacity-60"
+        onClick={() => fileInputRef.current?.click()}
+        className="mt-5 w-full truncate rounded-[10px] border border-dashed border-border-default px-3 py-3 text-center text-[13.5px] font-bold text-primary"
       >
-        Attach a file (optional)
+        {file ? `📎 ${file.name}` : "Attach a file (optional)"}
       </button>
+
+      {formError && <p className="mt-3 text-[12.5px] font-semibold text-danger-fg">{formError}</p>}
 
       <Button
         variant="primary"
         className="mt-6"
         onClick={submit}
-        disabled={category === CATEGORIES[0] || !subject}
+        disabled={!category || !subject.trim()}
         loading={create.isPending}
       >
         Submit Request
@@ -114,7 +123,7 @@ function RequestForm() {
 }
 
 function RequestStatusList() {
-  const requests = useHodHrPayrollRequests();
+  const requests = useMyHrQueries();
 
   return (
     <div className="flex flex-col gap-4">
@@ -131,13 +140,11 @@ function RequestStatusList() {
           <EmptyState message="No HR/Payroll requests yet." />
         </Card>
       ) : (
-        requests.data.map((r: HodHrPayrollRequestRow) => (
+        requests.data.map((r: HrQueryRow) => (
           <Card key={r.id} className="hod-hover-card">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-[10.5px] font-extrabold tracking-[.06em] text-subtle uppercase">
-                  HRM-{new Date(r.created_at).getFullYear()}-{String(r.id).padStart(3, "0")}
-                </div>
+                <div className="text-[10.5px] font-extrabold tracking-[.06em] text-subtle uppercase">{r.ticket_no}</div>
                 <div className="mt-1 text-[16px] font-extrabold text-ink">{r.subject}</div>
                 <div className="mt-0.5 text-[12.5px] text-muted">{r.category}</div>
               </div>
@@ -150,13 +157,23 @@ function RequestStatusList() {
               </div>
               <div>
                 <div className="text-[10.5px] font-extrabold tracking-[.06em] text-subtle uppercase">HR Assigned</div>
-                <div className="mt-0.5 text-[13.5px] font-bold text-ink">{r.hr_assigned_name ?? "Unassigned"}</div>
+                <div className="mt-0.5 text-[13.5px] font-bold text-ink">{r.assigned_to_name ?? "Unassigned"}</div>
               </div>
               <div>
                 <div className="text-[10.5px] font-extrabold tracking-[.06em] text-subtle uppercase">Resolution</div>
                 <div className="mt-0.5 text-[13.5px] font-bold text-ink">{r.resolution_note ?? "Awaiting"}</div>
               </div>
             </div>
+            {r.file_url && (
+              <a
+                href={r.file_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-block text-[12.5px] font-bold text-primary hover:text-primary-dark"
+              >
+                View attachment →
+              </a>
+            )}
           </Card>
         ))
       )}

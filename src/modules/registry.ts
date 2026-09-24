@@ -21,6 +21,9 @@ import { billingModuleConfig } from "@/modules/billing/nav";
 import { coeModuleConfig } from "@/modules/coe/nav";
 import { iqacModuleConfig } from "@/modules/iqac/nav";
 import { financeModuleConfig } from "@/modules/finance/nav";
+import { canteenAdminModuleConfig } from "@/modules/canteen-admin/nav";
+import { canteenCashierModuleConfig } from "@/modules/canteen-cashier/nav";
+import { parentModuleConfig } from "@/modules/parent/nav";
 
 /**
  * Roles with real backend support (a working `/me/...` API, confirmed by the
@@ -32,13 +35,18 @@ import { financeModuleConfig } from "@/modules/finance/nav";
  * sends them straight to the one real feature they do have (messaging)
  * instead of a dashboard route that doesn't exist.
  */
-function messagingOnlyModuleConfig(role: string, moduleLabel: string): ModuleConfig {
+function messagingOnlyModuleConfig(
+  role: string,
+  moduleLabel: string,
+  options?: { excludeOrderFood?: boolean },
+): ModuleConfig {
   return {
     role,
     basePath: "/messages",
     homeHref: "/messages",
     moduleLabel,
     navGroups: [{ label: "Menu", items: [] }],
+    excludeOrderFood: options?.excludeOrderFood,
   };
 }
 
@@ -72,7 +80,9 @@ export const MODULE_REGISTRY: Record<string, ModuleConfig> = {
   coe: coeModuleConfig,
   iqac: iqacModuleConfig,
   finance: financeModuleConfig,
-  parent: messagingOnlyModuleConfig("parent", "Parent"),
+  canteen_admin: canteenAdminModuleConfig,
+  canteen_cashier: canteenCashierModuleConfig,
+  parent: parentModuleConfig,
   alumni: messagingOnlyModuleConfig("alumni", "Alumni"),
   non_teaching_staff: messagingOnlyModuleConfig("non_teaching_staff", "Staff"),
 };

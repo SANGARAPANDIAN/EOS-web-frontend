@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Card, SegmentedTabs, EmptyState, Badge } from "@/components/ui";
 import { useMyTimetableForDay, useMyFullWeekTimetable, displayPeriodNumbers, type TimetableSlot } from "@/modules/student/api/timetable";
 import { useMyAcademicCalendar } from "@/modules/student/api/profile";
-import { todayBackendDayOfWeek, formatLongDate, formatTime12h } from "@/lib/utils/date";
+import { todayBackendDayOfWeek, formatLongDate, formatTime12h, toIsoDateString } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
 type Tab = "today" | "week";
@@ -51,6 +51,7 @@ function PeriodRow({ slot, displayNumber }: { slot: TimetableSlot; displayNumber
       <div className="min-w-0 flex-1">
         <div className="truncate text-[15px] font-bold text-ink">{slot.subject.name}</div>
         <div className="mt-0.5 truncate text-[12.5px] text-subtle">{slot.faculty.name}</div>
+        {slot.substitution_note && <div className="mt-0.5 truncate text-[11.5px] font-semibold text-primary-dark">{slot.substitution_note}</div>}
       </div>
       <Badge tone="accent">{slot.subject.subject_code}</Badge>
     </div>
@@ -62,9 +63,10 @@ export default function TimetablePage() {
   const academicCalendar = useMyAcademicCalendar();
   const todayDay = todayBackendDayOfWeek();
   const [selectedDay, setSelectedDay] = useState<number>(todayDay ?? 1);
-  const dayTimetable = useMyTimetableForDay(tab === "today" ? selectedDay : null);
-  const weekTimetable = useMyFullWeekTimetable();
   const weekDates = useMemo(() => weekDatesStartingMonday(), []);
+  const selectedDateIso = toIsoDateString(weekDates[selectedDay - 1]);
+  const dayTimetable = useMyTimetableForDay(tab === "today" ? selectedDay : null, tab === "today" ? selectedDateIso : undefined);
+  const weekTimetable = useMyFullWeekTimetable();
 
   const classInfo = dayTimetable.data?.class ?? weekTimetable.data?.class;
   const subtitle = [

@@ -1,11 +1,13 @@
 import { useMemo, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import type { SwitchViewAction } from "@/components/layout/SidebarUserFooter";
 import { Topbar, type TopbarSearchConfig, type TopbarQuickCreateConfig } from "@/components/layout/Topbar";
 import type { ModuleConfig, NavBadgeKey, NavItem } from "@/modules/types";
 import { cn } from "@/lib/utils/cn";
 import { useUnreadMessagesCount } from "@/modules/messaging/api/conversations";
 
 const MESSAGES_NAV_ITEM: NavItem = { key: "messages", label: "Messages", icon: "chat", href: "/messages", badgeKey: "messagesUnread" };
+const ORDER_FOOD_NAV_ITEM: NavItem = { key: "order-food", label: "Craveo", icon: "restaurant_menu", href: "/order-food" };
 
 /**
  * Every role's sidebar gets the same "Messages" entry, spliced in right
@@ -15,12 +17,27 @@ const MESSAGES_NAV_ITEM: NavItem = { key: "messages", label: "Messages", icon: "
  * is added later.
  */
 function withMessagesNavItem(moduleConfig: ModuleConfig): ModuleConfig {
+  if (moduleConfig.excludeMessages) return moduleConfig;
   const [firstGroup, ...restGroups] = moduleConfig.navGroups;
   if (!firstGroup) return moduleConfig;
   return {
     ...moduleConfig,
     navGroups: [
       { ...firstGroup, items: [firstGroup.items[0], MESSAGES_NAV_ITEM, ...firstGroup.items.slice(1)].filter((item): item is NavItem => Boolean(item)) },
+      ...restGroups,
+    ],
+  };
+}
+
+/** Same pattern as withMessagesNavItem, for the "Order Food" entry — see ModuleConfig.excludeOrderFood for who opts out and why. */
+function withOrderFoodNavItem(moduleConfig: ModuleConfig): ModuleConfig {
+  if (moduleConfig.excludeOrderFood) return moduleConfig;
+  const [firstGroup, ...restGroups] = moduleConfig.navGroups;
+  if (!firstGroup) return moduleConfig;
+  return {
+    ...moduleConfig,
+    navGroups: [
+      { ...firstGroup, items: [...firstGroup.items, ORDER_FOOD_NAV_ITEM] },
       ...restGroups,
     ],
   };
@@ -62,6 +79,8 @@ interface AppShellProps {
   customTopbar?: ReactNode;
   /** Opt-in: makes the sidebar footer's avatar/name area clickable — see `SidebarUserFooter`. */
   onIdentityClick?: () => void;
+  /** Opt-in: see `SidebarUserFooter`'s `switchView` prop — a second icon button next to sign-out for switching between two views of the same account (e.g. HoD ⇄ Faculty). */
+  switchView?: SwitchViewAction;
   children: ReactNode;
 }
 
@@ -75,9 +94,12 @@ interface AppShellProps {
  * notification-bell count already is, so every module gets a live badge
  * without having to wire it itself.
  */
-export function AppShell({ moduleConfig, header, navBadges, search, programIcon, quickCreate, customTopbar, onIdentityClick, children }: AppShellProps) {
+export function AppShell({ moduleConfig, header, navBadges, search, programIcon, quickCreate, customTopbar, onIdentityClick, switchView, children }: AppShellProps) {
   const unreadMessages = useUnreadMessagesCount();
-  const configWithMessages = useMemo(() => withMessagesNavItem(moduleConfig), [moduleConfig]);
+  const configWithNavExtras = useMemo(
+    () => withOrderFoodNavItem(withMessagesNavItem(moduleConfig)),
+    [moduleConfig],
+  );
   const badgesWithMessages = useMemo<Partial<Record<NavBadgeKey, ReactNode>>>(
     () => ({ ...navBadges, messagesUnread: unreadMessages.data?.count || undefined }),
     [navBadges, unreadMessages.data?.count],
@@ -96,11 +118,12 @@ export function AppShell({ moduleConfig, header, navBadges, search, programIcon,
     <div data-shell-root="" className="flex h-screen overflow-hidden bg-surface font-sans text-ink">
       <div data-no-print="" style={{ display: "contents" }}>
         <Sidebar
-          moduleConfig={configWithMessages}
+          moduleConfig={configWithNavExtras}
           studentName={header?.studentName}
           registerNumber={header?.registerNumber}
           navBadges={badgesWithMessages}
           onIdentityClick={onIdentityClick}
+          switchView={switchView}
         />
       </div>
       <main data-shell-main="" className="flex flex-1 flex-col overflow-y-auto">
@@ -116,6 +139,7 @@ export function AppShell({ moduleConfig, header, navBadges, search, programIcon,
               semesterParityLabel={header?.semesterParityLabel}
               unreadNotifications={header?.unreadNotifications}
               showNotifications={header?.showNotifications}
+              showWallet={!moduleConfig.excludeOrderFood}
               search={search}
               quickCreate={quickCreate}
               settingsHref={header?.settingsHref}

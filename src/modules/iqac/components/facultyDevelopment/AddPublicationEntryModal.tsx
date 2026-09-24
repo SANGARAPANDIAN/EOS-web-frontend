@@ -1,16 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui";
 import { useAddPublicationEntry, useUpdatePublicationEntry, type VenuePublicationRow } from "@/modules/iqac/api/facultyDevelopment";
-import { useDepartmentsList } from "@/modules/iqac/api/departments";
-import type { FacultyRow } from "@/modules/iqac/api/faculty";
-import { FacultyPicker } from "./FacultyPicker";
+import { ContributorPicker, type Contributor } from "./ContributorPicker";
 
-const AUTHOR_ROLE_OPTIONS: { value: "first_author" | "co_author" | "corresponding_author"; label: string }[] = [
-  { value: "first_author", label: "First author" },
-  { value: "co_author", label: "Co-author" },
-  { value: "corresponding_author", label: "Corresponding author" },
+const CONTRIBUTOR_ROLE_OPTIONS = [
+  { value: "primary_author", label: "Primary author" },
+  { value: "secondary_author", label: "Secondary author" },
 ];
 
 const STATUS_OPTIONS: { value: "published" | "accepted" | "under_review" | "submitted"; label: string }[] = [
@@ -25,14 +22,12 @@ function todayDateInput(): string {
 }
 
 /**
- * Records a real faculty_publications row, via
- * IqacFacultyDevelopmentService.addPublicationEntry(). "Title" isn't in
- * the reference mock but is a real NOT NULL column the page's own venue
- * drilldown displays — a paper with no title would be unidentifiable, so
- * it's added back here (flagged, not silently invented). Head of
- * department is read-only, straight from the real departments.hod the
- * IQAC Departments page already shows — informational only, since there's
- * nowhere honest to persist "who was HOD at publication time".
+ * Records a real `publications` row plus one `publication_contributors` row
+ * per contributor (faculty and/or students, each Primary/Secondary author)
+ * — the redesigned successor to the single-faculty "Add faculty entry"
+ * modal. Requires research_development_rename.query.md Steps 1-3 to have
+ * been run; the backend surfaces a clear error otherwise rather than
+ * silently dropping contributors.
  */
 export function AddPublicationEntryModal({
   onClose,
@@ -43,58 +38,58 @@ export function AddPublicationEntryModal({
   onClose: () => void;
   onCreated: () => void;
   venue?: string;
-  /** Editing an existing paper — the author can't be reassigned here (delete + re-add for that). */
   editing?: VenuePublicationRow;
 }) {
   const isEditing = editing != null;
   const create = useAddPublicationEntry();
   const update = useUpdatePublicationEntry();
-  const departments = useDepartmentsList();
 
-  const [faculty, setFaculty] = useState<FacultyRow | null>(null);
   const [title, setTitle] = useState(editing?.title ?? "");
   const [venue, setVenue] = useState(lockedVenue ?? "");
-  const [authorRole, setAuthorRole] = useState<(typeof AUTHOR_ROLE_OPTIONS)[number]["value"]>("first_author");
   const [indexing, setIndexing] = useState("");
-  const [publishedOn, setPublishedOn] = useState(todayDateInput());
+  const [publishedOn, setPublishedOn] = useState(isEditing ? "" : todayDateInput());
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]["value"]>("published");
+  const [contributors, setContributors] = useState<Contributor[]>(
+    editing?.contributors.map((c) => ({ type: c.type, id: c.id, name: c.name, subtitle: "", role: c.role })) ?? [],
+  );
   const [error, setError] = useState<string | null>(null);
 
-  const hod = useMemo(() => {
-    if (!faculty?.department) return null;
-    return departments.data?.find((d) => d.id === faculty.department!.id)?.hod ?? null;
-  }, [faculty, departments.data]);
-
   async function submit() {
-    if (isEditing) {
-      setError(null);
-      try {
-        await update.mutateAsync({
-          id: editing.id,
-          input: { title: title.trim(), venue: venue.trim() || undefined, author_role: authorRole, indexing: indexing.trim() || undefined, published_date: publishedOn || undefined, status },
-        });
-        onCreated();
-        onClose();
-      } catch (err: unknown) {
-        setError((err as { message?: string })?.message ?? "Could not save this publication.");
-      }
+    if (!title.trim()) {
+      setError("Title is required.");
       return;
     }
-    if (!faculty || !title.trim()) {
-      setError("Faculty and title are both required.");
+    if (contributors.length === 0) {
+      setError("Add at least one contributor.");
       return;
     }
     setError(null);
+
+    const contributorInput = contributors.map((c) => ({ type: c.type, id: c.id, role: c.role }));
+
     try {
-      await create.mutateAsync({
-        faculty_id: faculty.id,
-        title: title.trim(),
-        venue: venue.trim() || undefined,
-        author_role: authorRole,
-        indexing: indexing.trim() || undefined,
-        published_date: publishedOn || undefined,
-        status,
-      });
+      if (isEditing) {
+        await update.mutateAsync({
+          id: editing.id,
+          input: {
+            title: title.trim(),
+            venue: venue.trim() || undefined,
+            indexing: indexing.trim() || undefined,
+            published_date: publishedOn || undefined,
+            status,
+            contributors: contributorInput,
+          },
+        });
+      } else {
+        await create.mutateAsync({
+          title: title.trim(),
+          venue: venue.trim() || undefined,
+          indexing: indexing.trim() || undefined,
+          published_date: publishedOn || undefined,
+          status,
+          contributors: contributorInput,
+        });
+      }
       onCreated();
       onClose();
     } catch (err: unknown) {
@@ -103,17 +98,8 @@ export function AddPublicationEntryModal({
   }
 
   return (
-    <Modal open onClose={onClose} title={isEditing ? "Edit faculty entry" : "Add faculty entry"} subtitle={`Contributing authors · ${lockedVenue ?? (venue || "Publications")}`}>
+    <Modal open onClose={onClose} title={isEditing ? "Edit publication" : "Add publication"} subtitle={`Contributors · ${lockedVenue ?? (venue || "Publications")}`}>
       <div className="flex flex-col gap-4">
-        {isEditing ? (
-          <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Author</div>
-            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{editing.author.name}</div>
-          </div>
-        ) : (
-          <FacultyPicker selected={faculty} onSelect={setFaculty} />
-        )}
-
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Title</div>
           <input
@@ -139,23 +125,6 @@ export function AddPublicationEntryModal({
             )}
           </div>
           <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Author role</div>
-            <select
-              value={authorRole}
-              onChange={(e) => setAuthorRole(e.target.value as typeof authorRole)}
-              className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default bg-surface px-3 text-[13.5px] outline-none focus:border-primary"
-            >
-              {AUTHOR_ROLE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
             <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Indexing</div>
             <input
               value={indexing}
@@ -164,23 +133,19 @@ export function AddPublicationEntryModal({
               className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
             />
           </div>
-          <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Published on</div>
-            <input
-              type="date"
-              value={publishedOn}
-              onChange={(e) => setPublishedOn(e.target.value)}
-              className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
-            />
-          </div>
         </div>
 
-        {!isEditing && (
-          <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Head of department</div>
-            <div className="mt-1.5 h-11 flex items-center rounded-[11px] border border-border-default bg-surface-tint px-3.5 text-[13.5px] font-bold text-ink">{hod?.name ?? "Not assigned"}</div>
-          </div>
-        )}
+        <div>
+          <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Published on (optional)</div>
+          <input
+            type="date"
+            value={publishedOn}
+            onChange={(e) => setPublishedOn(e.target.value)}
+            className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary"
+          />
+        </div>
+
+        <ContributorPicker value={contributors} onChange={setContributors} roleOptions={CONTRIBUTOR_ROLE_OPTIONS} />
 
         <div>
           <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Status</div>

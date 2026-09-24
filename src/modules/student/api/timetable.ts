@@ -7,6 +7,11 @@ export interface TimetableSlot {
   end_time: string;
   subject: { id: number; name: string; subject_code: string; course_type: string | null };
   faculty: { id: number; name: string };
+  /** Set only when `date` was passed and a faculty take-over/swap request was
+   * accepted for that exact date — faculty/subject above already reflect the
+   * substitution, this is just the human-readable "why". Never set on the
+   * plain recurring view (no date passed). */
+  substitution_note: string | null;
 }
 
 export interface TimetableClassInfo {
@@ -21,11 +26,18 @@ export interface DayTimetable {
   slots: TimetableSlot[];
 }
 
-/** GET /me/timetable?day=N — day_of_week is 1 (Monday) through 6 (Saturday); no classes on Sunday. */
-export function useMyTimetableForDay(day: number | null) {
+/**
+ * GET /me/timetable?day=N&date=YYYY-MM-DD — day_of_week is 1 (Monday)
+ * through 6 (Saturday); no classes on Sunday. `date` is optional and purely
+ * additive: when given, any faculty take-over/swap accepted for that exact
+ * calendar date is reflected in the returned slots (see
+ * TimetableSlot.substitution_note) — the recurring day_of_week view is
+ * unaffected either way.
+ */
+export function useMyTimetableForDay(day: number | null, date?: string) {
   return useQuery({
-    queryKey: ["me", "timetable", day],
-    queryFn: () => apiClient.get<DayTimetable>("/me/timetable", { day: day ?? undefined }),
+    queryKey: ["me", "timetable", day, date],
+    queryFn: () => apiClient.get<DayTimetable>("/me/timetable", { day: day ?? undefined, date }),
     enabled: day !== null,
   });
 }

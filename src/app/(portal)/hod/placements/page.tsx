@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, Badge, Avatar, Input, Select, EmptyState, SkeletonTable, SkeletonRows, PillTabs } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import {
@@ -91,9 +92,10 @@ function CompanyMark({ name }: { name: string }) {
 }
 
 type StatusFilter = "all" | "placed" | "in_process" | "unplaced";
-type SortKey = "roll" | "companyAz" | "packageDesc" | "offersDesc";
+type SortKey = "roll" | "companyAz" | "packageDesc" | "packageAsc" | "offersDesc";
 
 function StudentRecordsTab() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [year, setYear] = useState<string>("");
   const [section, setSection] = useState<string>("");
@@ -126,6 +128,8 @@ function StudentRecordsTab() {
       });
     } else if (sort === "packageDesc") {
       out.sort((a, b) => (b.package_lpa ?? -1) - (a.package_lpa ?? -1));
+    } else if (sort === "packageAsc") {
+      out.sort((a, b) => (a.package_lpa ?? Infinity) - (b.package_lpa ?? Infinity));
     } else if (sort === "offersDesc") {
       out.sort((a, b) => b.offers - a.offers);
     }
@@ -244,6 +248,7 @@ function StudentRecordsTab() {
           <option value="roll">Sort · Register number</option>
           <option value="companyAz">Sort · Company (A–Z)</option>
           <option value="packageDesc">Sort · Package (high to low)</option>
+          <option value="packageAsc">Sort · Package (low to high)</option>
           <option value="offersDesc">Sort · Offers (high to low)</option>
         </Select>
         <div className="ml-auto flex gap-2.5">
@@ -278,6 +283,7 @@ function StudentRecordsTab() {
           data={rows}
           rowKey={(r) => r.student_id}
           rowClassName="hod-hover-row"
+          onRowClick={(r) => router.push(`/hod/placements/students/${r.student_id}`)}
           emptyMessage={statusFilter !== "all" ? "No students match this status." : undefined}
         />
       )}

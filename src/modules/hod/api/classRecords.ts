@@ -7,6 +7,8 @@ export interface HodClassSummary {
   year: string;
   semester: number;
   student_count: number;
+  batch_id: number;
+  batch_name: string;
 }
 
 /** GET /hod/class-records/classes */
@@ -53,6 +55,8 @@ export interface HodClassDetail {
     classroom: string | null;
     student_count: number;
   };
+  /** True when viewing a past year of this same class — only the GPA column reflects that year; attendance/arrears/fees/placement below are always today's real totals. */
+  is_historical_view: boolean;
   advisor: HodClassAdvisor | null;
   stats: {
     mean_attendance: number | null;
@@ -65,11 +69,12 @@ export interface HodClassDetail {
   students: HodClassStudentRow[];
 }
 
-/** GET /hod/class-records/:classId */
-export function useHodClassDetail(classId: number | null) {
+/** GET /hod/class-records/:classId — pass `semester` to view a past year of this same class (e.g. Year I of a batch now in Year III); omit for the class's live current semester. */
+export function useHodClassDetail(classId: number | null, semester?: number) {
   return useQuery({
-    queryKey: ["hod", "class-records", classId],
-    queryFn: () => apiClient.get<HodClassDetail>(`/hod/class-records/${classId}`),
+    queryKey: ["hod", "class-records", classId, semester ?? "current"],
+    queryFn: () =>
+      apiClient.get<HodClassDetail>(`/hod/class-records/${classId}`, semester ? { semester } : undefined),
     enabled: classId !== null,
   });
 }

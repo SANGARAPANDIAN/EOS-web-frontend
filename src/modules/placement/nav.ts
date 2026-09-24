@@ -25,6 +25,7 @@ export const placementModuleConfig: ModuleConfig = {
         { key: "students", label: "Students", icon: "groups", href: `${BASE}/students`, badgeKey: "placementStudents" },
         { key: "companies", label: "Companies", icon: "business_center", href: `${BASE}/companies`, badgeKey: "placementCompanies" },
         { key: "drives", label: "Placement Drives", icon: "event_available", href: `${BASE}/drives`, badgeKey: "placementDrives" },
+        { key: "internships", label: "Internships", icon: "workspace_premium", href: `${BASE}/internships` },
       ],
     },
     {

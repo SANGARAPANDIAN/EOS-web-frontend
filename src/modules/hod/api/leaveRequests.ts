@@ -42,11 +42,13 @@ export function useDecideHodLeaveRequest() {
       kind,
       id,
       decision,
+      remarks,
     }: {
       kind: LeaveAudience;
       id: number;
       decision: "approved" | "rejected";
-    }) => apiClient.patch(`/hod/leave-requests/${kind}/${id}`, { decision }),
+      remarks?: string;
+    }) => apiClient.patch(`/hod/leave-requests/${kind}/${id}`, { decision, remarks }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hod", "leave-requests"] }),
   });
 }

@@ -77,6 +77,13 @@ export function usePublicationDepartments() {
   });
 }
 
+export interface PublicationContributor {
+  type: "faculty" | "student";
+  id: number;
+  name: string;
+  role: "primary_author" | "secondary_author";
+}
+
 export interface VenuePublicationRow {
   id: number;
   title: string;
@@ -84,7 +91,7 @@ export interface VenuePublicationRow {
   year: number | null;
   doi: string | null;
   citation_count: number;
-  author: { faculty_id: number; name: string; department_code: string | null };
+  contributors: PublicationContributor[];
 }
 
 export function useVenuePublications(venue: string | null) {
@@ -95,39 +102,16 @@ export function useVenuePublications(venue: string | null) {
   });
 }
 
-export interface CreatePublicationInput {
-  faculty_id: number;
-  title: string;
-  type: string;
-  year?: number;
-  venue?: string;
-  doi?: string;
-  citation_count?: number;
-}
-
-/** POST /me/iqac/faculty-development/publications — real faculty_publications insert, backs the "+ Add faculty entry" action. */
-export function useCreatePublication() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: CreatePublicationInput) => apiClient.post("/me/iqac/faculty-development/publications", input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["iqac", "faculty-development", "publications"] });
-    },
-  });
-}
-
 export interface AddPublicationEntryInput {
-  faculty_id: number;
   title: string;
   venue?: string;
-  author_role?: "first_author" | "co_author" | "corresponding_author";
   indexing?: string;
-  /** Real once the additive published_date column exists — silently dropped server-side until then. */
   published_date?: string;
   status?: "published" | "accepted" | "under_review" | "submitted";
+  contributors: { type: "faculty" | "student"; id: number; role: string }[];
 }
 
-/** POST /me/iqac/faculty-development/publications/entries — real faculty_publications insert + the richer "Add faculty entry" fields in one call. */
+/** POST /me/iqac/faculty-development/publications/entries — real publications insert + one publication_contributors row per contributor. Requires research_development_rename.query.md Steps 1-3; surfaces a clear error otherwise. */
 export function useAddPublicationEntry() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -141,11 +125,12 @@ export function useAddPublicationEntry() {
 export interface UpdatePublicationEntryInput {
   title?: string;
   venue?: string;
-  author_role?: "first_author" | "co_author" | "corresponding_author";
   indexing?: string;
   published_date?: string;
   status?: "published" | "accepted" | "under_review" | "submitted";
   citation_count?: number;
+  /** Omit to leave contributors untouched; when provided, fully replaces the existing list. */
+  contributors?: { type: "faculty" | "student"; id: number; role: string }[];
 }
 
 /** PATCH /me/iqac/faculty-development/publications/:id — real faculty_publications update. */
@@ -307,9 +292,17 @@ export function useDeleteSttpEntry() {
   });
 }
 
+export interface ResearchContributor {
+  type: "faculty" | "student";
+  id: number;
+  name: string;
+  subtitle: string;
+  department_code: string | null;
+}
+
 export interface ResearchRow {
   id: number;
-  faculty: FacultySummary;
+  contributor: ResearchContributor;
   centre_name: string;
   focus_area: string | null;
   project_status: string;
@@ -334,11 +327,10 @@ export function useResearch(departmentId?: number | null) {
 }
 
 export interface AddResearchEntryInput {
-  faculty_id: number;
   centre_name: string;
   focus_area?: string;
-  role: string;
   joined_on?: string;
+  contributors: { type: "faculty" | "student"; id: number; role: string }[];
 }
 
 /** POST /me/iqac/faculty-development/research — finds/creates the real project by centre_name, inserts a real membership row. */
@@ -382,9 +374,17 @@ export function useDeleteResearchEntry() {
   });
 }
 
+export interface PatentContributor {
+  type: "faculty" | "student";
+  id: number;
+  name: string;
+  subtitle: string;
+  department_code: string | null;
+}
+
 export interface PatentRow {
   id: number;
-  faculty: FacultySummary;
+  contributor: PatentContributor;
   title: string;
   stage: string;
   filed_year: number | null;
@@ -409,12 +409,11 @@ export function usePatents(departmentId?: number | null) {
 }
 
 export interface AddPatentEntryInput {
-  faculty_id: number;
   title: string;
   stage?: "filed" | "published" | "granted";
   filed_year?: number;
   stage_date?: string;
-  role: string;
+  contributors: { type: "faculty" | "student"; id: number; role: string }[];
 }
 
 /** POST /me/iqac/faculty-development/patents — finds/creates the real patent by title, inserts a real inventorship row. */

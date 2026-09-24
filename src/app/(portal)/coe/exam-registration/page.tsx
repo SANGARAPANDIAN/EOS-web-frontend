@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, StatCard, PillTabs, SearchBar, Select, Input, Button, Badge, Modal, Pagination, DEFAULT_PAGE_SIZE, type BadgeTone } from "@/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
 import { SkeletonFilterBar, SkeletonTable } from "@/components/ui/Skeleton";
 import { useExams, type Exam } from "@/modules/coe/api/exams";
@@ -293,6 +294,7 @@ export default function CoeExamRegistrationPage() {
 function RegistrationRow({ row: r, onView, onPrint }: { row: ExamRegistration; onView: () => void; onPrint: () => void }) {
   const review = useReviewExamRegistration();
   const updateFee = useUpdateFeeStatus();
+  const [rejecting, setRejecting] = useState(false);
 
   return (
     <div className="flex items-center justify-between gap-4 border-b border-divider px-5 py-4 last:border-0">
@@ -324,7 +326,7 @@ function RegistrationRow({ row: r, onView, onPrint }: { row: ExamRegistration; o
             <Button variant="primarySmall" className="w-auto px-3 py-1.5 text-[12px]" disabled={review.isPending} onClick={() => review.mutate({ id: r.id, status: "approved" })}>
               Approve
             </Button>
-            <Button variant="secondary" className="w-auto px-3 py-1.5 text-[12px]" disabled={review.isPending} onClick={() => review.mutate({ id: r.id, status: "rejected" })}>
+            <Button variant="secondary" className="w-auto px-3 py-1.5 text-[12px]" disabled={review.isPending} onClick={() => setRejecting(true)}>
               Reject
             </Button>
           </>
@@ -355,6 +357,20 @@ function RegistrationRow({ row: r, onView, onPrint }: { row: ExamRegistration; o
           </>
         )}
       </div>
+      <ReasonDialog
+        open={rejecting}
+        title="Reject exam registration"
+        label="Reason for rejection"
+        placeholder="e.g. Fee not paid, incomplete arrears clearance"
+        loading={review.isPending}
+        onConfirm={(reason) => {
+          review.mutate(
+            { id: r.id, status: "rejected", rejection_reason: reason || undefined },
+            { onSuccess: () => setRejecting(false) },
+          );
+        }}
+        onCancel={() => setRejecting(false)}
+      />
     </div>
   );
 }

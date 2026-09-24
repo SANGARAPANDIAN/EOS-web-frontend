@@ -7,6 +7,14 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
 
+export interface SwitchViewAction {
+  /** Shown as the button's tooltip/title, e.g. "Switch to Faculty view". */
+  label: string;
+  /** Material Symbols icon name. */
+  icon: string;
+  onClick: () => void;
+}
+
 interface SidebarUserFooterProps {
   /** Real display name when a module has one (e.g. from its own identity endpoint) — falls back to the session email. */
   displayName?: string;
@@ -17,10 +25,12 @@ interface SidebarUserFooterProps {
   collapsed?: boolean;
   /** Opt-in: makes the avatar/name area clickable (e.g. Advisor's "view my profile" drawer). Omit for the plain, non-interactive block every other module uses. */
   onIdentityClick?: () => void;
+  /** Opt-in: a second icon button next to sign-out for switching between two views of the same account/session (e.g. HoD ⇄ Faculty, for a HoD who also personally teaches/advises) — omit for every module that has only one view. */
+  switchView?: SwitchViewAction;
 }
 
 /** The one identity + role-switch + sign-out block every module's sidebar uses — never hand-roll this block, import it. */
-export function SidebarUserFooter({ displayName, subLabel, portalName, collapsed, onIdentityClick }: SidebarUserFooterProps) {
+export function SidebarUserFooter({ displayName, subLabel, portalName, collapsed, onIdentityClick, switchView }: SidebarUserFooterProps) {
   const { session, logout } = useAuth();
   const name = displayName || session?.user.email || "?";
   const [confirmingLogout, setConfirmingLogout] = useState(false);
@@ -55,6 +65,9 @@ export function SidebarUserFooter({ displayName, subLabel, portalName, collapsed
             <div className="text-[11px] text-muted">{subLabel}</div>
           </div>
         </>
+      )}
+      {switchView && (
+        <IconButton icon={switchView.icon} size={34} iconSize={17} title={switchView.label} onClick={switchView.onClick} />
       )}
       <IconButton icon="logout" size={34} iconSize={17} title="Log out" onClick={() => setConfirmingLogout(true)} />
 

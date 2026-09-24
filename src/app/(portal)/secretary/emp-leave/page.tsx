@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { stTone } from "@/modules/secretary/helpers";
-import { useMyLeaves, useApplyLeave, useWithdrawLeave } from "@/modules/secretary/api/selfService";
+import { useMyLeaves, useApplyLeave, useWithdrawLeave, useStaffLeaveTypes } from "@/modules/secretary/api/selfService";
 
 // Pixel-exact layout port of the `isEmpLeave` screen from
 // "Secretary Module - Web/Secretary Dashboard.dc.html", lines 814-887.
@@ -10,9 +10,12 @@ import { useMyLeaves, useApplyLeave, useWithdrawLeave } from "@/modules/secretar
 // REAL BACKEND WIRING — ZERO fake data. Reads/writes through EOSbackend1's
 // `faculty_leaves` table via the new Secretary self-service branch added
 // this session (skips the faculty-row lookup, keyed by the real
-// `staff_user_id` column instead of faculty_id). Honest gaps: no
-// leave_type/alternate-arrangement/station-leave/medical-certificate
-// columns exist on this table — dropped from the composer, not faked.
+// `staff_user_id` column instead of faculty_id). leave_type_id is a real,
+// selectable column on this same table (the shared leave_types lookup) —
+// no balance tiles though: faculty_leave_balances is keyed by faculty_id,
+// and a Secretary genuinely has none, so that part stays honestly absent.
+// alternate-arrangement/station-leave/medical-certificate still don't exist
+// on this table — those stay dropped from the composer, not faked.
 // Since a Secretary has no HoD to review their request, it goes straight
 // to the HR Payroll stage (same precedent as an HoD's own leave).
 
@@ -27,6 +30,7 @@ function overallLabel(s: { hod_approval_status: string; hr_approval_status: stri
 
 export default function SecretaryEmpLeavePage() {
   const [tab, setTab] = useState<"Apply" | "History">("Apply");
+  const [leaveTypeId, setLeaveTypeId] = useState<number | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [reason, setReason] = useState("");
@@ -35,6 +39,8 @@ export default function SecretaryEmpLeavePage() {
   const { data: leaves, isLoading, error } = useMyLeaves();
   const applyMutation = useApplyLeave();
   const withdrawMutation = useWithdrawLeave();
+  const leaveTypes = useStaffLeaveTypes();
+  const effectiveLeaveTypeId = leaveTypeId ?? leaveTypes.data?.[0]?.id ?? null;
 
   async function onWithdraw(id: number) {
     try {
@@ -56,7 +62,12 @@ export default function SecretaryEmpLeavePage() {
       return;
     }
     try {
-      await applyMutation.mutateAsync({ from_date: fromDate, to_date: toDate, reason: reason || undefined });
+      await applyMutation.mutateAsync({
+        from_date: fromDate,
+        to_date: toDate,
+        reason: reason || undefined,
+        leave_type_id: effectiveLeaveTypeId ?? undefined,
+      });
       setFromDate(""); setToDate(""); setReason("");
       flash("Leave request submitted — routed straight to HR Payroll.");
       setTab("History");
@@ -82,6 +93,14 @@ export default function SecretaryEmpLeavePage() {
       {tab === "Apply" && (
         <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: 24 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+            <div>
+              <label style={labelSx}>Leave Type</label>
+              <select value={effectiveLeaveTypeId ?? ""} onChange={(e) => setLeaveTypeId(Number(e.target.value))} style={inputSx}>
+                {(leaveTypes.data ?? []).map((lt) => (
+                  <option key={lt.id} value={lt.id}>{lt.name}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label style={labelSx}>From Date</label>
               <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={inputSx} />
@@ -117,6 +136,7 @@ export default function SecretaryEmpLeavePage() {
                   <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, borderRadius: 999, padding: "8px 14px", whiteSpace: "nowrap", background: stBg, color: stFg }}>{st}</span>
                 </div>
                 <div style={{ fontSize: 16.5, fontWeight: 700, marginTop: 14 }}>{r.from_date.slice(0, 10)} – {r.to_date.slice(0, 10)}</div>
+                {r.leave_type && <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginTop: 4 }}>{r.leave_type.name}</div>}
                 <div style={{ fontSize: 13.1, color: "#64748b", marginTop: 10 }}>{r.reason ?? "No reason given"}</div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
                   <span style={{ fontSize: 12.2, color: "#94a3b8" }}>HR Payroll: {r.hr_approval_status}</span>

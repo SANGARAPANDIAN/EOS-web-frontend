@@ -5,7 +5,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, Icon, IconButton, MessageLoading, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
 import { getSocket } from "@/lib/realtime/socket";
-import { messagingKeys, upsertMessage, useConversations, useMessages, type MessageRow } from "@/modules/messaging/api/conversations";
+import {
+  messagingKeys,
+  upsertMessage,
+  useConversations,
+  useMessages,
+  type ConversationSummary,
+  type MessageRow,
+} from "@/modules/messaging/api/conversations";
 import { formatBubbleTime, formatDateDivider } from "@/modules/messaging/utils/formatting";
 
 const TYPING_STOP_DELAY_MS = 3000;
@@ -43,7 +50,13 @@ export function ConversationPane({ conversationId, currentUserId, onBack }: { co
   const queryClient = useQueryClient();
   const conversations = useConversations();
   const messages = useMessages(conversationId);
-  const conversation = conversations.data?.find((c) => c.id === conversationId);
+  // A conversation with no messages yet is deliberately absent from the
+  // recents list (server-side and here) — fall back to the cache-only entry
+  // useCreateConversation seeds on creation, so the header still renders
+  // immediately instead of staying blank until a first message is sent.
+  const conversation =
+    conversations.data?.find((c) => c.id === conversationId) ??
+    queryClient.getQueryData<ConversationSummary>(messagingKeys.conversation(conversationId));
 
   const [draft, setDraft] = useState("");
   const [isPeerTyping, setIsPeerTyping] = useState(false);

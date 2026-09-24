@@ -98,8 +98,15 @@ export function useCreateExamRegistration() {
 export function useReviewExamRegistration() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: "approved" | "rejected" | "pending" }) =>
-      apiClient.patch<ExamRegistration>(`/exam-registrations/${id}/review`, { status }),
+    mutationFn: ({
+      id,
+      status,
+      rejection_reason,
+    }: {
+      id: number;
+      status: "approved" | "rejected" | "pending";
+      rejection_reason?: string;
+    }) => apiClient.patch<ExamRegistration>(`/exam-registrations/${id}/review`, { status, rejection_reason }),
     onSuccess: () => invalidate(queryClient),
   });
 }

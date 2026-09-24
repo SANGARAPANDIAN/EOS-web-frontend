@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Card, Badge, Input, SegmentedTabs, DataTable, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
+import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
+import { HoverDownloadButton } from "@/components/ui/HoverDownloadButton";
+import { exportToPdf } from "@/lib/utils/pdf-export";
 import {
   useHodReportsSummary,
   useHodClassPassRates,
@@ -150,14 +153,79 @@ function SubjectResultsTable({ group }: { group: HodSubjectResultGroup }) {
 }
 
 export default function HodReportsAnalyticsPage() {
-  const summary = useHodReportsSummary();
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [hoverClasses, setHoverClasses] = useState(false);
+  const [hoverSubjects, setHoverSubjects] = useState(false);
+
+  const summary = useHodReportsSummary(from, to);
   const [year, setYear] = useState("");
-  const classRates = useHodClassPassRates(year || null);
-  const subjectResults = useHodSubjectResults();
+  const classRates = useHodClassPassRates(year || null, from, to);
+  const subjectResults = useHodSubjectResults(from, to);
   const [subjectSearch, setSubjectSearch] = useState("");
 
   const s = summary.data;
   const c = classRates.data;
+  const rangeSubtitle = from || to ? `${from || "start"} – ${to || "today"}` : "All time (current semester)";
+
+  async function downloadClassPassRates() {
+    await exportToPdf({
+      title: "Pass Percentage by Class",
+      subtitle: "Ranked high to low · current semester vs previous",
+      meta: [["Period", rangeSubtitle]],
+      sections: [
+        {
+          type: "table",
+          columns: [
+            { header: "Class", key: "class" },
+            { header: "Current", key: "current" },
+            { header: "Previous", key: "previous" },
+            { header: "Change", key: "change" },
+          ],
+          rows: (c?.classes ?? []).map((r) => ({
+            class: `${r.year}-${r.section}`,
+            current: fmtPct(r.current_pass_percent),
+            previous: r.previous_semester != null ? `Sem ${r.previous_semester} · ${fmtPct(r.previous_pass_percent)}` : "—",
+            change: r.change_pts != null ? `${r.change_pts >= 0 ? "+" : ""}${r.change_pts} pts` : "—",
+          })),
+        },
+      ],
+      filename: `pass-percentage-by-class-${from || "all"}_${to || "all"}.pdf`,
+      footerBrand: true,
+    });
+  }
+
+  async function downloadSubjectResults() {
+    const rows = (subjectResults.data?.groups ?? []).flatMap((group) =>
+      group.subjects.map((s2) => ({
+        semester: `${group.year} Yr · Sem ${group.semester}`,
+        subject: `${s2.name} (${s2.code})`,
+        average: fmtPct(s2.average_pass_percent),
+        change: s2.change_pts != null ? `${s2.change_pts >= 0 ? "+" : ""}${s2.change_pts} pts` : "—",
+        remark: subjectRemark(s2),
+      })),
+    );
+    await exportToPdf({
+      title: "Subject-wise Results",
+      subtitle: "Current-semester pass % per section",
+      meta: [["Period", rangeSubtitle]],
+      sections: [
+        {
+          type: "table",
+          columns: [
+            { header: "Semester", key: "semester" },
+            { header: "Subject", key: "subject" },
+            { header: "Average Pass %", key: "average" },
+            { header: "Change", key: "change" },
+            { header: "Remark", key: "remark" },
+          ],
+          rows,
+        },
+      ],
+      filename: `subject-wise-results-${from || "all"}_${to || "all"}.pdf`,
+      footerBrand: true,
+    });
+  }
 
   const classColumns: DataTableColumn<HodClassPassRate>[] = [
     { key: "class", header: "CLASS", width: "1fr", render: (r) => <span className="font-bold text-ink">{r.year}-{r.section}</span> },
@@ -193,19 +261,17 @@ export default function HodReportsAnalyticsPage() {
           Couldn&apos;t load some report data — please try again.
         </div>
       )}
-      <div>
-        <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Reports & Analytics</h1>
-        <p className="mt-1 text-[13px] text-muted">Overall department results · current semester vs previous semester</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-extrabold tracking-[-.03em] text-ink">Reports & Analytics</h1>
+          <p className="mt-1 text-[13px] text-muted">Overall department results · current semester vs previous semester</p>
+        </div>
+        <DateRangeFilter from={from} to={to} onFromChange={setFrom} onToChange={setTo} onClear={() => { setFrom(""); setTo(""); }} />
       </div>
 
       {summary.isLoading && !s ? (
         <div className="flex flex-col gap-5">
           <SkeletonStatTiles count={4} />
-          <div className="grid grid-cols-3 gap-4">
-            <SkeletonBlock />
-            <SkeletonBlock />
-            <SkeletonBlock />
-          </div>
           <SkeletonBlock />
         </div>
       ) : (
@@ -260,53 +326,6 @@ export default function HodReportsAnalyticsPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="hod-hover-card">
-          <div className="mb-1 flex items-center gap-2 text-[12px] font-bold text-primary">
-            <span className="size-1.5 rounded-full bg-primary" /> Best movement
-          </div>
-          {c?.best_movement ? (
-            <>
-              <div className="text-[19px] font-extrabold text-primary">
-                {c.best_movement.year}-{c.best_movement.section}
-              </div>
-              <div className="text-[12px] text-muted">
-                {c.best_movement.change_pts != null && c.best_movement.change_pts >= 0 ? "+" : ""}
-                {c.best_movement.change_pts} pts · now {fmtPct(c.best_movement.current_pass_percent)}
-              </div>
-            </>
-          ) : (
-            <div className="text-[13px] text-subtle">No data yet</div>
-          )}
-        </Card>
-        <Card className="hod-hover-card">
-          <div className="mb-1 flex items-center gap-2 text-[12px] font-bold text-primary">
-            <span className="size-1.5 rounded-full bg-primary" /> Classes declining
-          </div>
-          <div className="text-[19px] font-extrabold text-primary">
-            {c ? `${c.declining_count} of ${c.classes.length}` : "—"}
-          </div>
-          <div className="text-[12px] text-muted">{c?.declining_classes.join(", ") || "None"}</div>
-        </Card>
-        <Card className="hod-hover-card">
-          <div className="mb-1 flex items-center gap-2 text-[12px] font-bold text-primary">
-            <span className="size-1.5 rounded-full bg-primary" /> Lowest pass % · also biggest gain
-          </div>
-          {c?.lowest_but_improving ? (
-            <>
-              <div className="text-[19px] font-extrabold text-primary">
-                {c.lowest_but_improving.year}-{c.lowest_but_improving.section}
-              </div>
-              <div className="text-[12px] text-muted">
-                {fmtPct(c.lowest_but_improving.current_pass_percent)} · improving, keep watching
-              </div>
-            </>
-          ) : (
-            <div className="text-[13px] text-subtle">No data yet</div>
-          )}
-        </Card>
-      </div>
-
       <div>
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -315,7 +334,12 @@ export default function HodReportsAnalyticsPage() {
           </div>
           <SegmentedTabs options={YEAR_TABS} value={year} onChange={setYear} />
         </div>
-        <Card>
+        <Card
+          style={{ position: "relative" }}
+          onMouseEnter={() => setHoverClasses(true)}
+          onMouseLeave={() => setHoverClasses(false)}
+        >
+          <HoverDownloadButton visible={hoverClasses} onDownload={downloadClassPassRates} title="Download pass percentage by class report" />
           <DataTable
             columns={classColumns}
             data={c?.classes ?? []}
@@ -325,7 +349,12 @@ export default function HodReportsAnalyticsPage() {
         </Card>
       </div>
 
-      <div>
+      <div
+        style={{ position: "relative" }}
+        onMouseEnter={() => setHoverSubjects(true)}
+        onMouseLeave={() => setHoverSubjects(false)}
+      >
+        <HoverDownloadButton visible={hoverSubjects} onDownload={downloadSubjectResults} title="Download subject-wise results report" />
         <div className="mb-3 flex items-center justify-between gap-4">
           <div>
             <h2 className="text-[16px] font-extrabold text-ink">Subject-wise results · every section</h2>

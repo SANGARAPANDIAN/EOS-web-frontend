@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import type { NavGroup } from "@/modules/types";
 import { advisorModuleConfig, ADVISOR_NAV } from "./nav";
@@ -8,6 +9,8 @@ import type { AdvisorIconKind } from "./icons";
 import { useMyFacultyProfile, useIsClassAdvisor } from "./api/profile";
 import { useHandledClasses } from "./api/classes";
 import { usePendingStudentLeaveCount, usePendingStudentOdCount } from "./api/requests";
+import { usePendingTimetableRequestsCount } from "./api/timetableRequests";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 // All content below is live from EOSbackend1 — no hardcoded sample values.
 // Fields the backend has no source of truth for at all (publications count,
@@ -35,12 +38,35 @@ const ICON_MAP: Record<AdvisorIconKind, string> = {
 
 export function AdvisorShell({ children }: { children: React.ReactNode }) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const router = useRouter();
+  const { session } = useAuth();
+  // Only a HoD who navigated here via the switch has anywhere to switch
+  // back to — a genuine faculty-only account's JWT role is "faculty", so
+  // this button never appears for them.
+  const isHodViewingThis = session?.user.role === "hod";
 
   const myProfile = useMyFacultyProfile();
   const { isAdvisor, isLoading: advisorLoading, classes: menteeClasses } = useIsClassAdvisor();
   const handledClasses = useHandledClasses();
   const pendingLeave = usePendingStudentLeaveCount();
   const pendingOd = usePendingStudentOdCount();
+  const pendingTimetableRequests = usePendingTimetableRequestsCount();
+
+  // A faculty member can independently be a personal subject teacher
+  // ("CLASS" nav group) and a class advisor/mentor ("MY CLASS" nav group) —
+  // same segregation treatment as the HoD ⇄ Faculty switch, one level
+  // deeper: both duties already live in this one portal/shell, so switching
+  // is a local view toggle, not a route change (see nav.ts's advisorOnly/
+  // teachingOnly flags).
+  const hasTeaching = (handledClasses.data?.length ?? 0) > 0;
+  const dutiesLoaded = !advisorLoading && !handledClasses.isLoading;
+  const canSwitchView = dutiesLoaded && hasTeaching && isAdvisor;
+  const [activeView, setActiveView] = useState<"teaching" | "advisor">("teaching");
+  // Keep today's default (CLASS group visible) until duties are confirmed
+  // loaded, so the common teaching-or-both case never flashes; only a
+  // confirmed advisor-only account flips the default after load.
+  const effectiveView: "teaching" | "advisor" =
+    canSwitchView ? activeView : dutiesLoaded && isAdvisor && !hasTeaching ? "advisor" : "teaching";
 
   // /me/profile (which would supply phone/status/raw name split) is
   // unreachable for a faculty JWT due to a confirmed backend route
@@ -53,17 +79,28 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
 
   const navGroups: NavGroup[] = useMemo(
     () =>
-      ADVISOR_NAV.filter((g) => !g.advisorOnly || (!advisorLoading && isAdvisor)).map((group) => ({
+      ADVISOR_NAV.filter((g) => {
+        if (g.advisorOnly) return effectiveView === "advisor" && isAdvisor;
+        if (g.teachingOnly) return effectiveView === "teaching";
+        return true; // OVERVIEW, EMPLOYEE — common to both views
+      }).map((group) => ({
         label: group.label,
         items: group.items.map((item) => ({
           key: item.key,
           label: item.label,
           icon: ICON_MAP[item.icon],
           href: item.href,
-          badgeKey: item.badgeKey === "pendingLeave" ? "leaveRequestsPending" : item.badgeKey === "pendingOd" ? "odRequestsPending" : undefined,
+          badgeKey:
+            item.badgeKey === "pendingLeave"
+              ? "leaveRequestsPending"
+              : item.badgeKey === "pendingOd"
+                ? "odRequestsPending"
+                : item.badgeKey === "pendingTimetableRequests"
+                  ? "timetableRequestsPending"
+                  : undefined,
         })),
       })),
-    [advisorLoading, isAdvisor],
+    [effectiveView, isAdvisor],
   );
 
   const profileFields = [
@@ -86,11 +123,25 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
       <AppShell
         moduleConfig={{ ...advisorModuleConfig, navGroups }}
         onIdentityClick={() => setProfileOpen(true)}
+        switchView={
+          isHodViewingThis
+            ? { label: "Switch to HoD view", icon: "swap_horiz", onClick: () => router.push("/hod/dashboard") }
+            : canSwitchView
+              ? {
+                  label: activeView === "teaching" ? "Switch to Class Advisor view" : "Switch to Subject Handling view",
+                  icon: "swap_horiz",
+                  onClick: () => {
+                    setActiveView((v) => (v === "teaching" ? "advisor" : "teaching"));
+                    router.push("/faculty/dashboard");
+                  },
+                }
+              : undefined
+        }
         header={{
           studentName: displayName,
           registerNumber: [designation, departmentCode].filter(Boolean).join(" · ") || undefined,
           searchPlaceholder: "Search students, classes, assignments...",
-          programLabel: isAdvisor && primaryMentee ? `Class Mentor · ${primaryMentee.label}` : undefined,
+          programLabel: effectiveView === "advisor" && primaryMentee ? `Class Mentor · ${primaryMentee.label}` : undefined,
           // No academic-calendar/section-context endpoint exists for faculty —
           // omitting the AY/semester pill is more honest than an unbacked value.
           showNotifications: true,
@@ -98,6 +149,7 @@ export function AdvisorShell({ children }: { children: React.ReactNode }) {
         navBadges={{
           leaveRequestsPending: pendingLeave.data || undefined,
           odRequestsPending: pendingOd.data || undefined,
+          timetableRequestsPending: pendingTimetableRequests.data || undefined,
         }}
       >
         {children}

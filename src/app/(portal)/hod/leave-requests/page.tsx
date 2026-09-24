@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, Badge, Button, Avatar, EmptyState, SkeletonRows, PillTabs } from "@/components/ui";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import {
   useHodLeaveRequests,
   useDecideHodLeaveRequest,
@@ -33,8 +34,15 @@ export default function HodLeaveRequestsPage() {
   const [tab, setTab] = useState<LeaveTab>("pending");
   const list = useHodLeaveRequests(audience, tab);
   const decide = useDecideHodLeaveRequest();
+  const [rejecting, setRejecting] = useState<HodLeaveRow | null>(null);
 
   const c = list.data?.counts;
+
+  function confirmReject(remarks: string) {
+    if (!rejecting) return;
+    decide.mutate({ kind: rejecting.kind, id: rejecting.id, decision: "rejected", remarks: remarks || undefined });
+    setRejecting(null);
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-pop-in">
@@ -125,7 +133,7 @@ export default function HodLeaveRequestsPage() {
                   </Button>
                   <Button
                     variant="secondary"
-                    onClick={() => decide.mutate({ kind: row.kind, id: row.id, decision: "rejected" })}
+                    onClick={() => setRejecting(row)}
                     disabled={decide.isPending}
                     loading={
                       decide.isPending &&
@@ -143,6 +151,15 @@ export default function HodLeaveRequestsPage() {
           ))}
         </div>
       )}
+
+      <ReasonDialog
+        open={rejecting != null}
+        title={`Reject ${rejecting?.name ?? "request"}'s leave request?`}
+        label="Reason for rejection"
+        loading={decide.isPending}
+        onConfirm={confirmReject}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   );
 }

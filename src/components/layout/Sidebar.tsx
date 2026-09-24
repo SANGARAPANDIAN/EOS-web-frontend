@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { SidebarBrandHeader } from "@/components/layout/SidebarBrandHeader";
-import { SidebarUserFooter } from "@/components/layout/SidebarUserFooter";
+import { SidebarUserFooter, type SwitchViewAction } from "@/components/layout/SidebarUserFooter";
 import { cn } from "@/lib/utils/cn";
 import type { ModuleConfig, NavBadgeKey } from "@/modules/types";
 
@@ -16,11 +16,24 @@ interface SidebarProps {
   navBadges?: Partial<Record<NavBadgeKey, ReactNode>>;
   /** Opt-in: makes the footer's avatar/name area clickable — see `SidebarUserFooter`. */
   onIdentityClick?: () => void;
+  /** Opt-in: see `SidebarUserFooter`'s `switchView` prop. */
+  switchView?: SwitchViewAction;
 }
 
-export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges, onIdentityClick }: SidebarProps) {
+export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges, onIdentityClick, switchView }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  // A route like /admin/students/admit matches BOTH "Students"
+  // (/admin/students, via the prefix rule below) and "Admissions"
+  // (/admin/students/admit, exact) at once — sibling hrefs where one is a
+  // literal path-prefix of another. Only the longest/most-specific matching
+  // href should ever render as active, so this picks that one match across
+  // every group up front instead of letting each item decide independently.
+  const allNavItems = moduleConfig.navGroups.flatMap((g) => g.items);
+  const activeHref = allNavItems
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <aside
@@ -58,7 +71,7 @@ export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges, 
               )}
             </div>
             {group.items.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              const active = item.href === activeHref;
               const badge = item.badgeKey ? navBadges?.[item.badgeKey] : undefined;
               return (
                 <Link
@@ -104,6 +117,7 @@ export function Sidebar({ moduleConfig, studentName, registerNumber, navBadges, 
         portalName={moduleConfig.moduleLabel}
         collapsed={collapsed}
         onIdentityClick={onIdentityClick}
+        switchView={switchView}
       />
     </aside>
   );

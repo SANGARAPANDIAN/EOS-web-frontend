@@ -80,3 +80,60 @@ export function useHodPlacementHistory() {
       ),
   });
 }
+
+export interface HodStudentProfileApplication {
+  drive_id: number;
+  company_name: string;
+  job_role: string | null;
+  status: "applied" | "r1_cleared" | "r2_cleared" | "r3_cleared" | "rejected" | "placed";
+  updated_at: string;
+}
+
+export interface HodStudentProfileOffer {
+  drive_id: number;
+  company_name: string;
+  job_role: string | null;
+  offered_package: number | null;
+  offer_response: "accepted" | "declined" | null;
+  updated_at: string;
+}
+
+export interface HodStudentProfile {
+  id: number;
+  student_id_no: string;
+  register_no: string | null;
+  name: string;
+  email: string;
+  department_name: string | null;
+  department_code: string | null;
+  year: number | null;
+  photo_url: string | null;
+  resume_url: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  leetcode_url: string | null;
+  hackerrank_url: string | null;
+  codeforces_url: string | null;
+  drives_applied: number;
+  offers_count: number;
+  status: HodStudentProfileApplication["status"] | null;
+  applications: HodStudentProfileApplication[];
+  offers: HodStudentProfileOffer[];
+}
+
+/**
+ * GET /me/department-students/:studentId/profile — same HoD-scoped
+ * endpoint MeDrivesController exposes (student's class must belong to the
+ * HoD's own department), backed by the exact shared getStudentProfile()
+ * the Placement Cell's own student detail page (StudentDetailContent)
+ * already uses. Reused as-is here rather than building a near-duplicate
+ * profile endpoint.
+ */
+export function useHodStudentProfile(studentId: number | null) {
+  return useQuery({
+    queryKey: ["hod", "department-students", studentId, "profile"],
+    queryFn: () =>
+      apiClient.get<HodStudentProfile>(`/me/department-students/${studentId}/profile`),
+    enabled: studentId !== null,
+  });
+}

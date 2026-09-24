@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, StatCard, SearchBar, Select, Button, Badge, Modal, Pagination, DEFAULT_PAGE_SIZE } from "@/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils/cn";
 import { CoePageHeader } from "@/modules/coe/PageHeader";
@@ -158,7 +159,31 @@ export default function CoeRevaluationRetotalingPage() {
   const [newAppOpen, setNewAppOpen] = useState(false);
   const [viewTarget, setViewTarget] = useState<Target | null>(null);
   const [trackTarget, setTrackTarget] = useState<Target | null>(null);
+  const [rejecting, setRejecting] = useState<Target | null>(null);
   const [page, setPage] = useState(1);
+
+  const rejectRev = useUpdateRevaluationRequest();
+  const rejectPc = useUpdatePhotocopyRequest();
+
+  function startReject(target: Target) {
+    setTrackTarget(null);
+    setRejecting(target);
+  }
+
+  function confirmReject(decisionRemarks: string) {
+    if (!rejecting) return;
+    if (rejecting.kind === "revaluation") {
+      rejectRev.mutate(
+        { id: rejecting.id, status: "rejected", decision_remarks: decisionRemarks || undefined },
+        { onSuccess: () => setRejecting(null) },
+      );
+    } else {
+      rejectPc.mutate(
+        { id: rejecting.id, status: "rejected", decision_remarks: decisionRemarks || undefined },
+        { onSuccess: () => setRejecting(null) },
+      );
+    }
+  }
 
   function changeFilter<T>(setter: (v: T) => void, value: T) {
     setter(value);
@@ -403,7 +428,16 @@ export default function CoeRevaluationRetotalingPage() {
 
       <NewApplicationModal open={newAppOpen} onClose={() => setNewAppOpen(false)} />
       <ViewModal target={viewTarget} revRows={revRows} pcRows={pcRows} onClose={() => setViewTarget(null)} />
-      <TrackModal target={trackTarget} revRows={revRows} pcRows={pcRows} onClose={() => setTrackTarget(null)} />
+      <TrackModal target={trackTarget} revRows={revRows} pcRows={pcRows} onClose={() => setTrackTarget(null)} onReject={startReject} />
+      <ReasonDialog
+        open={rejecting !== null}
+        title="Reject application"
+        label="Reason for rejection"
+        placeholder="Why is this application being rejected?"
+        loading={rejectRev.isPending || rejectPc.isPending}
+        onConfirm={confirmReject}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   );
 }
@@ -471,7 +505,18 @@ function ViewModal({
               <span className="text-right text-ink">{value}</span>
             </div>
           ))}
-          {r.remarks && <div className="rounded-input border border-border-default bg-surface-subtle p-3 text-ink">{r.remarks}</div>}
+          {r.remarks && (
+            <div>
+              <span className="mb-1 block text-[11.5px] font-bold text-muted">Applicant&apos;s remarks</span>
+              <div className="rounded-input border border-border-default bg-surface-subtle p-3 text-ink">{r.remarks}</div>
+            </div>
+          )}
+          {r.status === "rejected" && r.decision_remarks && (
+            <div>
+              <span className="mb-1 block text-[11.5px] font-bold text-muted">Reason for rejection</span>
+              <div className="rounded-input border border-danger-border bg-danger-bg p-3 text-danger-fg">{r.decision_remarks}</div>
+            </div>
+          )}
           <Button variant="secondary" className="mt-2 w-auto self-end" onClick={onClose}>
             Close
           </Button>
@@ -502,6 +547,12 @@ function ViewModal({
               <span className="text-right text-ink">{value}</span>
             </div>
           ))}
+          {p.status === "rejected" && p.decision_remarks && (
+            <div>
+              <span className="mb-1 block text-[11.5px] font-bold text-muted">Reason for rejection</span>
+              <div className="rounded-input border border-danger-border bg-danger-bg p-3 text-danger-fg">{p.decision_remarks}</div>
+            </div>
+          )}
           <Button variant="secondary" className="mt-2 w-auto self-end" onClick={onClose}>
             Close
           </Button>
@@ -519,11 +570,13 @@ function TrackModal({
   revRows,
   pcRows,
   onClose,
+  onReject,
 }: {
   target: Target | null;
   revRows: RevaluationRequest[];
   pcRows: PhotocopyRequest[];
   onClose: () => void;
+  onReject: (target: Target) => void;
 }) {
   const updateRev = useUpdateRevaluationRequest();
   const updatePc = useUpdatePhotocopyRequest();
@@ -612,7 +665,7 @@ function TrackModal({
           )}
           {(r.status === "revised" || r.status === "no_change") && (
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" className="w-auto px-4 py-2 text-[12.5px]" disabled={updateRev.isPending} onClick={() => updateRev.mutate({ id: r.id, status: "rejected" })}>
+              <Button variant="secondary" className="w-auto px-4 py-2 text-[12.5px]" disabled={updateRev.isPending} onClick={() => onReject({ kind: "revaluation", id: r.id })}>
                 Reject
               </Button>
               <Button variant="primarySmall" className="w-auto px-4 py-2 text-[12.5px]" disabled={updateRev.isPending} onClick={() => updateRev.mutate({ id: r.id, status: "approved" })}>
@@ -647,7 +700,7 @@ function TrackModal({
 
           {p.status === "requested" && (
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" className="w-auto px-4 py-2 text-[12.5px]" disabled={updatePc.isPending} onClick={() => updatePc.mutate({ id: p.id, status: "rejected" })}>
+              <Button variant="secondary" className="w-auto px-4 py-2 text-[12.5px]" disabled={updatePc.isPending} onClick={() => onReject({ kind: "photocopy", id: p.id })}>
                 Reject
               </Button>
               <Button variant="primarySmall" className="w-auto px-4 py-2 text-[12.5px]" disabled={updatePc.isPending} onClick={() => updatePc.mutate({ id: p.id, status: "scanned" })}>

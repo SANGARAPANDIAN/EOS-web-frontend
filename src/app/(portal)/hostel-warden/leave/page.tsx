@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Badge, DataTable, EmptyState, PillTabs, SearchBar, type BadgeTone, type DataTableColumn } from "@/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import { useOutings, useDecideOuting, isMultiDayOuting, type Outing } from "@/modules/hostel-warden/api/outings";
 import {
   useHostelLeaveRequests,
@@ -67,6 +68,10 @@ export default function LeaveRequestsPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Only "outing" (hostel_outings.remarks) has real reject-reason backend
+  // support so far — "hostel_leave" rows keep their existing bare reject
+  // (see decide() below), not extended here to stay in scope.
+  const [rejectingOuting, setRejectingOuting] = useState<CombinedRow | null>(null);
 
   const rows: CombinedRow[] = useMemo(() => {
     const fromOutings: CombinedRow[] = (outings.data?.data ?? []).filter(isMultiDayOuting).map((o: Outing) => ({
@@ -110,10 +115,22 @@ export default function LeaveRequestsPage() {
   });
 
   const decide = (row: CombinedRow, decision: "approved" | "rejected") => {
+    if (decision === "rejected" && row.kind === "outing") {
+      setRejectingOuting(row);
+      return;
+    }
     if (row.kind === "outing") decideOuting.mutate({ id: row.id, decision });
     else decideHostelLeave.mutate({ id: row.id, decision });
   };
   const deciding = decideOuting.isPending || decideHostelLeave.isPending;
+
+  function confirmRejectOuting(remarks: string) {
+    if (!rejectingOuting) return;
+    decideOuting.mutate(
+      { id: rejectingOuting.id, decision: "rejected", remarks: remarks || undefined },
+      { onSuccess: () => setRejectingOuting(null) },
+    );
+  }
 
   const columns: DataTableColumn<CombinedRow>[] = [
     {
@@ -213,7 +230,7 @@ export default function LeaveRequestsPage() {
         <div>
           <h2 className="text-[17px] font-extrabold text-ink">Academic leave — hostel notified</h2>
           <p className="mt-0.5 text-[12.5px] text-muted">
-            Requests students filed on the academic Leave tab and ticked "Also on hostel leave" — routed through their class advisor then the HoD, not this
+            Requests students filed on the academic Leave tab and ticked &quot;Also on hostel leave&quot; — routed through their class advisor then the HoD, not this
             queue. Shown here for visibility only; there is nothing to approve.
           </p>
         </div>
@@ -261,6 +278,16 @@ export default function LeaveRequestsPage() {
       </div>
 
       {selectedId != null && <StudentDetailModal studentId={selectedId} onClose={() => setSelectedId(null)} />}
+
+      <ReasonDialog
+        open={rejectingOuting !== null}
+        title="Reject outing"
+        label="Reason for rejection"
+        placeholder="e.g. Missing parent consent"
+        loading={decideOuting.isPending}
+        onConfirm={confirmRejectOuting}
+        onCancel={() => setRejectingOuting(null)}
+      />
     </div>
   );
 }

@@ -69,8 +69,8 @@ export function usePendingServiceRequestCount() {
 export function useReviewServiceRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, decision }: { id: number; decision: "approved" | "rejected" }) =>
-      apiClient.patch<ServiceRequestRow>(`/me/service-requests/${id}/review`, { decision }),
+    mutationFn: ({ id, decision, remarks }: { id: number; decision: "approved" | "rejected"; remarks?: string }) =>
+      apiClient.patch<ServiceRequestRow>(`/me/service-requests/${id}/review`, { decision, remarks }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "service-requests"] });
     },

@@ -13,10 +13,14 @@ export interface WeeklyAttendancePoint {
   marked_count: number;
 }
 
-/** GET /me/reports/weekly-attendance */
-export function useWeeklyAttendanceTrend() {
+/** GET /me/reports/weekly-attendance?from=&to= — omitting both keeps the default "most recent 8 weeks with data" view. */
+export function useWeeklyAttendanceTrend(from?: string, to?: string) {
   return useQuery({
-    queryKey: ["me", "reports", "weekly-attendance"],
-    queryFn: () => apiClient.get<{ weeks: WeeklyAttendancePoint[] }>("/me/reports/weekly-attendance"),
+    queryKey: ["me", "reports", "weekly-attendance", from, to],
+    queryFn: () =>
+      apiClient.get<{ weeks: WeeklyAttendancePoint[] }>("/me/reports/weekly-attendance", {
+        from: from || undefined,
+        to: to || undefined,
+      }),
   });
 }

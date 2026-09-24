@@ -29,6 +29,9 @@ const EMPTY_DEFAULTS: DriveFormValues = {
   round2Label: undefined,
   round3Label: undefined,
   resultDeclarationNote: undefined,
+  driveType: "full_time",
+  stipendAmount: undefined,
+  durationMonths: undefined,
 };
 
 export function ScheduleDriveForm() {
@@ -53,6 +56,8 @@ export function ScheduleDriveForm() {
   // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form's watch() is inherently un-memoizable; calling it here (during render, the documented way) is correct even though the compiler can't verify it.
   const companyId = watch("companyId");
   const isDisclosed = watch("isDisclosed");
+  const driveType = watch("driveType");
+  const isInternship = driveType === "internship";
   const isOtherCompany = companyId === OTHER_COMPANY_ID;
   const currentYear = new Date().getFullYear();
 
@@ -84,6 +89,25 @@ export function ScheduleDriveForm() {
     <Card hoverable={false} className="p-6">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Drive type" className="sm:col-span-2">
+            <div className="flex items-center gap-2">
+              <FilterPill
+                type="button"
+                active={!isInternship}
+                onClick={() => setValue("driveType", "full_time", { shouldValidate: true })}
+              >
+                Full-time
+              </FilterPill>
+              <FilterPill
+                type="button"
+                active={isInternship}
+                onClick={() => setValue("driveType", "internship", { shouldValidate: true })}
+              >
+                Internship
+              </FilterPill>
+            </div>
+          </FormField>
+
           <FormField label="Company" error={errors.companyId?.message} className="sm:col-span-2">
             <div className="flex flex-col gap-2.5">
               <Select
@@ -143,9 +167,20 @@ export function ScheduleDriveForm() {
           <FormField label="Job role" error={errors.role?.message}>
             <Input {...register("role", textFieldOptions)} />
           </FormField>
-          <FormField label="Package (LPA)" error={errors.packageLpa?.message}>
-            <Input type="number" step="0.1" {...register("packageLpa", numberFieldOptions)} />
-          </FormField>
+          {isInternship ? (
+            <>
+              <FormField label="Stipend (₹/month)" error={errors.stipendAmount?.message}>
+                <Input type="number" step="500" {...register("stipendAmount", numberFieldOptions)} />
+              </FormField>
+              <FormField label="Duration (months)" error={errors.durationMonths?.message}>
+                <Input type="number" step="1" {...register("durationMonths", numberFieldOptions)} />
+              </FormField>
+            </>
+          ) : (
+            <FormField label="Package (LPA)" error={errors.packageLpa?.message}>
+              <Input type="number" step="0.1" {...register("packageLpa", numberFieldOptions)} />
+            </FormField>
+          )}
           <FormField label="Eligibility (CGPA)" error={errors.eligibilityCgpa?.message}>
             <Input type="number" step="0.1" {...register("eligibilityCgpa", numberFieldOptions)} />
           </FormField>

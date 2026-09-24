@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils/cn";
 export interface SegmentedTabOption<T extends string = string> {
   key: T;
   label: string;
+  badge?: number;
 }
 
 interface SegmentedTabsProps<T extends string> {
@@ -23,11 +24,21 @@ export function SegmentedTabs<T extends string>({ options, value, onChange, clas
             type="button"
             onClick={() => onChange(option.key)}
             className={cn(
-              "cursor-pointer rounded-[8px] px-3.5 py-1.5 text-[13px] font-bold transition-colors",
+              "flex cursor-pointer items-center gap-1.5 rounded-[8px] px-3.5 py-1.5 text-[13px] font-bold transition-colors",
               active ? "bg-surface text-primary shadow-tab" : "bg-transparent text-muted",
             )}
           >
             {option.label}
+            {!!option.badge && (
+              <span
+                className={cn(
+                  "rounded-[6px] px-[6px] py-0.5 font-mono text-[10.5px] font-bold",
+                  active ? "bg-accent-200 text-primary" : "bg-divider text-muted",
+                )}
+              >
+                {option.badge}
+              </span>
+            )}
           </button>
         );
       })}

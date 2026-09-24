@@ -44,20 +44,13 @@ export const hodModuleConfig: ModuleConfig = {
         },
         { key: "no-due", label: "No-Due", icon: "verified", href: `${BASE}/no-due` },
         { key: "placements", label: "Placements", icon: "work", href: `${BASE}/placements` },
+        { key: "internships", label: "Internships", icon: "workspace_premium", href: `${BASE}/internships` },
         { key: "higher-education", label: "Higher Education", icon: "auto_stories", href: `${BASE}/higher-education` },
         { key: "edc", label: "EDC", icon: "lightbulb", href: `${BASE}/edc` },
         { key: "assign-faculty", label: "Assign Faculty", icon: "person_add", href: `${BASE}/assign-faculty` },
         { key: "timetable", label: "Timetable Allocation", icon: "schedule", href: `${BASE}/timetable` },
         { key: "appraisal-requests", label: "Appraisal Requests", icon: "military_tech", href: `${BASE}/appraisal-requests` },
         { key: "sop-pop-requests", label: "SOP/POP Requests", icon: "description", href: `${BASE}/sop-pop-requests` },
-      ],
-    },
-    {
-      label: "My Class",
-      items: [
-        { key: "my-class-attendance", label: "Attendance", icon: "fact_check", href: `${BASE}/my-class/attendance` },
-        { key: "current-semester", label: "LMS", icon: "date_range", href: `${BASE}/my-class/current-semester` },
-        { key: "subject-records", label: "Subject Records", icon: "menu_book", href: `${BASE}/my-class/subject-records` },
       ],
     },
     {

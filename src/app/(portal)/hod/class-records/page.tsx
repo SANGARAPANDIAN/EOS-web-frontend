@@ -15,8 +15,8 @@ type SortKey = "roll" | "cgpaDesc" | "cgpaAsc" | "attendanceAsc" | "dueDesc";
 // rather than the app's existing accent/neutral/danger tokens, which don't
 // match these specific shades closely enough for this table.
 const FLAG_TONE_CLASS: Record<string, string> = {
-  red: "text-[#b91c1c] bg-[#fef2f2] border border-[#fbdcdc]",
-  amber: "text-[#92400e] bg-[#fef7ec] border border-[#f6e2c3]",
+  red: "text-[#1d4ed8] bg-[#eff6ff] border border-[#dbeafe]",
+  amber: "text-[#0369a1] bg-[#f0f9ff] border border-[#bae6fd]",
   green: "text-[#15803d] bg-[#effaf3] border border-[#cdeed9]",
   grey: "text-[#8b93a5] bg-[#f4f6fa] border border-[#e8ebf2]",
 };
@@ -24,31 +24,65 @@ const FLAG_TONE_CLASS: Record<string, string> = {
 function cgpaColor(cgpa: number | null): string {
   if (cgpa == null) return "text-ink";
   if (cgpa >= 8.5) return "text-[#15803d]";
-  if (cgpa < 7) return "text-[#b91c1c]";
+  if (cgpa < 7) return "text-[#1d4ed8]";
   return "text-ink";
 }
 
 export default function HodClassRecordsPage() {
   const router = useRouter();
   const classes = useHodClasses();
+  const [batchId, setBatchId] = useState<number | null>(null);
   const [year, setYear] = useState<string | null>(null);
   const [section, setSection] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("roll");
   const [filter, setFilter] = useState<FilterKey>("all");
 
-  const years = useMemo(() => [...new Set((classes.data ?? []).map((c) => c.year))], [classes.data]);
-  const effectiveYear = year ?? years[0] ?? null;
-  const sectionsForYear = useMemo(
-    () => (classes.data ?? []).filter((c) => c.year === effectiveYear).map((c) => c.section),
-    [classes.data, effectiveYear],
+  // Batches ordered newest-first (same convention as every other batch
+  // dropdown in the app) — deduped from the class list itself rather than a
+  // separate /batches call, since a HoD only ever needs the batches that
+  // actually have a class in their own department.
+  const batches = useMemo(() => {
+    const seen = new Map<number, string>();
+    for (const c of classes.data ?? []) if (!seen.has(c.batch_id)) seen.set(c.batch_id, c.batch_name);
+    return [...seen.entries()].map(([id, name]) => ({ batch_id: id, batch_name: name }));
+  }, [classes.data]);
+  const effectiveBatchId = batchId ?? batches[0]?.batch_id ?? null;
+
+  const classesInBatch = useMemo(
+    () => (classes.data ?? []).filter((c) => c.batch_id === effectiveBatchId),
+    [classes.data, effectiveBatchId],
   );
+
+  // A class is one continuous row across its whole 4-year life — its
+  // `year` field only ever reflects where it is *now* (e.g. "III" for a
+  // batch currently in Year 3). The tabs still need to offer every year
+  // that's already happened (I, II, III), not just the live one, so a HoD
+  // can look back — computed from the highest year any class in this batch
+  // has reached, not read directly off the data.
+  const YEAR_ORDER = ["I", "II", "III", "IV"];
+  const maxYearIndex = useMemo(
+    () => classesInBatch.reduce((max, c) => Math.max(max, YEAR_ORDER.indexOf(c.year)), 0),
+    [classesInBatch],
+  );
+  const years = useMemo(() => YEAR_ORDER.slice(0, maxYearIndex + 1), [maxYearIndex]);
+  const effectiveYear = year ?? years[years.length - 1] ?? null;
+
+  // Sections are the same rows regardless of which year is being viewed —
+  // every section that exists in this batch is valid for every year up to
+  // its current one.
+  const sectionsForYear = useMemo(() => classesInBatch.map((c) => c.section), [classesInBatch]);
   const effectiveSection = section ?? sectionsForYear[0] ?? null;
 
-  const selectedClass = (classes.data ?? []).find(
-    (c) => c.year === effectiveYear && c.section === effectiveSection,
-  );
-  const detail = useHodClassDetail(selectedClass?.class_id ?? null);
+  const selectedClass = classesInBatch.find((c) => c.section === effectiveSection);
+
+  // The later semester of the selected year's pair (I→2, II→4, III→6,
+  // IV→8) — the backend clamps this back down to the class's real current
+  // semester whenever the selected year is the one still in progress, so
+  // this is safe to send unconditionally.
+  const viewSemester = effectiveYear ? (YEAR_ORDER.indexOf(effectiveYear) + 1) * 2 : undefined;
+  const detail = useHodClassDetail(selectedClass?.class_id ?? null, viewSemester);
+  const isHistoricalView = detail.data?.is_historical_view ?? false;
 
   const roster = useMemo(() => detail.data?.students ?? [], [detail.data]);
 
@@ -95,7 +129,7 @@ export default function HodClassRecordsPage() {
             size={32}
             className={cn(
               "text-[11px] font-extrabold",
-              s.at_risk ? "bg-[#fef2f2] text-[#b91c1c]" : "bg-icon-chip text-primary",
+              s.at_risk ? "bg-[#eff6ff] text-[#1d4ed8]" : "bg-icon-chip text-primary",
             )}
           />
           <div className="min-w-0">
@@ -147,7 +181,7 @@ export default function HodClassRecordsPage() {
       width: "0.8fr",
       align: "right",
       render: (s) => (
-        <span className={cn("font-bold", s.arrears > 0 ? "text-[#b91c1c]" : "text-[#c8ccd6]")}>{s.arrears}</span>
+        <span className={cn("font-bold", s.arrears > 0 ? "text-[#1d4ed8]" : "text-[#c8ccd6]")}>{s.arrears}</span>
       ),
     },
     {
@@ -156,7 +190,7 @@ export default function HodClassRecordsPage() {
       width: "1fr",
       align: "right",
       render: (s) => (
-        <span className={cn("font-bold", s.attendance_percent != null && s.attendance_percent < 75 ? "text-[#b91c1c]" : "text-ink")}>
+        <span className={cn("font-bold", s.attendance_percent != null && s.attendance_percent < 75 ? "text-[#1d4ed8]" : "text-ink")}>
           {s.attendance_percent != null ? `${s.attendance_percent}%` : "—"}
         </span>
       ),
@@ -167,7 +201,7 @@ export default function HodClassRecordsPage() {
       width: "1fr",
       align: "right",
       render: (s) => (
-        <span className={cn("font-bold", s.fee_due > 0 ? "text-[#b91c1c]" : "text-[#15803d]")}>
+        <span className={cn("font-bold", s.fee_due > 0 ? "text-[#1d4ed8]" : "text-[#15803d]")}>
           {s.fee_due > 0 ? `₹${s.fee_due.toLocaleString("en-IN")} due` : "Paid"}
         </span>
       ),
@@ -192,13 +226,25 @@ export default function HodClassRecordsPage() {
           <p className="mt-1 text-[13px] text-muted">Pick a class to see its academic standing and the full student list</p>
         </div>
         <div className="flex flex-col items-end gap-2">
+          <Select
+            value={effectiveBatchId ?? ""}
+            onChange={(e) => {
+              setBatchId(e.target.value ? Number(e.target.value) : null);
+              setYear(null);
+              setSection(null);
+            }}
+            className="w-auto min-w-[140px] font-bold"
+          >
+            {batches.map((b) => (
+              <option key={b.batch_id} value={b.batch_id}>
+                {b.batch_name}
+              </option>
+            ))}
+          </Select>
           <SegmentedTabs
             options={years.map((y) => ({ key: y, label: `${y} Year` }))}
             value={effectiveYear ?? ""}
-            onChange={(k) => {
-              setYear(k);
-              setSection(null);
-            }}
+            onChange={setYear}
           />
           <SegmentedTabs
             options={sectionsForYear.map((s) => ({ key: s, label: `Section ${s}` }))}
@@ -207,6 +253,13 @@ export default function HodClassRecordsPage() {
           />
         </div>
       </div>
+
+      {isHistoricalView && (
+        <div className="rounded-[11px] border border-[#bae6fd] bg-[#f0f9ff] px-4 py-2.5 text-[13px] font-semibold text-[#0369a1]">
+          Viewing a past year for this class. Only GPA reflects that year — attendance, arrears, fees, and
+          placement status below are the students&apos; current standing, not as of that year.
+        </div>
+      )}
 
       {cls && (
         <Card className="hod-hover-card">

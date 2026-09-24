@@ -14,8 +14,17 @@ export interface HodFacultyStaffOverview {
     on_leave: number;
     on_duty: number;
   };
+  faculty_attendance_term: {
+    percentage: number;
+    faculty_with_records: number;
+    on_roll: number;
+    on_leave_days: number;
+    on_duty_days: number;
+  };
   on_duty_today: { count: number; on_approved_leave: number };
   leave_requests_pending: number;
+  /** Casual/Sick Leave only — LOP has no real leave_types row in this schema, see backend for why. */
+  leave_type_breakdown: { leave_type: "Casual Leave" | "Sick Leave"; today_count: number; term_days: number }[];
   appraisal: {
     closed: number;
     total: number;
@@ -42,6 +51,13 @@ export interface HodFacultyStaffRow {
   attendance_percent: number | null;
   load_hours: number | null;
   status_label: string | null;
+  /** null for non-teaching staff — no leave-type tracking exists for that roster. */
+  cl_days_this_term: number | null;
+  sl_days_this_term: number | null;
+  on_cl_today: boolean | null;
+  on_sl_today: boolean | null;
+  /** Allocated minus used, summed across every leave type, for the faculty member's latest academic year. */
+  total_leave_available: number | null;
 }
 
 export type HodFacultyStaffType = "all" | "teaching" | "non_teaching";

@@ -82,6 +82,8 @@ export type UpdateDepartmentInput = Partial<CreateDepartmentInput>;
 
 export interface AssignHodInput {
   faculty_id: number | null;
+  /** Recorded on the backend's audit log for this appointment — not stored on the department itself. */
+  reason?: string;
 }
 
 export interface CreateCourseInput {

@@ -8,7 +8,6 @@ import { friendlyError } from "@/lib/utils/errors";
 import {
   Badge,
   Button,
-  ConfirmDialog,
   DataTable,
   FilterBar,
   FilterPill,
@@ -19,6 +18,7 @@ import {
   useToast,
   type DataTableColumn,
 } from "@/modules/admin/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import {
   useBonafideRequests,
   useDecideBonafideRequest,
@@ -106,10 +106,10 @@ export default function BonafideRequestsPage() {
     }
   }
 
-  async function handleReject() {
+  async function handleReject(rejectionReason: string) {
     if (!rejecting) return;
     try {
-      await decideRequest.mutateAsync({ id: rejecting.id, decision: "reject" });
+      await decideRequest.mutateAsync({ id: rejecting.id, decision: "reject", rejection_reason: rejectionReason || undefined });
       show("Request rejected.", "success");
       setRejecting(null);
     } catch (err) {
@@ -320,15 +320,13 @@ export default function BonafideRequestsPage() {
         }}
       />
 
-      <ConfirmDialog
+      <ReasonDialog
         open={!!rejecting}
-        title="Reject this request?"
-        message={`This marks ${rejecting ? studentName(rejecting) : "the student"}'s bonafide request as rejected. This can't be undone from here.`}
-        confirmLabel="Reject"
-        destructive
-        isConfirming={decideRequest.isPending}
+        title={`Reject ${rejecting ? studentName(rejecting) : "this"}'s bonafide request?`}
+        label="Reason for rejection"
+        loading={decideRequest.isPending}
         onConfirm={handleReject}
-        onClose={() => setRejecting(null)}
+        onCancel={() => setRejecting(null)}
       />
 
       {/* Hidden until the print stylesheet activates — same pattern as

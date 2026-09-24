@@ -29,11 +29,26 @@ function designationShortLabel(designation: string): string {
   return DESIGNATION_SHORT_LABEL[designation] ?? designation;
 }
 
+// Raw today_status values from the backend (FacultyAttendanceService) are
+// snake_case enum strings, not display text — mapped here once and reused
+// by both the Status column and the Attendance column's "Today" view.
+const STATUS_DISPLAY: Record<string, string> = {
+  full_day: "Present",
+  half_day: "Half day",
+  absent: "Absent",
+  on_leave: "On leave",
+  on_duty: "On duty",
+  on_vacation: "On vacation",
+};
+
+type AttendanceView = "term" | "today";
+
 export default function HodFacultyStaffPage() {
   const overview = useHodFacultyStaffOverview();
   const [tab, setTab] = useState<HodFacultyStaffType>("all");
   const [search, setSearch] = useState("");
   const [designation, setDesignation] = useState<string | null>(null);
+  const [attendanceView, setAttendanceView] = useState<AttendanceView>("term");
   const list = useHodFacultyStaffList(tab, search, designation);
   const router = useRouter();
 
@@ -57,11 +72,56 @@ export default function HodFacultyStaffPage() {
       },
       {
         key: "attendance",
-        header: "Attendance",
-        width: "110px",
+        header: attendanceView === "today" ? "Today" : "This Term",
+        width: "120px",
+        render: (row) =>
+          attendanceView === "today" ? (
+            <span className="text-[13px] font-bold text-ink">
+              {row.status_label ? (STATUS_DISPLAY[row.status_label] ?? row.status_label) : "Not marked"}
+            </span>
+          ) : (
+            <span className="text-[13.5px] font-extrabold text-[#15803d]">
+              {row.attendance_percent != null ? `${row.attendance_percent}%` : "—"}
+            </span>
+          ),
+      },
+      {
+        key: "cl",
+        header: "CL",
+        width: "90px",
+        render: (row) =>
+          row.cl_days_this_term === null ? (
+            <span className="text-[13px] text-subtle">—</span>
+          ) : attendanceView === "today" ? (
+            <span className="text-[13px] font-semibold text-ink">{row.on_cl_today ? "Yes" : "—"}</span>
+          ) : (
+            <span className="text-[13px] text-ink">{row.cl_days_this_term}</span>
+          ),
+      },
+      {
+        key: "sl",
+        header: "SL",
+        width: "90px",
+        render: (row) =>
+          row.sl_days_this_term === null ? (
+            <span className="text-[13px] text-subtle">—</span>
+          ) : attendanceView === "today" ? (
+            <span className="text-[13px] font-semibold text-ink">{row.on_sl_today ? "Yes" : "—"}</span>
+          ) : (
+            <span className="text-[13px] text-ink">{row.sl_days_this_term}</span>
+          ),
+      },
+      {
+        key: "leave_available",
+        header: "Leave Available",
+        width: "130px",
         render: (row) => (
-          <span className="text-[13.5px] font-extrabold text-[#15803d]">
-            {row.attendance_percent != null ? `${row.attendance_percent}%` : "—"}
+          <span className="text-[13px] text-ink">
+            {row.total_leave_available === null ? (
+              <span className="text-subtle">—</span>
+            ) : (
+              `${row.total_leave_available} days`
+            )}
           </span>
         ),
       },
@@ -85,17 +145,17 @@ export default function HodFacultyStaffPage() {
               <span
                 className={
                   "size-1.5 rounded-full " +
-                  (row.status_label === "On duty" ? "bg-[#15803d]" : "bg-subtle")
+                  (row.status_label === "on_duty" ? "bg-[#15803d]" : "bg-subtle")
                 }
               />
-              {row.status_label}
+              {STATUS_DISPLAY[row.status_label] ?? row.status_label}
             </span>
           ) : (
             <span className="text-[13px] text-subtle">—</span>
           ),
       },
     ],
-    [],
+    [attendanceView],
   );
 
   function handleRowClick(row: HodFacultyStaffRow) {
@@ -116,11 +176,21 @@ export default function HodFacultyStaffPage() {
           Couldn&apos;t load faculty &amp; staff data — please try again.
         </div>
       )}
-      <div>
-        <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Faculty &amp; Staff</h1>
-        <p className="mt-1 text-[13px] text-muted">
-          {o ? `${o.employee_count} employees · ${o.teaching_count} teaching, ${o.non_teaching_count} non-teaching` : ""}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[34px] font-extrabold tracking-[-.03em] text-[#080000]">Faculty &amp; Staff</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {o ? `${o.employee_count} employees · ${o.teaching_count} teaching, ${o.non_teaching_count} non-teaching` : ""}
+          </p>
+        </div>
+        <SegmentedTabs
+          value={attendanceView}
+          onChange={(k) => setAttendanceView(k as AttendanceView)}
+          options={[
+            { key: "today", label: "Today" },
+            { key: "term", label: "This Term" },
+          ]}
+        />
       </div>
 
       {overview.isLoading ? (
@@ -128,31 +198,64 @@ export default function HodFacultyStaffPage() {
       ) : overview.isError ? null : (
         <div className="grid grid-cols-4 gap-4">
           <Card className="hod-hover-card">
-            <div className="text-[13px] font-bold text-body">Faculty attendance today</div>
-            <div className="mt-2.5 text-[32px] font-extrabold tracking-[-.03em] text-ink">
-              {o ? (o.faculty_attendance.reported === 0 ? "0%" : `${o.faculty_attendance.percentage}%`) : "—"}
+            <div className="text-[13px] font-bold text-body">
+              {attendanceView === "term" ? "Faculty attendance this term" : "Faculty attendance today"}
             </div>
-            <div className="mt-0.5 text-[12.5px] text-muted">
-              {o
-                ? o.faculty_attendance.reported === 0
-                  ? "No attendance recorded for today yet"
-                  : `${o.faculty_attendance.reported} reported of ${o.faculty_attendance.on_roll} on rolls`
-                : ""}
-            </div>
-            {o && o.faculty_attendance.reported > 0 && (
-              <ProgressBar percent={o.faculty_attendance.percentage} className="mt-3.5" />
-            )}
-            {o && o.faculty_attendance.reported > 0 && (
-              <div className="mt-2 text-[12px] text-subtle">
-                {`${o.faculty_attendance.on_leave} on approved leave · ${o.faculty_attendance.on_duty} on OD`}
-              </div>
+            {attendanceView === "term" ? (
+              <>
+                <div className="mt-2.5 text-[32px] font-extrabold tracking-[-.03em] text-ink">
+                  {o ? (o.faculty_attendance_term.faculty_with_records === 0 ? "0%" : `${o.faculty_attendance_term.percentage}%`) : "—"}
+                </div>
+                <div className="mt-0.5 text-[12.5px] text-muted">
+                  {o
+                    ? o.faculty_attendance_term.faculty_with_records === 0
+                      ? "No attendance recorded this term yet"
+                      : `${o.faculty_attendance_term.faculty_with_records} reported of ${o.faculty_attendance_term.on_roll} on rolls`
+                    : ""}
+                </div>
+                {o && o.faculty_attendance_term.faculty_with_records > 0 && (
+                  <ProgressBar percent={o.faculty_attendance_term.percentage} className="mt-3.5" />
+                )}
+                {o && o.faculty_attendance_term.faculty_with_records > 0 && (
+                  <div className="mt-2 text-[12px] text-subtle">
+                    {`${o.faculty_attendance_term.on_leave_days} on-leave days · ${o.faculty_attendance_term.on_duty_days} on-duty days`}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="mt-2.5 text-[32px] font-extrabold tracking-[-.03em] text-ink">
+                  {o ? (o.faculty_attendance.reported === 0 ? "0%" : `${o.faculty_attendance.percentage}%`) : "—"}
+                </div>
+                <div className="mt-0.5 text-[12.5px] text-muted">
+                  {o
+                    ? o.faculty_attendance.reported === 0
+                      ? "No attendance recorded for today yet"
+                      : `${o.faculty_attendance.reported} reported of ${o.faculty_attendance.on_roll} on rolls`
+                    : ""}
+                </div>
+                {o && o.faculty_attendance.reported > 0 && (
+                  <ProgressBar percent={o.faculty_attendance.percentage} className="mt-3.5" />
+                )}
+                {o && o.faculty_attendance.reported > 0 && (
+                  <div className="mt-2 text-[12px] text-subtle">
+                    {`${o.faculty_attendance.on_leave} on approved leave · ${o.faculty_attendance.on_duty} on OD`}
+                  </div>
+                )}
+              </>
             )}
           </Card>
           <StatCard
             className="hod-hover-card"
-            label="On duty today"
-            value={o ? o.on_duty_today.count : "—"}
-            sub={o ? `${o.on_duty_today.on_approved_leave} on approved leave` : ""}
+            label={attendanceView === "term" ? "On-duty days this term" : "On duty today"}
+            value={o ? (attendanceView === "term" ? o.faculty_attendance_term.on_duty_days : o.on_duty_today.count) : "—"}
+            sub={
+              o
+                ? attendanceView === "term"
+                  ? `${o.faculty_attendance_term.on_leave_days} on-leave days`
+                  : `${o.on_duty_today.on_approved_leave} on approved leave`
+                : ""
+            }
           />
           <StatCard
             className="hod-hover-card"
@@ -168,6 +271,21 @@ export default function HodFacultyStaffPage() {
             value={o ? `${o.appraisal.closed}/${o.appraisal.total}` : "—"}
             sub={o?.appraisal.cycle_end_date ? `cycle ends ${formatDisplayDate(o.appraisal.cycle_end_date)}` : ""}
           />
+        </div>
+      )}
+
+      {o && o.leave_type_breakdown.length > 0 && (
+        <div className="grid grid-cols-2 gap-4">
+          {o.leave_type_breakdown.map((b) => (
+            <StatCard
+              key={b.leave_type}
+              className="hod-hover-card"
+              href="/hod/leave-requests"
+              label={attendanceView === "term" ? `${b.leave_type} this term` : `On ${b.leave_type} today`}
+              value={attendanceView === "term" ? b.term_days : b.today_count}
+              sub={attendanceView === "term" ? "days taken this term" : "faculty on leave today"}
+            />
+          ))}
         </div>
       )}
 

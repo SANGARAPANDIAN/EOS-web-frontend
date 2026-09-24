@@ -32,6 +32,7 @@ export type NavBadgeKey =
   | "libraryPendingRequests"
   | "leaveRequestsPending"
   | "odRequestsPending"
+  | "timetableRequestsPending"
   | "mrPendingRequests"
   | "mrUpcomingEvents"
   | "mrPendingIndents"
@@ -97,4 +98,14 @@ export interface ModuleConfig {
   navGroups: NavGroup[];
   /** Where the root page sends this role after login — defaults to `${basePath}/dashboard`. Set this for a role with no dashboard page yet (e.g. messaging-only access). */
   homeHref?: string;
+  /** Opts this module out of AppShell's normal "every role gets a Messages nav item" behavior — for a role that must not use messaging at all (see canteen-admin/nav.ts for why). */
+  excludeMessages?: boolean;
+  /**
+   * Opts this module out of AppShell's "every role gets an Order Food nav
+   * item + wallet balance in the topbar" behavior — for a role with no
+   * wallet (Parent) or that isn't a food customer (Transport, and the
+   * canteen's own operational logins, which run the canteen rather than
+   * buying from it).
+   */
+  excludeOrderFood?: boolean;
 }

@@ -5,7 +5,6 @@ import { friendlyError } from "@/lib/utils/errors";
 import {
   Badge,
   Button,
-  ConfirmDialog,
   DataTable,
   FilterBar,
   FilterPill,
@@ -14,6 +13,7 @@ import {
   useToast,
   type DataTableColumn,
 } from "@/modules/admin/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import {
   useAdminServiceRequests,
   useReviewServiceRequest,
@@ -70,10 +70,10 @@ export default function AdminSopRequestsPage() {
     }
   }
 
-  async function handleReject() {
+  async function handleReject(remarks: string) {
     if (!rejecting) return;
     try {
-      await review.mutateAsync({ id: rejecting.id, decision: "rejected" });
+      await review.mutateAsync({ id: rejecting.id, decision: "rejected", remarks: remarks || undefined });
       show("Service request rejected.", "success");
       setRejecting(null);
     } catch (err) {
@@ -188,15 +188,13 @@ export default function AdminSopRequestsPage() {
         footer={meta && <Pagination page={meta.page} pageSize={meta.limit} total={meta.total} onPageChange={setPage} />}
       />
 
-      <ConfirmDialog
+      <ReasonDialog
         open={!!rejecting}
-        title="Reject this service request?"
-        message={`This marks "${rejecting?.title ?? ""}" as rejected and notifies ${rejecting?.requested_by.name ?? "the secretary"}. This can't be undone from here.`}
-        confirmLabel="Reject"
-        destructive
-        isConfirming={review.isPending}
+        title={`Reject "${rejecting?.title ?? "this service request"}"?`}
+        label="Reason for rejection"
+        loading={review.isPending}
         onConfirm={handleReject}
-        onClose={() => setRejecting(null)}
+        onCancel={() => setRejecting(null)}
       />
     </div>
   );

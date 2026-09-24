@@ -12,6 +12,7 @@ export interface StaffLeaveRow {
   from_date: string;
   to_date: string;
   reason: string | null;
+  leave_type: { id: number; name: string } | null;
   hod_approval_status: string;
   hr_approval_status: string;
   overall_status: "pending" | "approved" | "rejected";
@@ -84,9 +85,25 @@ export function useMyLeaves() {
 export function useApplyLeave() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { from_date: string; to_date: string; reason?: string }) =>
+    mutationFn: (input: { from_date: string; to_date: string; reason?: string; leave_type_id?: number }) =>
       apiClient.post("/me/create-leaves", input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["secretary", "my-leaves"] }),
+  });
+}
+
+// Pure global lookup — same leave_types table Faculty/HoD use, widened to
+// SECRETARY (see hod-employee.controller.ts). No leave/balances equivalent
+// here on purpose: faculty_leave_balances is keyed by faculty_id, and a
+// Secretary has no faculty row (self-service is staff_user_id-based) — there
+// is no real balance data to show, so none is fabricated.
+export interface StaffLeaveType {
+  id: number;
+  name: string;
+}
+export function useStaffLeaveTypes() {
+  return useQuery({
+    queryKey: ["secretary", "leave-types"],
+    queryFn: () => apiClient.get<StaffLeaveType[]>("/hod/employee/leave/types"),
   });
 }
 export function useUpdateOwnLeave() {

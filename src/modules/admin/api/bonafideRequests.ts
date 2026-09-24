@@ -79,8 +79,8 @@ export function useBonafideRequest(id: number | null) {
 export function useDecideBonafideRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, decision }: { id: number; decision: "approve" | "reject" }) =>
-      apiClient.patch<BonafideRequestDetail>(`/admin/bonafide-requests/${id}/decision`, { decision }),
+    mutationFn: ({ id, decision, rejection_reason }: { id: number; decision: "approve" | "reject"; rejection_reason?: string }) =>
+      apiClient.patch<BonafideRequestDetail>(`/admin/bonafide-requests/${id}/decision`, { decision, rejection_reason }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "bonafide-requests", "list"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "bonafide-requests", "detail", id] });

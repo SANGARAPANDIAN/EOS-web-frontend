@@ -27,6 +27,12 @@ export const driveFormSchema = z
     round2Label: optionalText(100),
     round3Label: optionalText(100),
     resultDeclarationNote: optionalText(200),
+    // Real once internship_drive_type.query.md runs — accepted but silently
+    // dropped by the backend's $queryRaw fallback until then. Omitted
+    // defaults to 'full_time', matching the column's own DB default.
+    driveType: z.enum(["full_time", "internship"]).optional(),
+    stipendAmount: optionalNumber({ min: 0 }),
+    durationMonths: optionalNumber({ min: 0 }),
   })
   .refine((v) => v.isDisclosed || !!v.disclosedRevealDate, {
     path: ["disclosedRevealDate"],

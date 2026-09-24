@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SegmentedTabs, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
+import { Banner, Button, SegmentedTabs, SkeletonStatTiles, SkeletonBlock } from "@/components/ui";
 import { useIqacDashboard } from "@/modules/iqac/api/dashboard";
 import { QUALITY_DOMAINS } from "@/modules/iqac/qualityDomains";
+import { ApiError } from "@/types/api";
 
 const PERIODS = ["Today", "This term", "This year"] as const;
 const PERIOD_TABS = PERIODS.map((p) => ({ key: p, label: p }));
@@ -21,7 +22,7 @@ const FLAG_DESTINATIONS: Record<string, string> = {
 const REAL_METRIC_KEYS: Record<string, string[]> = {
   academic: ["attendance", "results", "cgpa", "course-attainment", "program-attainment"],
   student: ["placements", "awards"],
-  faculty: ["publications"],
+  rnd: ["publications"],
   accreditation: ["nba-progress"],
 };
 
@@ -89,7 +90,7 @@ export default function IqacDashboardPage() {
       real: true,
       onClick: () => router.push("/iqac/higher-education"),
     },
-    { label: "Publications", value: d?.publications_total ?? "—", real: true, onClick: () => router.push("/iqac/quality/faculty/publications") },
+    { label: "Publications", value: d?.publications_total ?? "—", real: true, onClick: () => router.push("/iqac/quality/rnd/publications") },
     { label: "MoUs", value: d?.mous_total ?? "—", real: true },
     {
       label: "Funded projects",
@@ -97,7 +98,7 @@ export default function IqacDashboardPage() {
       sub: d ? `₹${(d.funded_projects_amount / 100000).toFixed(1)} L` : undefined,
       real: true,
     },
-    { label: "Patents", value: d?.patents_total ?? "—", real: true, onClick: () => router.push("/iqac/quality/faculty/patents") },
+    { label: "Patents", value: d?.patents_total ?? "—", real: true, onClick: () => router.push("/iqac/quality/rnd/patents") },
   ];
 
   if (overview.isLoading) {
@@ -110,6 +111,17 @@ export default function IqacDashboardPage() {
           <SkeletonBlock />
         </div>
         <SkeletonBlock />
+      </div>
+    );
+  }
+
+  if (overview.isError) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Banner>{overview.error instanceof ApiError ? overview.error.message : "Could not load the IQAC dashboard."}</Banner>
+        <Button variant="primarySmall" onClick={() => overview.refetch()} className="self-start">
+          Retry
+        </Button>
       </div>
     );
   }

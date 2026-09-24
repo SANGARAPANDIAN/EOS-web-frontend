@@ -16,11 +16,15 @@ export interface HodReportsSummary {
   faculty_count: number;
 }
 
-/** GET /hod/reports/summary */
-export function useHodReportsSummary() {
+/** GET /hod/reports/summary?from=&to= — bounds the "current" figures to a real exams.start_date window; the "previous semester" comparison is never narrowed by it (that baseline is a different calendar period by definition). Omitting both keeps the original unfiltered behaviour. */
+export function useHodReportsSummary(from?: string, to?: string) {
   return useQuery({
-    queryKey: ["hod", "reports", "summary"],
-    queryFn: () => apiClient.get<HodReportsSummary>("/hod/reports/summary"),
+    queryKey: ["hod", "reports", "summary", from, to],
+    queryFn: () =>
+      apiClient.get<HodReportsSummary>("/hod/reports/summary", {
+        from: from || undefined,
+        to: to || undefined,
+      }),
   });
 }
 
@@ -37,18 +41,18 @@ export interface HodClassPassRate {
 
 export interface HodClassPassRates {
   classes: HodClassPassRate[];
-  best_movement: HodClassPassRate | null;
-  declining_count: number;
-  declining_classes: string[];
-  lowest_but_improving: HodClassPassRate | null;
 }
 
-/** GET /hod/reports/classes?year=II */
-export function useHodClassPassRates(year: string | null) {
+/** GET /hod/reports/classes?year=II&from=&to= */
+export function useHodClassPassRates(year: string | null, from?: string, to?: string) {
   return useQuery({
-    queryKey: ["hod", "reports", "classes", year],
+    queryKey: ["hod", "reports", "classes", year, from, to],
     queryFn: () =>
-      apiClient.get<HodClassPassRates>("/hod/reports/classes", year ? { year } : undefined),
+      apiClient.get<HodClassPassRates>("/hod/reports/classes", {
+        year: year || undefined,
+        from: from || undefined,
+        to: to || undefined,
+      }),
   });
 }
 
@@ -71,10 +75,14 @@ export interface HodSubjectResultGroup {
   subjects: HodSubjectResult[];
 }
 
-/** GET /hod/reports/subjects */
-export function useHodSubjectResults() {
+/** GET /hod/reports/subjects?from=&to= */
+export function useHodSubjectResults(from?: string, to?: string) {
   return useQuery({
-    queryKey: ["hod", "reports", "subjects"],
-    queryFn: () => apiClient.get<{ groups: HodSubjectResultGroup[] }>("/hod/reports/subjects"),
+    queryKey: ["hod", "reports", "subjects", from, to],
+    queryFn: () =>
+      apiClient.get<{ groups: HodSubjectResultGroup[] }>("/hod/reports/subjects", {
+        from: from || undefined,
+        to: to || undefined,
+      }),
   });
 }

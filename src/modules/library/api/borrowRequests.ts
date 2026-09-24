@@ -50,7 +50,8 @@ export function useAcceptBorrowRequest() {
 export function useRejectBorrowRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => apiClient.patch<{ id: number; status: "rejected" }>(`${BASE}/${id}/reject`),
+    mutationFn: ({ id, remarks }: { id: number; remarks?: string }) =>
+      apiClient.patch<{ id: number; status: "rejected" }>(`${BASE}/${id}/reject`, { remarks }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...libraryKeys.all, "borrow-requests"] }),
   });
 }

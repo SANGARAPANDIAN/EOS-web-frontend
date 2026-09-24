@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useMyFacultyLeaves, useCreateFacultyLeave } from "@/modules/advisor/api/employee";
+import {
+  useMyFacultyLeaves,
+  useCreateFacultyLeave,
+  useMyLeaveTypes,
+  useMyLeaveBalances,
+} from "@/modules/advisor/api/employee";
 
 // Backed by GET /me/faculty-leaves + POST /me/create-leaves
-// (FacultyLeavesController). Real CreateFacultyLeafDto only accepts
-// from_date/to_date/reason — there is no leave_type, no leave-balance table,
-// no "station leave" flag, no alternate-arrangement field, and no
-// attachment field in the schema. All of those design inputs are removed
-// rather than submitted as decoration that the backend would ignore.
+// (FacultyLeavesController) — CreateFacultyLeafDto also accepts an optional
+// leave_type_id (Casual/Sick/Earned/etc., a real leave_types lookup table),
+// and faculty_leave_balances tracks a real per-type allocated/used quota for
+// this account, same data HoD's own Staff Leave page already shows (see
+// hod/employee/leave/page.tsx) — this page was written before that schema
+// existed and never caught up. "Station leave"/alternate-arrangement/
+// attachment genuinely still don't exist on this table — those stay removed.
 
 function pill(status: string | null | undefined) {
   const map: Record<string, { bg: string; border: string; color: string }> = {
@@ -31,11 +38,16 @@ export default function AdvisorMyLeavePage() {
   const [tab, setTab] = useState<"apply" | "history">("apply");
   const leaves = useMyFacultyLeaves();
   const create = useCreateFacultyLeave();
+  const leaveTypes = useMyLeaveTypes();
+  const balances = useMyLeaveBalances();
 
+  const [leaveTypeId, setLeaveTypeId] = useState<number | null>(null);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [reason, setReason] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+
+  const effectiveLeaveTypeId = leaveTypeId ?? leaveTypes.data?.[0]?.id ?? null;
 
   // Mirrors the real backend checks in FacultyLeavesService.create exactly
   // (from_date must not be before today; from_date must not be after
@@ -49,7 +61,12 @@ export default function AdvisorMyLeavePage() {
     if (!canSubmit) return;
     setFormError(null);
     create.mutate(
-      { from_date: fromDate, to_date: toDate, reason: reason || undefined },
+      {
+        from_date: fromDate,
+        to_date: toDate,
+        reason: reason || undefined,
+        leave_type_id: effectiveLeaveTypeId ?? undefined,
+      },
       {
         onSuccess: () => { setFromDate(""); setToDate(""); setReason(""); setTab("history"); },
         onError: (e) => setFormError(e instanceof Error ? e.message : "Failed to submit leave request."),
@@ -86,9 +103,33 @@ export default function AdvisorMyLeavePage() {
         </div>
       </div>
 
+      {balances.data && balances.data.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${balances.data.length}, minmax(0,1fr))`, gap: 14, marginTop: 16 }}>
+          {balances.data.map((b) => (
+            <div key={b.leave_type_id} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "16px 18px" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#64748B" }}>{b.leave_type}</div>
+              <div style={{ marginTop: 6, fontSize: 24, fontWeight: 800, color: "#0F172A" }}>{b.remaining}</div>
+              <div style={{ fontSize: 11.5, color: "#94A3B8", fontWeight: 600 }}>of {b.allocated} remaining</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {tab === "apply" && (
         <div data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: 24, marginTop: 16 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 18 }}>
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#64748B" }}>Leave Type</div>
+              <select
+                value={effectiveLeaveTypeId ?? ""}
+                onChange={(e) => setLeaveTypeId(Number(e.target.value))}
+                style={{ width: "100%", marginTop: 8, height: 46, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 14px", fontFamily: "inherit", fontSize: 14, fontWeight: 600, background: "#fff", color: "#0F172A" }}
+              >
+                {(leaveTypes.data ?? []).map((lt) => (
+                  <option key={lt.id} value={lt.id}>{lt.name}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: "#64748B" }}>From Date</div>
               <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ width: "100%", marginTop: 8, height: 46, border: "1px solid #DDE3EC", borderRadius: 10, padding: "0 14px", fontFamily: "inherit", fontSize: 14, fontWeight: 600, background: "#fff", color: "#0F172A" }} />
@@ -136,7 +177,10 @@ export default function AdvisorMyLeavePage() {
           {rows.map((h) => (
             <div key={h.id} data-advisor-lift="" style={{ background: "#fff", border: "1px solid #E6EAF0", borderRadius: 14, padding: "18px 20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", flex: 1 }}>{dateRangeLabel(h.from_date, h.to_date)}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em" }}>{dateRangeLabel(h.from_date, h.to_date)}</div>
+                  {h.leave_type && <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600, marginTop: 2 }}>{h.leave_type.name}</div>}
+                </div>
                 <div style={pill(h.overall_status)}>{(h.overall_status ?? "pending").toUpperCase()}</div>
               </div>
               {h.reason && <div style={{ fontSize: 13, color: "#7C8899", fontWeight: 500, marginTop: 8, lineHeight: 1.55 }}>{h.reason}</div>}

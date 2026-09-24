@@ -6,6 +6,8 @@ export const transportModuleConfig: ModuleConfig = {
   role: "transport",
   basePath: BASE,
   moduleLabel: "Transport",
+  // Explicitly out of scope for canteen food ordering, per the user.
+  excludeOrderFood: true,
   navGroups: [
     {
       label: "Overview",

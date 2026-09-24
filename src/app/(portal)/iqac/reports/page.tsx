@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataTableColumn } from "@/components/ui";
+import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
+import { HoverDownloadButton } from "@/components/ui/HoverDownloadButton";
+import { exportToPdf } from "@/lib/utils/pdf-export";
 import { StatTile, FilterSelect } from "@/modules/iqac/components/PageControls";
 import { useScorecard, type ScorecardRow } from "@/modules/iqac/api/reports";
 import { useDownloadReport, DOWNLOAD_REPORT_DEFS, type DownloadReportKey, type DownloadReportFormat } from "@/modules/iqac/api/reports";
@@ -24,9 +27,42 @@ export default function IqacReportsPage() {
   const [deptId, setDeptId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [hoverScorecard, setHoverScorecard] = useState(false);
 
   const rows = useMemo(() => scorecard.data?.rows ?? [], [scorecard.data]);
   const realCount = rows.filter((r) => r.value != null).length;
+
+  // No real date dimension on the scorecard (it's a single "this year"
+  // snapshot per component, not a time series) — this download is
+  // deliberately independent of the "Download reports" section's from/to,
+  // which applies only to the real, date-stamped venue-bookings/OD data.
+  async function downloadScorecard() {
+    await exportToPdf({
+      title: "Institution Scorecard",
+      subtitle: "Every component across the four Quality domains",
+      sections: [
+        {
+          type: "table",
+          columns: [
+            { header: "Domain", key: "domain" },
+            { header: "Component", key: "name" },
+            { header: "This year", key: "value" },
+            { header: "Target", key: "target" },
+            { header: "Attainment", key: "attainment" },
+          ],
+          rows: rows.map((r) => ({
+            domain: r.domain,
+            name: r.name,
+            value: formatValue(r),
+            target: r.target != null ? `${r.target}${r.unit === "%" ? "%" : ""}` : "—",
+            attainment: r.attainment != null ? `${r.attainment}%` : "—",
+          })),
+        },
+      ],
+      filename: "institution-scorecard.pdf",
+      footerBrand: true,
+    });
+  }
 
   const columns = useMemo<DataTableColumn<ScorecardRow>[]>(
     () => [
@@ -86,7 +122,12 @@ export default function IqacReportsPage() {
         <StatTile label="NBA readiness" value={rows.find((r) => r.key === "nba-progress")?.value != null ? `${rows.find((r) => r.key === "nba-progress")!.value}%` : "—"} sub="documentation complete" />
       </div>
 
-      <div className="rounded-card border border-border-default bg-surface p-0 overflow-hidden">
+      <div
+        className="relative rounded-card border border-border-default bg-surface p-0 overflow-hidden"
+        onMouseEnter={() => setHoverScorecard(true)}
+        onMouseLeave={() => setHoverScorecard(false)}
+      >
+        <HoverDownloadButton visible={hoverScorecard} onDownload={downloadScorecard} title="Download institution scorecard" />
         <div className="px-5 pb-3.5 pt-5">
           <h2 className="text-[16px] font-extrabold text-ink">Institution scorecard</h2>
           <p className="mt-1 text-[12.5px] text-subtle">Every component across the four Quality domains</p>
@@ -111,13 +152,9 @@ export default function IqacReportsPage() {
             onChange={setDeptId}
             options={[{ value: "", label: "All departments" }, ...(departments.data ?? []).map((d) => ({ value: String(d.id), label: d.name }))]}
           />
-          <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">From</div>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary" />
-          </div>
-          <div>
-            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">To</div>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1.5 h-11 w-full rounded-[11px] border border-border-default px-3.5 text-[13.5px] outline-none focus:border-primary" />
+          <div className="col-span-2">
+            <div className="text-[10.5px] font-extrabold tracking-[.08em] text-subtle uppercase">Date range</div>
+            <DateRangeFilter from={from} to={to} onFromChange={setFrom} onToChange={setTo} onClear={() => { setFrom(""); setTo(""); }} style={{ marginTop: 6 }} />
           </div>
         </div>
 

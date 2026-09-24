@@ -41,12 +41,22 @@ export interface TodaySlot {
   // same nullability as everywhere else this column is surfaced.
   semester: number | null;
   department_name: string;
+  /** True only for a synthesized "gained" period (covering someone else's
+   * class, or your own subject moved here by a swap) — never a real row you
+   * can request a take-over/swap on. */
+  is_substitution: boolean;
+  substitution_note: string | null;
+  /** Set on YOUR OWN period once someone else has taken it over/swapped it
+   * for this date — the row still shows, just annotated, never removed. */
+  covered_by: { id: number; name: string } | null;
 }
 
-export function useTodaySlots() {
+/** `date` scopes today's accepted take-over/swap overlay onto the response —
+ * omit it to get the plain recurring view (e.g. before a real date is known). */
+export function useTodaySlots(date?: string) {
   return useQuery({
-    queryKey: ["me", "classes", "today"],
-    queryFn: () => apiClient.get<TodaySlot[]>("/me/classes/today"),
+    queryKey: ["me", "classes", "today", date],
+    queryFn: () => apiClient.get<TodaySlot[]>("/me/classes/today", { date }),
   });
 }
 
@@ -91,12 +101,33 @@ export function useFacultyAcademicCalendar() {
   });
 }
 
+// GET /me/current-semester — subjects this faculty is actually mapped to
+// teach, one row per (subject, class) combo. Reused (not duplicated) by the
+// take-over accept flow to offer a real "which subject will you actually
+// teach" choice instead of silently keeping the absent faculty's subject.
+export interface MyCurrentSemesterSubject {
+  subject_id: number;
+  subject_code: string;
+  subject_name: string;
+  class_id: number;
+  section: string;
+  semester: number | null;
+}
+
+export function useMyCurrentSemesterSubjects() {
+  return useQuery({
+    queryKey: ["me", "current-semester"],
+    queryFn: () => apiClient.get<{ academic_year: string | null; subjects: MyCurrentSemesterSubject[] }>("/me/current-semester"),
+  });
+}
+
 // ---- My Leave ----------------------------------------------------------------
 export interface FacultyLeaveRow {
   id: number;
   from_date: string;
   to_date: string;
   reason: string | null;
+  leave_type: { id: number; name: string } | null;
   hod_approval_status: string;
   hr_approval_status: string;
   overall_status: "pending" | "approved" | "rejected" | null;
@@ -113,8 +144,42 @@ export function useMyFacultyLeaves() {
 export function useCreateFacultyLeave() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { from_date: string; to_date: string; reason?: string }) => apiClient.post("/me/create-leaves", input),
+    mutationFn: (input: { from_date: string; to_date: string; reason?: string; leave_type_id?: number }) =>
+      apiClient.post("/me/create-leaves", input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "faculty-leaves"] }),
+  });
+}
+
+// Stays under the "hod/employee" URL for historical reasons only — both
+// routes are widened to FACULTY (leave/types also to SECRETARY): the types
+// list is a pure global lookup, and leave/balances already resolves via the
+// caller's own faculty row (see hod-employee.controller.ts's own comment).
+export interface MyLeaveType {
+  id: number;
+  name: string;
+  default_annual_quota: number;
+}
+
+export function useMyLeaveTypes() {
+  return useQuery({
+    queryKey: ["me", "leave", "types"],
+    queryFn: () => apiClient.get<MyLeaveType[]>("/hod/employee/leave/types"),
+  });
+}
+
+export interface MyLeaveBalance {
+  leave_type_id: number;
+  leave_type: string;
+  allocated: number;
+  used: number;
+  remaining: number;
+}
+
+/** Faculty only — Secretary has no faculty row, so no balance data exists for them (see faculty_leave_balances, keyed by faculty_id). */
+export function useMyLeaveBalances() {
+  return useQuery({
+    queryKey: ["me", "leave", "balances"],
+    queryFn: () => apiClient.get<MyLeaveBalance[]>("/hod/employee/leave/balances"),
   });
 }
 

@@ -22,6 +22,8 @@ export interface RevaluationRequest {
   subject_id: number | null;
   exam_id: number | null;
   remarks: string | null;
+  /** Real once decision_reason_columns.query.md's revaluation_requests.decision_remarks runs — the reviewer's own reject reason (distinct from `remarks`, the applicant's own submitted text). */
+  decision_remarks?: string | null;
   evaluator_faculty_id: number | null;
   fee_amount: number | null;
   fee_paid: boolean | null;
@@ -64,6 +66,7 @@ export function useUpdateRevaluationRequest() {
       status?: "under_review" | "revised" | "no_change" | "approved" | "rejected";
       revised_marks?: number;
       evaluator_faculty_id?: number;
+      decision_remarks?: string;
     }) => apiClient.patch<RevaluationRequest>(`/revaluation-requests/${id}`, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coe", "revaluation-requests"] }),
   });

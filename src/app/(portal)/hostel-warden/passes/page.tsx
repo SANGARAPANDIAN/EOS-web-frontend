@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Badge, DataTable, EmptyState, PillTabs, SearchBar, type BadgeTone, type DataTableColumn } from "@/components/ui";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import { useOutings, useDecideOuting, isMultiDayOuting, type Outing } from "@/modules/hostel-warden/api/outings";
 import { StudentDetailModal } from "@/modules/hostel-warden/components/StudentDetailModal";
 import { formatTime12h, toIsoDateString } from "@/lib/utils/date";
@@ -36,6 +37,15 @@ export default function GatePassesPage() {
   const [tab, setTab] = useState<Tab>("pending");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [rejecting, setRejecting] = useState<Outing | null>(null);
+
+  function confirmReject(remarks: string) {
+    if (!rejecting) return;
+    decide.mutate(
+      { id: rejecting.id, decision: "rejected", remarks: remarks || undefined },
+      { onSuccess: () => setRejecting(null) },
+    );
+  }
 
   const today = toIsoDateString(new Date());
   const rows = (outings.data?.data ?? []).filter((o) => !isMultiDayOuting(o));
@@ -95,7 +105,7 @@ export default function GatePassesPage() {
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => decide.mutate({ id: row.id, decision: "rejected" })}
+              onClick={() => setRejecting(row)}
               disabled={decide.isPending}
               className="rounded-[7px] border border-border-default px-2.5 py-1.5 text-[12.5px] font-bold text-body hover:bg-surface-tint"
             >
@@ -145,6 +155,16 @@ export default function GatePassesPage() {
       )}
 
       {selectedId != null && <StudentDetailModal studentId={selectedId} onClose={() => setSelectedId(null)} />}
+
+      <ReasonDialog
+        open={rejecting !== null}
+        title="Reject gate pass"
+        label="Reason for rejection"
+        placeholder="e.g. Missing parent consent"
+        loading={decide.isPending}
+        onConfirm={confirmReject}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   );
 }

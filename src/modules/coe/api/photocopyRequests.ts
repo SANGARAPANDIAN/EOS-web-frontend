@@ -17,6 +17,8 @@ export interface PhotocopyRequest {
   applied_at: string;
   processed_by_user_id: number | null;
   processed_at: string | null;
+  /** Real once decision_reason_columns.query.md's photocopy_requests.decision_remarks runs. */
+  decision_remarks?: string | null;
   students: {
     id: number;
     student_id_no: string;
@@ -56,8 +58,8 @@ export function useCreatePhotocopyRequest() {
 export function useUpdatePhotocopyRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: PhotocopyStatus }) =>
-      apiClient.patch<PhotocopyRequest>(`/photocopy-requests/${id}`, { status }),
+    mutationFn: ({ id, status, decision_remarks }: { id: number; status: PhotocopyStatus; decision_remarks?: string }) =>
+      apiClient.patch<PhotocopyRequest>(`/photocopy-requests/${id}`, { status, decision_remarks }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["coe", "photocopy-requests"] }),
   });
 }

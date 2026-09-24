@@ -5,6 +5,7 @@ import { friendlyError } from "@/lib/utils/errors";
 import { Badge, Button, Card, EmptyState, PageHeader, QueueRow, SegmentedPillToggle, useToast, type BadgeTone } from "@/modules/admin/components/ui";
 import { useBorrowRequests, useAcceptBorrowRequest, useRejectBorrowRequest, type BorrowRequest, type BorrowRequestStatus } from "@/modules/library/api/borrowRequests";
 import { formatDate } from "@/modules/library/lib/borrow-record-format";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 
 // Direct self-checkout was replaced with this request/accept workflow for
 // every role that had one — a student's "Request" on the Catalog page and a
@@ -37,6 +38,7 @@ const STATUS_LABEL: Record<BorrowRequestStatus, string> = {
 
 export default function LibraryRequestsPage() {
   const [tab, setTab] = useState<Tab>("pending");
+  const [rejecting, setRejecting] = useState<BorrowRequest | null>(null);
   const { show } = useToast();
 
   const requests = useBorrowRequests();
@@ -53,11 +55,17 @@ export default function LibraryRequestsPage() {
     });
   }
 
-  function handleReject(r: BorrowRequest) {
-    reject.mutate(r.id, {
-      onSuccess: () => show(`Request for "${r.book?.title ?? "book"}" rejected.`, "success"),
-      onError: (err: unknown) => show(friendlyError(err), "error"),
-    });
+  function confirmReject(remarks: string) {
+    if (!rejecting) return;
+    const r = rejecting;
+    reject.mutate(
+      { id: r.id, remarks: remarks || undefined },
+      {
+        onSuccess: () => show(`Request for "${r.book?.title ?? "book"}" rejected.`, "success"),
+        onError: (err: unknown) => show(friendlyError(err), "error"),
+      },
+    );
+    setRejecting(null);
   }
 
   return (
@@ -83,7 +91,7 @@ export default function LibraryRequestsPage() {
         ) : (
           rows.map((r) => {
             const acceptingThis = accept.isPending && accept.variables === r.id;
-            const rejectingThis = reject.isPending && reject.variables === r.id;
+            const rejectingThis = reject.isPending && reject.variables?.id === r.id;
             const anyPendingOnThisRow = acceptingThis || rejectingThis;
             return (
               <QueueRow
@@ -95,7 +103,7 @@ export default function LibraryRequestsPage() {
                 actions={
                   r.status === "pending" ? (
                     <>
-                      <Button size="sm" variant="secondary" disabled={anyPendingOnThisRow} onClick={() => handleReject(r)}>
+                      <Button size="sm" variant="secondary" disabled={anyPendingOnThisRow} onClick={() => setRejecting(r)}>
                         {rejectingThis ? "Rejecting…" : "Reject"}
                       </Button>
                       <Button size="sm" variant="primary" disabled={anyPendingOnThisRow} onClick={() => handleAccept(r)}>
@@ -111,6 +119,15 @@ export default function LibraryRequestsPage() {
           })
         )}
       </Card>
+
+      <ReasonDialog
+        open={!!rejecting}
+        title={`Reject request for "${rejecting?.book?.title ?? "this book"}"?`}
+        label="Reason for rejection"
+        loading={reject.isPending}
+        onConfirm={confirmReject}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, Badge, Button, Avatar, EmptyState, SkeletonRows } from "@/components/ui";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { ReasonDialog } from "@/components/ui/ReasonDialog";
 import {
   useHodOdRequests,
   useDecideHodOdRequest,
@@ -54,6 +55,7 @@ export default function HodOdRequestsPage() {
   const decide = useDecideHodOdRequest();
   const sportsQueue = useSportsOdHodQueue(tab);
   const decideSports = useDecideSportsOd();
+  const [rejecting, setRejecting] = useState<UnifiedRow | null>(null);
 
   const isBusy = list.isLoading || (audience === "student" && sportsQueue.isLoading);
   const hasError = list.isError || (audience === "student" && sportsQueue.isError);
@@ -94,11 +96,17 @@ export default function HodOdRequestsPage() {
   }
 
   function handleReject(row: UnifiedRow) {
-    if (row.source === "sports") {
-      decideSports.mutate({ id: row.id, decision: "rejected" });
+    setRejecting(row);
+  }
+
+  function confirmReject(remarks: string) {
+    if (!rejecting) return;
+    if (rejecting.source === "sports") {
+      decideSports.mutate({ id: rejecting.id, decision: "rejected", remarks: remarks || undefined });
     } else {
-      decide.mutate({ kind: row.kind, id: row.id, decision: "rejected" });
+      decide.mutate({ kind: rejecting.kind, id: rejecting.id, decision: "rejected", remarks: remarks || undefined });
     }
+    setRejecting(null);
   }
 
   function isRowMutating(row: UnifiedRow, decision: "approved" | "rejected"): boolean {
@@ -204,6 +212,15 @@ export default function HodOdRequestsPage() {
           ))}
         </div>
       )}
+
+      <ReasonDialog
+        open={rejecting != null}
+        title={`Reject ${rejecting?.name ?? "request"}'s OD request?`}
+        label="Reason for rejection"
+        loading={decide.isPending || decideSports.isPending}
+        onConfirm={confirmReject}
+        onCancel={() => setRejecting(null)}
+      />
     </div>
   );
 }

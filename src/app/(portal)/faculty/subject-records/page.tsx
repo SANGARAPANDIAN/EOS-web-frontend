@@ -1,35 +1,45 @@
 "use client";
 
+import { useState } from "react";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { GradebookTab } from "@/modules/shared/marks/GradebookTab";
 import { MarkEntryPanel } from "@/modules/shared/marks/MarkEntryPanel";
 
-// Subject Records = the ENTRY page. Every faculty who teaches a subject
-// enters marks for it here, for every class they teach that subject in —
-// scoped by the real backend to subjects on their own faculty_subject_class_mapping
-// (GET /me/subject-records), never other faculty's subjects. Two real
-// actions: "Save" enters/updates marks via POST /me/exams/:id/marks and
-// PATCH /me/exam-marks/:id (marks now exist, is_published stays false);
-// "Publish" calls POST /me/subject-records/:id/publish, which is the exact
-// moment those marks become visible elsewhere (Examination & Results, the
-// student's own results, etc.) — this screen only ever publishes what was
-// actually saved, never a synthetic action.
-// Per instruction, all per-student marks entry now lives HERE, not on
-// Examination & Results (that screen is now pure view-only).
+// Two tabs: "Enter marks" (every faculty who teaches a subject enters marks
+// for it here, scoped by the real backend to their own
+// faculty_subject_class_mapping via GET /me/subject-records — never other
+// faculty's subjects; "Save" enters/updates marks via POST
+// /me/exams/:id/marks and PATCH /me/exam-marks/:id, "Publish" calls POST
+// /me/subject-records/:id/publish, the exact moment those marks become
+// visible elsewhere) and "Gradebook" (a read-only per-student × per-exam
+// grid, previously HoD-only — see GradebookTab's own doc comment for why
+// it's now shared here too).
 //
-// MarkEntryPanel (src/modules/shared/marks/) is the exact same component
-// HoD's own Subject Records "Enter marks" tab uses — this page used to be a
-// byte-for-byte duplicate differing only in inline-style vs Tailwind
-// markup.
+// MarkEntryPanel and GradebookTab (src/modules/shared/marks/) are the
+// exact same components HoD's own Subject Records page uses.
 
 export default function AdvisorSubjectRecordsPage() {
+  const [tab, setTab] = useState<"gradebook" | "enter">("enter");
+
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <div className="text-[28px] font-extrabold tracking-[-0.03em] text-ink">Subject Records</div>
-        <div className="mt-1.5 text-sm font-medium text-muted">
-          Enter marks for every subject you teach · Save keeps a draft, Publish makes it visible
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-[28px] font-extrabold tracking-[-0.03em] text-ink">Subject Records</div>
+          <div className="mt-1.5 text-sm font-medium text-muted">
+            {tab === "enter" ? "Enter marks for every subject you teach · Save keeps a draft, Publish makes it visible" : "Marks for the subjects you teach"}
+          </div>
         </div>
+        <SegmentedTabs
+          value={tab}
+          onChange={(k) => setTab(k as "gradebook" | "enter")}
+          options={[
+            { key: "enter", label: "Enter marks" },
+            { key: "gradebook", label: "Gradebook" },
+          ]}
+        />
       </div>
-      <MarkEntryPanel />
+      {tab === "enter" ? <MarkEntryPanel /> : <GradebookTab />}
     </div>
   );
 }

@@ -19,6 +19,12 @@ export const adminModuleConfig: ModuleConfig = {
       ],
     },
     {
+      label: "Academic Structure",
+      items: [
+        { key: "academic-structure", href: "/admin/academic-structure", label: "Departments & Courses", icon: "account_tree" },
+      ],
+    },
+    {
       label: "Students",
       items: [
         { key: "students", href: "/admin/students", label: "Students", icon: "groups", badgeKey: "studentCount" },
@@ -34,6 +40,19 @@ export const adminModuleConfig: ModuleConfig = {
         { key: "faculty-assignments", href: "/admin/faculty/assignments", label: "Assignments", icon: "assignment_ind" },
         { key: "faculty-reports", href: "/admin/faculty/reports", label: "Reports", icon: "summarize" },
         { key: "faculty-settings", href: "/admin/faculty/settings", label: "Settings", icon: "settings" },
+      ],
+    },
+    {
+      label: "Staff Accounts",
+      items: [
+        { key: "staff-accounts", href: "/admin/staff-accounts", label: "Staff Accounts", icon: "manage_accounts" },
+      ],
+    },
+    {
+      label: "Procurement",
+      items: [
+        { key: "vendors", href: "/admin/vendors", label: "Vendors", icon: "storefront" },
+        { key: "procurement-orders", href: "/admin/procurement", label: "Purchase & Service Orders", icon: "local_shipping" },
       ],
     },
     {

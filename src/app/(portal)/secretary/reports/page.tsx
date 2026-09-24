@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { exportToPdf } from "@/lib/utils/pdf-export";
+import { HoverDownloadButton } from "@/components/ui/HoverDownloadButton";
 import {
   useStudentAttendanceOverview,
   useRollCount,
@@ -42,20 +43,33 @@ import { useMyIdentity } from "@/modules/student/api/profile";
 //     added by this session's migration) but this table's own dedicated
 //     Faculty Profile screen is the right place for it, not a summary-
 //     table column here.
-//   - Downloadable reports: no server-side PDF/export service exists, but
-//     jsPDF (already used elsewhere in the app) genuinely renders a real
-//     downloadable file from the exact live figures on this page — a
-//     different rendering path, not fabricated content.
+//   - Downloadable reports: no server-side PDF/export service exists for
+//     THIS page's data (department academic analytics). jsPDF (already used
+//     elsewhere in the app) genuinely renders a real downloadable file from
+//     the exact live figures on this page — a different rendering path, not
+//     fabricated content. Per-section hover-reveal download buttons replace
+//     the old single "Export full report" button + standalone "Downloadable
+//     reports" list — each real card (CGPA distribution, Attendance bands,
+//     Students needing attention, Faculty summary, Placement summary) now
+//     exports just its own data. There IS a separate, fully-built backend
+//     module with real from/to date-range support — `EOSbackend1/src/
+//     modules/secretary/reports/*` (`GET /me/secretary/reports/{product-
+//     requests,service-requests,venue-bookings,media-requests,attendance}`)
+//     — but it reports on the Secretary's OWN self-service request history
+//     (procurement/service requests, venue bookings, media requests, their
+//     own attendance), a completely different data domain from this page's
+//     department-wide academic dashboard. It has no frontend page anywhere
+//     yet; wiring it up would mean building a new page, not extending this
+//     one, so it's left alone here.
+//   - No date-range filter on this page: every KPI/table here (attendance-
+//     overview, faculty overview, exams overview, placements overview,
+//     student search) is a current-snapshot institution-wide aggregate with
+//     no per-record date column and no from/to support on its backend route
+//     — there's nothing real to filter by. Adding a From/To control that
+//     silently did nothing would be worse than not having one.
 
 const STUDENT_LENSES = ["Attendance below 75%", "CGPA above 8.5", "CGPA below 7", "With arrears"] as const;
 const FACULTY_LENSES = ["All faculty", "Attendance below 95%"] as const;
-
-const REPORT_DESCRIPTORS = [
-  { name: "Monthly attendance summary", desc: "Present/absent counts for your department." },
-  { name: "Faculty workload report", desc: "Duties and attendance per faculty member." },
-  { name: "Pass percentage snapshot", desc: "Department-wise pass rate and arrears." },
-  { name: "Placement summary", desc: "Season stats and department-wise placement %." },
-];
 
 const thSx = { fontSize: 11.3, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" as const, color: "#94a3b8" };
 
@@ -70,6 +84,11 @@ export default function SecretaryReportsPage() {
   const [semesterFilter, setSemesterFilter] = useState<number | "all">("all");
   const [facLens, setFacLens] = useState<(typeof FACULTY_LENSES)[number]>("Attendance below 95%");
   const [toast, setToast] = useState("");
+  const [hoverCgpa, setHoverCgpa] = useState(false);
+  const [hoverAttendance, setHoverAttendance] = useState(false);
+  const [hoverLens, setHoverLens] = useState(false);
+  const [hoverFaculty, setHoverFaculty] = useState(false);
+  const [hoverPlacement, setHoverPlacement] = useState(false);
 
   function flash(msg: string) {
     setToast(msg);
@@ -164,94 +183,39 @@ export default function SecretaryReportsPage() {
   // fabricated content, just a different (client-side) render path.
   const today = () => new Date().toISOString().slice(0, 10);
 
-  async function onGenerate(name: string) {
+  async function withPdfErrorHandling(label: string, run: () => Promise<void>) {
     try {
-      if (name === "Monthly attendance summary") {
-        await exportToPdf({
-          title: "Monthly Attendance Summary",
-          subtitle: `${deptName}, live from EOSbackend1`,
-          meta: [["Mean attendance", kpis[2].value], ["Below 75%", String(attOverview?.below_75_count ?? "—")]],
-          sections: [
-            {
-              type: "table",
-              title: "Attendance bands (sample)",
-              columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
-              rows: attBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
-            },
-          ],
-          filename: `monthly-attendance-summary-${today()}.pdf`,
-        });
-      } else if (name === "Faculty workload report") {
-        await exportToPdf({
-          title: "Faculty Workload Report",
-          subtitle: "Duties and attendance per faculty member — live from EOSbackend1",
-          meta: [["Faculty listed", String(facRows.length)]],
-          sections: [
-            {
-              type: "table",
-              columns: [{ header: "Faculty", key: "name" }, { header: "Designation", key: "designation" }, { header: "Department", key: "dept" }, { header: "Attendance", key: "att" }, { header: "Email", key: "email" }],
-              rows: facRows.map((f) => ({
-                name: `${f.first_name} ${f.last_name}`,
-                designation: f.designation,
-                dept: f.department?.code ?? "—",
-                att: f.attendance_percentage !== null ? `${f.attendance_percentage}%` : "—",
-                email: f.email,
-              })),
-            },
-          ],
-          filename: `faculty-workload-report-${today()}.pdf`,
-        });
-      } else if (name === "Pass percentage snapshot") {
-        await exportToPdf({
-          title: "Pass Percentage Snapshot",
-          subtitle: `${deptName}, live from EOSbackend1`,
-          meta: [["Pass percentage", kpis[3].value], ["Students with arrears", String(examsOverview?.students_with_arrears ?? "—")], ["Arrear papers", String(examsOverview?.arrear_papers ?? "—")]],
-          sections: [
-            {
-              type: "table",
-              title: "CGPA distribution (sample)",
-              columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
-              rows: cgpaBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
-            },
-          ],
-          filename: `pass-percentage-snapshot-${today()}.pdf`,
-        });
-      } else if (name === "Placement summary") {
-        await exportToPdf({
-          title: "Placement Summary",
-          subtitle: "Season stats — live from EOSbackend1",
-          meta: [
-            ["Students placed", String(placementsOverview?.students_placed ?? "—")],
-            ["Applicants", String(placementsOverview?.applicants ?? "—")],
-            ["Placement %", placementsOverview?.placement_pct !== null && placementsOverview?.placement_pct !== undefined ? `${placementsOverview.placement_pct.toFixed(1)}%` : "—"],
-            ["Companies", String(placementsOverview?.companies ?? "—")],
-          ],
-          sections: [
-            {
-              type: "table",
-              title: "Department-wise placement",
-              columns: [{ header: "Department", key: "dept" }, { header: "%", key: "pct" }],
-              rows: (placementsOverview?.departments ?? []).map((d) => ({
-                dept: d.code,
-                pct: d.placement_pct !== null ? `${d.placement_pct.toFixed(1)}%` : "—",
-              })),
-            },
-          ],
-          filename: `placement-summary-${today()}.pdf`,
-        });
-      }
-      flash(`${name} downloaded.`);
+      await run();
+      flash(`${label} downloaded.`);
     } catch (err) {
       flash(err instanceof Error ? `Could not generate the PDF: ${err.message}` : "Could not generate the PDF.");
     }
   }
 
-  async function onExportFullReport() {
-    try {
-      await exportToPdf({
-        title: `${deptName} Report — Full Summary`,
-        subtitle: "Students, faculty, results and placements — live from EOSbackend1",
-        meta: kpis.map((k) => [k.label, k.value] as [string, string]),
+  const downloadAttendanceBands = () =>
+    withPdfErrorHandling("Attendance bands", () =>
+      exportToPdf({
+        title: "Monthly Attendance Summary",
+        subtitle: `${deptName}, live from EOSbackend1`,
+        meta: [["Mean attendance", kpis[2].value], ["Below 75%", String(attOverview?.below_75_count ?? "—")]],
+        sections: [
+          {
+            type: "table",
+            title: "Attendance bands (sample)",
+            columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
+            rows: attBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
+          },
+        ],
+        filename: `monthly-attendance-summary-${today()}.pdf`,
+      }),
+    );
+
+  const downloadCgpaDistribution = () =>
+    withPdfErrorHandling("CGPA distribution", () =>
+      exportToPdf({
+        title: "Pass Percentage Snapshot",
+        subtitle: `${deptName}, live from EOSbackend1`,
+        meta: [["Pass percentage", kpis[3].value], ["Students with arrears", String(examsOverview?.students_with_arrears ?? "—")], ["Arrear papers", String(examsOverview?.arrear_papers ?? "—")]],
         sections: [
           {
             type: "table",
@@ -259,35 +223,107 @@ export default function SecretaryReportsPage() {
             columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
             rows: cgpaBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
           },
+        ],
+        filename: `pass-percentage-snapshot-${today()}.pdf`,
+      }),
+    );
+
+  const downloadStudentsLens = () =>
+    withPdfErrorHandling("Students needing attention", () =>
+      exportToPdf({
+        title: "Students Needing Attention",
+        subtitle: `${lens}${semesterFilter !== "all" ? ` · Semester ${semesterFilter}` : ""} — live from EOSbackend1`,
+        meta: [["Students listed", String(lensRows.length)]],
+        sections:
+          lens === "With arrears"
+            ? [
+                {
+                  type: "keyValue",
+                  rows: [
+                    ["Students with arrears", String(examsOverview?.students_with_arrears ?? "—")],
+                    ["Arrear papers", String(examsOverview?.arrear_papers ?? "—")],
+                  ],
+                },
+              ]
+            : [
+                {
+                  type: "table",
+                  columns: [
+                    { header: "Student ID", key: "id" },
+                    { header: "Name", key: "name" },
+                    { header: "Department", key: "dept" },
+                    { header: "Semester", key: "sem" },
+                    { header: "Attendance", key: "att" },
+                    { header: "CGPA", key: "cgpa" },
+                  ],
+                  rows: lensRows.map((r) => ({
+                    id: r.student_id_no,
+                    name: r.name,
+                    dept: r.department_code,
+                    sem: r.semester ?? "—",
+                    att: r.attendance_pct !== null ? `${r.attendance_pct}%` : "—",
+                    cgpa: r.cgpa !== null ? r.cgpa.toFixed(2) : "—",
+                  })),
+                },
+              ],
+        filename: `students-needing-attention-${today()}.pdf`,
+      }),
+    );
+
+  const downloadFacultySummary = () =>
+    withPdfErrorHandling("Faculty summary", () =>
+      exportToPdf({
+        title: "Faculty Workload Report",
+        subtitle: "Duties and attendance per faculty member — live from EOSbackend1",
+        meta: [["Faculty listed", String(facRows.length)]],
+        sections: [
           {
             type: "table",
-            title: "Attendance bands (sample)",
-            columns: [{ header: "Band", key: "label" }, { header: "Count", key: "count" }, { header: "Share", key: "share" }],
-            rows: attBands.map((b) => ({ label: b.label, count: b.count, share: b.share })),
-          },
-          {
-            type: "table",
-            title: "Faculty summary",
-            columns: [{ header: "Faculty", key: "name" }, { header: "Designation", key: "designation" }, { header: "Department", key: "dept" }, { header: "Attendance", key: "att" }],
-            rows: facRows.map((f) => ({ name: `${f.first_name} ${f.last_name}`, designation: f.designation, dept: f.department?.code ?? "—", att: f.attendance_percentage !== null ? `${f.attendance_percentage}%` : "—" })),
+            columns: [{ header: "Faculty", key: "name" }, { header: "Designation", key: "designation" }, { header: "Department", key: "dept" }, { header: "Attendance", key: "att" }, { header: "Email", key: "email" }],
+            rows: facRows.map((f) => ({
+              name: `${f.first_name} ${f.last_name}`,
+              designation: f.designation,
+              dept: f.department?.code ?? "—",
+              att: f.attendance_percentage !== null ? `${f.attendance_percentage}%` : "—",
+              email: f.email,
+            })),
           },
         ],
-        filename: `institution-report-${today()}.pdf`,
-      });
-      flash("Full report downloaded.");
-    } catch (err) {
-      flash(err instanceof Error ? `Could not generate the PDF: ${err.message}` : "Could not generate the PDF.");
-    }
-  }
+        filename: `faculty-workload-report-${today()}.pdf`,
+      }),
+    );
+
+  const downloadPlacementSummary = () =>
+    withPdfErrorHandling("Placement summary", () =>
+      exportToPdf({
+        title: "Placement Summary",
+        subtitle: "Season stats — live from EOSbackend1",
+        meta: [
+          ["Students placed", String(placementsOverview?.students_placed ?? "—")],
+          ["Applicants", String(placementsOverview?.applicants ?? "—")],
+          ["Placement %", placementsOverview?.placement_pct !== null && placementsOverview?.placement_pct !== undefined ? `${placementsOverview.placement_pct.toFixed(1)}%` : "—"],
+          ["Companies", String(placementsOverview?.companies ?? "—")],
+        ],
+        sections: [
+          {
+            type: "table",
+            title: "Department-wise placement",
+            columns: [{ header: "Department", key: "dept" }, { header: "%", key: "pct" }],
+            rows: (placementsOverview?.departments ?? []).map((d) => ({
+              dept: d.code,
+              pct: d.placement_pct !== null ? `${d.placement_pct.toFixed(1)}%` : "—",
+            })),
+          },
+        ],
+        filename: `placement-summary-${today()}.pdf`,
+      }),
+    );
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24, marginBottom: 26 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Reports &amp; Analytics</h1>
-          <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>{deptName} picture — students, faculty, results and placements, live from EOSbackend1</p>
-        </div>
-        <button onClick={onExportFullReport} style={{ border: 0, background: "#1e3a8a", color: "#ffffff", fontSize: 13.5, fontWeight: 600, borderRadius: 12, padding: "16px 28px", cursor: "pointer" }}>Export full report</button>
+      <div style={{ marginBottom: 26 }}>
+        <h1 style={{ margin: 0, fontSize: 34.8, fontWeight: 700, letterSpacing: -1 }}>Reports &amp; Analytics</h1>
+        <p style={{ margin: "9px 0 0", fontSize: 13.5, color: "#64748b" }}>{deptName} picture — students, faculty, results and placements, live from EOSbackend1</p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 20, marginBottom: 20 }}>
@@ -301,7 +337,13 @@ export default function SecretaryReportsPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}>
+        <div
+          data-sec-lift=""
+          onMouseEnter={() => setHoverCgpa(true)}
+          onMouseLeave={() => setHoverCgpa(false)}
+          style={{ position: "relative", background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}
+        >
+          <HoverDownloadButton visible={hoverCgpa} onDownload={downloadCgpaDistribution} title="Download CGPA distribution report" />
           <h2 style={{ margin: "0 0 4px", fontSize: 15.7, fontWeight: 700 }}>CGPA distribution</h2>
           <p style={{ margin: "0 0 18px", fontSize: 11.7, color: "#94a3b8" }}>Sample of {sample?.students.length ?? 0} of {sample?.total ?? "—"} students on roll</p>
           {cgpaBands.map((b) => (
@@ -316,7 +358,13 @@ export default function SecretaryReportsPage() {
             </div>
           ))}
         </div>
-        <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}>
+        <div
+          data-sec-lift=""
+          onMouseEnter={() => setHoverAttendance(true)}
+          onMouseLeave={() => setHoverAttendance(false)}
+          style={{ position: "relative", background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}
+        >
+          <HoverDownloadButton visible={hoverAttendance} onDownload={downloadAttendanceBands} title="Download attendance bands report" />
           <h2 style={{ margin: "0 0 4px", fontSize: 15.7, fontWeight: 700 }}>Attendance bands</h2>
           <p style={{ margin: "0 0 18px", fontSize: 11.7, color: "#94a3b8" }}>Condonation applies below 75% · CIA eligibility below 65%</p>
           {attBands.map((b) => (
@@ -333,8 +381,14 @@ export default function SecretaryReportsPage() {
         </div>
       </div>
 
-      <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
-        <div data-sec-row="" style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 24px", borderBottom: "1px solid #eef2f7", flexWrap: "wrap" }}>
+      <div
+        data-sec-lift=""
+        onMouseEnter={() => setHoverLens(true)}
+        onMouseLeave={() => setHoverLens(false)}
+        style={{ position: "relative", background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}
+      >
+        <HoverDownloadButton visible={hoverLens} onDownload={downloadStudentsLens} title="Download students needing attention report" />
+        <div data-sec-row="" style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 56px 20px 24px", borderBottom: "1px solid #eef2f7", flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontSize: 15.7, fontWeight: 700 }}>Students needing attention</h2>
           <div style={{ display: "flex", gap: 8, marginLeft: 20, flexWrap: "wrap" }}>
             {STUDENT_LENSES.map((l) => (
@@ -388,8 +442,14 @@ export default function SecretaryReportsPage() {
         )}
       </div>
 
-      <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 24px", borderBottom: "1px solid #eef2f7", flexWrap: "wrap" }}>
+      <div
+        data-sec-lift=""
+        onMouseEnter={() => setHoverFaculty(true)}
+        onMouseLeave={() => setHoverFaculty(false)}
+        style={{ position: "relative", background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}
+      >
+        <HoverDownloadButton visible={hoverFaculty} onDownload={downloadFacultySummary} title="Download faculty summary report" />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 56px 20px 24px", borderBottom: "1px solid #eef2f7", flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontSize: 15.7, fontWeight: 700 }}>Faculty summary</h2>
           <div style={{ display: "flex", gap: 8, marginLeft: 20 }}>
             {FACULTY_LENSES.map((l) => (
@@ -416,22 +476,40 @@ export default function SecretaryReportsPage() {
         {facRows.length === 0 && <div style={{ padding: "30px 24px", fontSize: 13.1, color: "#94a3b8" }}>No faculty match this filter.</div>}
       </div>
 
-      <div data-sec-lift="" style={{ background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15.7, fontWeight: 700 }}>Downloadable reports</h2>
-        <p style={{ margin: "0 0 14px", fontSize: 11.7, color: "#94a3b8" }}>Generates a real PDF client-side from the exact live figures above — no server-side export service exists, this renders directly from the same data on screen.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
-          {REPORT_DESCRIPTORS.map((r) => (
-            <div key={r.name} style={{ border: "1px solid #eef2f7", borderRadius: 12, padding: "16px 18px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 13.1, fontWeight: 600 }}>{r.name}</span>
-              </div>
-              <div style={{ fontSize: 11.7, color: "#64748b", lineHeight: 1.5, marginTop: 6 }}>{r.desc}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14 }}>
-                <button data-sec-soft="" onClick={() => onGenerate(r.name)} style={{ marginLeft: "auto", border: "1px solid #dbe6ff", background: "#ffffff", color: "#1e3a8a", fontSize: 11.3, fontWeight: 600, borderRadius: 9, padding: "8px 14px", cursor: "pointer" }}>Generate</button>
-              </div>
+      <div
+        data-sec-lift=""
+        onMouseEnter={() => setHoverPlacement(true)}
+        onMouseLeave={() => setHoverPlacement(false)}
+        style={{ position: "relative", background: "#ffffff", border: "1px solid #e5e9f2", borderRadius: 14, padding: "22px 24px" }}
+      >
+        <HoverDownloadButton visible={hoverPlacement} onDownload={downloadPlacementSummary} title="Download placement summary report" />
+        <h2 style={{ margin: "0 0 4px", fontSize: 15.7, fontWeight: 700 }}>Placement summary</h2>
+        <p style={{ margin: "0 0 18px", fontSize: 11.7, color: "#94a3b8" }}>Season {placementsOverview?.season_year ?? "—"} · live from EOSbackend1</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16, marginBottom: 20 }}>
+          {[
+            { label: "Students placed", value: String(placementsOverview?.students_placed ?? "—") },
+            { label: "Applicants", value: String(placementsOverview?.applicants ?? "—") },
+            { label: "Placement %", value: placementsOverview?.placement_pct !== null && placementsOverview?.placement_pct !== undefined ? `${placementsOverview.placement_pct.toFixed(1)}%` : "—" },
+            { label: "Companies", value: String(placementsOverview?.companies ?? "—") },
+          ].map((k) => (
+            <div key={k.label}>
+              <div style={{ fontSize: 11.7, color: "#94a3b8" }}>{k.label}</div>
+              <div style={{ fontSize: 20.5, fontWeight: 700, marginTop: 4 }}>{k.value}</div>
             </div>
           ))}
         </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "13px 0", borderBottom: "1px solid #eef2f7", borderTop: "1px solid #eef2f7" }}>
+          <span style={thSx}>Department</span><span style={thSx}>Placement %</span>
+        </div>
+        {(placementsOverview?.departments ?? []).map((d) => (
+          <div key={d.code} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "13px 0", borderBottom: "1px solid #f5f7fa" }}>
+            <span style={{ fontSize: 12.6, fontWeight: 500, color: "#334155" }}>{d.code}</span>
+            <span style={{ fontSize: 12.6, fontWeight: 600, color: "#1e3a8a" }}>{d.placement_pct !== null ? `${d.placement_pct.toFixed(1)}%` : "—"}</span>
+          </div>
+        ))}
+        {(placementsOverview?.departments ?? []).length === 0 && (
+          <div style={{ padding: "30px 0", textAlign: "center", fontSize: 12.2, color: "#94a3b8" }}>No department-wise placement data yet.</div>
+        )}
       </div>
 
       {toast && (

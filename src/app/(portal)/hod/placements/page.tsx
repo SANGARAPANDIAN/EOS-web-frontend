@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, Badge, Avatar, Input, Select, EmptyState, SkeletonTable, SkeletonRows, PillTabs } from "@/components/ui";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 import {
@@ -94,6 +95,7 @@ type StatusFilter = "all" | "placed" | "in_process" | "unplaced";
 type SortKey = "roll" | "companyAz" | "packageDesc" | "packageAsc" | "offersDesc";
 
 function StudentRecordsTab() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [year, setYear] = useState<string>("");
   const [section, setSection] = useState<string>("");
@@ -281,6 +283,7 @@ function StudentRecordsTab() {
           data={rows}
           rowKey={(r) => r.student_id}
           rowClassName="hod-hover-row"
+          onRowClick={(r) => router.push(`/hod/placements/students/${r.student_id}`)}
           emptyMessage={statusFilter !== "all" ? "No students match this status." : undefined}
         />
       )}

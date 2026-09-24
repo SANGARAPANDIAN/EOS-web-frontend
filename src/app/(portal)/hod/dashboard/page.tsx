@@ -170,7 +170,7 @@ export default function HodDashboardPage() {
             </div>
           )}
           {d && (
-            <Link href="/hod/my-class/attendance" className="mt-3 block">
+            <Link href="/faculty/attendance" className="mt-3 block">
               <Button variant="primary">Mark attendance</Button>
             </Link>
           )}

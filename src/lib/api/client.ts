@@ -4,6 +4,15 @@ import { emitUnauthorized } from "@/lib/auth/authEvents";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001/api/v1";
 
+// Generous enough for institution-wide rollup endpoints (e.g. the IQAC
+// dashboard aggregates across every department) but bounded: without this,
+// a wedged/hung backend process (accepting the TCP connection but never
+// responding — distinct from a refused connection, which fails immediately)
+// leaves `fetch` pending forever, which keeps every caller's React Query
+// `isLoading` true forever too — an indefinitely-stuck loading skeleton with
+// no error, no retry, and no way out short of the backend itself recovering.
+const REQUEST_TIMEOUT_MS = 20_000;
+
 export type QueryParams = Record<string, string | number | boolean | undefined | null>;
 
 function buildUrl(path: string, params?: QueryParams): string {
@@ -40,12 +49,30 @@ async function request<T>(method: string, path: string, options: RequestOptions 
     }
   }
 
-  const res = await fetch(buildUrl(path, options.params), {
-    method,
-    headers,
-    body,
-    signal: options.signal,
-  });
+  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal;
+
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, options.params), {
+      method,
+      headers,
+      body,
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiError({
+        success: false,
+        statusCode: 0,
+        errorCode: "REQUEST_TIMEOUT",
+        message: "The server is taking too long to respond. Please try again.",
+        timestamp: new Date().toISOString(),
+        path,
+      });
+    }
+    throw err;
+  }
 
   const json = await res.json().catch(() => null);
 
@@ -133,6 +160,8 @@ export const apiClient = {
   delete: <T>(path: string) => request<T>("DELETE", path),
   postForm: <T>(path: string, formData: FormData) =>
     request<T>("POST", path, { body: formData, isFormData: true }),
+  patchForm: <T>(path: string, formData: FormData) =>
+    request<T>("PATCH", path, { body: formData, isFormData: true }),
   downloadBlob,
   uploadFile,
 };

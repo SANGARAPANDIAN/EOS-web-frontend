@@ -26,6 +26,8 @@ export interface HodAssignFacultyOverview {
   selected_class_label: string | null;
   faculty_options: { faculty_id: number; name: string }[];
   rows: HodAssignFacultyRow[];
+  /** This class's advisor/mentor for the current academic year — null when nobody has been appointed yet. */
+  current_mentor: { faculty_id: number; name: string } | null;
 }
 
 /** GET /hod/assign-faculty?class_id= */
@@ -55,6 +57,16 @@ export function useSetSubstituteFaculty() {
   return useMutation({
     mutationFn: (body: { class_id: number; subject_id: number; faculty_id: number | null }) =>
       apiClient.patch("/hod/assign-faculty/substitute-faculty", body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hod", "assign-faculty"] }),
+  });
+}
+
+/** PATCH /hod/assign-faculty/mentor — appoints this class's advisor/mentor for the current academic year. */
+export function useSetClassMentor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { class_id: number; faculty_id: number }) =>
+      apiClient.patch("/hod/assign-faculty/mentor", body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hod", "assign-faculty"] }),
   });
 }

@@ -42,11 +42,13 @@ export function useDecideHodOdRequest() {
       kind,
       id,
       decision,
+      remarks,
     }: {
       kind: OdAudience;
       id: number;
       decision: "approved" | "rejected";
-    }) => apiClient.patch(`/hod/od-requests/${kind}/${id}`, { decision }),
+      remarks?: string;
+    }) => apiClient.patch(`/hod/od-requests/${kind}/${id}`, { decision, remarks }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hod", "od-requests"] }),
   });
 }

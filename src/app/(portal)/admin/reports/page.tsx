@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { PageHeader, Card, Button, Select, DatePicker, DataTable, useToast, type DataTableColumn } from "@/modules/admin/components/ui";
+import { PageHeader, Card, Button, Select, DataTable, useToast, type DataTableColumn } from "@/modules/admin/components/ui";
+import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { cn } from "@/lib/utils/cn";
 import { friendlyError } from "@/lib/utils/errors";
 import { ADMIN_REPORT_CATALOG, type AdminReportEntry } from "@/modules/admin/types/reports";
@@ -144,11 +145,7 @@ export default function AdminReportsPage() {
                 </Select>
               )}
               {def.supports.dateRange && (
-                <>
-                  <DatePicker value={from} onChange={(e) => setFrom(e.target.value)} className="w-auto" />
-                  <span className="text-xs text-admin-subtle">to</span>
-                  <DatePicker value={to} onChange={(e) => setTo(e.target.value)} className="w-auto" />
-                </>
+                <DateRangeFilter from={from} to={to} onFromChange={setFrom} onToChange={setTo} onClear={() => { setFrom(""); setTo(""); }} />
               )}
             </div>
           )}

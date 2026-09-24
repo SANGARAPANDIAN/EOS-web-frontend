@@ -53,6 +53,9 @@ export interface CreateDriveInput {
   round2Label?: string;
   round3Label?: string;
   resultDeclarationNote?: string;
+  driveType?: "full_time" | "internship";
+  stipendAmount?: number;
+  durationMonths?: number;
 }
 
 export interface DriveListParams {
@@ -264,6 +267,66 @@ export function useDriveReport() {
   });
 }
 
+// Internship-only mirror of DriveReportRow/toReportRow — stipend/duration
+// instead of package/mode, backing the dedicated Internships list.
+export interface InternshipDriveReportRow {
+  id: number;
+  companyName: string;
+  jobRole?: string;
+  scheduledDate: string;
+  stipendAmount: number | null;
+  durationMonths: number | null;
+  applied: number;
+  shortlisted: number;
+  selected: number;
+  conversionPct: number;
+  status: DriveStatus;
+  displayStatus: DriveDisplayStatus;
+}
+
+interface BackendInternshipDriveReportRow {
+  id: number;
+  company_name: string;
+  job_role: string | null;
+  scheduled_date: string;
+  stipend_amount: number | null;
+  duration_months: number | null;
+  applied: number;
+  shortlisted: number;
+  selected: number;
+  conversion_pct: number;
+  status: DriveStatus;
+  display_status: DriveDisplayStatus;
+}
+
+function toInternshipReportRow(r: BackendInternshipDriveReportRow): InternshipDriveReportRow {
+  return {
+    id: r.id,
+    companyName: r.company_name,
+    jobRole: r.job_role ?? undefined,
+    scheduledDate: r.scheduled_date,
+    stipendAmount: r.stipend_amount,
+    durationMonths: r.duration_months,
+    applied: r.applied,
+    shortlisted: r.shortlisted,
+    selected: r.selected,
+    conversionPct: r.conversion_pct,
+    status: r.status,
+    displayStatus: r.display_status,
+  };
+}
+
+/** GET /drives/internships/report — Internships get their own dedicated list, mirroring useDriveReport() but drive_type='internship' only. */
+export function useInternshipDriveReport() {
+  return useQuery({
+    queryKey: ["placement", "drives", "internship-report"],
+    queryFn: async () => {
+      const rows = await apiClient.get<BackendInternshipDriveReportRow[]>("/drives/internships/report");
+      return rows.map(toInternshipReportRow);
+    },
+  });
+}
+
 function useInvalidateDrives() {
   const queryClient = useQueryClient();
   return () => {
@@ -295,6 +358,9 @@ export function useCreateDrive() {
           round2_label: input.round2Label,
           round3_label: input.round3Label,
           result_declaration_note: input.resultDeclarationNote,
+          drive_type: input.driveType,
+          stipend_amount: input.stipendAmount,
+          duration_months: input.durationMonths,
         }),
       ),
     onSuccess: invalidate,

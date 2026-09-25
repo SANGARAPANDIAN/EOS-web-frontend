@@ -38,7 +38,7 @@ export function AssignVendorDialog({
       { id: proposal.id, vendor_id: selected.id },
       {
         onSuccess: () => {
-          show(`${selected.name} assigned to ${proposal.reference}.`, "success");
+          show(`${selected.name} assigned to ${proposal.reference || proposal.title}.`, "success");
           onClose();
         },
         onError: (err: unknown) => setError(err instanceof ApiError ? err.message : friendlyError(err)),

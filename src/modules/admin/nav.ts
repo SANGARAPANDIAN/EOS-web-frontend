@@ -49,16 +49,16 @@ export const adminModuleConfig: ModuleConfig = {
       ],
     },
     {
+      label: "Alumni",
+      items: [
+        { key: "alumni", href: "/admin/alumni", label: "Alumni", icon: "school" },
+      ],
+    },
+    {
       label: "Procurement",
       items: [
         { key: "vendors", href: "/admin/vendors", label: "Vendors", icon: "storefront" },
         { key: "procurement-orders", href: "/admin/procurement", label: "Purchase & Service Orders", icon: "local_shipping" },
-      ],
-    },
-    {
-      label: "Requests",
-      items: [
-        { key: "sop-requests", href: "/admin/sop-requests", label: "SOP requests", icon: "handyman", badgeKey: "adminSopPending" },
       ],
     },
     {

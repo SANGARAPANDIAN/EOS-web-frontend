@@ -71,84 +71,63 @@ export function useCreatePurchaseRequest() {
   });
 }
 
-// --- SOP (Service requests) — REWIRED to the real, now-reachable
-// `secretary/service-requests` module (table: secretary_service_requests +
-// secretary_service_request_items). This was previously a silent route
-// collision: `procurement/service-requests` also registered
-// `me/service-requests` and, being imported earlier in app.module.ts, won
-// every single request — the real Secretary-owned draft/multi-item/
-// submit/withdraw module was 100% unreachable despite being fully built.
-// The Procurement module was moved to `me/procurement-service-requests` (no
-// other frontend page called it) so this real module is finally live.
-export type ServiceRequestStatus = "draft" | "pending" | "approved" | "rejected";
+// --- SOP (Service requests) — points at `procurement/service-requests`
+// (`/me/procurement-service-requests`), the real HoD-then-Finance module —
+// same one HOD's own SOP/POP Requests page already reads from. This
+// replaces a previous wiring to a disconnected `secretary/service-requests`
+// module (table: secretary_service_requests) whose review chain was a
+// single Admin decision with no HoD or Finance stage at all — confirmed via
+// direct code reading and live-testing all three logins (2026-09-26), not
+// the "Secretary/HoD/Finance/Admin" shape an earlier comment claimed. That
+// module has been retired; its one real pending request was migrated into
+// this table (see master_data_approvals.query.md's sibling `.query.md` for
+// the reconciliation note, or the migration script if one was needed).
+export type ServiceRequestStatus = "pending_hod" | "pending_finance" | "approved" | "rejected_by_hod" | "rejected_by_finance" | "converted";
 
-export interface ServiceRequestItem {
-  id: number;
-  service_name: string;
-}
 export interface ServiceRequestRow {
   id: number;
   title: string;
-  justification: string | null;
+  department: { id: number; name: string } | null;
+  raised_by: { id: number; email: string } | null;
+  service_description: string | null;
+  quantity: string | null;
+  location: string | null;
+  needed_by: string | null;
   status: ServiceRequestStatus;
+  hod_reviewer: { id: number; email: string } | null;
+  hod_reviewed_at: string | null;
+  hod_remarks: string | null;
+  finance_reviewer: { id: number; email: string } | null;
+  finance_reviewed_at: string | null;
+  finance_remarks: string | null;
+  order_number: string | null;
+  converted_at: string | null;
   created_at: string;
-  updated_at: string;
-  reviewed_at: string | null;
-  items: ServiceRequestItem[];
-  requested_by: { id: number; name: string };
-  reviewed_by: { id: number; name: string } | null;
 }
 
-/** GET /me/service-requests — Secretary sees only requests they raised. */
-export function useServiceRequests(status?: ServiceRequestStatus) {
-  const qs = status ? `status=${status}&limit=100` : "limit=100";
+/** GET /me/procurement-service-requests — Secretary sees only requests they raised. */
+export function useServiceRequests(status?: string) {
+  const qs = status ? `?status=${status}` : "";
   return useQuery({
     queryKey: ["secretary", "service-requests", status],
-    queryFn: () => apiClient.get<{ data: ServiceRequestRow[] }>(`/me/service-requests?${qs}`).then((r) => r.data),
+    queryFn: () => apiClient.get<{ data: ServiceRequestRow[] }>(`/me/procurement-service-requests${qs}`).then((r) => r.data),
   });
 }
 
-export interface ServiceRequestItemInput {
-  service_name: string;
-}
 export interface CreateServiceRequestInput {
+  department_id: number;
   title: string;
-  justification?: string;
-  items?: ServiceRequestItemInput[];
+  service_description: string;
+  quantity?: string;
+  location?: string;
+  needed_by?: string;
 }
 
-/** POST /me/service-requests — always created as 'draft'. */
+/** POST /me/procurement-service-requests */
 export function useCreateServiceRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateServiceRequestInput) => apiClient.post("/me/service-requests", input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "service-requests"] }),
-  });
-}
-
-/** PATCH /me/service-requests/:id — own request, only while 'draft'. */
-export function useUpdateServiceRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: number; input: Partial<CreateServiceRequestInput> }) => apiClient.patch(`/me/service-requests/${id}`, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "service-requests"] }),
-  });
-}
-
-/** POST /me/service-requests/:id/submit — moves a draft to 'pending'. */
-export function useSubmitServiceRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => apiClient.post(`/me/service-requests/${id}/submit`, {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "service-requests"] }),
-  });
-}
-
-/** DELETE /me/service-requests/:id — own request, only while 'draft'. */
-export function useDeleteServiceRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => apiClient.delete(`/me/service-requests/${id}`),
+    mutationFn: (input: CreateServiceRequestInput) => apiClient.post("/me/procurement-service-requests", input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secretary", "service-requests"] }),
   });
 }

@@ -37,21 +37,60 @@ export function useMyExamResults(semester: number | null) {
   });
 }
 
+export interface MyGpaRow {
+  semester: number;
+  total_credits: number;
+  sgpa: number;
+  cumulative_credits: number;
+  cgpa: number;
+  is_provisional: boolean;
+  computed_at: string;
+}
+
 /**
- * CGPA has no backend endpoint anywhere (there's no grade/GPA computation
- * in the API at all — see Performance page). This aggregates every
- * semester's END-SEMESTER exam result (1..uptoSemester) client-side, using
- * the same Anna-University grading scale as the Performance page, credit-
- * weighted across the flattened subject list from every semester (not an
- * average of per-semester GPAs, which would wrongly equal-weight semesters
- * with different credit loads). Internals are intentionally excluded —
- * CGPA is conventionally computed from final results only.
+ * GET /me/gpa — this student's own stored per-semester SGPA/CGPA
+ * (`student_semester_gpa`, kept current by `GpaRecomputeService` on every
+ * result publish/revaluation — see EOSbackend1 docs/gpa_implementation_plan.md).
+ * Real backend-computed values, not a client-side recomputation. Returns an
+ * empty array (not an error) for a student who hasn't been backfilled yet —
+ * `useMyCgpa` below falls back to client-side computation in that case.
+ */
+export function useMyGpa() {
+  return useQuery({
+    queryKey: ["me", "gpa"],
+    queryFn: () => apiClient.get<MyGpaRow[]>("/me/gpa"),
+  });
+}
+
+/**
+ * Prefers the backend's own stored SGPA/CGPA (via useMyGpa) whenever the
+ * CURRENT semester (uptoSemester) has a stored row — the common case once a
+ * student's results have been backfilled or published/revalued under the
+ * GpaRecomputeService pipeline. Falls back to the older client-side
+ * computation (aggregating every semester's END-SEMESTER exam result,
+ * credit-weighted, same grading scale as the Performance page) only for a
+ * student who hasn't been backfilled yet and has no stored row for their
+ * current semester — this keeps the page working exactly as before for
+ * anyone the one-time backfill script hasn't reached yet.
  */
 export function useMyCgpa(uptoSemester: number | null) {
-  const semesters = useMemo(
-    () => (uptoSemester ? Array.from({ length: uptoSemester }, (_, i) => i + 1) : []),
-    [uptoSemester],
-  );
+  const storedGpa = useMyGpa();
+  const storedBySemester = useMemo(() => {
+    const map = new Map<number, MyGpaRow>();
+    for (const row of storedGpa.data ?? []) map.set(row.semester, row);
+    return map;
+  }, [storedGpa.data]);
+
+  // Only fetch the older, client-computed fallback for semesters the stored
+  // table doesn't cover yet — once storedGpa has loaded and a semester has a
+  // row, there's no need to also pull its raw exam-results just to recompute
+  // a number the backend already computed correctly.
+  const semesters = useMemo(() => {
+    if (!uptoSemester || storedGpa.isLoading) return [];
+    return Array.from({ length: uptoSemester }, (_, i) => i + 1).filter(
+      (sem) => !storedBySemester.has(sem),
+    );
+  }, [uptoSemester, storedGpa.isLoading, storedBySemester]);
   const subjectsLookup = useSubjectsLookup();
 
   const results = useQueries({
@@ -67,9 +106,12 @@ export function useMyCgpa(uptoSemester: number | null) {
     return map;
   }, [subjectsLookup.data]);
 
-  const isLoading = results.some((r) => r.isLoading) || subjectsLookup.isLoading;
+  const isLoading =
+    storedGpa.isLoading ||
+    results.some((r) => r.isLoading) ||
+    (semesters.length > 0 && subjectsLookup.isLoading);
 
-  const perSemesterGpa = useMemo(() => {
+  const fallbackPerSemesterGpa = useMemo(() => {
     return results
       .map((r) => r.data)
       .filter((d): d is MyExamResults => d != null && d.semester_exam != null)
@@ -82,10 +124,31 @@ export function useMyCgpa(uptoSemester: number | null) {
           })),
         ),
       }))
-      .filter((s) => s.gpa !== null);
+      .filter((s): s is { semester: number; gpa: number } => s.gpa !== null);
   }, [results, creditsById]);
 
+  const perSemesterGpa = useMemo(() => {
+    if (!uptoSemester) return [];
+    const bySemester = new Map<number, number>();
+    for (const [sem, row] of storedBySemester) {
+      if (sem <= uptoSemester) bySemester.set(sem, row.sgpa);
+    }
+    for (const s of fallbackPerSemesterGpa) {
+      if (!bySemester.has(s.semester)) bySemester.set(s.semester, s.gpa);
+    }
+    return [...bySemester.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([semester, gpa]) => ({ semester, gpa }));
+  }, [uptoSemester, storedBySemester, fallbackPerSemesterGpa]);
+
   const cgpa = useMemo(() => {
+    // The stored row for the CURRENT semester already IS the running CGPA
+    // through that point — trust it directly rather than re-deriving from a
+    // mix of stored and client-computed semesters, which would risk
+    // double-counting or drifting from GpaRecomputeService's own arithmetic.
+    const currentStoredRow = uptoSemester != null ? storedBySemester.get(uptoSemester) : undefined;
+    if (currentStoredRow) return currentStoredRow.cgpa;
+
     const allSubjects = results
       .map((r) => r.data)
       .filter((d): d is MyExamResults => d != null && d.semester_exam != null)
@@ -96,7 +159,7 @@ export function useMyCgpa(uptoSemester: number | null) {
         })),
       );
     return computeGpa(allSubjects);
-  }, [results, creditsById]);
+  }, [uptoSemester, storedBySemester, results, creditsById]);
 
   const latest = perSemesterGpa.at(-1) ?? null;
   const previous = perSemesterGpa.length > 1 ? perSemesterGpa.at(-2) ?? null : null;

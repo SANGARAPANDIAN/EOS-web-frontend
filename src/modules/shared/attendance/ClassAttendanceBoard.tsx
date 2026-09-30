@@ -9,6 +9,7 @@ import {
   useMarkClassAttendance,
   useAttendanceDraft,
   usePublishClassAttendance,
+  useSubmitForReviewClassAttendance,
   type AttendanceMarkStatus,
   type RecognizeAttendanceResponse,
   type AttendanceDraft,
@@ -62,30 +63,47 @@ const MARK_BUTTON_BASE = "flex h-9 min-w-9 items-center justify-center rounded-[
 
 export function ClassAttendanceBoard() {
   const today = useTodaySlots();
-  // One dropdown entry per distinct class+subject — a lab spanning two
-  // consecutive periods today would otherwise produce two identical rows.
+  // One dropdown entry per distinct class+subject+period — a subject
+  // scheduled twice today (e.g. a 2-period lab at period 3 and again at
+  // period 6, see EOSbackend1's attendance_periods.query.md, Domain 06
+  // checklist item A0) gets its own entry per period instead of collapsing
+  // into one; every other class+subject still dedupes to one entry exactly
+  // as before (same class+subject+period combination can't repeat today).
   const classes = useMemo(() => {
     const rows = today.data ?? [];
     const seen = new Set<string>();
     return rows.filter((r) => {
-      const key = `${r.class_id}:${r.subject_id}`;
+      const key = `${r.class_id}:${r.subject_id}:${r.period_number}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
   }, [today.data]);
 
+  // A subject appearing more than once today needs its period called out in
+  // the dropdown label so the two entries are distinguishable; every other
+  // subject's label is unchanged.
+  const repeatedSubjectKeys = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of classes) {
+      const key = `${c.class_id}:${c.subject_id}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([key]) => key));
+  }, [classes]);
+
   const [selectedKeyOverride, setSelectedKeyOverride] = useState<string | null>(null);
-  const selectedKey = selectedKeyOverride ?? (classes.length ? `${classes[0].class_id}:${classes[0].subject_id}` : null);
+  const selectedKey =
+    selectedKeyOverride ?? (classes.length ? `${classes[0].class_id}:${classes[0].subject_id}:${classes[0].period_number}` : null);
 
   const [selectedDate, setSelectedDate] = useState(todayIso);
   const isToday = selectedDate === todayIso;
 
-  const [classId, subjectId] = selectedKey ? selectedKey.split(":").map(Number) : [undefined, undefined];
-  const activeClass = classes.find((c) => c.class_id === classId && c.subject_id === subjectId);
+  const [classId, subjectId, periodNumber] = selectedKey ? selectedKey.split(":").map(Number) : [undefined, undefined, undefined];
+  const activeClass = classes.find((c) => c.class_id === classId && c.subject_id === subjectId && c.period_number === periodNumber);
 
   const roster = useClassRoster(classId, subjectId);
-  const draft = useAttendanceDraft(classId, subjectId, selectedDate);
+  const draft = useAttendanceDraft(classId, subjectId, selectedDate, periodNumber);
 
   if (today.isLoading) {
     return (
@@ -110,11 +128,16 @@ export function ClassAttendanceBoard() {
             <label className="mb-1.5 block text-[11px] font-extrabold tracking-[.08em] text-subtle uppercase">Class &amp; Subject</label>
             <Select value={selectedKey ?? ""} onChange={(e) => setSelectedKeyOverride(e.target.value)} className="font-bold">
               {classes.length === 0 && <option value="">No class scheduled for you today</option>}
-              {classes.map((c) => (
-                <option key={`${c.class_id}:${c.subject_id}`} value={`${c.class_id}:${c.subject_id}`}>
-                  {yearLabelForSemester(c.semester)} Year · {c.department_name} · Section {c.class_section} · {c.subject_code} {c.subject_name}
-                </option>
-              ))}
+              {classes.map((c) => {
+                const key = `${c.class_id}:${c.subject_id}:${c.period_number}`;
+                const isRepeated = repeatedSubjectKeys.has(`${c.class_id}:${c.subject_id}`);
+                return (
+                  <option key={key} value={key}>
+                    {yearLabelForSemester(c.semester)} Year · {c.department_name} · Section {c.class_section} · {c.subject_code} {c.subject_name}
+                    {isRepeated ? ` · Period ${c.period_number} (${c.start_time}–${c.end_time})` : ""}
+                  </option>
+                );
+              })}
             </Select>
           </div>
           <div>
@@ -159,6 +182,7 @@ export function ClassAttendanceBoard() {
           key={`${selectedKey}-${selectedDate}`}
           classId={classId}
           subjectId={subjectId}
+          periodNumber={periodNumber}
           selectedDate={selectedDate}
           activeClass={activeClass}
           roster={roster.data}
@@ -172,6 +196,7 @@ export function ClassAttendanceBoard() {
 function MarkingCard({
   classId,
   subjectId,
+  periodNumber,
   selectedDate,
   activeClass,
   roster,
@@ -179,6 +204,7 @@ function MarkingCard({
 }: {
   classId: number | undefined;
   subjectId: number | undefined;
+  periodNumber: number | undefined;
   selectedDate: string;
   activeClass: { semester: number | null; department_name: string; class_section: string; subject_code: string; subject_name: string } | undefined;
   roster: RecognizeAttendanceResponse | undefined;
@@ -186,8 +212,11 @@ function MarkingCard({
 }) {
   const markMutation = useMarkClassAttendance();
   const publishMutation = usePublishClassAttendance();
+  const submitForReviewMutation = useSubmitForReviewClassAttendance();
   const students = useMemo(() => roster?.students ?? [], [roster]);
   const isPublished = draft?.is_published ?? false;
+  const isSubmittedForReview = (draft?.submitted_for_review ?? false) && !isPublished;
+  const locked = isPublished || isSubmittedForReview;
 
   const [marks, setMarks] = useState<Record<number, Mark>>(() => {
     const records = draft?.records ?? [];
@@ -218,22 +247,27 @@ function MarkingCard({
   const noMarksYet = Object.values(marks).every((m) => m === null);
 
   function setMark(studentId: number, mark: Mark) {
-    if (isPublished) return;
+    if (locked) return;
     setMarks((prev) => ({ ...prev, [studentId]: prev[studentId] === mark ? null : mark }));
   }
 
   function save() {
-    if (!classId || !subjectId || isPublished) return;
+    if (!classId || !subjectId || locked) return;
     const records = Object.entries(marks)
       .filter(([, m]) => m !== null)
       .map(([studentId, status]) => ({ student_id: Number(studentId), status: status as AttendanceMarkStatus }));
     if (!records.length) return;
-    markMutation.mutate({ classId, subject_id: subjectId, attendance_date: selectedDate, records, photo_url: roster?.photo_url ?? undefined });
+    markMutation.mutate({ classId, subject_id: subjectId, attendance_date: selectedDate, period_number: periodNumber, records, photo_url: roster?.photo_url ?? undefined });
   }
 
   function publish() {
-    if (!classId || !subjectId || isPublished) return;
+    if (!classId || !subjectId || locked) return;
     publishMutation.mutate({ classId, subject_id: subjectId, attendance_date: selectedDate });
+  }
+
+  function submitForReview() {
+    if (!classId || !subjectId || locked) return;
+    submitForReviewMutation.mutate({ classId, subject_id: subjectId, attendance_date: selectedDate });
   }
 
   return (
@@ -260,8 +294,11 @@ function MarkingCard({
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Badge tone={isPublished ? "accentDark" : "neutral"}>{isPublished ? "Published" : "Draft · not published"}</Badge>
+          <Badge tone={isPublished ? "accentDark" : isSubmittedForReview ? "accent" : "neutral"}>
+            {isPublished ? "Published" : isSubmittedForReview ? "Submitted · awaiting review" : "Draft · not published"}
+          </Badge>
           {isPublished && <span className="text-[12px] font-semibold text-subtle">Visible to students, parents, and advisors. Locked — cannot be edited.</span>}
+          {isSubmittedForReview && <span className="text-[12px] font-semibold text-subtle">Sent to your Class Advisor/HoD for review. Locked until they decide.</span>}
         </div>
 
         {markMutation.isError && (
@@ -274,15 +311,29 @@ function MarkingCard({
             Couldn&apos;t publish: {mutationErrorMessage(publishMutation.error)}
           </div>
         )}
+        {submitForReviewMutation.isError && (
+          <div className="mt-3.5 rounded-[9px] border border-danger-border bg-danger-bg px-4 py-2.5 text-[12.5px] font-semibold text-danger-fg">
+            Couldn&apos;t submit for review: {mutationErrorMessage(submitForReviewMutation.error)}
+          </div>
+        )}
 
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <Button variant="secondary" className="w-full" disabled={isPublished} onClick={() => setMarks({})}>
+        <div className="mt-4 grid grid-cols-4 gap-3">
+          <Button variant="secondary" className="w-full" disabled={locked} onClick={() => setMarks({})}>
             Clear
           </Button>
-          <Button variant="secondary" className="w-full" disabled={isPublished} loading={markMutation.isPending} onClick={save}>
+          <Button variant="secondary" className="w-full" disabled={locked} loading={markMutation.isPending} onClick={save}>
             Save
           </Button>
-          <Button variant="primarySmall" className="w-full" disabled={isPublished || noMarksYet} loading={publishMutation.isPending} onClick={publish}>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={locked || noMarksYet}
+            loading={submitForReviewMutation.isPending}
+            onClick={submitForReview}
+          >
+            {isSubmittedForReview ? "Submitted ✓" : "Submit for review"}
+          </Button>
+          <Button variant="primarySmall" className="w-full" disabled={locked || noMarksYet} loading={publishMutation.isPending} onClick={publish}>
             {isPublished ? "Published ✓" : "Publish"}
           </Button>
         </div>
@@ -307,28 +358,28 @@ function MarkingCard({
                 <div className="truncate text-[14px] font-bold text-ink">{s.name}</div>
                 <div className="mt-0.5 truncate text-[11.5px] font-semibold text-subtle">{s.student_id_no}</div>
               </div>
-              <div className={cn("flex shrink-0 gap-2", isPublished && "opacity-60")}>
+              <div className={cn("flex shrink-0 gap-2", locked && "opacity-60")}>
                 <button
                   type="button"
-                  disabled={isPublished}
+                  disabled={locked}
                   onClick={() => setMark(s.student_id, "present")}
-                  className={cn(MARK_BUTTON_BASE, m === "present" ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-primary", isPublished && "cursor-not-allowed")}
+                  className={cn(MARK_BUTTON_BASE, m === "present" ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-primary", locked && "cursor-not-allowed")}
                 >
                   P
                 </button>
                 <button
                   type="button"
-                  disabled={isPublished}
+                  disabled={locked}
                   onClick={() => setMark(s.student_id, "absent")}
-                  className={cn(MARK_BUTTON_BASE, m === "absent" ? "border-danger-border bg-danger-fg text-white" : "border-border-default bg-surface text-danger-fg", isPublished && "cursor-not-allowed")}
+                  className={cn(MARK_BUTTON_BASE, m === "absent" ? "border-danger-border bg-danger-fg text-white" : "border-border-default bg-surface text-danger-fg", locked && "cursor-not-allowed")}
                 >
                   A
                 </button>
                 <button
                   type="button"
-                  disabled={isPublished}
+                  disabled={locked}
                   onClick={() => setMark(s.student_id, "on_duty")}
-                  className={cn(MARK_BUTTON_BASE, m === "on_duty" ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-primary", isPublished && "cursor-not-allowed")}
+                  className={cn(MARK_BUTTON_BASE, m === "on_duty" ? "border-primary bg-primary text-white" : "border-border-default bg-surface text-primary", locked && "cursor-not-allowed")}
                 >
                   OD
                 </button>

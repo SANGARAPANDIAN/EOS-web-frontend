@@ -127,7 +127,13 @@ export default function PrincipalStudentsPage() {
               : undefined
           }
         />
-        <PrincipalStatCard label="Mean CGPA" icon="school" value="—" footer="Not tracked in this system" />
+        <PrincipalStatCard
+          label="Mean CGPA"
+          icon="school"
+          loading={summary.isLoading}
+          value={summary.data?.mean_cgpa != null ? summary.data.mean_cgpa.toFixed(2) : "—"}
+          sub="credit-weighted · published results only"
+        />
         <PrincipalStatCard
           label="Placements"
           icon="work"

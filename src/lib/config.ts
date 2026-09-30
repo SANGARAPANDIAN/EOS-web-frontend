@@ -6,18 +6,26 @@
 export const ATTENDANCE_THRESHOLD_PERCENT = 75;
 
 /**
- * Anna University's standard UG grading table — there is no grade/GPA
- * computation anywhere in the backend (exam_marks only stores raw scores),
- * so this is derived client-side from percentage. Verify against the
- * institution's actual regulation document if it differs; this is a
- * near-universal convention for Tamil Nadu engineering colleges, not
- * something confirmed from this college's own records.
+ * Matches the real, live `grade_bands` table this college's backend already
+ * uses (see EOSbackend1 docs/gpa_implementation_plan.md A.3) — O 90+/A+
+ * 80+/A 70+/B+ 60+/B 50+/RA below. This used to be 91/81/71/61/50/0 (a
+ * stale, unverified guess — the doc comment here claimed the backend had
+ * "no grade/GPA computation anywhere", which was already false even before
+ * this fix: `buildMarksheetData`'s own SGPA has always been correct), and
+ * that 1-point drift silently mis-graded any student scoring exactly on a
+ * boundary (e.g. 90% showed as A+ here, O everywhere else) — caught via
+ * live verification, not a hypothetical.
+ *
+ * This is still a stopgap, not the fix: the real fix is for this page (and
+ * `useMyCgpa` below) to read the backend's own computed grade/SGPA/CGPA
+ * instead of recomputing from raw scores — tracked as part of the shared
+ * GPA service migration in the backend's gpa_implementation_plan.md.
  */
 export const GRADE_SCALE: { min: number; grade: string; point: number }[] = [
-  { min: 91, grade: "O", point: 10 },
-  { min: 81, grade: "A+", point: 9 },
-  { min: 71, grade: "A", point: 8 },
-  { min: 61, grade: "B+", point: 7 },
+  { min: 90, grade: "O", point: 10 },
+  { min: 80, grade: "A+", point: 9 },
+  { min: 70, grade: "A", point: 8 },
+  { min: 60, grade: "B+", point: 7 },
   { min: 50, grade: "B", point: 6 },
   { min: 0, grade: "RA", point: 0 },
 ];

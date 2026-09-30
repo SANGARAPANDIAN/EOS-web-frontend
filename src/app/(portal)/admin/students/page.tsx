@@ -32,6 +32,7 @@ import { useStudentIdCardBulkStatus, useIssueStudentIdCard } from "@/modules/adm
 import { studentToIdCardData } from "@/modules/admin/lib/id-card-data";
 import { IdCardModal } from "@/modules/admin/components/shared/IdCardModal";
 import { useOutstandingStudentIds } from "@/modules/admin/api/dashboard";
+import { StudentImportModal } from "@/modules/admin/components/students/StudentImportModal";
 
 const PAGE_SIZE = 10;
 
@@ -93,6 +94,7 @@ export default function AdminStudentsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [quickViewRow, setQuickViewRow] = useState<StudentListItem | null>(null);
   const [idCardRows, setIdCardRows] = useState<StudentListItem[] | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const idCardIds = idCardRows?.map((s) => s.id) ?? [];
   const { data: idCardStatusMap, isLoading: idCardStatusLoading } = useStudentIdCardBulkStatus(idCardIds);
   const issueStudentIdCard = useIssueStudentIdCard();
@@ -301,7 +303,7 @@ export default function AdminStudentsPage() {
         }
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" disabled title="Import — module planned">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
               Import
             </Button>
             <Button
@@ -540,6 +542,8 @@ export default function AdminStudentsPage() {
         fetchFullData={(id) => fetchStudentIdCardSource(id).then(studentToIdCardData)}
         onIssued={() => {}}
       />
+
+      <StudentImportModal open={importOpen} onClose={() => setImportOpen(false)} />
 
       <p className="mt-3 text-xs leading-relaxed text-admin-subtle">
         Showing only what the database actually has today: identity, batch/course/department, residence type, status,

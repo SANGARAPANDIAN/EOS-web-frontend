@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/Select";
 import { useToast } from "@/modules/admin/components/ui/ToastProvider";
 import { ApiError } from "@/types/api";
 import { useCreateCourse, useUpdateCourse } from "../hooks/useAcademicStructureMutations";
+import { submitApprovalRequest } from "@/modules/shared/api/approvalRequests";
 import type { Course, Department } from "../types";
 
 interface CourseDialogProps {
@@ -25,30 +26,40 @@ export function CourseDialog({ open, onClose, department, course }: CourseDialog
   const [code, setCode] = useState(course?.code ?? "");
   const [durationYears, setDurationYears] = useState(String(course?.duration_years ?? 4));
   const [error, setError] = useState<string | null>(null);
+  const [submittingForReview, setSubmittingForReview] = useState(false);
   const createCourse = useCreateCourse();
   const updateCourse = useUpdateCourse();
   const { show } = useToast();
 
-  const pending = createCourse.isPending || updateCourse.isPending;
+  const pending = createCourse.isPending || updateCourse.isPending || submittingForReview;
 
-  function handleSave() {
+  function validate(): { name: string; code: string; department_id: number; duration_years: number } | null {
     setError(null);
     const trimmedName = name.trim();
     const trimmedCode = code.trim().toUpperCase();
-    if (!trimmedName) return setError("Course name is required.");
-    if (!trimmedCode) return setError("Course code is required.");
+    if (!trimmedName) {
+      setError("Course name is required.");
+      return null;
+    }
+    if (!trimmedCode) {
+      setError("Course code is required.");
+      return null;
+    }
+    return {
+      name: trimmedName,
+      code: trimmedCode,
+      department_id: department.id,
+      duration_years: Number(durationYears),
+    };
+  }
+
+  function handleSave() {
+    const input = validate();
+    if (!input) return;
 
     const mutation = course
-      ? updateCourse.mutateAsync({
-          id: course.id,
-          input: { name: trimmedName, code: trimmedCode, duration_years: Number(durationYears) },
-        })
-      : createCourse.mutateAsync({
-          name: trimmedName,
-          code: trimmedCode,
-          department_id: department.id,
-          duration_years: Number(durationYears),
-        });
+      ? updateCourse.mutateAsync({ id: course.id, input })
+      : createCourse.mutateAsync(input);
 
     mutation
       .then(() => {
@@ -58,6 +69,23 @@ export function CourseDialog({ open, onClose, department, course }: CourseDialog
       .catch((err: unknown) => {
         setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
       });
+  }
+
+  function handleSubmitForReview() {
+    const input = validate();
+    if (!input) return;
+
+    setSubmittingForReview(true);
+    submitApprovalRequest
+      .course(input)
+      .then(() => {
+        show("Submitted for the Principal's review", "success");
+        onClose();
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      })
+      .finally(() => setSubmittingForReview(false));
   }
 
   return (
@@ -90,12 +118,22 @@ export function CourseDialog({ open, onClose, department, course }: CourseDialog
       </div>
       {error && <p className="mt-1 text-[11.5px] text-danger-fg">{error}</p>}
 
-      <div className="mt-4.5 flex justify-end gap-2.5 border-t border-border-default pt-3.5">
+      <div className="mt-4.5 flex items-center justify-end gap-2.5 border-t border-border-default pt-3.5">
+        {!course && (
+          <button
+            type="button"
+            onClick={handleSubmitForReview}
+            disabled={pending}
+            className="mr-auto text-[12.5px] font-semibold text-body underline decoration-dotted disabled:opacity-50"
+          >
+            {submittingForReview ? "Submitting…" : "Submit for review instead"}
+          </button>
+        )}
         <Button variant="secondary" className="w-auto px-4 py-2.5" onClick={onClose} disabled={pending}>
           Cancel
         </Button>
         <Button variant="primarySmall" onClick={handleSave} disabled={pending}>
-          {pending ? "Saving…" : course ? "Save changes" : "Create course"}
+          {createCourse.isPending || updateCourse.isPending ? "Saving…" : course ? "Save changes" : "Create course"}
         </Button>
       </div>
     </Modal>

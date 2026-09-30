@@ -44,6 +44,10 @@ export interface MarkClassAttendanceInput {
   subject_id: number;
   attendance_date: string; // ISO date
   photo_url?: string;
+  // Which occurrence of this subject today, e.g. a 2-period lab at period 3
+  // and again at period 6 — omit for the common once-a-day case. See
+  // EOSbackend1's attendance_periods.query.md (Domain 06 checklist item A0).
+  period_number?: number;
   records: { student_id: number; status: AttendanceMarkStatus }[];
 }
 
@@ -67,16 +71,18 @@ export interface AttendanceDraft {
   subject_id: number;
   attendance_date: string;
   is_published: boolean;
+  submitted_for_review: boolean;
   records: { student_id: number; status: AttendanceMarkStatus }[];
 }
 
-/** GET /me/classes/:class_id/attendance/draft?subject_id=&date= — re-hydrates
- * a previously saved (draft or published) batch so the marking screen can be
- * reopened before Publish, or shows the already-published state read-only. */
-export function useAttendanceDraft(classId: number | undefined, subjectId: number | undefined, date: string) {
+/** GET /me/classes/:class_id/attendance/draft?subject_id=&date=&period_number= —
+ * re-hydrates a previously saved (draft or published) batch so the marking
+ * screen can be reopened before Publish, or shows the already-published
+ * state read-only. `periodNumber` defaults to 1 server-side when omitted. */
+export function useAttendanceDraft(classId: number | undefined, subjectId: number | undefined, date: string, periodNumber?: number) {
   return useQuery({
-    queryKey: ["me", "classes", classId, "attendance", "draft", subjectId, date],
-    queryFn: () => apiClient.get<AttendanceDraft>(`/me/classes/${classId}/attendance/draft`, { subject_id: subjectId, date }),
+    queryKey: ["me", "classes", classId, "attendance", "draft", subjectId, date, periodNumber],
+    queryFn: () => apiClient.get<AttendanceDraft>(`/me/classes/${classId}/attendance/draft`, { subject_id: subjectId, date, period_number: periodNumber }),
     enabled: Boolean(classId && subjectId && date),
   });
 }
@@ -98,6 +104,57 @@ export function usePublishClassAttendance() {
       queryClient.invalidateQueries({ queryKey: ["me", "classes", vars.classId, "attendance", "draft"] });
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
     },
+  });
+}
+
+/** POST /me/classes/:class_id/attendance/submit-for-review — the optional
+ * alternative to Publish: hands the draft to the Class Advisor/HoD instead
+ * of making it visible to students/parents immediately. */
+export function useSubmitForReviewClassAttendance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ classId, ...body }: PublishClassAttendanceInput) =>
+      apiClient.post<{ submitted: number }>(`/me/classes/${classId}/attendance/submit-for-review`, body),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["me", "classes", vars.classId, "attendance", "draft"] });
+    },
+  });
+}
+
+export interface PendingAttendanceReview {
+  class_id: number;
+  subject_id: number;
+  attendance_date: string;
+  submitted_for_review_at: string;
+  record_count: number;
+  class_section: string;
+  department_code: string;
+  subject_name: string;
+  subject_code: string;
+}
+
+/** GET /me/attendance-reviews — the caller's own review queue (Class Advisor or HoD). */
+export function usePendingAttendanceReviews() {
+  return useQuery({
+    queryKey: ["me", "attendance-reviews"],
+    queryFn: () => apiClient.get<PendingAttendanceReview[]>("/me/attendance-reviews"),
+  });
+}
+
+export interface ReviewClassAttendanceInput {
+  classId: number;
+  subject_id: number;
+  attendance_date: string;
+  decision: "approve" | "send_back";
+}
+
+/** POST /me/classes/:class_id/attendance/review — Class Advisor or HoD only. */
+export function useReviewClassAttendance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ classId, ...body }: ReviewClassAttendanceInput) =>
+      apiClient.post<{ decision: string; published?: number; sent_back?: number }>(`/me/classes/${classId}/attendance/review`, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "attendance-reviews"] }),
   });
 }
 

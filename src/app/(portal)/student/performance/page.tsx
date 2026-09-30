@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, Badge, SegmentedTabs, Select, EmptyState, Icon, DataTable } from "@/components/ui";
 import type { DataTableColumn } from "@/components/ui/DataTable";
 import { useMyAcademicCalendar } from "@/modules/student/api/profile";
-import { useMyExamResults, useMyCgpa, type ExamResultGroup, type ExamResultSubject } from "@/modules/student/api/examResults";
+import { useMyExamResults, useMyCgpa, useMyGpa, type ExamResultGroup, type ExamResultSubject } from "@/modules/student/api/examResults";
 import { useSubjectsLookup } from "@/modules/shared/api/subjects";
 import { useMyMarksheets } from "@/modules/student/api/marksheets";
 import { percentageToGrade, isPassingPercentage, computeGpa } from "@/lib/config";
@@ -139,6 +139,7 @@ export default function PerformancePage() {
   const examResults = useMyExamResults(effectiveSemester);
   const subjectsLookup = useSubjectsLookup();
   const cgpa = useMyCgpa(effectiveSemester);
+  const storedGpa = useMyGpa();
   const marksheets = useMyMarksheets();
   const [tab, setTab] = useState<Tab>("internals");
 
@@ -150,7 +151,16 @@ export default function PerformancePage() {
 
   const semesterExam = examResults.data?.semester_exam;
 
+  // Prefer the backend's own stored SGPA for this semester (real, kept-
+  // current-by-GpaRecomputeService value) — only recompute client-side as a
+  // fallback for a student who hasn't been backfilled yet.
+  const storedRowForSemester = useMemo(
+    () => storedGpa.data?.find((r) => r.semester === effectiveSemester) ?? null,
+    [storedGpa.data, effectiveSemester],
+  );
+
   const semesterGpa = useMemo(() => {
+    if (storedRowForSemester) return storedRowForSemester.sgpa;
     if (!semesterExam) return null;
     return computeGpa(
       semesterExam.subjects.map((s) => ({
@@ -158,7 +168,7 @@ export default function PerformancePage() {
         credits: creditsById.get(s.subject_id),
       })),
     );
-  }, [semesterExam, creditsById]);
+  }, [storedRowForSemester, semesterExam, creditsById]);
 
   const marksheetForSemester = useMemo(() => {
     if (!semesterExam) return null;

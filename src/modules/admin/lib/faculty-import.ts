@@ -10,13 +10,21 @@ import {
   ROLE_OPTIONS,
   TITLE_OPTIONS,
 } from "@/modules/admin/lib/faculty-wizard-config";
+import {
+  IMPORT_MAX_ROWS,
+  autoMapColumns as autoMapColumnsGeneric,
+  buildSampleCsv as buildSampleCsvGeneric,
+  buildTemplateCsv as buildTemplateCsvGeneric,
+  downloadImportCsv,
+  parseDelimitedText,
+  parseSheet,
+  type ImportFieldDef,
+  type ImportRow,
+  type ParsedSheet,
+} from "@/lib/utils/importSheet";
 
-export interface ImportFieldDef {
-  key: string;
-  label: string;
-  required?: boolean;
-  hint?: string;
-}
+export type { ImportFieldDef, ImportRow, ParsedSheet };
+export { IMPORT_MAX_ROWS, parseDelimitedText, parseSheet };
 
 // Order doubles as the column order in the downloadable template.
 export const IMPORT_FIELDS: ImportFieldDef[] = [
@@ -52,97 +60,15 @@ export const IMPORT_FIELDS: ImportFieldDef[] = [
   { key: "bank_ifsc", label: "Bank IFSC", hint: "SBIN0001234" },
 ];
 
-export const IMPORT_MAX_ROWS = 5000;
-
-export type ImportRow = Record<string, string>;
-
-// ---- Delimited-text parsing (CSV or TSV, quoted fields, embedded newlines) ----
-
-function detectDelimiter(text: string): "," | "\t" {
-  const firstLine = text.slice(0, text.indexOf("\n") === -1 ? text.length : text.indexOf("\n"));
-  return firstLine.includes("\t") ? "\t" : ",";
-}
-
-export function parseDelimitedText(text: string): string[][] {
-  const clean = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
-  const delimiter = detectDelimiter(clean);
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < clean.length; i++) {
-    const char = clean[i];
-    if (inQuotes) {
-      if (char === '"') {
-        if (clean[i + 1] === '"') {
-          cell += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        cell += char;
-      }
-      continue;
-    }
-    if (char === '"') {
-      inQuotes = true;
-    } else if (char === delimiter) {
-      row.push(cell);
-      cell = "";
-    } else if (char === "\n") {
-      row.push(cell);
-      rows.push(row);
-      row = [];
-      cell = "";
-    } else {
-      cell += char;
-    }
-  }
-  if (cell.length > 0 || row.length > 0) {
-    row.push(cell);
-    rows.push(row);
-  }
-
-  return rows.filter((r) => r.some((c) => c.trim() !== ""));
-}
-
-export interface ParsedSheet {
-  headers: string[];
-  rows: string[][];
-}
-
-export function parseSheet(text: string): ParsedSheet {
-  const all = parseDelimitedText(text);
-  const [headers = [], ...rows] = all;
-  return { headers: headers.map((h) => h.trim()), rows };
-}
-
-// ---- Auto-mapping: match a source header to one of IMPORT_FIELDS by label/key ----
-
-function normalize(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
 export function autoMapColumns(headers: string[]): Record<number, string> {
-  const mapping: Record<number, string> = {};
-  headers.forEach((header, index) => {
-    const normalized = normalize(header);
-    const match = IMPORT_FIELDS.find((f) => normalize(f.label) === normalized || normalize(f.key) === normalized);
-    if (match) mapping[index] = match.key;
-  });
-  return mapping;
+  return autoMapColumnsGeneric(headers, IMPORT_FIELDS);
 }
-
-// ---- Template + sample data ----
 
 export function buildTemplateCsv(): string {
-  return IMPORT_FIELDS.map((f) => f.label).join(",") + "\n";
+  return buildTemplateCsvGeneric(IMPORT_FIELDS);
 }
 
 export function buildSampleCsv(): string {
-  const header = IMPORT_FIELDS.map((f) => f.label).join(",");
   const sampleRows = [
     [
       "Ananya",
@@ -209,25 +135,15 @@ export function buildSampleCsv(): string {
       "",
     ],
   ];
-  return [header, ...sampleRows.map((r) => r.join(","))].join("\n") + "\n";
-}
-
-function downloadCsv(content: string, filename: string) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  return buildSampleCsvGeneric(IMPORT_FIELDS, sampleRows);
 }
 
 export function downloadTemplate() {
-  downloadCsv(buildTemplateCsv(), "faculty-import-template.csv");
+  downloadImportCsv(buildTemplateCsv(), "faculty-import-template.csv");
 }
 
 export function downloadSample() {
-  downloadCsv(buildSampleCsv(), "faculty-import-sample.csv");
+  downloadImportCsv(buildSampleCsv(), "faculty-import-sample.csv");
 }
 
 // ---- Row validation + payload building ----

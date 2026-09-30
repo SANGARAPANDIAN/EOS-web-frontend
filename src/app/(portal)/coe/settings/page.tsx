@@ -10,17 +10,21 @@ import { ROLE_LABEL } from "@/lib/config";
 
 type FieldKey = keyof Pick<PassRules, "internal_max_marks" | "external_max_marks" | "pass_mark_total" | "min_external_marks">;
 
-// Mirrors GRADE_BANDS in marks-roster.service.ts's gradeFor() exactly — no
-// grade_bands table exists yet (see the optional CREATE TABLE in query.md),
-// so these thresholds live as a matching constant on both sides instead of
-// being fetched, and stay read-only here rather than faking a save.
+// Matches the real, live `grade_bands` table this college's backend already
+// uses (see EOSbackend1 docs/gpa_implementation_plan.md A.3) — same values
+// as `gradeForPercentage`/marks-roster.service.ts's `gradeFor()`. This used
+// to read 91/81/71/61/50 with a "U" fail label, both stale — a 1-point drift
+// from the real 90/80/70/60/50 scale and a label ("U") that doesn't match
+// the live table's "RA". Stays a static, read-only constant rather than
+// fetched from the DB (this page has no editable grading-policy UI by
+// design — grade bands are code/config-managed, not admin-editable).
 const GRADE_SCALE_STATIC = [
-  { grade: "O", min: 91, label: "91 and above" },
-  { grade: "A+", min: 81, label: "81 and above" },
-  { grade: "A", min: 71, label: "71 and above" },
-  { grade: "B+", min: 61, label: "61 and above" },
+  { grade: "O", min: 90, label: "90 and above" },
+  { grade: "A+", min: 80, label: "80 and above" },
+  { grade: "A", min: 70, label: "70 and above" },
+  { grade: "B+", min: 60, label: "60 and above" },
   { grade: "B", min: 50, label: "50 and above" },
-  { grade: "U", min: null, label: "Below 50" },
+  { grade: "RA", min: null, label: "Below 50" },
 ];
 
 // Real, backend-enforced access, not a stored/editable permission matrix (no

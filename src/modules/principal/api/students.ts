@@ -27,9 +27,10 @@ export interface StudentsSummary {
   students_below_threshold: number;
   fees: { students_pending: number; total_outstanding: number };
   placement: { placed: number; registered: number };
+  mean_cgpa: number | null;
 }
 
-/** GET /me/principal/students/summary — institution-wide tiles. No CGPA/arrears figure: neither is trackable in this schema. */
+/** GET /me/principal/students/summary — institution-wide tiles. No arrears figure here: list() below has real per-student arrears, but this summary doesn't aggregate them. */
 export function useStudentsSummary() {
   return useQuery({
     queryKey: ["me", "principal", "students", "summary"],

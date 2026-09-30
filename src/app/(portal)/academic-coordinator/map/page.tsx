@@ -10,6 +10,7 @@ import { ApiError } from "@/types/api";
 import { useCourses, useDepartments } from "@/modules/academic-structure/hooks/useAcademicStructureQueries";
 import { useDepartmentMapping } from "@/modules/academic-coordinator/hooks/useMappingQueries";
 import { useAddMapping, useRemoveMapping } from "@/modules/academic-coordinator/hooks/useMappingMutations";
+import { submitApprovalRequest } from "@/modules/shared/api/approvalRequests";
 import { SUBJECT_COURSE_TYPE_LABELS, type MappingSubject } from "@/modules/academic-coordinator/types";
 
 const DEFAULT_MAX_SEMESTER = 8;
@@ -24,6 +25,7 @@ export default function CoordinatorMapPage() {
   const [removing, setRemoving] = useState<{ semester: number; subject: MappingSubject } | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOverSemester, setDragOverSemester] = useState<number | null>(null);
+  const [draftMode, setDraftMode] = useState(false);
 
   const effectiveDeptId = departmentId ?? departments.data?.[0]?.id ?? null;
   const mapping = useDepartmentMapping(effectiveDeptId);
@@ -66,6 +68,15 @@ export default function CoordinatorMapPage() {
       show("No classes sit at this semester for this department yet — nothing to map it to.", "error");
       return;
     }
+
+    if (draftMode) {
+      submitApprovalRequest
+        .addMapping({ department_id: effectiveDeptId, semester, subject_id: subjectId })
+        .then(() => show("Submitted for the HoD's review.", "success"))
+        .catch((err: unknown) => show(err instanceof ApiError ? err.message : "Something went wrong. Please try again.", "error"));
+      return;
+    }
+
     addMapping.mutate(
       { semester, subjectId },
       {
@@ -78,6 +89,17 @@ export default function CoordinatorMapPage() {
 
   function handleRemoveConfirmed() {
     if (!removing || removeMapping.isPending) return;
+
+    if (draftMode) {
+      if (effectiveDeptId == null) return;
+      submitApprovalRequest
+        .removeMapping({ department_id: effectiveDeptId, semester: removing.semester, subject_id: removing.subject.id })
+        .then(() => show("Submitted for the HoD's review.", "success"))
+        .catch((err: unknown) => show(err instanceof ApiError ? err.message : "Something went wrong. Please try again.", "error"))
+        .finally(() => setRemoving(null));
+      return;
+    }
+
     removeMapping.mutate(
       { semester: removing.semester, subjectId: removing.subject.id },
       {
@@ -94,16 +116,24 @@ export default function CoordinatorMapPage() {
         <div>
           <h1 className="m-0 text-[26px] font-bold tracking-[-.02em] text-ink">Course Mapping</h1>
           <p className="mt-1.5 text-[13px] text-muted">
-            Drag a course from the pool onto a semester to map it — applies to every class at that semester, across every batch.
+            {draftMode
+              ? "Draft mode: changes are sent to the department's HoD for review instead of applying immediately."
+              : "Drag a course from the pool onto a semester to map it — applies to every class at that semester, across every batch."}
           </p>
         </div>
-        <Select value={effectiveDeptId ?? ""} onChange={(e) => setDepartmentId(Number(e.target.value))} className="min-w-55">
-          {(departments.data ?? []).map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name} ({d.code})
-            </option>
-          ))}
-        </Select>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-[12.5px] font-semibold text-body">
+            <input type="checkbox" checked={draftMode} onChange={(e) => setDraftMode(e.target.checked)} />
+            Submit for review instead
+          </label>
+          <Select value={effectiveDeptId ?? ""} onChange={(e) => setDepartmentId(Number(e.target.value))} className="min-w-55">
+            {(departments.data ?? []).map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name} ({d.code})
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-[1fr_380px] items-start gap-4.5">

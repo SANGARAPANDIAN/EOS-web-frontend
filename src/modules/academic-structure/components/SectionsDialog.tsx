@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/modules/admin/components/ui/ToastProvider";
 import { useCreateSections } from "../hooks/useAcademicStructureMutations";
+import { submitApprovalRequest } from "@/modules/shared/api/approvalRequests";
 import { SECTION_LETTERS, type Batch, type Course, type SchoolClass } from "../types";
 
 interface SectionsDialogProps {
@@ -32,6 +33,7 @@ export function SectionsDialog({ open, onClose, course, batches, classes }: Sect
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [customText, setCustomText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submittingForReview, setSubmittingForReview] = useState(false);
   const createSections = useCreateSections();
   const { show } = useToast();
 
@@ -67,10 +69,21 @@ export function SectionsDialog({ open, onClose, course, batches, classes }: Sect
     setChosen((prev) => new Set([...prev].filter((l) => !nextTaken.has(l))));
   }
 
-  function handleSave() {
+  function validate(): boolean {
     setError(null);
-    if (!batchId) return setError("Pick a batch.");
-    if (allSelected.size === 0) return setError("Pick or type at least one section to create.");
+    if (!batchId) {
+      setError("Pick a batch.");
+      return false;
+    }
+    if (allSelected.size === 0) {
+      setError("Pick or type at least one section to create.");
+      return false;
+    }
+    return true;
+  }
+
+  function handleSave() {
+    if (!validate()) return;
 
     createSections
       .mutateAsync({
@@ -92,6 +105,37 @@ export function SectionsDialog({ open, onClose, course, batches, classes }: Sect
         }
         onClose();
       });
+  }
+
+  async function handleSubmitForReview() {
+    if (!validate()) return;
+
+    setSubmittingForReview(true);
+    try {
+      let submitted = 0;
+      for (const section of allSelected) {
+        try {
+          await submitApprovalRequest.schoolClass({
+            batch_id: Number(batchId),
+            department_id: course.department_id,
+            course_id: course.id,
+            section,
+            current_semester: semester ? Number(semester) : undefined,
+          });
+          submitted += 1;
+        } catch {
+          // one section's request failing doesn't block the others — same tolerance as the direct-create path.
+        }
+      }
+      if (submitted === 0) {
+        show("Nothing submitted", "error");
+      } else {
+        show(`${submitted} class request${submitted === 1 ? "" : "s"} submitted for the Principal's review`, "success");
+        onClose();
+      }
+    } finally {
+      setSubmittingForReview(false);
+    }
   }
 
   const allLettersTaken = SECTION_LETTERS.every((l) => takenSections.has(l));
@@ -161,11 +205,19 @@ export function SectionsDialog({ open, onClose, course, batches, classes }: Sect
         {allSelected.size > 0 ? `Creating section ${Array.from(allSelected).join(", ")}.` : "Pick or type the sections to create."}
       </p>
       {error && <p className="mt-1 text-[11.5px] text-danger-fg">{error}</p>}
-      <div className="mt-4.5 flex justify-end gap-2.5 border-t border-border-default pt-3.5">
-        <Button variant="secondary" className="w-auto px-4 py-2.5" onClick={onClose} disabled={createSections.isPending}>
+      <div className="mt-4.5 flex items-center justify-end gap-2.5 border-t border-border-default pt-3.5">
+        <button
+          type="button"
+          onClick={handleSubmitForReview}
+          disabled={createSections.isPending || submittingForReview}
+          className="mr-auto text-[12.5px] font-semibold text-body underline decoration-dotted disabled:opacity-50"
+        >
+          {submittingForReview ? "Submitting…" : "Submit for review instead"}
+        </button>
+        <Button variant="secondary" className="w-auto px-4 py-2.5" onClick={onClose} disabled={createSections.isPending || submittingForReview}>
           Cancel
         </Button>
-        <Button variant="primarySmall" onClick={handleSave} disabled={createSections.isPending}>
+        <Button variant="primarySmall" onClick={handleSave} disabled={createSections.isPending || submittingForReview}>
           {createSections.isPending ? "Creating…" : "Create classes"}
         </Button>
       </div>

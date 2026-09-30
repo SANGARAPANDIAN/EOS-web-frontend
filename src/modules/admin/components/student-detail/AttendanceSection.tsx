@@ -11,11 +11,21 @@ import {
 } from "@/modules/admin/api/students";
 import { MetricTile, SimpleTable, Stub } from "@/modules/admin/components/student-detail/shared";
 
-function AttendanceMark({ status }: { status: "present" | "absent" }) {
+function AttendanceMark({ status }: { status: "present" | "absent" | "on_duty" }) {
   if (status === "present") {
     return (
       <span className="mx-auto flex h-6 w-6 items-center justify-center rounded-admin-sm border border-admin-border bg-admin-tint text-[11px] font-semibold text-admin-subtle">
         P
+      </span>
+    );
+  }
+  if (status === "on_duty") {
+    return (
+      <span
+        className="mx-auto flex h-6 w-6 items-center justify-center rounded-admin-sm border border-admin-primary bg-admin-tint text-[10px] font-semibold text-admin-primary"
+        title="On duty"
+      >
+        OD
       </span>
     );
   }
@@ -158,7 +168,7 @@ function SemesterAttendanceView({ studentId, active }: { studentId: number; acti
     <div className="flex flex-col gap-6">
       <SectionCard title="Attendance by semester" actions={<span className="text-xs text-admin-subtle">Select a term to see its register and absences</span>}>
         <SimpleTable
-          headers={["Semester", "Days", "Present", "Absent", "Attendance"]}
+          headers={["Semester", "Days", "Present", "Absent", "On Duty", "Attendance"]}
           emptyMessage="No terms on record."
           rows={data.map((t, i) => [
             <button
@@ -175,6 +185,7 @@ function SemesterAttendanceView({ studentId, active }: { studentId: number; acti
             t.working_days,
             t.present,
             t.absent,
+            t.on_duty,
             <span key="p" className={t.percentage >= 75 ? "text-admin-success-fg" : "font-medium text-admin-danger"}>
               {t.percentage}%
             </span>,
@@ -212,10 +223,11 @@ export function AttendanceSection({ studentId, active }: { studentId: number; ac
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <MetricTile label="Overall" value={`${data.overall.percentage}%`} tone={tone} />
         <MetricTile label="Present" value={String(data.overall.present)} note={`of ${data.overall.total_days} sessions`} tone="muted" />
         <MetricTile label="Absent" value={String(data.overall.absent)} tone={data.overall.absent > 0 ? "warning" : "success"} />
+        <MetricTile label="On Duty" value={String(data.overall.on_duty)} tone="muted" />
         <MetricTile label="Sessions on file" value={String(data.overall.total_days)} tone="muted" />
       </div>
       <SectionCard title="By subject">

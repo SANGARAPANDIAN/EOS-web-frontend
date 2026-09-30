@@ -20,6 +20,7 @@ export const hodModuleConfig: ModuleConfig = {
       label: "Department",
       items: [
         { key: "class-records", label: "Class Records", icon: "folder_shared", href: `${BASE}/class-records` },
+        { key: "attendance-reviews", label: "Attendance Reviews", icon: "checklist", href: `${BASE}/attendance-reviews` },
         {
           key: "faculty-staff",
           label: "Faculty & Staff",
@@ -43,6 +44,7 @@ export const hodModuleConfig: ModuleConfig = {
           badgeKey: "odRequestsPending",
         },
         { key: "no-due", label: "No-Due", icon: "verified", href: `${BASE}/no-due` },
+        { key: "curriculum-requests", label: "Curriculum Requests", icon: "menu_book", href: `${BASE}/curriculum-requests` },
         { key: "placements", label: "Placements", icon: "work", href: `${BASE}/placements` },
         { key: "internships", label: "Internships", icon: "workspace_premium", href: `${BASE}/internships` },
         { key: "higher-education", label: "Higher Education", icon: "auto_stories", href: `${BASE}/higher-education` },

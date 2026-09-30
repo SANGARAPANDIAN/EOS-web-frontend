@@ -50,6 +50,7 @@ export const principalModuleConfig: ModuleConfig = {
       label: "Institution",
       items: [
         { key: "approvals", label: "Approvals", icon: "task_alt", href: `${BASE}/approvals` },
+        { key: "structure-requests", label: "Structure Requests", icon: "account_tree", href: `${BASE}/structure-requests` },
         { key: "placements", label: "Placements", icon: "work", href: `${BASE}/placements` },
         { key: "hostel", label: "Hostel", icon: "bed", href: `${BASE}/hostel` },
         { key: "transport", label: "Transport", icon: "directions_bus", href: `${BASE}/transport` },

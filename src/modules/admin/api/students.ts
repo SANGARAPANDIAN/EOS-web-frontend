@@ -253,9 +253,9 @@ export interface StudentProjectsResponse {
 }
 
 export interface StudentAttendanceSummary {
-  overall: { total_days: number; present: number; absent: number; percentage: number };
+  overall: { total_days: number; present: number; absent: number; on_duty: number; percentage: number };
   by_subject: Array<{ subject_id: number; subject_name: string; total: number; present: number; percentage: number }>;
-  records: Array<{ attendance_date: string; subject_id: number | null; status: "present" | "absent" }>;
+  records: Array<{ attendance_date: string; subject_id: number | null; status: "present" | "absent" | "on_duty" }>;
 }
 
 export interface StudentAttendanceTerm {
@@ -265,13 +265,14 @@ export interface StudentAttendanceTerm {
   working_days: number;
   present: number;
   absent: number;
+  on_duty: number;
   percentage: number;
   periods: number[];
   days: Array<{
     date: string;
-    subjects: Array<{ subject_id: number | null; subject_name: string; status: "present" | "absent" }>;
+    subjects: Array<{ subject_id: number | null; subject_name: string; status: "present" | "absent" | "on_duty" }>;
     lost: number;
-    period_marks: Array<{ period_number: number; subject_name: string | null; status: "present" | "absent" | null }>;
+    period_marks: Array<{ period_number: number; subject_name: string | null; status: "present" | "absent" | "on_duty" | null }>;
   }>;
   absences: Array<{ date: string; subjects_missed: string[]; lost: number; running_total: number }>;
 }

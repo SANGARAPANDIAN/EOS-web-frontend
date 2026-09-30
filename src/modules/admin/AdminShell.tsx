@@ -9,7 +9,6 @@ import type { TopbarSearchResult } from "@/components/layout/Topbar";
 import { adminModuleConfig } from "@/modules/admin/nav";
 import { useStudentCount } from "@/modules/admin/api/students";
 import { useFacultyCount } from "@/modules/admin/api/faculty";
-import { usePendingServiceRequestCount } from "@/modules/admin/api/serviceRequests";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -21,7 +20,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   // other figure on this console.
   const studentCount = useStudentCount({});
   const facultyCount = useFacultyCount();
-  const pendingSopCount = usePendingServiceRequestCount();
 
   // "Jump to a page" search — filters the nav's flat item list by label,
   // same behavior AdminTopbar had, just rendered through the shared results
@@ -64,7 +62,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       navBadges={{
         studentCount: studentCount.data,
         facultyCount: facultyCount.data,
-        adminSopPending: pendingSopCount.data,
       }}
     >
       {children}

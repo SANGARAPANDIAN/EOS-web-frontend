@@ -125,11 +125,16 @@ export function useAllocateAutomatic() {
   });
 }
 
+export interface SeatingConflict {
+  register_no: string;
+  already_seated_in: string;
+}
+
 export function useAllocateManual() {
   const invalidate = useInvalidateSeating();
   return useMutation({
     mutationFn: (input: TargetVenueParams & { entries: string[] }) =>
-      apiClient.post<{ seated: number; capacity: number; carried_forward: number; not_found: string[] }>(
+      apiClient.post<{ seated: number; capacity: number; carried_forward: number; not_found: string[]; conflicts: SeatingConflict[] }>(
         "/seating-plans/allocate-manual",
         input,
       ),

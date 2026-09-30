@@ -56,6 +56,7 @@ export const ADVISOR_NAV: AdvisorNavGroup[] = [
     label: "MY CLASS",
     advisorOnly: true,
     items: [
+      { key: "attendance-reviews", label: "Attendance Reviews", icon: "attendance", href: `${BASE}/attendance-reviews` },
       { key: "students", label: "Student Records", icon: "results", href: `${BASE}/students` },
       { key: "higher-education", label: "Higher Education", icon: "cia", href: `${BASE}/higher-education` },
       { key: "edc", label: "EDC", icon: "reports", href: `${BASE}/edc` },

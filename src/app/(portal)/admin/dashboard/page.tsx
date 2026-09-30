@@ -22,7 +22,6 @@ import {
 } from "@/modules/admin/api/dashboard";
 import { useAdmittedCutoffSummary } from "@/modules/admin/api/admissions";
 import { useHostelDashboardSummary, usePlacementStats } from "@/modules/admin/api/analytics";
-import { usePendingServiceRequestCount } from "@/modules/admin/api/serviceRequests";
 import { currencyShort, monthShortLabel, percent1 } from "@/modules/admin/lib/format";
 
 const ATTENDANCE_RISK_PENDING =
@@ -95,7 +94,6 @@ export default function AdminDashboardPage() {
   const placement = usePlacementStats();
   const hostel = useHostelDashboardSummary();
   const workforce = useFacultyWorkforceComposition();
-  const pendingSop = usePendingServiceRequestCount();
 
   const greetingName = session?.user.email ? session.user.email.split("@")[0] : "there";
   const hour = now.getHours();
@@ -124,7 +122,6 @@ export default function AdminDashboardPage() {
       ["Average cutoff (current)", cutoffSummary?.average_cutoff ?? "", cutoffSummary ? `${cutoffSummary.admitted_count} students admitted` : ""],
       ["Placement rate (current)", placement.data ? percent1(placement.data.placementRate) : "", placement.data ? `${placement.data.studentsPlaced} placed` : ""],
       ["Hostel occupancy (current)", hostel.data ? percent1(hostel.data.occupancy_pct) : "", hostel.data ? `${hostel.data.beds_occupied} of ${hostel.data.beds_total} beds` : ""],
-      ["SOP requests awaiting review", pendingSop.data ?? "", ""],
       [],
       ["Students by department", "Active headcount", ""],
       ...(studentsByDept.data ?? []).map((d) => [d.label, d.value, ""]),
@@ -220,9 +217,8 @@ export default function AdminDashboardPage() {
       {(admissions.isLoading && !admissions.data) ||
       (admittedCutoff.isLoading && !admittedCutoff.data) ||
       (placement.isLoading && !placement.data) ||
-      (hostel.isLoading && !hostel.data) ||
-      (pendingSop.isLoading && pendingSop.data === undefined) ? (
-        <SkeletonStatTiles count={5} />
+      (hostel.isLoading && !hostel.data) ? (
+        <SkeletonStatTiles count={4} />
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
@@ -254,13 +250,6 @@ export default function AdminDashboardPage() {
             value={hostel.data ? percent1(hostel.data.occupancy_pct) : "—"}
             delta={hostel.data ? String(hostel.data.beds_occupied) : undefined}
             sub={hostel.data ? `of ${hostel.data.beds_total} beds` : undefined}
-          />
-          <KpiCard
-            label="SOP requests"
-            icon="handyman"
-            value={pendingSop.data !== undefined ? pendingSop.data : "—"}
-            sub="awaiting review"
-            href="/admin/sop-requests"
           />
         </div>
       )}
@@ -379,25 +368,6 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <PendingNotice reason={finance.isLoading ? "Loading…" : "No outstanding fee demand recorded."} height={120} />
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="SOP requests awaiting review"
-            subtitle="Service requests submitted by department secretaries"
-            actions={
-              <Link href="/admin/sop-requests" className="text-sm font-semibold text-admin-primary hover:text-admin-primary-dark">
-                Review requests →
-              </Link>
-            }
-          >
-            {pendingSop.data !== undefined && pendingSop.data > 0 ? (
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-admin-body">Pending your decision</span>
-                <span className="font-mono text-lg font-semibold text-admin-ink tabular-nums">{pendingSop.data}</span>
-              </div>
-            ) : (
-              <PendingNotice reason={pendingSop.isLoading ? "Loading…" : "Nothing waiting — every SOP request is decided."} height={80} />
             )}
           </SectionCard>
         </div>

@@ -16,6 +16,7 @@ import type {
   UpdateClassInput,
   UpdateCourseInput,
   UpdateDepartmentInput,
+  PromoteBatchResult,
 } from "../types";
 
 export const academicStructureService = {
@@ -39,6 +40,7 @@ export const academicStructureService = {
   createBatch: (input: CreateBatchInput): Promise<Batch> => apiClient.post("/batches", input),
   updateBatch: (id: number, input: UpdateBatchInput): Promise<Batch> => apiClient.patch(`/batches/${id}`, input),
   deleteBatch: (id: number): Promise<{ message: string }> => apiClient.delete(`/batches/${id}`),
+  promoteBatch: (id: number): Promise<PromoteBatchResult> => apiClient.post(`/batches/${id}/promote`, {}),
 
   // Classes
   listClasses: (): Promise<SchoolClass[]> => apiClient.get("/classes"),

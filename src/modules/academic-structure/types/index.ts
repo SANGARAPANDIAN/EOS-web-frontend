@@ -49,6 +49,12 @@ export interface Batch {
   end_year: number;
 }
 
+export interface PromoteBatchResult {
+  batch_id: number;
+  promoted: { class_id: number; from_semester: number; to_semester: number }[];
+  skipped: { class_id: number; section: string; reason: string }[];
+}
+
 export interface SchoolClass {
   id: number;
   batch_id: number;

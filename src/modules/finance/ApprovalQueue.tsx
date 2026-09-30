@@ -67,7 +67,9 @@ export function ApprovalQueue({
   sub: string;
   entityLabel: string;
 }) {
-  const [statusFilter, setStatusFilter] = useState("pending");
+  // Defaults to the bucket Finance can actually act on — a raw 'pending' row
+  // hasn't reached the HoD yet, so it lands here as read-only via "All statuses".
+  const [statusFilter, setStatusFilter] = useState("hod_approved");
   // Fetch every proposal once and filter in the browser. Fetching per-status
   // made the tab look empty whenever nothing was pending — even with real
   // proposals sitting in other states — because the page had no way to know
@@ -139,8 +141,10 @@ export function ApprovalQueue({
   }, [everything]);
 
   const all = everything;
-  const pendingCount = all.filter((p) => p.status === "pending").length;
-  const approvedCount = all.filter((p) => p.status !== "pending" && p.status !== "rejected").length;
+  // "Awaiting decision" = actually actionable by Finance right now, i.e.
+  // HoD-approved. A raw 'pending' row hasn't reached the HoD yet.
+  const pendingCount = all.filter((p) => p.status === "hod_approved").length;
+  const approvedCount = all.filter((p) => p.status === "finance_approved" || p.status === "principal_approved").length;
   const committed = all.reduce((s, p) => s + (p.approved_amount ?? 0), 0);
   const awaitingAllot = (tracking ?? []).filter(
     (t) => t.quantity_delivered > 0 && t.quantity_allotted < t.quantity_delivered,
@@ -275,9 +279,9 @@ export function ApprovalQueue({
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${entityLabel} by item, reference, vendor or requester…`} style={inputSx} />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectSx}>
           {[
-            { v: "pending", l: "Awaiting decision" },
+            { v: "hod_approved", l: "Awaiting your decision" },
+            { v: "pending", l: "Awaiting HoD review" },
             { v: "finance_approved", l: "Finance approved" },
-            { v: "hod_approved", l: "HoD approved" },
             { v: "principal_approved", l: "Principal approved" },
             { v: "rejected", l: "Rejected" },
           ].map((o) => (
@@ -293,8 +297,8 @@ export function ApprovalQueue({
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
-        {(q || deptFilter || statusFilter !== "pending") && (
-          <button onClick={() => { setQ(""); setDeptFilter(""); setStatusFilter("pending"); }} style={clearBtnSx}>
+        {(q || deptFilter || statusFilter !== "hod_approved") && (
+          <button onClick={() => { setQ(""); setDeptFilter(""); setStatusFilter("hod_approved"); }} style={clearBtnSx}>
             Clear
           </button>
         )}
@@ -333,7 +337,14 @@ export function ApprovalQueue({
 
           {rows.map((p, i) => {
             const open = expanded === p.id;
-            const isPending = p.status === "pending";
+            // Finance's real decide() (FinanceApprovalsService) only accepts a
+            // row once the HoD has approved it — a raw 'pending' row hasn't
+            // been reviewed by the HoD yet, so approving it here would 409
+            // (FINANCE_AWAITING_HOD). This used to gate on 'pending' itself,
+            // matching a since-fixed backend race where Finance could approve
+            // before the HoD did; now it gates on the same status the backend
+            // actually requires.
+            const isActionable = p.status === "hod_approved";
             const t = trackingByProposal.get(p.id);
             const canAllot =
               t && (t.delivery_status === "delivered" || t.delivery_status === "partially_delivered") &&
@@ -376,7 +387,7 @@ export function ApprovalQueue({
                   </div>
 
                   <div style={{ flex: "0 0 104px" }}>
-                    <Chip variant={isPending ? "solid" : p.status === "rejected" ? "quiet" : "soft"}>
+                    <Chip variant={isActionable ? "solid" : p.status === "rejected" ? "quiet" : "soft"}>
                       {STATUS_LABEL[p.status] ?? p.status}
                     </Chip>
                   </div>
@@ -394,7 +405,7 @@ export function ApprovalQueue({
                     <button data-fin-soft="" onClick={() => setExpanded(open ? null : p.id)} style={softBtnSx}>
                       {open ? "Hide" : "Details"}
                     </button>
-                    {isPending ? (
+                    {isActionable ? (
                       <>
                         <button data-fin-danger="" onClick={() => openDecision(p, "reject")} style={dangerBtnSx}>
                           Reject

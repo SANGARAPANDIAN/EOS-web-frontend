@@ -69,7 +69,6 @@ export type NavBadgeKey =
   | "secretaryDocs"
   | "secretaryEmpLeave"
   | "secretaryEmpOd"
-  | "adminSopPending"
   | "messagesUnread";
 
 export interface NavItem {

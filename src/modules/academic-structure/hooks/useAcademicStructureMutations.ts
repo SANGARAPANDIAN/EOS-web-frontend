@@ -103,6 +103,14 @@ export function useDeleteBatch() {
   });
 }
 
+export function usePromoteBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => academicStructureService.promoteBatch(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicStructureKeys.classes() }),
+  });
+}
+
 // --- Classes ---
 
 export function useCreateClass() {

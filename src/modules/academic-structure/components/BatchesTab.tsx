@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/modules/admin/components/ui/ToastProvider";
 import { ApiError } from "@/types/api";
-import { useDeleteBatch } from "../hooks/useAcademicStructureMutations";
+import { useDeleteBatch, usePromoteBatch } from "../hooks/useAcademicStructureMutations";
 import { CannotDeleteModal } from "./CannotDeleteModal";
 import { formatBlockers } from "../lib/formatBlockers";
 import type { Batch, SchoolClass } from "../types";
@@ -25,8 +26,30 @@ export function BatchesTab({ batches, classes, onAdd, onEdit, readOnly = false }
   // triggered it — otherwise every row's delete button would show "pending"
   // while only one batch is actually being deleted.
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [promoting, setPromoting] = useState<Batch | null>(null);
   const deleteBatch = useDeleteBatch();
+  const promoteBatch = usePromoteBatch();
   const { show } = useToast();
+
+  function handlePromoteConfirmed() {
+    if (!promoting) return;
+    const batch = promoting;
+    setPromoting(null);
+    promoteBatch
+      .mutateAsync(batch.id)
+      .then((result) => {
+        if (result.promoted.length === 0) {
+          show("No classes were eligible — already at their final semester or has no semester set.", "info");
+          return;
+        }
+        show(
+          `${result.promoted.length} class${result.promoted.length === 1 ? "" : "es"} advanced to the next semester` +
+            (result.skipped.length > 0 ? ` — ${result.skipped.length} skipped.` : "."),
+          "success",
+        );
+      })
+      .catch((err: unknown) => show(err instanceof ApiError ? err.message : "Something went wrong. Please try again.", "error"));
+  }
 
   function handleDelete(batch: Batch) {
     setDeletingId(batch.id);
@@ -85,6 +108,19 @@ export function BatchesTab({ batches, classes, onAdd, onEdit, readOnly = false }
                 <>
                   <button
                     type="button"
+                    onClick={() => setPromoting(b)}
+                    title={classCount > 0 ? "Advance every class in this batch to its next semester" : "No classes to promote yet"}
+                    disabled={classCount === 0 || promoteBatch.isPending}
+                    className={
+                      classCount === 0 || promoteBatch.isPending
+                        ? "cursor-not-allowed rounded-input p-1.5 text-subtle"
+                        : "rounded-input p-1.5 text-muted hover:bg-accent-50 hover:text-primary"
+                    }
+                  >
+                    <Icon name="trending_up" size={16} />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => onEdit?.(b)}
                     title="Edit"
                     className="rounded-input p-1.5 text-muted hover:bg-surface-tint"
@@ -117,6 +153,21 @@ export function BatchesTab({ batches, classes, onAdd, onEdit, readOnly = false }
 
       {!readOnly && blockers && (
         <CannotDeleteModal open={!!blockers} onClose={() => setBlockers(null)} label={blockers.label} blockers={blockers.items} />
+      )}
+
+      {!readOnly && (
+        <ConfirmDialog
+          open={promoting != null}
+          title="Promote this batch?"
+          description={
+            promoting
+              ? `Every class in "${promoting.name}" moves to its next semester. Classes already at their final semester, or with no semester set, are skipped.`
+              : undefined
+          }
+          confirmLabel="Promote"
+          onConfirm={handlePromoteConfirmed}
+          onCancel={() => setPromoting(null)}
+        />
       )}
     </div>
   );

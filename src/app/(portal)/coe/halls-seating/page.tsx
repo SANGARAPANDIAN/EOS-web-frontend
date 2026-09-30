@@ -25,6 +25,7 @@ import {
   type SeatingPattern,
   type SeatingVersionStatus,
   type SeatingVersion,
+  type SeatingConflict,
 } from "@/modules/coe/api/seatingPlans";
 import { todayDateOnly } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
@@ -96,6 +97,7 @@ export default function CoeHallsSeatingPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [carriedForward, setCarriedForward] = useState<number | null>(null);
   const [notFoundEntries, setNotFoundEntries] = useState<string[]>([]);
+  const [conflictEntries, setConflictEntries] = useState<SeatingConflict[]>([]);
 
   const examTypesById = useMemo(() => new Map((examTypes.data ?? []).map((t) => [t.id, t])), [examTypes.data]);
   const effectiveExamTypeId = examTypeId ?? examTypes.data?.[0]?.id ?? null;
@@ -238,6 +240,7 @@ export default function CoeHallsSeatingPage() {
     if (entries.length === 0) return;
     setCarriedForward(null);
     setNotFoundEntries([]);
+    setConflictEntries([]);
     runMutation(() =>
       allocateManual.mutate(
         { ...targetVenueParams, entries },
@@ -246,6 +249,7 @@ export default function CoeHallsSeatingPage() {
             setManualEntries("");
             setCarriedForward(result.carried_forward);
             setNotFoundEntries(result.not_found);
+            setConflictEntries(result.conflicts);
           },
           onError: (err) => setActionError((err as Error).message),
         },
@@ -257,6 +261,7 @@ export default function CoeHallsSeatingPage() {
     setSelectedVenueId(venueId);
     setCarriedForward(null);
     setNotFoundEntries([]);
+    setConflictEntries([]);
     setActionError(null);
   }
 
@@ -270,6 +275,7 @@ export default function CoeHallsSeatingPage() {
     setSelectedVenueId(null);
     setCarriedForward(null);
     setNotFoundEntries([]);
+    setConflictEntries([]);
   }
 
   // "Edit" from Drafts/To-publish — restores the Allocate tab's filters to
@@ -724,6 +730,12 @@ export default function CoeHallsSeatingPage() {
                           {notFoundEntries.length > 0 && (
                             <p className="mt-2 rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-[12px] text-danger-fg">
                               Not found: {notFoundEntries.join(", ")}
+                            </p>
+                          )}
+                          {conflictEntries.length > 0 && (
+                            <p className="mt-2 rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-[12px] text-danger-fg">
+                              Already seated elsewhere — not moved:{" "}
+                              {conflictEntries.map((c: SeatingConflict) => `${c.register_no} (${c.already_seated_in})`).join(", ")}
                             </p>
                           )}
                         </div>

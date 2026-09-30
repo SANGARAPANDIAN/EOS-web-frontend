@@ -47,7 +47,7 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
   const department = identity.data?.department ?? "—";
 
   const { data: popRequests } = usePurchaseRequests();
-  const { data: sopRequests } = useServiceRequests("pending");
+  const { data: sopRequests } = useServiceRequests();
   const { data: mediaRequests } = useMediaRequests("pending");
   const { data: venueBookings } = useVenueBookings("pending");
   const { data: outpasses } = useOutpasses("pending");
@@ -60,7 +60,9 @@ export function SecretaryShell({ children }: { children: React.ReactNode }) {
       secretaryPop: popRequests
         ? popRequests.filter((r) => r.status === "pending_hod" || r.status === "pending_finance").length
         : undefined,
-      secretarySop: sopRequests?.length,
+      secretarySop: sopRequests
+        ? sopRequests.filter((r) => r.status === "pending_hod" || r.status === "pending_finance").length
+        : undefined,
       secretaryMedia: mediaRequests?.meta.total,
       secretaryVenue: venueBookings?.meta.total,
       secretaryOutpass: outpasses?.meta.total,
